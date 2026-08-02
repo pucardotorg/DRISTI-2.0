@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+
+# next
+apps/dristi-app/.next/
+apps/dristi-app/out/
+
+# env
+.env
+.env*.local
+
+# debug / os
+npm-debug.log*
+.DS_Store
+*.pem
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# ide
+.idea/
+.vscode/

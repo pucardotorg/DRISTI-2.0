@@ -2,7 +2,11 @@
 
 When building or changing UI in this repo:
 
-- **Only** use [pucar-design-system](https://github.com/neer-ideasbeforenoon/pucar-design-system) for tokens and primitives.
+- **Always pull** tokens and primitives from
+  [pucar-design-system](https://github.com/neer-ideasbeforenoon/pucar-design-system)
+  (local clone if available). Do not invent a second design kit in Dristi.
+- Product screens live in Dristi App (`apps/dristi-app`). Bring DS pieces into
+  that app as needed; keep them aligned with the DS source of truth.
 - Do not hardcode colors (`#…`, `oklch(…)`, `bg-[#…]`) or invent local button/input libraries.
 - Prefer composing existing DS components; Dristi-specific work is product screens and flows.
 - Follow DS `AGENTS.md` and `ACCESSIBILITY.md` (tokens, light/dark, reuse-before-create, a11y).

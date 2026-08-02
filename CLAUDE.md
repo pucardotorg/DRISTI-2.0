@@ -8,11 +8,14 @@ layered on top of identical national law.
 
 | Layer | Path |
 |---|---|
+| Dristi App | [apps/dristi-app](apps/dristi-app) |
 | Product / domain | [docs/product/](docs/product/) |
 | Design (consume DS only) | [docs/design/](docs/design/) |
 
-**UI:** use [pucar-design-system](https://github.com/neer-ideasbeforenoon/pucar-design-system)
-only — see [docs/design/design-system.md](docs/design/design-system.md).
+**UI:** always pull tokens and components from
+[pucar-design-system](https://github.com/neer-ideasbeforenoon/pucar-design-system) —
+see [docs/design/design-system.md](docs/design/design-system.md). Do not invent a second
+design system in this repo.
 
 **Always-on agent rails:** `.cursor/rules/` (Cursor) and `.claude/rules/` (Claude Code).  
 **On-demand skills:** `.cursor/skills/` and `.claude/skills/` — add only for real workflows.
