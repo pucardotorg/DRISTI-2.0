@@ -11,11 +11,14 @@ layered on top of identical national law.
 | Product / domain | [docs/product/](docs/product/) |
 | Design (consume DS only) | [docs/design/](docs/design/) |
 | Runnable builds | [apps/](apps/) |
-| Named agent workflows | [agents/](agents/) |
 
 **UI:** use [pucar-design-system](https://github.com/neer-ideasbeforenoon/pucar-design-system)
-only — see [docs/design/design-system.md](docs/design/design-system.md). Enforced in
-`.cursor/rules/` (Cursor) and `.claude/skills/` (Claude Code).
+only — see [docs/design/design-system.md](docs/design/design-system.md).
+
+**Always-on agent rails:** `.cursor/rules/` (Cursor) and `.claude/rules/` (Claude Code).  
+**On-demand skills:** `.cursor/skills/` and `.claude/skills/` — add only for real workflows.
 
 Read only the docs needed for the task. Do not invent product personas or “who uses
 DRISTI” assumptions — see [docs/product/open-questions.md](docs/product/open-questions.md).
+Do not create a second design system or new top-level folders without updating
+[docs/README.md](docs/README.md).

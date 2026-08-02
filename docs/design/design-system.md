@@ -1,4 +1,7 @@
-# Design system contract
+# Design
+
+How Dristi looks and behaves in product UI. This folder is **guidance for this repo** —
+it does **not** contain design-system source code.
 
 **Source of truth for UI:** [pucar-design-system](https://github.com/neer-ideasbeforenoon/pucar-design-system)
 
@@ -22,8 +25,11 @@ flows **from** that system.
 ## For agents and builders
 
 - Read the design-system `AGENTS.md`, `ACCESSIBILITY.md`, and foundations when changing UI.
-- Cursor enforces the same policy via `.cursor/rules/pucar-design-system.mdc`.
+- Always-on rails: `.cursor/rules/pucar-design-system.mdc` (Cursor) and
+  `.claude/rules/pucar-design-system.md` (Claude Code).
 - Product meaning (what a screen is *for*) still comes from [../product/](../product/).
+
+↑ Docs map: [../README.md](../README.md).
 
 ## Not decided yet
 

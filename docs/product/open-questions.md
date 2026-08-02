@@ -1,7 +1,7 @@
 # Open questions (product lens)
 
 These docs intentionally stay on the **domain / reference** side of the line. The items
-below are **not answered** by `PRODUCT.md` or the domain snapshot. Do not invent answers
+below are **not answered** by the product docs or the domain snapshot. Do not invent answers
 in orientation docs until PUCAR confirms them.
 
 ## Users and personas

@@ -31,7 +31,6 @@ Snapshot date for these prose docs: **2026-07-30**.
 - Full statutory text, complete checklists, and growing per-state datasets — pull from
   the domain site / its `data/` on demand.
 - Product personas, in-app journeys, or jobs-to-be-done — see [open-questions.md](open-questions.md).
-- UI tokens and components — see [../design/README.md](../design/README.md).
+- UI tokens and components — see [../design/design-system.md](../design/design-system.md).
 
-Legacy entrypoint: [PRODUCT.md](PRODUCT.md) redirects here.
 ↑ Docs map: [../README.md](../README.md).

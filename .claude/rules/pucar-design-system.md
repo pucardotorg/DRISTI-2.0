@@ -1,0 +1,14 @@
+# Pucar design system
+
+When building or changing UI in this repo:
+
+- **Only** use [pucar-design-system](https://github.com/neer-ideasbeforenoon/pucar-design-system) for tokens and primitives.
+- Do not hardcode colors (`#…`, `oklch(…)`, `bg-[#…]`) or invent local button/input libraries.
+- Prefer composing existing DS components; Dristi-specific work is screens and flows under `apps/`.
+- Follow DS `AGENTS.md` and `ACCESSIBILITY.md` (tokens, light/dark, reuse-before-create, a11y).
+- Do not redefine accessibility here — use the DS guidelines; product bar: [docs/product/standards/adherence.md](../../docs/product/standards/adherence.md).
+- Human-facing contract: [docs/design/design-system.md](../../docs/design/design-system.md).
+
+Product meaning still comes from [docs/product/](../../docs/product/) — do not invent personas; see [docs/product/open-questions.md](../../docs/product/open-questions.md).
+
+This file is the Claude Code always-on counterpart to `.cursor/rules/pucar-design-system.mdc`.

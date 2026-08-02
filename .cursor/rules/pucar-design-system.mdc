@@ -15,3 +15,5 @@ When building or changing UI in this repo:
 - Human-facing contract: [docs/design/design-system.md](docs/design/design-system.md).
 
 Product meaning still comes from [docs/product/](docs/product/) — do not invent personas; see [docs/product/open-questions.md](docs/product/open-questions.md).
+
+Claude Code counterpart: `.claude/rules/pucar-design-system.md`.
