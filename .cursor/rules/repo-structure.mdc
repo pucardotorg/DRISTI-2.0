@@ -1,0 +1,17 @@
+---
+description: Repo layers — product docs, design guidance, apps, agents
+alwaysApply: true
+---
+
+# Repo structure
+
+| Path | Role |
+|---|---|
+| `docs/product/` | Product / domain truth |
+| `docs/design/` | How we use pucar-design-system (not the DS source) |
+| `apps/` | Runnable builds; accepted product lands here over time |
+| `agents/` | Named agent workflows (add when a real workflow exists) |
+| `.cursor/rules/` | Always-on agent guardrails |
+
+Start from [docs/README.md](docs/README.md). Load only the docs needed for the task.
+Do not create a second design system inside this repo.
