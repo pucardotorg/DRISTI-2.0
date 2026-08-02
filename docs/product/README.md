@@ -11,6 +11,7 @@ Snapshot date for these prose docs: **2026-07-30**.
 
 | If you need… | Read |
 |---|---|
+| **Start here — solid domain-backed product foundation** | [product-foundation.md](product-foundation.md) |
 | What DRISTI is (and what the domain site is not) | [overview.md](overview.md) |
 | Rules / Systems / Context + point-in-time law | [architecture.md](architecture.md) |
 | National core vs state layer | [national-vs-state.md](national-vs-state.md) |

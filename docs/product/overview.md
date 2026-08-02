@@ -25,6 +25,7 @@ stable orientation map over that snapshot.
 
 ## Related
 
+- Domain-backed product foundation (start here): [product-foundation.md](product-foundation.md)
 - Architecture of the domain: [architecture.md](architecture.md)
 - What the content model holds: [content-model.md](content-model.md)
 - Product unknowns (users, scope): [open-questions.md](open-questions.md)
