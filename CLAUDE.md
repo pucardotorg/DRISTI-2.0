@@ -10,7 +10,6 @@ layered on top of identical national law.
 |---|---|
 | Product / domain | [docs/product/](docs/product/) |
 | Design (consume DS only) | [docs/design/](docs/design/) |
-| Runnable builds | [apps/](apps/) |
 
 **UI:** use [pucar-design-system](https://github.com/neer-ideasbeforenoon/pucar-design-system)
 only — see [docs/design/design-system.md](docs/design/design-system.md).

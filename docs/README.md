@@ -17,7 +17,6 @@ Orientation for this repo. Docs describe the product and how we design; they are
 
 | Path | Role |
 |---|---|
-| `apps/` | Runnable builds / the product app (added as we build) |
 | `.cursor/rules/`, `.claude/rules/` | Always-on guardrails (Cursor / Claude Code) |
 | `.cursor/skills/`, `.claude/skills/` | On-demand skills (add when a real workflow exists) |
 

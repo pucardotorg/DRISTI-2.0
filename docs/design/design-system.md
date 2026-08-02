@@ -13,7 +13,7 @@ flows **from** that system.
 
 1. **Tokens only** — no hardcoded hex / `oklch()` / arbitrary values like `bg-[#007e7e]`.
 2. **Reuse before create** — compose from existing design-system components; do not
-   invent parallel primitives in `apps/`.
+   invent parallel primitives in this repo.
 3. **Light and dark are equal** — use tokens that exist in both themes.
 4. **Dristi-specific UI** belongs here as *compositions* (screens, flows, layouts),
    not as a second button/input library.
@@ -34,5 +34,5 @@ flows **from** that system.
 ## Not decided yet
 
 How this app will *technically* depend on the design system (npm package, workspace,
-git dependency) will be set when the first app under `apps/` is scaffolded. Until then,
+git dependency) will be set when the product application is scaffolded. Until then,
 treat the external repo as the only UI kit to follow.
