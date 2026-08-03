@@ -12,13 +12,13 @@ layered on top of identical national law.
 | Product / domain | [docs/product/](docs/product/) |
 | Design (consume DS only) | [docs/design/](docs/design/) |
 
-**UI:** always pull tokens and components from
-[pucar-design-system](https://github.com/neer-ideasbeforenoon/pucar-design-system) —
-see [docs/design/design-system.md](docs/design/design-system.md). Do not invent a second
-design system in this repo.
+**UI:** before any UI work, **read** the DS repo’s `AGENTS.md`, `ACCESSIBILITY.md`, Laws,
+Typography, and needed `src/components/ui/*` — then `npm run sync:ui -- <name>` (do not hand-write).
+Gates: `npm run check:tokens`, `npm run check:typography`, and `npm run check:ui-sync`. See
+[docs/design/design-system.md](docs/design/design-system.md).
 
-**Always-on agent rails:** `.cursor/rules/` (Cursor) and `.claude/rules/` (Claude Code).  
-**On-demand skills:** `.cursor/skills/` and `.claude/skills/` — add only for real workflows.
+**Always-on agent rails:** `.cursor/rules/` / `.claude/rules/` (mandatory DS gate).  
+**Skills:** `pull-ui-from-ds` and `review-ui-ds` under `.cursor/skills/` and `.claude/skills/`.
 
 Read only the docs needed for the task. Do not invent product personas or “who uses
 DRISTI” assumptions — see [docs/product/open-questions.md](docs/product/open-questions.md).

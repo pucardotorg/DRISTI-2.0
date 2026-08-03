@@ -4,6 +4,7 @@ node_modules/
 # next
 apps/dristi-app/.next/
 apps/dristi-app/out/
+apps/dristi-app/.tmp/
 
 # env
 .env

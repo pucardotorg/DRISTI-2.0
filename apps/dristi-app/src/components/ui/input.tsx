@@ -1,0 +1,58 @@
+"use client"
+
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+import { useFieldControlProps } from "@/components/ui/field"
+
+const PREFILLED_HINT = "Machine filled, not yet verified"
+
+function Input({
+  className,
+  type,
+  prefilled = false,
+  id,
+  "aria-describedby": ariaDescribedBy,
+  "aria-invalid": ariaInvalid,
+  ...props
+}: React.ComponentProps<"input"> & {
+  /** Machine-read, human-unverified value — amber fill + dashed border; never colour alone. */
+  prefilled?: boolean
+}) {
+  const fieldProps = useFieldControlProps({
+    id,
+    "aria-describedby": ariaDescribedBy,
+    "aria-invalid": ariaInvalid,
+  })
+  const prefilledId = React.useId()
+  const describedBy = [
+    fieldProps["aria-describedby"],
+    prefilled ? prefilledId : null,
+  ]
+    .filter(Boolean)
+    .join(" ")
+
+  return (
+    <span className="contents">
+      <input
+        type={type}
+        data-slot="input"
+        data-prefilled={prefilled || undefined}
+        className={cn(
+          "h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 read-only:bg-muted read-only:text-foreground aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 data-[prefilled=true]:border-dashed data-[prefilled=true]:border-warning-ink data-[prefilled=true]:bg-prefilled dark:data-[prefilled=true]:bg-prefilled",
+          className
+        )}
+        {...props}
+        {...fieldProps}
+        aria-describedby={describedBy || undefined}
+      />
+      {prefilled ? (
+        <span id={prefilledId} className="sr-only">
+          {PREFILLED_HINT}
+        </span>
+      ) : null}
+    </span>
+  )
+}
+
+export { Input }

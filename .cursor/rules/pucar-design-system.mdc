@@ -1,23 +1,50 @@
 ---
-description: Dristi UI must use pucar-design-system only — no parallel design kit
+description: Before any UI work, read exact rules from pucar-design-system — never invent a kit
 alwaysApply: true
 ---
 
-# Pucar design system
+# Pucar design system (mandatory gate)
 
-When building or changing UI in this repo:
+Dristi does **not** own UI rules. Before writing or changing any UI
+(`apps/dristi-app/**`, `*.tsx`, `*.css`, components, tokens, layouts):
 
-- **Always pull** tokens and primitives from
-  [pucar-design-system](https://github.com/neer-ideasbeforenoon/pucar-design-system)
-  (local clone if available). Do not invent a second design kit in Dristi.
-- Product screens live in Dristi App (`apps/dristi-app`). Bring DS pieces into
-  that app as needed; keep them aligned with the DS source of truth.
-- Do not hardcode colors (`#…`, `oklch(…)`, `bg-[#…]`) or invent local button/input libraries.
-- Prefer composing existing DS components; Dristi-specific work is product screens and flows.
-- Follow DS `AGENTS.md` and `ACCESSIBILITY.md` (tokens, light/dark, reuse-before-create, a11y).
-- Do not redefine accessibility here — use the DS guidelines; product bar: [docs/product/standards/adherence.md](docs/product/standards/adherence.md).
-- Human-facing contract: [docs/design/design-system.md](docs/design/design-system.md).
+## 1. Locate the DS repo
 
-Product meaning still comes from [docs/product/](docs/product/) — do not invent personas; see [docs/product/open-questions.md](docs/product/open-questions.md).
+1. `/Users/neerchaudhury/Documents/pucar-design-system`
+2. Sibling `../pucar-design-system`
+3. `PUCAR_DS_ROOT` env, or https://github.com/neer-ideasbeforenoon/pucar-design-system
 
-Claude Code counterpart: `.claude/rules/pucar-design-system.md`.
+If none are readable, **stop** — do not invent UI.
+
+## 2. Read exact DS files (do not paraphrase)
+
+- `{DS}/AGENTS.md`, `{DS}/ACCESSIBILITY.md`, `{DS}/RESPONSIVE.md` as needed
+- `{DS}/src/app/(docs)/foundations/laws/page.tsx` when composing screens
+- `{DS}/src/app/(docs)/foundations/typography/page.tsx` for text roles
+- `{DS}/src/app/(docs)/foundations/spacing/page.tsx` for the spacing ladder
+- Relevant `{DS}/src/components/ui/<name>.tsx`
+
+Spacing ladder (Tailwind default, no custom tokens): `0.5 · 1 · 1.5 · 2 · 2.5 · 3 · 4 · 6 · 8 · 12 · 16`.
+Micro steps inside controls only. No `p-5` / `gap-10` / arbitrary px. Controls `h-10` +
+`rounded-lg`; containers `p-6` + `rounded-xl`.
+
+## 3. Sync — never hand-write primitives
+
+```bash
+npm run sync:ui -- <component>     # copy from local DS
+npm run sync:ui -- --tokens-only   # refresh globals.css
+npm run check:tokens && npm run check:typography && npm run check:ui-sync
+```
+
+Screens/flows only in `apps/dristi-app`. DS wins over invent-visual preferences.
+`@pucar` in `components.json` is for catalog discovery; install via `sync:ui`.
+Use named DS type roles in screen composition: citizen copy is `text-body`;
+titles are `text-title-* font-semibold`. Primitive-internal `text-sm` is not a
+screen-copy pattern.
+
+## 4. Review
+
+After UI changes, use skill `review-ui-ds` (Cursor + Claude).
+
+Product meaning: [docs/product/](docs/product/).  
+Human contract: [docs/design/design-system.md](docs/design/design-system.md).

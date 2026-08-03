@@ -21,5 +21,7 @@
   },
   "menuColor": "default",
   "menuAccent": "subtle",
-  "registries": {}
+  "registries": {
+    "@pucar": "https://pucar-design-system-five.vercel.app/r/{name}.json"
+  }
 }
