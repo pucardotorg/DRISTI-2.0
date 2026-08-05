@@ -72,13 +72,36 @@ restraint over addition, cite-the-rule-or-own-the-taste, severity calibration, e
 rather than improvise — not just procedure.
 
 Each role wraps the skill for its stage — **the skill is the workflow, the role is the
-judgment.** Roles and skills are mirrored across both tools; `npm run check:rails` fails
+judgment.**
+
+**Why only three.** A role earns its place through a distinct *decision* and a distinct
+*tool boundary*, not a distinct title. Two others were considered and deliberately folded
+in rather than built: a **VP of Product** role, whose "don't invent scope or personas"
+concern is already a repo-wide rule (`CLAUDE.md`, `open-questions.md`) enforced at every
+stage; and a **Principal UX Writer**, whose copy concern became the UI Reviewer's copy
+pass — sentence case, terminology, and no claimed system behaviour the product docs don't
+support. Split either out when it has enough standalone work to justify a cold context of
+its own. Portfolio-level questions (recurring DS gaps across briefs, cross-screen
+coherence) are episodic and belong in a future sweep skill, not a standing role. Roles and skills are mirrored across both tools; `npm run check:rails` fails
 if the two copies drift, and also fails if `ui-reviewer` is ever granted `Edit`/`Write`.
 
-**Enforcement differs by tool.** Claude Code withholds `Edit`/`Write` from `ui-reviewer`,
-so it *cannot* fix what it audits, and scopes `ux-designer`'s `Write` to
-`docs/design/proposals/`. Cursor has no equivalent, so there those boundaries are stated
-discipline — noted at the top of each role rule.
+**What is actually enforced.** Agent frontmatter grants *tools*, not paths — so be precise
+about which boundaries are real:
+
+| Boundary | Enforced? |
+|---|---|
+| `ui-reviewer` cannot Edit or Write | **Yes** — both tools withheld at the harness level |
+| `ux-designer` cannot Edit | **Yes** — tool withheld |
+| `ux-designer` writes only to `docs/design/proposals/` | **No** — instruction only; `Write` is unrestricted |
+| `ui-designer` confines changes to `apps/dristi-app` | **No** — instruction only |
+
+`check:rails` mechanically asserts the first row, since the reviewer's read-only status is
+the basis for trusting it. The path-scoped rows are convention, and the roles say so in
+their own text rather than implying a guardrail that doesn't exist. Making them real would
+need a `PreToolUse` hook in `.claude/settings.json`.
+
+In Cursor **none** of it is enforced — there are no tool grants — so every boundary is
+discipline, noted at the top of each role rule.
 
 Intended loop: UX Designer proposes → UI Designer builds → UI Reviewer audits → UI
 Designer fixes. Invoke each by name; there's no auto-pipeline.

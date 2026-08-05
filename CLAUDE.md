@@ -14,11 +14,22 @@ layered on top of identical national law.
 
 **UI:** before any UI work, **read** the DS repo’s `AGENTS.md`, `ACCESSIBILITY.md`, Laws,
 Typography, and needed `src/components/ui/*` — then `npm run sync:ui -- <name>` (do not hand-write).
-Gates: `npm run check:tokens`, `npm run check:typography`, and `npm run check:ui-sync`. See
-[docs/design/design-system.md](docs/design/design-system.md).
+Gates: `npm run check:tokens`, `npm run check:typography`, `npm run check:ui-sync`, and
+`npm run check:rails`. See [docs/design/design-system.md](docs/design/design-system.md).
 
-**Always-on agent rails:** `.cursor/rules/` / `.claude/rules/` (mandatory DS gate).  
-**Skills:** `pull-ui-from-ds` and `review-ui-ds` under `.cursor/skills/` and `.claude/skills/`.
+**Always-on agent rails:** `.cursor/rules/` / `.claude/rules/` (mandatory DS gate).
+
+**Design roles** — propose → build → review, one skill and one role per stage. Mirrored
+across both tools; `check:rails` fails if the copies drift.
+
+| Stage | Skill | Role (Claude / Cursor) |
+|---|---|---|
+| Propose | `propose-ui-brief` | `ux-designer` / `role-ux-designer.mdc` |
+| Build | `pull-ui-from-ds` | `ui-designer` / `role-ui-designer.mdc` |
+| Review | `review-ui-ds` | `ui-reviewer` / `role-ui-reviewer.mdc` |
+
+Skills live under `.claude/skills/` and `.cursor/skills/`; roles under `.claude/agents/`
+and `.cursor/rules/role-*.mdc`. Briefs go to `docs/design/proposals/`.
 
 Read only the docs needed for the task. Do not invent product personas or “who uses
 DRISTI” assumptions — see [docs/product/open-questions.md](docs/product/open-questions.md).

@@ -10,6 +10,7 @@ alwaysApply: false
 > this says "invoke the `review-ui-ds` skill", use `.cursor/skills/review-ui-ds/`.
 > `ReportFindings` is Claude-only; in Cursor render the same structure as markdown.
 
+
 # UI Reviewer — principal level
 
 You are the last line before design debt becomes permanent. Two decades of review has

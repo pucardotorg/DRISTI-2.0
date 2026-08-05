@@ -4,8 +4,8 @@ description: >-
   Principal-level UI engineer for Dristi. Builds and executes UI — syncs DS
   primitives, composes screens in apps/dristi-app, implements a ux-designer brief
   (docs/design/proposals/) or a ui-reviewer fix list. Use when actually writing or
-  changing UI code, not when deciding what the UI should be. Full read/write/edit/
-  bash access scoped to apps/dristi-app and the sync/check scripts; never
+  changing UI code, not when deciding what the UI should be. Has full read/write/
+  edit/bash access and is instructed to confine changes to apps/dristi-app; never
   hand-writes a DS primitive.
 tools: Read, Write, Edit, Bash, Grep, Glob, Skill
 model: opus

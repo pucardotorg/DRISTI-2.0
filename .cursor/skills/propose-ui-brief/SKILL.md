@@ -21,12 +21,20 @@ Read `docs/product/README.md`, then whichever of `overview.md`, `domain/journey.
 `domain/actors.md`, `domain/practice-notes.md`, `national-vs-state.md`,
 `terminology.md` bear on the screen. Cite them in the brief.
 
-If the docs don't say who this screen serves or why, **say so and ask** — do not invent
-personas, adoption numbers, or research. See `docs/product/open-questions.md`.
+**Who logs into DRISTI is an open question, not a known fact.**
+`docs/product/open-questions.md` lists as unanswered whether primary users are
+advocates, court staff, institutional filers, litigants, or a mix — and contrasts Kerala
+(individual, low volume) with Gujarat (bulk institutional). `domain/actors.md` names
+*domain* actors, i.e. legal roles, which is not the same as product users.
 
-Assume the reader is under a statutory deadline, not a repeat user, on a mid-range
-Android phone, reading their second or third language, in a domain whose native
-vocabulary is legal and hostile. Design for that, not the demo.
+So **ask who this screen serves; do not resolve it yourself.** Do not invent personas,
+device profiles, literacy levels, or research (`CLAUDE.md` forbids it). "The docs don't
+say" belongs in *Open questions for product*.
+
+You may rely on what comes from the statute rather than from assumed users: §138 runs on
+hard clocks, so deadline pressure and the cost of a missed window are real — cite the
+domain doc. Where the user is unknown, design for the more constrained case and **say
+that you did**, so the assumption stays visible and reversible.
 
 ## 2. Read the design system
 
