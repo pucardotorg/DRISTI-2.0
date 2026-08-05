@@ -41,5 +41,15 @@ screen-copy pattern.
 
 After UI changes, use skill `review-ui-ds` (Cursor + Claude).
 
+## 5. Isolated-context work
+
+For a screen that needs real planning, building, and auditing as separate passes, use
+the subagents under `.claude/agents/`: `ux-designer` (proposes, writes briefs to
+`docs/design/proposals/`) → `ui-designer` (builds) → `ui-reviewer` (audits, read-only).
+Each still follows sections 1–4 above; they don't replace this gate, they run inside it.
+
+Roles and skills are mirrored in `.cursor/`. If you edit either copy, run
+`npm run check:rails` — it fails on drift between the two tools.
+
 Product meaning: [docs/product/](../../docs/product/).  
 Human contract: [docs/design/design-system.md](../../docs/design/design-system.md).

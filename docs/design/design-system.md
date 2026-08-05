@@ -26,6 +26,7 @@ npm run sync:ui -- --tokens-only   # refresh token CSS
 npm run check:tokens               # no hardcoded colours / invent tokens
 npm run check:typography           # named DS roles in product composition
 npm run check:ui-sync              # primitives + globals must match DS
+npm run check:rails                # Claude and Cursor agent rails must not drift
 ```
 
 Catalog: DS `public/r/registry.json` (also
@@ -52,8 +53,35 @@ Flow-specific notes:
 | Kind | Cursor | Claude |
 |---|---|---|
 | Always-on gate | `.cursor/rules/pucar-design-system.mdc` | `.claude/rules/pucar-design-system.md` |
+| Propose UI | `.cursor/skills/propose-ui-brief/` | `.claude/skills/propose-ui-brief/` |
 | Build UI | `.cursor/skills/pull-ui-from-ds/` | `.claude/skills/pull-ui-from-ds/` |
 | Review UI | `.cursor/skills/review-ui-ds/` | `.claude/skills/review-ui-ds/` |
+
+**Design roles.** Three principal-level roles, mirrored across both tools. Claude Code
+runs them as subagents (own context window, tool grants enforced); Cursor runs them as
+manually-invoked role rules.
+
+| Role | Job | Claude | Cursor |
+|---|---|---|---|
+| **UX Designer** | Decides a screen's job, layout, hierarchy, spacing, and DS components **before** code; writes briefs to [design/proposals/](proposals/) | `.claude/agents/ux-designer.md` | `.cursor/rules/role-ux-designer.mdc` |
+| **UI Designer** | Builds — syncs primitives, composes screens, implements a brief or a fix list | `.claude/agents/ui-designer.md` | `.cursor/rules/role-ui-designer.mdc` |
+| **UI Reviewer** | Audits built UI against the DS gate, Laws, accessibility, and copy — reports, never fixes | `.claude/agents/ui-reviewer.md` | `.cursor/rules/role-ui-reviewer.mdc` |
+
+All three pin `model: opus` on the Claude side. Each carries explicit judgment rules —
+restraint over addition, cite-the-rule-or-own-the-taste, severity calibration, escalate
+rather than improvise — not just procedure.
+
+Each role wraps the skill for its stage — **the skill is the workflow, the role is the
+judgment.** Roles and skills are mirrored across both tools; `npm run check:rails` fails
+if the two copies drift, and also fails if `ui-reviewer` is ever granted `Edit`/`Write`.
+
+**Enforcement differs by tool.** Claude Code withholds `Edit`/`Write` from `ui-reviewer`,
+so it *cannot* fix what it audits, and scopes `ux-designer`'s `Write` to
+`docs/design/proposals/`. Cursor has no equivalent, so there those boundaries are stated
+discipline — noted at the top of each role rule.
+
+Intended loop: UX Designer proposes → UI Designer builds → UI Reviewer audits → UI
+Designer fixes. Invoke each by name; there's no auto-pipeline.
 
 Product meaning: [../product/](../product/).
 

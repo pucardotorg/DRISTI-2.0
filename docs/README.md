@@ -20,6 +20,8 @@ Orientation for this repo. Docs describe the product and how we design; they are
 | `apps/dristi-app` | Dristi App (main product) |
 | `.cursor/rules/`, `.claude/rules/` | Always-on guardrails (Cursor / Claude Code) |
 | `.cursor/skills/`, `.claude/skills/` | On-demand skills (add when a real workflow exists) |
+| `.claude/agents/`, `.cursor/rules/role-*.mdc` | Principal-level design roles: UX Designer (proposes) → UI Designer (builds) → UI Reviewer (audits). Subagents in Claude, role rules in Cursor |
+| `scripts/` | Repo-level gates that aren't app code — `check-rails.mjs` (`npm run check:rails`) fails if the Claude and Cursor agent rails drift apart |
 
 ## Intentionally not here
 
@@ -27,4 +29,6 @@ Orientation for this repo. Docs describe the product and how we design; they are
 - The design-system **code** (tokens, components) — lives in
   [pucar-design-system](https://github.com/neer-ideasbeforenoon/pucar-design-system);
   this repo **consumes** it (agents always pull from there into Dristi App).
-- A custom `agents/` folder — tool-native paths above are the agent layer.
+- A bespoke docs-only `agents/` folder for orchestration prose — tool-native paths
+  above (`.claude/agents/`, `.claude/rules/`, `.claude/skills/`) are the agent layer;
+  agent roles get a real frontmatter file there, not a description in `docs/`.

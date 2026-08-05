@@ -12,6 +12,7 @@
     "check:tokens": "npm run check:tokens -w @pucar/dristi-app",
     "check:typography": "npm run check:typography -w @pucar/dristi-app",
     "check:ui-sync": "npm run check:ui-sync -w @pucar/dristi-app",
+    "check:rails": "node scripts/check-rails.mjs",
     "sync:ui": "npm run sync:ui -w @pucar/dristi-app --"
   }
 }

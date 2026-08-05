@@ -46,5 +46,16 @@ screen-copy pattern.
 
 After UI changes, use skill `review-ui-ds` (Cursor + Claude).
 
-Product meaning: [docs/product/](docs/product/).  
+## 5. Role rules
+
+For a screen that needs planning, building, and auditing as separate passes, invoke the
+role rules in this folder: `role-ux-designer.mdc` (proposes, writes briefs to
+`docs/design/proposals/`) → `role-ui-designer.mdc` (builds) → `role-ui-reviewer.mdc`
+(audits, report-only). They mirror `.claude/agents/` and run **inside** this gate, never
+instead of it.
+
+If you edit a role rule or a skill here, run `npm run check:rails` — it fails on drift
+between the Cursor and Claude copies.
+
+Product meaning: [docs/product/](docs/product/).
 Human contract: [docs/design/design-system.md](docs/design/design-system.md).
