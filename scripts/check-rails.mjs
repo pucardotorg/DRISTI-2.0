@@ -21,9 +21,34 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const ROLES = ["ux-designer", "ui-designer", "ui-reviewer"];
 
 const problems = [];
+
+/**
+ * Discover roles from BOTH sides rather than hardcoding a list — otherwise a role added
+ * later is silently unguarded while the run still reports "ok", which is worse than no
+ * check at all. Taking the union also catches a Cursor rule with no Claude counterpart.
+ */
+function discoverRoles() {
+  const names = new Set();
+  const agentsDir = join(ROOT, ".claude/agents");
+  if (existsSync(agentsDir)) {
+    for (const f of readdirSync(agentsDir)) {
+      if (f.endsWith(".md")) names.add(f.replace(/\.md$/, ""));
+    }
+  }
+  const rulesDir = join(ROOT, ".cursor/rules");
+  if (existsSync(rulesDir)) {
+    for (const f of readdirSync(rulesDir)) {
+      if (f.startsWith("role-") && f.endsWith(".mdc")) {
+        names.add(f.replace(/^role-/, "").replace(/\.mdc$/, ""));
+      }
+    }
+  }
+  return [...names].sort();
+}
+
+const ROLES = discoverRoles();
 
 /** Drop a leading `---\n...\n---` frontmatter block. */
 function stripFrontmatter(text) {
@@ -97,12 +122,13 @@ for (const role of ROLES) {
     problems.push(`role "${role}" body differs between Claude and Cursor at ${firstDifferingLine(a, b)}`);
   }
 
-  // The reviewer's read-only boundary is the one rail worth asserting mechanically.
-  if (role === "ui-reviewer") {
+  // A reviewer that can edit is not a reviewer. Assert it for ANY role that reviews,
+  // not just today's `ui-reviewer` — the point survives renames and new review roles.
+  if (/review/.test(role)) {
     const fm = readFileSync(claude, "utf8").split("---")[1] ?? "";
     const tools = /^tools:\s*(.+)$/m.exec(fm)?.[1] ?? "";
     if (/\b(Edit|Write|NotebookEdit)\b/.test(tools)) {
-      problems.push(`ui-reviewer must not be granted Edit/Write — it audits, it does not fix (tools: ${tools})`);
+      problems.push(`role "${role}" reviews, so it must not be granted Edit/Write — it audits, it does not fix (tools: ${tools})`);
     }
   }
 }
