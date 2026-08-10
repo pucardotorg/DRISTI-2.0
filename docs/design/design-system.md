@@ -12,9 +12,13 @@ comes from the DS — not a second kit inside Dristi.
 
 ## How agents must use the design system
 
-**DS root:** `PUCAR_DS_ROOT` → sibling `../pucar-design-system`. Must be
+**DS root:** `vendor/pucar-design-system` (created by `npm install`), or
+`PUCAR_DS_ROOT` if set. Must be
 [neer-ideasbeforenoon/pucar-design-system](https://github.com/neer-ideasbeforenoon/pucar-design-system)
 (verified by `apps/dristi-app/scripts/resolve-ds.mjs`). Never use other org forks.
+
+**New machine:** `git clone` this repo → `npm install` → `npm run dev`. No separate DS
+clone step.
 
 **Before any UI change, read:** `AGENTS.md`, `ACCESSIBILITY.md`, `RESPONSIVE.md`, Laws
 (`src/app/(docs)/foundations/laws/page.tsx`), and the real `src/components/ui/<name>.tsx`.

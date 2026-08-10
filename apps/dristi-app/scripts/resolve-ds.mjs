@@ -2,7 +2,10 @@
 /**
  * Resolve the local pucar-design-system root for sync/check scripts.
  *
- * Order: PUCAR_DS_ROOT → sibling ../pucar-design-system (repo root, then cwd).
+ * Canonical location (auto-cloned by npm install): vendor/pucar-design-system
+ * Optional override: PUCAR_DS_ROOT
+ * Legacy fallback: sibling ../pucar-design-system
+ *
  * Never use machine-specific home paths. Reject wrong-org / unverified clones.
  */
 import { existsSync, readFileSync } from "node:fs";
@@ -18,13 +21,19 @@ export const EXPECTED_DS_REMOTE = "neer-ideasbeforenoon/pucar-design-system";
 
 const MARKER_FILE = ".pucar-ds-id";
 
+/** In-repo install path — populated automatically by `npm install` / ensure-ds. */
+export const VENDOR_DS_PATH = resolve(REPO_ROOT, "vendor/pucar-design-system");
+
+/** Legacy sibling path (still accepted if already present and authoritative). */
+export const SIBLING_DS_PATH = resolve(REPO_ROOT, "../pucar-design-system");
+
 const CANDIDATES = [
   process.env.PUCAR_DS_ROOT,
-  join(REPO_ROOT, "../pucar-design-system"),
-  resolve(process.cwd(), "../pucar-design-system"),
+  VENDOR_DS_PATH,
+  SIBLING_DS_PATH,
 ].filter(Boolean);
 
-function looksLikeDsTree(root) {
+export function looksLikeDsTree(root) {
   return (
     existsSync(join(root, "AGENTS.md")) &&
     existsSync(join(root, "src/components/ui"))
@@ -62,8 +71,9 @@ export function isAuthoritativeDs(root) {
 export function dsResolveHint() {
   return [
     `Could not resolve authoritative pucar-design-system (${EXPECTED_DS_REMOTE}).`,
-    "Set PUCAR_DS_ROOT to a clone of that repo, or clone it next to this repo as ../pucar-design-system.",
-    `Clone: https://github.com/${EXPECTED_DS_REMOTE}`,
+    "From this repo root run:  npm install   (fetches DS into vendor/pucar-design-system)",
+    "Or:  npm run setup:ds",
+    `Expected path: ${VENDOR_DS_PATH}`,
   ].join("\n");
 }
 

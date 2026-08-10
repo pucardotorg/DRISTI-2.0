@@ -12,8 +12,9 @@ layered on top of identical national law.
 | Product / domain | [docs/product/](docs/product/) |
 | Design (consume DS only) | [docs/design/](docs/design/) |
 
-**UI:** before any UI work, **read** the DS repo’s `AGENTS.md`, `ACCESSIBILITY.md`, Laws,
-Typography, and needed `src/components/ui/*` — then `npm run sync:ui -- <name>` (do not hand-write).
+**UI:** before any UI work, the DS is at `vendor/pucar-design-system` after `npm install`.
+**Read** that repo’s `AGENTS.md`, `ACCESSIBILITY.md`, Laws, Typography, and needed
+`src/components/ui/*` — then `npm run sync:ui -- <name>` (do not hand-write).
 Gates: `npm run check:tokens`, `npm run check:typography`, `npm run check:ui-sync`, and
 `npm run check:rails`. See [docs/design/design-system.md](docs/design/design-system.md).
 

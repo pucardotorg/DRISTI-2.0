@@ -22,3 +22,6 @@ next-env.d.ts
 # ide
 .idea/
 .vscode/
+
+# local design-system clone (fetched by npm install → vendor/pucar-design-system)
+vendor/pucar-design-system/

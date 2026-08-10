@@ -38,9 +38,10 @@ that you did**, so the assumption stays visible and reversible.
 
 ## 2. Read the design system
 
-DS root: `PUCAR_DS_ROOT` → sibling `../pucar-design-system`. Verify origin contains
-`neer-ideasbeforenoon/pucar-design-system` (or `.pucar-ds-id`). If none resolve or
-wrong org, stop — do not propose UI blind. Never search Desktop/home for other clones.
+DS root: `vendor/pucar-design-system` (from `npm install`), or `PUCAR_DS_ROOT` if set.
+Verify origin contains `neer-ideasbeforenoon/pucar-design-system` (or `.pucar-ds-id`).
+If none resolve or wrong org, stop — do not propose UI blind. Never search Desktop/home
+for other clones.
 
 - `{DS}/AGENTS.md`, `{DS}/ACCESSIBILITY.md`, `{DS}/RESPONSIVE.md`
 - Foundations at `{DS}/src/app/(docs)/foundations/<name>/page.tsx` — `laws` always;

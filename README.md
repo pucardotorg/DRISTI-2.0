@@ -5,7 +5,21 @@ shared national core, deployed per state.
 
 This repository holds product orientation docs and the main app shell. UI look and feel
 comes from [pucar-design-system](https://github.com/neer-ideasbeforenoon/pucar-design-system) —
-agents always pull from that system; this repo does not fork it.
+fetched automatically into `vendor/` on install; this repo does not fork it.
+
+## Get started
+
+```bash
+git clone <this-repo>
+cd <this-repo>
+npm install          # also fetches the design system into vendor/
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+No sibling clones, no home-path config. `npm install` places the authoritative DS at
+`vendor/pucar-design-system` (`neer-ideasbeforenoon` only) and refuses wrong-org trees.
 
 ## Layout
 
@@ -13,17 +27,16 @@ agents always pull from that system; this repo does not fork it.
 |---|---|
 | [apps/dristi-app](apps/dristi-app) | Dristi App (main product) |
 | [docs/](docs/README.md) | Product + design orientation |
+| `vendor/pucar-design-system/` | Local DS (gitignored; created by `npm install`) |
 | `.cursor/rules/`, `.claude/rules/` | Always-on guardrails (Cursor / Claude Code) |
-| `.cursor/skills/`, `.claude/skills/` | On-demand skills (add when needed) |
+| `.cursor/skills/`, `.claude/skills/` | On-demand skills |
 
-## Run the app
+## UI sync
 
 ```bash
-npm install
-npm run dev
+npm run sync:ui -- button      # copy a primitive from vendor DS
+npm run check:ui-sync          # primitives must match that DS
 ```
-
-Open [http://localhost:3000](http://localhost:3000).
 
 ## Docs
 

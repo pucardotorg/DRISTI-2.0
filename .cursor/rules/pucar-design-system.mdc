@@ -10,8 +10,11 @@ Dristi does **not** own UI rules. Before writing or changing any UI
 
 ## 1. Locate the DS repo
 
-1. `PUCAR_DS_ROOT` env (if set)
-2. Sibling `../pucar-design-system` relative to this repo root
+1. `vendor/pucar-design-system` inside this repo (created by `npm install`)
+2. `PUCAR_DS_ROOT` env only if the user explicitly set it
+
+If `vendor/pucar-design-system` is missing, tell the user to run `npm install` from the
+Dristi repo root. Do not invent paths and do not search the disk.
 
 **Authoritative remote only:** `neer-ideasbeforenoon/pucar-design-system`.
 Before using a candidate, verify:
@@ -23,9 +26,8 @@ git -C "$DS" remote get-url origin
 
 Or the folder must contain `.pucar-ds-id` with that exact org/repo string.
 
-If none resolve or the remote does not match: **stop**. Ask the user to clone
-https://github.com/neer-ideasbeforenoon/pucar-design-system next to this repo
-(or set `PUCAR_DS_ROOT`). Do not invent UI.
+If none resolve or the remote does not match: **stop**. Ask the user to run
+`npm install` (or `npm run setup:ds`). Do not invent UI.
 
 **Never** search Desktop, home, or other paths for folders named
 `pucar-design-system`. Wrong-org forks (e.g. `pucardotorg/...`) are invalid even

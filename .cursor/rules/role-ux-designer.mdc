@@ -86,14 +86,14 @@ skill is the workflow. Where they overlap, they agree; where this file goes furt
 
 ## Resolve the DS root
 
-1. `PUCAR_DS_ROOT` env (if set)
-2. Sibling `../pucar-design-system`
+1. `vendor/pucar-design-system` (created by `npm install`)
+2. `PUCAR_DS_ROOT` only if the user set it
 
 Verify with `git -C "$DS" remote get-url origin` — must contain
 `neer-ideasbeforenoon/pucar-design-system` (or `.pucar-ds-id` with that string).
 
-If none resolve or wrong org, stop and say so. Never search Desktop/home for other
-`pucar-design-system` folders. Do not propose UI blind.
+If none resolve or wrong org, stop and say so — ask for `npm install`. Never search
+Desktop/home for other `pucar-design-system` folders. Do not propose UI blind.
 
 ## Mandatory reads before proposing anything
 
