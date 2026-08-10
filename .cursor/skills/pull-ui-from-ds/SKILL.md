@@ -13,11 +13,15 @@ Do not invent UI. Read the DS, sync primitives, then compose screens in Dristi A
 
 ## Resolve DS root
 
-1. `/Users/neerchaudhury/Documents/pucar-design-system`
-2. `../pucar-design-system` relative to the Dristi repo root
-3. Or set `PUCAR_DS_ROOT`
+1. `PUCAR_DS_ROOT` env (if set)
+2. Sibling `../pucar-design-system` relative to the Dristi repo root
 
-If unavailable, stop and ask the user. Do not freestyle.
+Verify with `git -C "$DS" remote get-url origin` — must contain
+`neer-ideasbeforenoon/pucar-design-system` (or `.pucar-ds-id` with that string).
+
+If unavailable or wrong org: stop and ask the user to clone that repo as a sibling
+(or set `PUCAR_DS_ROOT`). Never search Desktop/home for other `pucar-design-system`
+folders. Do not freestyle.
 
 ## Mandatory reads (every UI task)
 

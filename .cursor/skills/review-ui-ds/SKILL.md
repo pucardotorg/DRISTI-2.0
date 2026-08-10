@@ -13,8 +13,10 @@ Run this after building or changing UI. Catch inventing before it ships.
 
 ## 1. Resolve and read DS (exact files)
 
-DS root (first match): `/Users/neerchaudhury/Documents/pucar-design-system`, then
-`../pucar-design-system`, else ask the user.
+DS root (first match): `PUCAR_DS_ROOT`, then sibling `../pucar-design-system`.
+Verify origin contains `neer-ideasbeforenoon/pucar-design-system` (or `.pucar-ds-id`).
+If missing or wrong org: stop and ask the user. Never search Desktop/home for other
+clones by name.
 
 Read:
 

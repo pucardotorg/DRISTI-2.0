@@ -87,11 +87,14 @@ skill is the workflow. Where they overlap, they agree; where this file goes furt
 
 ## Resolve the DS root
 
-1. `/Users/neerchaudhury/Documents/pucar-design-system`
+1. `PUCAR_DS_ROOT` env (if set)
 2. Sibling `../pucar-design-system`
-3. `PUCAR_DS_ROOT` env
 
-If none resolve, stop and say so. Do not propose UI blind.
+Verify with `git -C "$DS" remote get-url origin` — must contain
+`neer-ideasbeforenoon/pucar-design-system` (or `.pucar-ds-id` with that string).
+
+If none resolve or wrong org, stop and say so. Never search Desktop/home for other
+`pucar-design-system` folders. Do not propose UI blind.
 
 ## Mandatory reads before proposing anything
 

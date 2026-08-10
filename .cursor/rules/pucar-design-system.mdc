@@ -10,11 +10,27 @@ Dristi does **not** own UI rules. Before writing or changing any UI
 
 ## 1. Locate the DS repo
 
-1. `/Users/neerchaudhury/Documents/pucar-design-system`
-2. Sibling `../pucar-design-system`
-3. `PUCAR_DS_ROOT` env, or https://github.com/neer-ideasbeforenoon/pucar-design-system
+1. `PUCAR_DS_ROOT` env (if set)
+2. Sibling `../pucar-design-system` relative to this repo root
 
-If none are readable, **stop** — do not invent UI.
+**Authoritative remote only:** `neer-ideasbeforenoon/pucar-design-system`.
+Before using a candidate, verify:
+
+```bash
+git -C "$DS" remote get-url origin
+# must contain: neer-ideasbeforenoon/pucar-design-system
+```
+
+Or the folder must contain `.pucar-ds-id` with that exact org/repo string.
+
+If none resolve or the remote does not match: **stop**. Ask the user to clone
+https://github.com/neer-ideasbeforenoon/pucar-design-system next to this repo
+(or set `PUCAR_DS_ROOT`). Do not invent UI.
+
+**Never** search Desktop, home, or other paths for folders named
+`pucar-design-system`. Wrong-org forks (e.g. `pucardotorg/...`) are invalid even
+when the folder name matches. Scripts enforce this via
+`apps/dristi-app/scripts/resolve-ds.mjs` — agents must follow the same rule.
 
 ## 2. Read exact DS files (do not paraphrase)
 

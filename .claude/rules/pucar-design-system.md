@@ -5,11 +5,27 @@ Dristi does **not** own UI rules. Before writing or changing any UI
 
 ## 1. Locate the DS repo
 
-1. `/Users/neerchaudhury/Documents/pucar-design-system`
-2. Sibling `../pucar-design-system`
-3. `PUCAR_DS_ROOT` env, or https://github.com/neer-ideasbeforenoon/pucar-design-system
+1. `PUCAR_DS_ROOT` env (if set)
+2. Sibling `../pucar-design-system` relative to this repo root
 
-If none are readable, **stop** — do not invent UI.
+**Authoritative remote only:** `neer-ideasbeforenoon/pucar-design-system`.
+Before using a candidate, verify:
+
+```bash
+git -C "$DS" remote get-url origin
+# must contain: neer-ideasbeforenoon/pucar-design-system
+```
+
+Or the folder must contain `.pucar-ds-id` with that exact org/repo string.
+
+If none resolve or the remote does not match: **stop**. Ask the user to clone
+https://github.com/neer-ideasbeforenoon/pucar-design-system next to this repo
+(or set `PUCAR_DS_ROOT`). Do not invent UI.
+
+**Never** search Desktop, home, or other paths for folders named
+`pucar-design-system`. Wrong-org forks (e.g. `pucardotorg/...`) are invalid even
+when the folder name matches. Scripts enforce this via
+`apps/dristi-app/scripts/resolve-ds.mjs` — agents must follow the same rule.
 
 ## 2. Read exact DS files (do not paraphrase)
 
@@ -41,15 +57,16 @@ screen-copy pattern.
 
 After UI changes, use skill `review-ui-ds` (Cursor + Claude).
 
-## 5. Isolated-context work
+## 5. Role rules
 
-For a screen that needs real planning, building, and auditing as separate passes, use
-the subagents under `.claude/agents/`: `ux-designer` (proposes, writes briefs to
-`docs/design/proposals/`) → `ui-designer` (builds) → `ui-reviewer` (audits, read-only).
-Each still follows sections 1–4 above; they don't replace this gate, they run inside it.
+For a screen that needs planning, building, and auditing as separate passes, invoke the
+role rules in this folder: `role-ux-designer.mdc` (proposes, writes briefs to
+`docs/design/proposals/`) → `role-ui-designer.mdc` (builds) → `role-ui-reviewer.mdc`
+(audits, report-only). They mirror `.claude/agents/` and run **inside** this gate, never
+instead of it.
 
-Roles and skills are mirrored in `.cursor/`. If you edit either copy, run
-`npm run check:rails` — it fails on drift between the two tools.
+If you edit a role rule or a skill here, run `npm run check:rails` — it fails on drift
+between the Cursor and Claude copies.
 
-Product meaning: [docs/product/](../../docs/product/).  
-Human contract: [docs/design/design-system.md](../../docs/design/design-system.md).
+Product meaning: [docs/product/](docs/product/).
+Human contract: [docs/design/design-system.md](docs/design/design-system.md).

@@ -6,13 +6,11 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join, relative } from "node:path";
 
-import { APP_ROOT, resolveDsRoot } from "./resolve-ds.mjs";
+import { APP_ROOT, dsResolveHint, resolveDsRoot } from "./resolve-ds.mjs";
 
 const ds = resolveDsRoot();
 if (!ds) {
-  console.error(
-    "Could not find pucar-design-system. Set PUCAR_DS_ROOT or clone it next to this repo."
-  );
+  console.error(dsResolveHint());
   process.exit(1);
 }
 

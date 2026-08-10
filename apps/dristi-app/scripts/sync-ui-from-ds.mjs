@@ -10,7 +10,7 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
-import { APP_ROOT, resolveDsRoot } from "./resolve-ds.mjs";
+import { APP_ROOT, dsResolveHint, resolveDsRoot } from "./resolve-ds.mjs";
 
 const args = process.argv.slice(2);
 const wantTokens = args.includes("--tokens") || args.includes("--tokens-only");
@@ -19,9 +19,7 @@ const names = args.filter((a) => !a.startsWith("--"));
 
 const ds = resolveDsRoot();
 if (!ds) {
-  console.error(
-    "Could not find pucar-design-system. Set PUCAR_DS_ROOT or clone it next to this repo."
-  );
+  console.error(dsResolveHint());
   process.exit(1);
 }
 
