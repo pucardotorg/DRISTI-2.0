@@ -38,6 +38,12 @@ Catalog: DS `public/r/registry.json` (also
 https://pucar-design-system-five.vercel.app/r/registry.json). Dristi
 `components.json` maps `@pucar` for discovery; **copy via `sync:ui`**.
 
+## When the DS is missing something
+
+Log it in [ds-requests.md](ds-requests.md) as a request against the DS repo — never work
+around it locally. A brief that hits a gap states it in its own *Gaps in the DS* section
+and links to the entry there, so one queue holds the full request text.
+
 ## Grouped panels in Dristi
 
 Follow DS Laws (“Grouped content gets a border”) and `AGENTS.md`:
@@ -68,7 +74,7 @@ manually-invoked role rules.
 
 | Role | Job | Claude | Cursor |
 |---|---|---|---|
-| **UX Designer** | Decides a screen's job, layout, hierarchy, spacing, and DS components **before** code; writes briefs to [design/proposals/](proposals/) | `.claude/agents/ux-designer.md` | `.cursor/rules/role-ux-designer.mdc` |
+| **UX Designer** | Decides a feature's job, layout, hierarchy, spacing, and DS components **before** code; writes one brief per feature to [design/proposals/](proposals/) | `.claude/agents/ux-designer.md` | `.cursor/rules/role-ux-designer.mdc` |
 | **UI Designer** | Builds — syncs primitives, composes screens, implements a brief or a fix list | `.claude/agents/ui-designer.md` | `.cursor/rules/role-ui-designer.mdc` |
 | **UI Reviewer** | Audits built UI against the DS gate, Laws, accessibility, and copy — reports, never fixes | `.claude/agents/ui-reviewer.md` | `.cursor/rules/role-ui-reviewer.mdc` |
 
