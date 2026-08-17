@@ -35,6 +35,7 @@ import { FormCard, FormDivider, FormRow, HalfWidth } from "@/components/filing/f
 import { FormField } from "@/components/filing/form-field";
 import { OptionSelect, PrefixInput, TextField } from "@/components/filing/inputs";
 import { SectionNotice } from "@/components/filing/notices";
+import { PrefillNotice } from "@/components/filing/prefill-notice";
 import { SectionTabs } from "@/components/filing/section-tabs";
 import { YesNoSegmented } from "@/components/filing/segmented";
 import {
@@ -83,6 +84,16 @@ const DOC_LABELS = {
   "delivery-proof": "Proof of delivery",
 } as const;
 
+/** Every field on a notice that document reading can fill — the prefill notice's gate. */
+const ALL_NOTICE_FIELDS: NoticeField[] = [
+  "natureDebt",
+  "whyIssued",
+  "dispatchDate",
+  "tracking",
+  "modeService",
+  "deliveryDate",
+];
+
 /** Tab ids are notice ids; `null` when a stale id arrives after a removal. */
 function indexOfId(notices: { id: string }[], id: string): number | null {
   const i = notices.findIndex((n) => n.id === id);
@@ -125,6 +136,9 @@ export function DemandNoticeSection() {
   /** Machine-read, still unverified — the amber fill and the "click to see source" affordance. */
   const isPrefilled = (key: NoticeField) =>
     !!notice.prefilled[key] && !notice.edited[key] && !!notice[key];
+
+  /** Something on this notice is still waiting to be checked. */
+  const anyPrefilled = ALL_NOTICE_FIELDS.some(isPrefilled);
 
   /** A person supplied this value: keep it and clear the machine-read marker. */
   const editField = (key: NoticeField, value: string) =>
@@ -211,6 +225,8 @@ export function DemandNoticeSection() {
             sourceOpen ? null : <ViewSourceButton onClick={() => setSourceOpen(true)} />
           }
         />
+
+        <PrefillNotice show={anyPrefilled} />
 
         <SectionNotice>
           If you have issued multiple demand notices for the same cheque, share the one

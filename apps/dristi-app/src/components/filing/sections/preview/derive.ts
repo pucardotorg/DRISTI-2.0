@@ -14,11 +14,13 @@ import {
   plural,
   rupees,
   toDisplayDate,
+  toLongDate,
 } from "@/lib/filing/format";
 import {
   ACCUSED_TYPES,
   MODE_OF_SERVICE,
   NATURE_OF_DEBT,
+  NON_DELIVERY_REASONS,
   PAYMENT_STATUS,
   RETURN_REASONS,
   type Option,
@@ -281,6 +283,36 @@ export function noticeSummary(n: DemandNotice | undefined) {
         : orNot(payment),
     paidYesNo: n?.paymentStatus === "part" ? "Yes, in part" : "No",
   };
+}
+
+/**
+ * The two affidavit sentences that depend on what the demand notice actually records.
+ *
+ * This is sworn evidence under BNSS s.225, so neither sentence may state a fact the notice
+ * does not carry. A missing *value* (an amount, a date, a reason) prints `NOT_PROVIDED` as
+ * everywhere else on the sheet; a missing *position* — the filer has not said whether the
+ * accused paid, or whether the notice arrived — is stated as unrecorded, because "Not
+ * provided" there could be misread as "no payment" or "not delivered".
+ */
+export function noticeAffidavit(n: DemandNotice | undefined) {
+  const partAmount = rupees(n?.partAmount ?? "");
+  const payment =
+    n?.paymentStatus === "none"
+      ? "A demand notice has been issued to the accused, but she/ he has failed to make the payment due under the cheque."
+      : n?.paymentStatus === "part"
+        ? `A demand notice has been issued to the accused. A part payment has been made against the cheque, and the balance due under it remains unpaid. Amount paid: ${orNot(partAmount)}.`
+        : "A demand notice has been issued to the accused. Whether any payment has since been made under the cheque is not stated in this complaint.";
+
+  // "Delivered" defaults to yes on a blank notice, so the delivery date is what shows the
+  // question was actually answered; a notice returned unserved is its own, different claim.
+  const service =
+    n?.delivered === "yes" && n.deliveryDate
+      ? "I confirm that the demand notice was served on the last known correct address of the accused(s)."
+      : n?.delivered === "no"
+        ? `I confirm that the demand notice was correctly addressed and dispatched to the last known correct address of the accused(s), and that it was returned unserved. Date of return: ${orNot(toLongDate(n.returnDate))}. Reason recorded: ${orNot(optionLabel(NON_DELIVERY_REASONS, n.nonDeliveryReason))}. Service is relied upon as deemed complete on the notice so returned.`
+        : "Whether the demand notice was delivered to the accused(s) is not stated in this complaint.";
+
+  return { payment, service };
 }
 
 export function jurisdictionSummary(draft: FilingDraft) {

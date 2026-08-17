@@ -17,6 +17,7 @@ import { useProfile } from "@/lib/filing/profile";
 import { complainantChoices, partySourceSlot } from "@/lib/filing/selectors";
 import { neighbours } from "@/lib/filing/steps";
 import { useFiling } from "@/lib/filing/store";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -45,7 +46,13 @@ export function AdvocateSection() {
   const advocates = draft.advocates;
   const choices = complainantChoices(draft.complainants);
 
-  const [sourceOpen, setSourceOpen] = React.useState(true);
+  /**
+   * The source panel is docked beside the form from `xl` up, so it starts open there as in
+   * the demo. Below that it is a sheet over the form — opened on request ("View source
+   * document") rather than covering the screen on arrival.
+   */
+  const docked = useMediaQuery("(min-width: 1280px)");
+  const [sourceOpen, setSourceOpen] = React.useState(docked);
 
   // One Vakalatnama is uploaded per complainant; show the one belonging to the complainant
   // the first advocate acts for (clamped, since indices survive a complainant's removal).
@@ -107,17 +114,19 @@ export function AdvocateSection() {
           }
         />
 
+        {/* There is no bar registry behind these fields, so the notice states the
+            requirement without implying the app enforces it. */}
         {draft.dismissed.advocateInfo ? null : (
           <SectionNotice
-            title="Only registered advocates can be added"
+            title="Adding an advocate"
             onDismiss={() =>
               update((d) => {
                 d.dismissed.advocateInfo = true;
               })
             }
           >
-            You can add advocates who have registered on the court portal. Others can be
-            given case access later, once they register.
+            The advocate must be registered on the court portal. Enter the name and bar
+            number exactly as they appear on the Vakalatnama.
           </SectionNotice>
         )}
 

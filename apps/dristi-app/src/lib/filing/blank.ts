@@ -445,8 +445,6 @@ export function createBlankDraft(id: string, profile?: UserProfile | null): Fili
       caseFileNumber: null,
     },
     dismissed: {
-      complainantPrefill: false,
-      chequePrefill: false,
       advocateInfo: false,
       accusedAddress: false,
     },

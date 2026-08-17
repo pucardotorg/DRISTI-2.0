@@ -75,7 +75,7 @@ export function SectionTabs({
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon-sm"
+                  size="icon"
                   aria-label={`Remove ${t.label}`}
                   className="text-muted-foreground hover:text-destructive"
                   onClick={() => onRemove(t.id)}

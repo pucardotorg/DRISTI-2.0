@@ -57,6 +57,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ConfirmDialog } from "@/components/filing/confirm-dialog";
 import { FilingFooter } from "@/components/filing/filing-footer";
 import { PANEL_CLASS } from "@/components/filing/form-card";
 import { FilingPageHeader } from "@/components/filing/filing-page-header";
@@ -154,6 +155,13 @@ export function DocumentsSection() {
   const { pick, input } = useFilePicker();
 
   const [previewId, setPreviewId] = React.useState<string | null>(null);
+  // Kept apart from `deleteOpen` so the dialog keeps its wording while it fades out.
+  const [deleteTarget, setDeleteTarget] = React.useState<{
+    id: string;
+    name: string;
+    hasFile: boolean;
+  } | null>(null);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
   /** Said where the pointer is: why Continue did nothing, or why a file was refused. */
   const [flash, setFlash] = React.useState<string | null>(null);
   const flashTimer = React.useRef<number | null>(null);
@@ -252,6 +260,22 @@ export function DocumentsSection() {
       }
     });
     dropFile(previous);
+  };
+
+  /**
+   * Deleting destroys a stored file or a typed row, so it asks first — the one exception
+   * being an empty custom row, where there is nothing to lose by dropping it.
+   */
+  const askRemoveDoc = (docId: string) => {
+    const doc = findDoc(groups, docId);
+    if (!doc) return;
+    if (!doc.file && !doc.name.trim()) {
+      removeDoc(docId);
+      return;
+    }
+    setPreviewId(null);
+    setDeleteTarget({ id: docId, name: doc.name.trim(), hasFile: !!doc.file });
+    setDeleteOpen(true);
   };
 
   const addOtherDoc = (groupId: string) =>
@@ -441,7 +465,7 @@ export function DocumentsSection() {
                                   type="button"
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => removeDoc(doc.id)}
+                                  onClick={() => askRemoveDoc(doc.id)}
                                   aria-label={`Delete ${doc.name || `row ${index + 1}`}`}
                                   className="text-muted-foreground hover:text-destructive"
                                 >
@@ -453,7 +477,7 @@ export function DocumentsSection() {
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => removeDoc(doc.id)}
+                                onClick={() => askRemoveDoc(doc.id)}
                                 aria-label={`Remove row ${index + 1}`}
                                 className="text-muted-foreground hover:text-foreground"
                               >
@@ -487,22 +511,20 @@ export function DocumentsSection() {
         backHref={hrefFor("witnesses")}
         onContinue={onContinue}
         continueBlocked={!allDone}
+        // One footer statement, worded and styled as every other section's — completeness
+        // is the tab dots' and the preview's job, not a second tinted badge here.
         leading={
-          <span
-            className={cn(
-              "flex items-center gap-2 rounded-full border px-3 py-1",
-              allDone
-                ? "border-success-muted bg-success-muted text-success-muted-foreground"
-                : "border-warning-muted bg-warning-muted text-warning-muted-foreground"
-            )}
-          >
-            {allDone ? (
+          allDone ? (
+            <span className="inline-flex items-center gap-2 text-body-compact text-success-ink">
               <CheckIcon className="size-4 shrink-0" aria-hidden />
-            ) : (
+              {statusText}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-2 text-body-compact text-muted-foreground">
               <TriangleAlertIcon className="size-4 shrink-0" aria-hidden />
-            )}
-            <span className="text-body-compact font-medium">{statusText}</span>
-          </span>
+              {statusText}
+            </span>
+          )
         }
       />
 
@@ -564,7 +586,7 @@ export function DocumentsSection() {
               type="button"
               variant="destructive-ghost"
               onClick={() => {
-                if (previewId) removeDoc(previewId);
+                if (previewId) askRemoveDoc(previewId);
               }}
             >
               Delete
@@ -586,6 +608,22 @@ export function DocumentsSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={`Remove ${deleteTarget?.name || "this document"}`}
+        description={
+          deleteTarget?.hasFile
+            ? "Are you sure you want to remove this document and the file attached to it? This cannot be undone."
+            : "Are you sure you want to remove this row and the details typed in it? This cannot be undone."
+        }
+        confirmLabel="Yes, remove"
+        onConfirm={() => {
+          setDeleteOpen(false);
+          if (deleteTarget) removeDoc(deleteTarget.id);
+        }}
+      />
     </>
   );
 }

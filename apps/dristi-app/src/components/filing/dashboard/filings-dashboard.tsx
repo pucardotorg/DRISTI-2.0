@@ -53,7 +53,6 @@ type CaseTypeCard = {
   minutes: number;
   documents: number;
   icon: LucideIcon;
-  tone: string;
   href?: string;
 };
 
@@ -66,7 +65,6 @@ const CASE_TYPES: CaseTypeCard[] = [
     minutes: 40,
     documents: 6,
     icon: CreditCardIcon,
-    tone: "bg-brand-muted text-brand-muted-foreground",
     href: NEW_FILING,
   },
   {
@@ -76,7 +74,6 @@ const CASE_TYPES: CaseTypeCard[] = [
     minutes: 55,
     documents: 8,
     icon: BuildingIcon,
-    tone: "bg-info-muted text-info-muted-foreground",
   },
   {
     id: "family",
@@ -85,7 +82,6 @@ const CASE_TYPES: CaseTypeCard[] = [
     minutes: 60,
     documents: 10,
     icon: UsersIcon,
-    tone: "bg-warning-muted text-warning-muted-foreground",
   },
   {
     id: "consumer",
@@ -94,7 +90,6 @@ const CASE_TYPES: CaseTypeCard[] = [
     minutes: 35,
     documents: 5,
     icon: ShoppingCartIcon,
-    tone: "bg-secondary text-secondary-foreground",
   },
 ];
 
@@ -205,8 +200,8 @@ export function FilingsDashboard() {
               Your e-filing dashboard
             </h1>
             <p className="text-body text-muted-foreground">
-              File new cases, continue drafts, and track the status of cases you&apos;ve
-              already filed — all in one place.
+              File new cases, continue drafts, and keep the ones you&apos;ve already
+              submitted — all in one place.
             </p>
           </div>
           <dl className="grid shrink-0 grid-cols-2 gap-3">
@@ -289,19 +284,17 @@ export function FilingsDashboard() {
             const Icon = c.icon;
             return (
               <li key={c.id} className="flex">
-                <Card
-                  className={cn(
-                    PANEL_CLASS,
-                    "flex-1",
-                    active && "border-primary ring-1 ring-primary"
-                  )}
-                >
+                {/* One cue for "this is the one you can file": the brand tile. The others
+                    recede to a neutral well — no ring, no second border. */}
+                <Card className={cn(PANEL_CLASS, "flex-1")}>
                   <CardHeader>
                     <span
                       aria-hidden
                       className={cn(
                         "mb-2 flex size-11 items-center justify-center rounded-lg",
-                        c.tone
+                        active
+                          ? "bg-brand-muted text-brand-muted-foreground"
+                          : "bg-surface-sunken text-muted-foreground"
                       )}
                     >
                       <Icon className="size-5" />
@@ -322,7 +315,7 @@ export function FilingsDashboard() {
                       </span>
                     </div>
                   </CardContent>
-                  <CardFooter className="gap-2">
+                  <CardFooter>
                     {active ? (
                       <Button asChild>
                         <Link href={c.href!}>
@@ -335,7 +328,6 @@ export function FilingsDashboard() {
                         Start filing
                       </Button>
                     )}
-                    <Button variant="outline">Learn more</Button>
                   </CardFooter>
                 </Card>
               </li>
@@ -344,10 +336,11 @@ export function FilingsDashboard() {
         </ul>
       </Section>
 
-      {/* Recently filed */}
+      {/* Recently filed. Nothing here comes from the registry: the app has no connection
+          to it, so the row says only what this browser did and there is no next date. */}
       <Section
         title="Recently filed cases"
-        description="Track scrutiny, listing and disposal status of cases you've filed."
+        description="Cases you submitted from this browser. Registry status — scrutiny, listing and next date — isn't connected yet."
       >
         {!showData ? null : filed.length === 0 ? (
           <p className="text-body text-muted-foreground">
@@ -355,7 +348,7 @@ export function FilingsDashboard() {
             number.
           </p>
         ) : (
-          <div className={cn(PANEL_CLASS, "overflow-x-auto rounded-xl border bg-card")}>
+          <Card className={cn(PANEL_CLASS, "py-0")}>
             <Table>
               <TableHeader>
                 <TableRow className="border-hairline">
@@ -364,7 +357,6 @@ export function FilingsDashboard() {
                   <TableHead>Type</TableHead>
                   <TableHead>Filed on</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Next date</TableHead>
                   <TableHead>
                     <span className="sr-only">Open</span>
                   </TableHead>
@@ -382,11 +374,10 @@ export function FilingsDashboard() {
                       {d.filedAt ? toDisplayDate(d.filedAt.slice(0, 10)) : "—"}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="warning">Awaiting scrutiny</Badge>
+                      <Badge variant="secondary">Submitted from this browser</Badge>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell>
-                      <Button asChild variant="ghost" size="icon-sm">
+                      <Button asChild variant="ghost" size="icon">
                         <Link
                           href={stepHref(d.id, "preview")}
                           aria-label={`Open ${d.sign.caseFileNumber ?? draftTitle(d)}`}
@@ -399,7 +390,7 @@ export function FilingsDashboard() {
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </Card>
         )}
       </Section>
 

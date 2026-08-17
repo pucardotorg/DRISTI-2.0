@@ -77,10 +77,13 @@ export function RichTextEditor({
         className
       )}
     >
+      {/* Five packed controls: the buttons stay 36px so the strip reads as chrome, and
+          `after:-inset-1` grows each hit area to 44px. The gap is 8px so those boxes
+          meet rather than overlap. */}
       <div
         role="toolbar"
         aria-label="Text formatting"
-        className="flex items-center gap-0.5 border-b border-hairline bg-surface-sunken px-2 py-1"
+        className="flex items-center gap-2 border-b border-hairline bg-surface-sunken px-2 py-1"
       >
         {TOOLS.map((t) => (
           <Button
@@ -91,6 +94,7 @@ export function RichTextEditor({
             aria-label={t.label}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => run(t.cmd)}
+            className="relative after:absolute after:-inset-1"
           >
             <t.icon className="size-4" aria-hidden />
           </Button>

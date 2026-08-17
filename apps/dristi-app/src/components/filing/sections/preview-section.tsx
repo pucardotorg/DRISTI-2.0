@@ -12,9 +12,9 @@ import * as React from "react";
 import Link from "next/link";
 import {
   CheckIcon,
-  DownloadIcon,
   FileTextIcon,
   PencilLineIcon,
+  PrinterIcon,
   TriangleAlertIcon,
 } from "lucide-react";
 
@@ -33,10 +33,10 @@ import {
   DescriptionRow,
   DescriptionTerm,
 } from "@/components/ui/description-list";
-import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetFooter,
   SheetHeader,
   SheetTitle,
@@ -47,7 +47,6 @@ import { FilingFooter } from "@/components/filing/filing-footer";
 import { FilingPageHeader } from "@/components/filing/filing-page-header";
 import { FilingMain } from "@/components/filing/filing-shell";
 import { FormCard } from "@/components/filing/form-card";
-import { FormField } from "@/components/filing/form-field";
 import { CourtDocument } from "@/components/filing/sections/preview/court-document";
 import {
   INTERIM_RELIEF_SUMMARY,
@@ -78,7 +77,7 @@ function KeyValues({ rows }: { rows: Row[] }) {
           <DescriptionTerm className="text-body-compact text-muted-foreground">
             {r.term}
           </DescriptionTerm>
-          <DescriptionDetails className="text-body-compact font-medium text-foreground">
+          <DescriptionDetails className="text-body-compact font-medium text-foreground tabular-nums">
             {r.value}
           </DescriptionDetails>
         </DescriptionRow>
@@ -97,11 +96,12 @@ function SubBlock({ title, rows }: { title: string; rows: Row[] }) {
   );
 }
 
-function EditButton({ section, onClick }: { section: string; onClick: () => void }) {
+/** Opens the read-only panel for a section. Changing anything happens in the section. */
+function ReviewButton({ section, onClick }: { section: string; onClick: () => void }) {
   return (
     <Button type="button" variant="outline" onClick={onClick}>
       <PencilLineIcon data-icon="inline-start" aria-hidden />
-      Edit
+      Review
       <span className="sr-only"> {section}</span>
     </Button>
   );
@@ -125,7 +125,7 @@ function SectionState({ complete }: { complete: boolean }) {
   );
 }
 
-/** The status marker and the Edit control as one action cluster in the card header. */
+/** The status marker and the Review control as one action cluster in the card header. */
 function CardActions({
   complete,
   section,
@@ -138,7 +138,7 @@ function CardActions({
   return (
     <div className="flex items-center gap-3">
       <SectionState complete={complete} />
-      <EditButton section={section} onClick={onEdit} />
+      <ReviewButton section={section} onClick={onEdit} />
     </div>
   );
 }
@@ -387,7 +387,8 @@ export function PreviewSection() {
   const readyToSign = sectionComplete(draft, "preview");
   const outstanding = (Object.keys(panels) as PanelKey[]).filter((k) => !done(k)).length;
 
-  const download = () => {
+  /** The browser's print dialog — which is also how a PDF is saved. */
+  const printFile = () => {
     if (typeof window !== "undefined") window.print();
   };
 
@@ -398,9 +399,9 @@ export function PreviewSection() {
           title="Preview"
           description={
             <>
-              Review everything you have filed. Use{" "}
-              <strong className="font-semibold text-foreground">Edit</strong> on any
-              section to make changes before you sign.
+              Check everything you have filed. Use{" "}
+              <strong className="font-semibold text-foreground">Review</strong> on any
+              section to see what it holds, and open the full section to change it.
             </>
           }
         />
@@ -411,30 +412,17 @@ export function PreviewSection() {
               <TabsTrigger value="synopsis">Synopsis</TabsTrigger>
               <TabsTrigger value="document">Court document</TabsTrigger>
             </TabsList>
-            <Button type="button" variant="outline" size="sm" onClick={download}>
-              <DownloadIcon data-icon="inline-start" aria-hidden />
-              Download
+            <Button type="button" variant="outline" size="sm" onClick={printFile}>
+              <PrinterIcon data-icon="inline-start" aria-hidden />
+              Print or save as PDF
             </Button>
           </div>
 
           {/* ── Synopsis ── */}
           <TabsContent value="synopsis" className="flex flex-col gap-6">
-            <FormCard
-              title="Filing summary"
-              action={
-                readyToSign ? (
-                  <Badge variant="success">
-                    <CheckIcon aria-hidden />
-                    Ready to sign
-                  </Badge>
-                ) : (
-                  <Badge variant="warning">
-                    <TriangleAlertIcon aria-hidden />
-                    Some sections incomplete
-                  </Badge>
-                )
-              }
-            >
+            {/* No status badge here: the card captions below say it per section, and the
+                footer says it once for the filing. */}
+            <FormCard title="Filing summary">
               <KeyValues
                 rows={[
                   { term: "Offence", value: CASE_TYPE.offence },
@@ -686,7 +674,7 @@ export function PreviewSection() {
         </Tabs>
       </FilingMain>
 
-      {/* Edit panel — the section's details beside the document they were read from. */}
+      {/* Review panel — the section's details beside the document they were read from. */}
       <Sheet
         open={!!panel}
         onOpenChange={(open) => {
@@ -695,21 +683,24 @@ export function PreviewSection() {
       >
         <SheetContent side="right" className="w-full gap-0 sm:max-w-md">
           <SheetHeader className="gap-1 border-b border-hairline p-6 pr-12">
-            <p className="text-caption font-medium text-primary">Edit section</p>
+            <p className="text-caption font-medium text-primary">Review section</p>
             <SheetTitle className="text-title-s font-semibold">
               {panel?.title ?? ""}
             </SheetTitle>
+            <SheetDescription className="sr-only">
+              What this section holds, and the documents it was read from. Open the full
+              section to change it.
+            </SheetDescription>
           </SheetHeader>
 
           <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-6">
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
               <p className="text-caption font-medium text-muted-foreground">Details</p>
+              {/* Read-only values are key-value rows, not fields dressed as disabled inputs. */}
               {panel?.fields.length ? (
-                panel.fields.map((f, i) => (
-                  <FormField key={`${f.label}-${i}`} label={f.label}>
-                    <Input value={f.value} readOnly aria-readonly />
-                  </FormField>
-                ))
+                <KeyValues
+                  rows={panel.fields.map((f) => ({ term: f.label, value: f.value }))}
+                />
               ) : (
                 <p className="text-body-compact text-muted-foreground">
                   Nothing has been filled in this section yet.

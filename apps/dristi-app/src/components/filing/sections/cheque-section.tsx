@@ -11,19 +11,17 @@
  */
 
 import * as React from "react";
-import { CheckIcon, CreditCardIcon, RefreshCwIcon } from "lucide-react";
+import { CreditCardIcon } from "lucide-react";
 
 import { blankCheque } from "@/lib/filing/blank";
 import { fromDisplayDate, toDisplayDate } from "@/lib/filing/format";
-import { IFSC_PATTERN, lookupIfsc } from "@/lib/filing/lookups";
+import type { IfscResult } from "@/lib/filing/lookups";
 import { RETURN_REASONS, S138_SAFE_REASONS } from "@/lib/filing/options";
 import { chequeComplete, chequeSourceSlot } from "@/lib/filing/selectors";
 import { neighbours } from "@/lib/filing/steps";
 import { useFiling } from "@/lib/filing/store";
 import type { ChequeField } from "@/lib/filing/types";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { ConfirmDialog } from "@/components/filing/confirm-dialog";
 import { DateField } from "@/components/filing/date-field";
 import { FilingFooter } from "@/components/filing/filing-footer";
@@ -37,8 +35,10 @@ import {
   HalfWidth,
 } from "@/components/filing/form-card";
 import { FormField } from "@/components/filing/form-field";
+import { IfscField } from "@/components/filing/ifsc-field";
 import { OptionSelect, PrefixInput, TextField } from "@/components/filing/inputs";
 import { InfoWell, SectionNotice } from "@/components/filing/notices";
+import { PrefillNotice } from "@/components/filing/prefill-notice";
 import { SectionTabs } from "@/components/filing/section-tabs";
 import { YesNoSegmented } from "@/components/filing/segmented";
 import {
@@ -83,40 +83,6 @@ const DATE_FIELDS: ChequeField[] = [
 /** Where the source panel lands when a chip switches which document is on screen. */
 const CHEQUE_ENTRY_FIELD: ChequeField = "dateOnCheque";
 const MEMO_ENTRY_FIELD: ChequeField = "returnDate";
-
-/** How the IFSC lookup last ended, for the button and the help line under it. */
-type IfscStatus = "idle" | "loading" | "found" | "not-found" | "error";
-
-/**
- * What the IFSC field says under itself. Success is the only state that claims anything
- * was filled; the other two hand the work back to the person in the same breath.
- * Returns `undefined` when there is nothing to say, so no empty description renders.
- */
-function ifscHelp(status: IfscStatus, fetched: boolean): React.ReactNode {
-  if (status === "not-found") {
-    return (
-      <span className="text-warning-ink">
-        We couldn&apos;t find this IFSC — check the code or type the bank details
-      </span>
-    );
-  }
-  if (status === "error") {
-    return (
-      <span className="text-warning-ink">
-        Couldn&apos;t reach the IFSC registry — type the bank details below
-      </span>
-    );
-  }
-  if (status === "found" || (status === "idle" && fetched)) {
-    return (
-      <span className="inline-flex items-center gap-1 text-success-ink">
-        <CheckIcon className="size-4" aria-hidden />
-        Bank name and branch filled from the IFSC registry
-      </span>
-    );
-  }
-  return undefined;
-}
 
 /** Tab ids are cheque ids; `null` when a stale id arrives after a removal. */
 function indexOfId(cheques: { id: string }[], id: string): number | null {
@@ -165,17 +131,11 @@ export function ChequeSection() {
     key: string;
     text: string;
   } | null>(null);
-  /** Tagged with the cheque it belongs to, so switching tabs starts from "idle". */
-  const [ifscState, setIfscState] = React.useState<{ key: string; status: IfscStatus }>({
-    key: "",
-    status: "idle",
-  });
 
   const index = Math.min(active, cheques.length - 1);
   const cheque = cheques[index];
   const sourceKey = `${cheque.id}:${sourceField}`;
   const sourceText = sourceEdit?.key === sourceKey ? sourceEdit.text : null;
-  const ifscStatus = ifscState.key === cheque.id ? ifscState.status : "idle";
 
   /** Machine-read, still unverified — the amber fill and the "click to see source" affordance. */
   const isPrefilled = (key: ChequeField) =>
@@ -191,49 +151,31 @@ export function ChequeSection() {
       d.cheques[index].edited[key] = true;
     });
 
-  /** Retyping the code invalidates whatever the last lookup said about it. */
-  const editIfsc = (value: string) => {
-    setIfscState({ key: cheque.id, status: "idle" });
+  /** Retyping the code invalidates whatever the last lookup filled from it. */
+  const editIfsc = (value: string) =>
     update((d) => {
       d.cheques[index].ifsc = value;
       d.cheques[index].edited.ifsc = true;
       d.cheques[index].ifscFetched = false;
     });
-  };
 
   const openSource = (field: ChequeField) => {
     setSourceField(field);
     setSourceOpen(true);
   };
 
-  const ifscCode = cheque.ifsc.trim().toUpperCase();
-  const canFetchIfsc = IFSC_PATTERN.test(ifscCode);
-
-  const fetchIfsc = async () => {
-    if (!canFetchIfsc || ifscStatus === "loading") return;
-    const id = cheque.id;
-    setIfscState({ key: id, status: "loading" });
-    try {
-      const hit = await lookupIfsc(ifscCode);
-      if (!hit) {
-        setIfscState({ key: id, status: "not-found" });
-        return;
-      }
-      update((d) => {
-        const c = d.cheques.find((x) => x.id === id);
-        if (!c) return;
-        c.ifsc = hit.ifsc;
-        c.bankName = hit.bank;
-        c.bankBranch = hit.branch;
-        c.edited.bankName = true;
-        c.edited.bankBranch = true;
-        c.ifscFetched = true;
-      });
-      setIfscState({ key: id, status: "found" });
-    } catch {
-      setIfscState({ key: id, status: "error" });
-    }
-  };
+  /** The registry answered — written by cheque id, since tabs can change mid-lookup. */
+  const fillFromIfsc = (id: string) => (hit: IfscResult) =>
+    update((d) => {
+      const c = d.cheques.find((x) => x.id === id);
+      if (!c) return;
+      c.ifsc = hit.ifsc;
+      c.bankName = hit.bank;
+      c.bankBranch = hit.branch;
+      c.edited.bankName = true;
+      c.edited.bankBranch = true;
+      c.ifscFetched = true;
+    });
 
   const addCheque = () => {
     update((d) => {
@@ -318,19 +260,7 @@ export function ChequeSection() {
           }
         />
 
-        {anyPrefilled && !draft.dismissed.chequePrefill ? (
-          <SectionNotice
-            title="We've read these from your uploaded documents"
-            onDismiss={() =>
-              update((d) => {
-                d.dismissed.chequePrefill = true;
-              })
-            }
-          >
-            Highlighted fields were read from the cheque and return memo — click one to
-            see its source. Please check them before continuing.
-          </SectionNotice>
-        ) : null}
+        <PrefillNotice show={anyPrefilled} />
 
         {/* Cheque leaf */}
         <FormCard
@@ -398,39 +328,18 @@ export function ChequeSection() {
           {showBankFields ? (
             <>
               <FormSubhead>Drawer&apos;s bank details</FormSubhead>
-              <FormField
-                label="IFSC code"
-                required
+              {/* Keyed to the cheque so a lookup on one tab never speaks for another. */}
+              <IfscField
+                key={cheque.id}
+                value={cheque.ifsc}
+                onChange={editIfsc}
+                onFetched={fillFromIfsc(cheque.id)}
+                fetched={cheque.ifscFetched}
                 tip="The 11-character code on the cheque. Fetch to auto-fill the bank name and branch."
-                help={ifscHelp(ifscStatus, cheque.ifscFetched)}
-              >
-                <div className="flex items-start gap-2">
-                  <TextField
-                    value={cheque.ifsc}
-                    onChange={(v) => editIfsc(v.toUpperCase())}
-                    prefilled={isPrefilled("ifsc")}
-                    onViewSource={() => openSource("ifsc")}
-                    placeholder="e.g. SBIN0001234"
-                    autoComplete="off"
-                  />
-                  {/* Stays focusable while it works — disabling mid-click would drop a
-                      keyboard user's place. The guard in the handler stops a second run. */}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={fetchIfsc}
-                    disabled={!canFetchIfsc}
-                    aria-busy={ifscStatus === "loading"}
-                  >
-                    {ifscStatus === "loading" ? (
-                      <Spinner data-icon="inline-start" />
-                    ) : (
-                      <RefreshCwIcon data-icon="inline-start" aria-hidden />
-                    )}
-                    Fetch details
-                  </Button>
-                </div>
-              </FormField>
+                placeholder="e.g. SBIN0001234"
+                prefilled={isPrefilled("ifsc")}
+                onViewSource={() => openSource("ifsc")}
+              />
               <FormRow>
                 <FormField
                   label="Bank name"

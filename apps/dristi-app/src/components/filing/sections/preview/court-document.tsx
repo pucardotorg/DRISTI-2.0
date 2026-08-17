@@ -29,6 +29,7 @@ import {
   htmlToParagraphs,
   jurisdictionSummary,
   leadAdvocateName,
+  noticeAffidavit,
   noticeSummary,
   optionLabel,
   orNot,
@@ -113,6 +114,8 @@ export function CourtDocument({ draft }: { draft: FilingDraft }) {
   const accused = accusedSummaries(draft);
   const cheques = chequeSummaries(draft);
   const notice = noticeSummary(draft.notices[0]);
+  // The sworn paragraphs follow the notice on the draft, never a fixed form of words.
+  const affidavit = noticeAffidavit(draft.notices[0]);
   const jurisdiction = jurisdictionSummary(draft);
   const witnesses = witnessSummaries(draft);
   const documents = documentSummary(draft);
@@ -626,19 +629,16 @@ export function CourtDocument({ draft }: { draft: FilingDraft }) {
         case and am fully acquainted with the facts and circumstances of the case. I am
         competent and authorised to swear to this affidavit.
       </DocP>
-      {/* The reason for return is quoted from the memo, never assumed. */}
+      {/* The reason for return is quoted from the memo, never assumed. The payment and
+          service sentences are derived from the notice — see `noticeAffidavit`. */}
       <DocP>
         The accused issued the above cheque in discharge of a legally enforceable debt or
         liability. It has been dishonoured
-        {returnReason ? `, the return memo recording the reason as “${returnReason}”` : ""}.
-        A demand notice has been issued to the accused, but she/ he has failed to make the
-        payment due under the cheque. All other requirements under Section 138 of the
-        Negotiable Instruments Act, 1881 have been complied with.
+        {returnReason ? `, the return memo recording the reason as “${returnReason}”` : ""}.{" "}
+        {affidavit.payment} All other requirements under Section 138 of the Negotiable
+        Instruments Act, 1881 have been complied with.
       </DocP>
-      <DocP>
-        I confirm that the demand notice was served on the last known correct address of
-        the accused(s).
-      </DocP>
+      <DocP>{affidavit.service}</DocP>
       <DocP>
         In accordance with Section 225 of the Bharatiya Nagarik Suraksha Sanhita, 2023, I
         confirm that there is sufficient ground for proceeding against the accused.

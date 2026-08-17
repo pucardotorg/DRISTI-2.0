@@ -40,11 +40,12 @@ export function Segmented<T extends string>({
         )}
       >
         {options.map((o) => (
+          // Selected fill, hover fill and pressed state all come from the DS Toggle
+          // (`accent` / `accent-strong`) — the label is the accessible name.
           <ToggleGroupItem
             key={o.value}
             value={o.value}
-            aria-label={o.label}
-            className="h-9 min-w-16 rounded-md px-4 text-muted-foreground hover:bg-transparent hover:text-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-raised"
+            className="h-9 min-w-16 rounded-md px-4 text-muted-foreground hover:text-foreground data-[state=on]:text-foreground"
           >
             {o.label}
           </ToggleGroupItem>

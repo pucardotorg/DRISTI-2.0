@@ -8,16 +8,18 @@
  * to the walk order. Police stations are typed — there is no station registry behind them.
  */
 
-import * as React from "react";
-import { CheckIcon, PlusIcon, RefreshCwIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 
 import { daysBetween } from "@/lib/filing/format";
-import { IFSC_PATTERN, lookupIfsc } from "@/lib/filing/lookups";
 import { neighbours } from "@/lib/filing/steps";
 import { useFiling } from "@/lib/filing/store";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
+import {
+  DescriptionDetails,
+  DescriptionList,
+  DescriptionRow,
+  DescriptionTerm,
+} from "@/components/ui/description-list";
 import { Textarea } from "@/components/ui/textarea";
 import { DateField } from "@/components/filing/date-field";
 import { FilingFooter } from "@/components/filing/filing-footer";
@@ -25,88 +27,28 @@ import { FilingPageHeader } from "@/components/filing/filing-page-header";
 import { FilingMain } from "@/components/filing/filing-shell";
 import { FormCard, FormRow, FormSubhead, HalfWidth } from "@/components/filing/form-card";
 import { FormField } from "@/components/filing/form-field";
+import { IfscField } from "@/components/filing/ifsc-field";
 import { TextField } from "@/components/filing/inputs";
 import { SectionNotice } from "@/components/filing/notices";
 import { RemoveButton } from "@/components/filing/repeat-lists";
 import { YesNoSegmented } from "@/components/filing/segmented";
 
-/** How the IFSC lookup last ended, for the button and the help line under it. */
-type IfscStatus = "idle" | "loading" | "found" | "not-found" | "error";
-
-/**
- * What the IFSC field says under itself. Success is the only state that claims anything
- * was filled; the other two hand the work back to the person in the same breath.
- * Returns `undefined` when there is nothing to say, so no empty description renders.
- */
-function ifscHelp(status: IfscStatus, fetched: boolean): React.ReactNode {
-  if (status === "not-found") {
-    return (
-      <span className="text-warning-ink">
-        We couldn&apos;t find this IFSC — check the code or type the bank details
-      </span>
-    );
-  }
-  if (status === "error") {
-    return (
-      <span className="text-warning-ink">
-        Couldn&apos;t reach the IFSC registry — type the bank details below
-      </span>
-    );
-  }
-  if (status === "found" || (status === "idle" && fetched)) {
-    return (
-      <span className="inline-flex items-center gap-1 text-success-ink">
-        <CheckIcon className="size-4" aria-hidden />
-        Bank name and branch filled from the IFSC registry
-      </span>
-    );
-  }
-  return undefined;
-}
-
 export function JurisdictionSection() {
   const { draft, update, hrefFor } = useFiling();
   const j = draft.jurisdiction;
   const { prev, next } = neighbours("jurisdiction");
-  const [ifscStatus, setIfscStatus] = React.useState<IfscStatus>("idle");
 
   const set = <K extends keyof typeof j>(key: K, value: (typeof j)[K]) =>
     update((d) => {
       d.jurisdiction[key] = value;
     });
 
-  /** Retyping the code invalidates whatever the last lookup said about it. */
-  const editIfsc = (value: string) => {
-    setIfscStatus("idle");
+  /** Retyping the code invalidates whatever the last lookup filled from it. */
+  const editIfsc = (value: string) =>
     update((d) => {
       d.jurisdiction.ifsc = value;
       d.jurisdiction.payeeFetched = false;
     });
-  };
-
-  const ifscCode = j.ifsc.trim().toUpperCase();
-  const canFetchIfsc = IFSC_PATTERN.test(ifscCode);
-
-  const fetchIfsc = async () => {
-    if (!canFetchIfsc || ifscStatus === "loading") return;
-    setIfscStatus("loading");
-    try {
-      const hit = await lookupIfsc(ifscCode);
-      if (!hit) {
-        setIfscStatus("not-found");
-        return;
-      }
-      update((d) => {
-        d.jurisdiction.ifsc = hit.ifsc;
-        d.jurisdiction.payeeBankName = hit.bank;
-        d.jurisdiction.payeeBankBranch = hit.branch;
-        d.jurisdiction.payeeFetched = true;
-      });
-      setIfscStatus("found");
-    } catch {
-      setIfscStatus("error");
-    }
-  };
 
   const delay = daysBetween(j.causeDate, j.filingDate);
   const durationDisplay =
@@ -149,37 +91,21 @@ export function JurisdictionSection() {
           {j.deposited === "yes" ? (
             <>
               <FormSubhead>Payee (complainant) bank details</FormSubhead>
-              <FormField
-                label="IFSC code"
-                required
+              <IfscField
+                value={j.ifsc}
+                onChange={editIfsc}
+                onFetched={(hit) =>
+                  update((d) => {
+                    d.jurisdiction.ifsc = hit.ifsc;
+                    d.jurisdiction.payeeBankName = hit.bank;
+                    d.jurisdiction.payeeBankBranch = hit.branch;
+                    d.jurisdiction.payeeFetched = true;
+                  })
+                }
+                fetched={j.payeeFetched}
                 tip="The 11-character code of the complainant's collecting branch. Fetch to auto-fill the bank name and branch."
-                help={ifscHelp(ifscStatus, j.payeeFetched)}
-              >
-                <div className="flex items-start gap-2">
-                  <TextField
-                    value={j.ifsc}
-                    onChange={(v) => editIfsc(v.toUpperCase())}
-                    placeholder="e.g. HDFC0000512"
-                    autoComplete="off"
-                  />
-                  {/* Stays focusable while it works — disabling mid-click would drop a
-                      keyboard user's place. The guard in the handler stops a second run. */}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={fetchIfsc}
-                    disabled={!canFetchIfsc}
-                    aria-busy={ifscStatus === "loading"}
-                  >
-                    {ifscStatus === "loading" ? (
-                      <Spinner data-icon="inline-start" />
-                    ) : (
-                      <RefreshCwIcon data-icon="inline-start" aria-hidden />
-                    )}
-                    Fetch details
-                  </Button>
-                </div>
-              </FormField>
+                placeholder="e.g. HDFC0000512"
+              />
               {/* Typed, not read-only: a code the registry doesn't know still has to be filed. */}
               <FormRow>
                 <FormField label="Bank name" required>
@@ -314,10 +240,21 @@ export function JurisdictionSection() {
               <DateField value={j.filingDate} onChange={(v) => set("filingDate", v)} />
             </FormField>
           </FormRow>
-          <HalfWidth>
-            <FormField label="Duration of delay" help="Calculated from the dates above.">
-              <Input value={durationDisplay} readOnly placeholder="-" aria-readonly />
-            </FormField>
+          {/* Computed, never typed — a key-value row, not a field the person can fill. */}
+          <HalfWidth className="flex flex-col gap-1">
+            <DescriptionList>
+              <DescriptionRow>
+                <DescriptionTerm className="text-body-compact text-muted-foreground">
+                  Duration of delay
+                </DescriptionTerm>
+                <DescriptionDetails className="text-body-compact font-medium tabular-nums">
+                  {durationDisplay || "—"}
+                </DescriptionDetails>
+              </DescriptionRow>
+            </DescriptionList>
+            <p className="text-caption text-muted-foreground">
+              Calculated from the dates above.
+            </p>
           </HalfWidth>
           <FormField
             label="Reason for praying condonation of delay"

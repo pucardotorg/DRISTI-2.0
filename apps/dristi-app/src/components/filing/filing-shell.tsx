@@ -5,71 +5,66 @@ import { PanelLeftIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { FilingSidebar, SidebarSections } from "@/components/filing/filing-sidebar";
+import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
+import { FilingSidebar, TOP_BAR_HEIGHT } from "@/components/filing/filing-sidebar";
+
+/** Wider than the DS default 16rem — the section titles ("Demand notice & debt") need it. */
+const RAIL_WIDTH = "18rem";
 
 /**
- * Two-column frame for the form sections: the Sections rail on the left (a sheet below
- * `lg`), the screen on the right. Screens supply their own `FilingMain` + `FilingFooter`.
+ * Frame for the form sections, on the DS Sidebar: the Sections rail on the left, the
+ * screen inside `SidebarInset`. Screens supply their own `FilingMain` + `FilingFooter`.
+ *
+ * The sticky `FilingTopBar` stays full-width above this: it is chrome for the whole
+ * filings area (court identity, language, account) while the rail belongs to one draft,
+ * so the brand keeps the page origin and does not move when the rail collapses. The DS
+ * rail is `fixed inset-y-0 h-svh`, so it is offset below the bar here — the primitive
+ * has no prop for that (see the build report).
  */
 export function FilingShell({ children }: { children: React.ReactNode }) {
-  const [hidden, setHidden] = React.useState(false);
-  const [mobileOpen, setMobileOpen] = React.useState(false);
+  return (
+    <SidebarProvider
+      style={
+        {
+          "--sidebar-width": RAIL_WIDTH,
+          // Replaces the provider's own `min-h-svh`, which would add the header's
+          // height to the page and leave every screen scrolling by 3.5rem.
+          minHeight: 0,
+        } as React.CSSProperties
+      }
+    >
+      <FilingSidebar />
+
+      <SidebarInset
+        className="min-w-0"
+        style={{ minHeight: `calc(100svh - ${TOP_BAR_HEIGHT})` }}
+      >
+        <SectionsTrigger />
+        {children}
+      </SidebarInset>
+    </SidebarProvider>
+  );
+}
+
+/**
+ * Opens the rail below `md`, where the DS renders it as a sheet. Above `md` the rail is
+ * always on screen — collapsed to the icon strip at worst — and toggles from its own
+ * header, so this is the only trigger that has to exist in the content column.
+ */
+function SectionsTrigger() {
+  const { toggleSidebar, openMobile } = useSidebar();
 
   return (
-    <div className="flex flex-1 items-start">
-      {!hidden ? <FilingSidebar onHide={() => setHidden(true)} /> : null}
-
-      <div className="flex min-h-[calc(100vh-3.5rem)] min-w-0 flex-1 flex-col">
-        <div
-          className={cn(
-            "flex items-center gap-2 px-4 pt-4 sm:px-6 lg:px-12",
-            !hidden && "lg:hidden"
-          )}
-        >
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="lg:hidden"
-            onClick={() => setMobileOpen(true)}
-          >
-            <PanelLeftIcon data-icon="inline-start" aria-hidden />
-            Sections
-          </Button>
-          {hidden ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="hidden lg:inline-flex"
-              onClick={() => setHidden(false)}
-            >
-              <PanelLeftIcon data-icon="inline-start" aria-hidden />
-              Show sections
-            </Button>
-          ) : null}
-        </div>
-        {children}
-      </div>
-
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-full sm:max-w-sm">
-          <SheetHeader className="sr-only">
-            <SheetTitle>Sections</SheetTitle>
-            <SheetDescription>Move between the parts of this filing.</SheetDescription>
-          </SheetHeader>
-          <div className="min-h-0 flex-1 px-4 pb-4">
-            <SidebarSections onNavigate={() => setMobileOpen(false)} />
-          </div>
-        </SheetContent>
-      </Sheet>
+    <div className="px-4 pt-4 sm:px-6 md:hidden">
+      <Button
+        type="button"
+        variant="outline"
+        aria-expanded={openMobile}
+        onClick={toggleSidebar}
+      >
+        <PanelLeftIcon data-icon="inline-start" aria-hidden />
+        Sections
+      </Button>
     </div>
   );
 }
@@ -77,6 +72,9 @@ export function FilingShell({ children }: { children: React.ReactNode }) {
 /**
  * The scrolling column of a filing screen. `sourceOpen` reserves room on wide screens
  * for the fixed source-document panel so the form is pushed rather than covered.
+ *
+ * A `div`, not a `main`: inside `FilingShell` the landmark is `SidebarInset`, and the
+ * two screens outside it (upload, sign) carry their own.
  */
 export function FilingMain({
   children,
@@ -90,7 +88,7 @@ export function FilingMain({
   className?: string;
 }) {
   return (
-    <main
+    <div
       className={cn(
         "flex-1 px-4 pb-8 pt-6 sm:px-6 lg:px-12",
         sourceOpen && "xl:mr-(--source-panel-w)",
@@ -107,6 +105,6 @@ export function FilingMain({
       >
         {children}
       </div>
-    </main>
+    </div>
   );
 }

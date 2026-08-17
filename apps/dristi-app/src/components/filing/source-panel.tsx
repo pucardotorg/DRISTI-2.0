@@ -127,7 +127,7 @@ function SourcePanelBody({
           <Button
             type="button"
             variant="ghost"
-            size="icon-sm"
+            size="icon"
             aria-label="Close source panel"
             onClick={() => p.onOpenChange(false)}
           >
@@ -171,7 +171,7 @@ function SourcePanelBody({
         ) : null}
 
         {!p.file ? (
-          <div className="flex flex-col items-center gap-3 rounded-lg bg-surface-sunken px-6 py-10 text-center">
+          <div className="flex flex-col items-center gap-3 rounded-lg bg-surface-sunken px-6 py-8 text-center">
             <FileTextIcon className="size-8 text-muted-foreground" aria-hidden />
             <p className="text-body-compact text-muted-foreground">
               Nothing uploaded for this document yet.

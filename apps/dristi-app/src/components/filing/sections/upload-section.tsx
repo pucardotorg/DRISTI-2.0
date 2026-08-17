@@ -3,11 +3,15 @@
 /**
  * Case documents upload — the intake step that runs before the filing form.
  *
- * One card per cheque and per party, each holding DS `DocumentSlot` rows. Choosing a
- * file opens the OS picker; the file is stored (IndexedDB) and, for the document types we
- * can read, run through document reading in the browser — progress is the real read, and
- * whatever it finds lands on the draft as machine-read values the later steps show for
- * review. Everything is written to `draft.intake`, so add, remove and delete all persist.
+ * One card per cheque and per party, supporting documents at the end, each holding DS
+ * `DocumentSlot` rows. A file arrives by drop or by the picker; it is stored (IndexedDB)
+ * and, for the document types we can read, run through document reading in the browser —
+ * progress is the real read, and whatever it finds lands on the draft as machine-read
+ * values the later steps show for review. Everything is written to `draft.intake`, so
+ * add, remove and delete all persist.
+ *
+ * The screen keeps one progress statement (the block under the title). The footer only
+ * says whether the step is ready, never the same count in a second voice.
  *
  * This route renders outside the sidebar shell, so it carries its own full-height column.
  */
@@ -16,13 +20,10 @@ import * as React from "react";
 import {
   CheckIcon,
   CreditCardIcon,
-  EyeIcon,
   FileTextIcon,
   PlusIcon,
-  RefreshCwIcon,
-  Trash2Icon,
   TriangleAlertIcon,
-  UserRoundIcon,
+  UserIcon,
 } from "lucide-react";
 
 import {
@@ -31,27 +32,21 @@ import {
   intakePartyGroup,
 } from "@/lib/filing/blank";
 import { getRepository, storeUpload } from "@/lib/filing/data";
-import { forgetFile, formatBytes, getFileBlob, useFilePreview } from "@/lib/filing/files";
+import { forgetFile, getFileBlob, useFilePreview } from "@/lib/filing/files";
 import {
   applyExtraction,
   clearExtraction,
   extractDocument,
   extractable,
 } from "@/lib/filing/ocr";
-import { extractedFieldCount, findIntakeSlot, intakeProgress } from "@/lib/filing/selectors";
+import { findIntakeSlot, intakeProgress } from "@/lib/filing/selectors";
 import { FILINGS_HOME } from "@/lib/filing/steps";
 import { useFiling } from "@/lib/filing/store";
 import { cn } from "@/lib/utils";
 import type { Intake, IntakeSlot } from "@/lib/filing/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -60,18 +55,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { DocumentSlot } from "@/components/ui/document-slot";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ConfirmDialog } from "@/components/filing/confirm-dialog";
 import { FilingFooter } from "@/components/filing/filing-footer";
 import { FilingPageHeader } from "@/components/filing/filing-page-header";
 import { FilingMain } from "@/components/filing/filing-shell";
 import { PANEL_CLASS } from "@/components/filing/form-card";
 import { SectionNotice } from "@/components/filing/notices";
+import { DocumentCard } from "@/components/filing/upload/document-card";
+import { IntakeSlotRow } from "@/components/filing/upload/slot-row";
+import {
+  dragCarriesFiles,
+  dropProblemMessage,
+  useDropTarget,
+  type DroppedFiles,
+} from "@/components/filing/upload/use-drop-target";
 import { pickErrorMessage, useFilePicker } from "@/components/filing/use-file-picker";
-
-const POOR_SCAN_HELP =
-  "We couldn’t read this clearly. Re-upload a sharper copy so we can pre-fill your form, or type the details in later.";
 
 /* ───────────────────────────── Draft helpers ───────────────────────────── */
 
@@ -105,181 +105,6 @@ function takenKeys(intake: Intake): Set<string> {
   return new Set(allSlots(intake).map((s) => s.key));
 }
 
-function slotStatus(
-  slot: IntakeSlot
-): "processing" | "filled" | "filled-poor" | "empty" | "empty-optional" {
-  if (slot.processing) return "processing";
-  if (slot.file) return slot.poor ? "filled-poor" : "filled";
-  return slot.required ? "empty" : "empty-optional";
-}
-
-/** Caption under a filled row: what reading did with it. */
-function readSummary(slot: IntakeSlot): { text: string; tone: "success" | "muted" } | null {
-  if (!slot.file || slot.processing) return null;
-  if (slot.error) return { text: slot.error, tone: "muted" };
-  if (!extractable(slot.docType)) return null;
-  const n = extractedFieldCount(slot);
-  if (n > 0) {
-    return {
-      text: `Read · ${n} field${n === 1 ? "" : "s"} filled in your form`,
-      tone: "success",
-    };
-  }
-  if (slot.poor) return null; // the poor-scan help carries the message
-  return {
-    text: "Uploaded — nothing to pre-fill from this one; type the details in the form",
-    tone: "muted",
-  };
-}
-
-/* ───────────────────────────── Thumbnail ───────────────────────────────── */
-
-function SlotThumbnail({ slot, onPreview }: { slot: IntakeSlot; onPreview: () => void }) {
-  const preview = useFilePreview(slot.file);
-  if (preview.status === "loading") return <Skeleton className="size-full rounded-md" />;
-  if (preview.status !== "ready" || !preview.imageUrl) {
-    return (
-      <span className="flex size-full items-center justify-center text-caption font-semibold text-muted-foreground">
-        {slot.file?.ext ?? ""}
-      </span>
-    );
-  }
-  return (
-    <button
-      type="button"
-      onClick={onPreview}
-      aria-label={`Preview ${slot.file?.name ?? slot.label}`}
-      className="size-full cursor-pointer rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={preview.imageUrl} alt="" className="size-full object-cover" />
-    </button>
-  );
-}
-
-/* ───────────────────────────── One document row ────────────────────────── */
-
-/**
- * A DS `DocumentSlot` plus the row actions the primitive does not carry: preview (also on
- * the thumbnail), re-upload for a poor scan, and delete.
- */
-function IntakeSlotRow({
-  slot,
-  onChoose,
-  onPreview,
-  onDelete,
-}: {
-  slot: IntakeSlot;
-  onChoose: () => void;
-  onPreview: () => void;
-  onDelete: () => void;
-}) {
-  const status = slotStatus(slot);
-  const pct = Math.round(slot.progress ?? 0);
-  const showDesc = !slot.file && !slot.processing && !!slot.desc;
-  const summary = readSummary(slot);
-
-  // Filled rows carry their actions inline on the right; the DS DocumentSlot has no
-  // action slot, so the cluster overlays the row's right padding. Below `sm` the same
-  // actions render as a row underneath instead.
-  const actions = slot.file ? (
-    <>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        onClick={onPreview}
-        aria-label={`Preview ${slot.label}`}
-        className="text-muted-foreground hover:text-foreground"
-      >
-        <EyeIcon aria-hidden />
-      </Button>
-      {slot.poor ? (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onChoose}
-          aria-label={`Re-upload ${slot.label}`}
-        >
-          <RefreshCwIcon data-icon="inline-start" aria-hidden />
-          Re-upload
-        </Button>
-      ) : null}
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        onClick={onDelete}
-        aria-label={`Delete ${slot.label}`}
-        className="text-muted-foreground hover:text-destructive"
-      >
-        <Trash2Icon aria-hidden />
-      </Button>
-    </>
-  ) : null;
-
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="relative">
-        <DocumentSlot
-          status={status}
-          media={slot.file ? "thumbnail" : "icon"}
-          label={slot.label}
-          required={slot.required}
-          filename={slot.file?.name}
-          meta={
-            slot.processing
-              ? `Reading document… ${pct}%`
-              : slot.file
-                ? formatBytes(slot.file.size)
-                : undefined
-          }
-          quality={slot.file && !slot.processing ? (slot.poor ? "poor" : "good") : undefined}
-          className={cn(
-            "items-center",
-            slot.file && (slot.poor ? "sm:pr-64" : "sm:pr-28")
-          )}
-          thumbnail={slot.file ? <SlotThumbnail slot={slot} onPreview={onPreview} /> : undefined}
-          onChooseFile={onChoose}
-        />
-        {actions ? (
-          <div className="absolute inset-y-0 right-3 hidden items-center gap-1 sm:flex">
-            {actions}
-          </div>
-        ) : null}
-      </div>
-
-      {slot.processing ? (
-        <Progress value={pct} aria-label={`Reading ${slot.label}`} />
-      ) : null}
-
-      {showDesc ? (
-        <p className="text-caption text-muted-foreground">{slot.desc}</p>
-      ) : null}
-
-      {slot.file && slot.poor && !slot.processing ? (
-        <p className="flex items-start gap-1.5 text-caption text-warning-ink">
-          <TriangleAlertIcon className="size-4 shrink-0" aria-hidden />
-          {POOR_SCAN_HELP}
-        </p>
-      ) : summary ? (
-        <p
-          className={cn(
-            "text-caption",
-            summary.tone === "success" ? "text-success-ink" : "text-muted-foreground"
-          )}
-        >
-          {summary.text}
-        </p>
-      ) : null}
-
-      {actions ? (
-        <div className="flex flex-wrap items-center gap-1 sm:hidden">{actions}</div>
-      ) : null}
-    </div>
-  );
-}
-
 /* ───────────────────────────── Preview dialog body ─────────────────────── */
 
 function PreviewBody({ slot }: { slot: IntakeSlot }) {
@@ -310,6 +135,13 @@ function PreviewBody({ slot }: { slot: IntakeSlot }) {
   );
 }
 
+/* ───────────────────────── What a removal will cost ────────────────────── */
+
+type Pending =
+  | { kind: "cheque"; index: number }
+  | { kind: "party"; index: number }
+  | { kind: "slot"; key: string };
+
 /* ───────────────────────────────── Screen ──────────────────────────────── */
 
 export function UploadSection() {
@@ -318,8 +150,15 @@ export function UploadSection() {
   const { done, total, remaining, pct } = intakeProgress(intake);
   const { pick, input } = useFilePicker();
 
+  const progressLabelId = React.useId();
+
   const [previewKey, setPreviewKey] = React.useState<string | null>(null);
   const [pickError, setPickError] = React.useState<string | null>(null);
+  const [pending, setPending] = React.useState<Pending | null>(null);
+  /** Read outcomes and additions, for screen readers. */
+  const [announcement, setAnnouncement] = React.useState("");
+
+  const announce = React.useCallback((message: string) => setAnnouncement(message), []);
 
   /** Reads in flight, by slot key — a delete or re-upload cancels the older one. */
   const runs = React.useRef<Record<string, number>>({});
@@ -387,6 +226,14 @@ export function UploadSection() {
           s.poor = result.poor;
           applyExtraction(d, key);
         });
+        const filled = Object.keys(result.extract.fields).length;
+        announce(
+          result.poor
+            ? `${slot.label}: we couldn’t read that copy clearly. Re-upload a sharper one, or type the details in later.`
+            : filled > 0
+              ? `${slot.label}: read, ${filled} field${filled === 1 ? "" : "s"} filled in your form.`
+              : `${slot.label}: uploaded, nothing to pre-fill from it.`
+        );
       } catch {
         if (runs.current[key] !== runId) return;
         patchSlot(key, (s) => {
@@ -394,35 +241,66 @@ export function UploadSection() {
           s.progress = 100;
           s.error = "Couldn't read this file — you can still continue and type the details.";
         });
+        announce(`${slot.label}: we couldn’t read that file. You can type the details in.`);
       }
     },
-    [intake, update, patchSlot]
+    [intake, update, patchSlot, announce]
   );
 
   /** Choose (or re-upload) a file for a slot. */
-  const chooseFile = (key: string) => {
-    setPickError(null);
-    pick((file, error) => {
-      if (error) {
-        setPickError(pickErrorMessage(error));
-        return;
-      }
-      if (file) void receiveFile(key, file);
-    });
-  };
+  const chooseFile = React.useCallback(
+    (key: string) => {
+      setPickError(null);
+      pick((file, error) => {
+        if (error) {
+          setPickError(pickErrorMessage(error));
+          return;
+        }
+        if (!file) return;
+        const label = findIntakeSlot(intake, key)?.label ?? "this document";
+        announce(`${file.name} added for ${label}.`);
+        void receiveFile(key, file);
+      });
+    },
+    [pick, intake, receiveFile, announce]
+  );
 
-  const dropFiles = (files: Array<IntakeSlot["file"]>) => {
+  /** Dropped files fill `keys` in order — empty required slots first. */
+  const dropIntoKeys = React.useCallback(
+    (keys: string[], dropped: DroppedFiles) => {
+      setPickError(null);
+      const used = Math.min(dropped.files.length, keys.length);
+      for (let i = 0; i < used; i += 1) void receiveFile(keys[i], dropped.files[i]);
+
+      const problem = dropProblemMessage(dropped.rejected, dropped.files.length - used);
+      if (problem) setPickError(problem);
+      if (used > 0) {
+        announce(
+          used === 1
+            ? `${dropped.files[0].name} added.`
+            : `${used} files added to the next empty slots.`
+        );
+      } else if (problem) {
+        announce("Nothing was added from that drop.");
+      }
+    },
+    [receiveFile, announce]
+  );
+
+  /** Forget the blobs behind slots we just cleared. */
+  function dropFiles(files: Array<IntakeSlot["file"]>) {
     for (const f of files) {
       if (!f) continue;
       forgetFile(f.id);
       void getRepository().deleteFile(f.id);
     }
-  };
+  }
 
   const deleteFile = (key: string) => {
     runs.current[key] = (runs.current[key] ?? 0) + 1;
     if (previewKey === key) setPreviewKey(null);
-    const ref = findIntakeSlot(intake, key)?.file ?? null;
+    const slot = findIntakeSlot(intake, key);
+    const ref = slot?.file ?? null;
     update((d) => {
       const s = findIntakeSlot(d.intake, key);
       if (!s) return;
@@ -435,6 +313,7 @@ export function UploadSection() {
       s.poor = false;
     });
     dropFiles([ref]);
+    announce(`Removed the file for ${slot?.label ?? "that document"}.`);
   };
 
   const addCheque = () =>
@@ -456,6 +335,7 @@ export function UploadSection() {
       });
     });
     dropFiles(group.slots.map((s) => s.file));
+    announce(`Cheque ${group.n} removed.`);
   };
 
   const addParty = () =>
@@ -477,6 +357,7 @@ export function UploadSection() {
       });
     });
     dropFiles(group.slots.map((s) => s.file));
+    announce(`Party ${group.n} removed.`);
   };
 
   const addPartyDoc = (index: number) =>
@@ -490,18 +371,70 @@ export function UploadSection() {
       party.slots.push(doc);
     });
 
+  /* Supporting documents are a panel of their own, so they get their own drop target. */
+  const supportingKeys = intake.supporting
+    .filter((s) => !s.file && !s.processing)
+    .map((s) => s.key);
+  const supporting = useDropTarget({
+    onFiles: (dropped) => dropIntoKeys(supportingKeys, dropped),
+  });
+
   const previewSlot = previewKey ? findIntakeSlot(intake, previewKey) : undefined;
   const previewFile = previewSlot?.file ?? null;
 
-  const remainingLabel = remaining > 0 ? `${remaining} to go` : "all set";
-  const footerText =
-    remaining > 0
-      ? `${remaining} required document${remaining > 1 ? "s" : ""} still needed`
-      : "All required documents added";
+  /*
+   * What the confirm dialog says. Only the copy is derived during render — the action
+   * itself is resolved from `pending` when the person confirms, so no handler (and no
+   * ref those handlers read) is captured in a render-time closure.
+   */
+  const confirmCopy = React.useMemo(() => {
+    if (!pending) return null;
+    if (pending.kind === "slot") {
+      const slot = findIntakeSlot(intake, pending.key);
+      return {
+        title: `Remove ${slot?.label ?? "this document"}?`,
+        description:
+          "The file is deleted from this browser, and anything it filled in your form is cleared. You can add it again later.",
+      };
+    }
+    const group =
+      pending.kind === "cheque" ? intake.cheques[pending.index] : intake.parties[pending.index];
+    const name = pending.kind === "cheque" ? `cheque ${group?.n}` : `party ${group?.n}`;
+    const files = group?.slots.filter((s) => s.file).length ?? 0;
+    return {
+      title: `Remove ${name}?`,
+      description:
+        files > 0
+          ? `This deletes the ${files} document${files === 1 ? "" : "s"} added for it, and clears anything they filled in your form.`
+          : "This removes it, and its document slots, from this filing.",
+    };
+  }, [pending, intake]);
+
+  const runPending = () => {
+    if (!pending) return;
+    if (pending.kind === "slot") deleteFile(pending.key);
+    else if (pending.kind === "cheque") removeCheque(pending.index);
+    else removeParty(pending.index);
+    setPending(null);
+  };
 
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)] flex-1 flex-col">
+    <div
+      className="flex min-h-[calc(100vh-3.5rem)] flex-1 flex-col"
+      /* A file dropped between the cards would otherwise be opened by the browser,
+         throwing away the draft. Swallow those drops. */
+      onDragOver={(e) => {
+        if (dragCarriesFiles(e.dataTransfer)) e.preventDefault();
+      }}
+      onDrop={(e) => {
+        if (dragCarriesFiles(e.dataTransfer)) e.preventDefault();
+      }}
+    >
       {input}
+      <p aria-live="polite" className="sr-only">
+        {announcement}
+      </p>
+
       <FilingMain width="narrow">
         <FilingPageHeader
           eyebrow="Documents"
@@ -509,20 +442,31 @@ export function UploadSection() {
           description="Put each document in its place. We read them and fill your form where we can — anything we can’t read, you type in. Add a card for every cheque and complainant in your case."
         />
 
-        {/* Required-document progress */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-          <Progress
-            value={pct}
-            aria-label="Required documents added"
-            className="h-2 sm:flex-1"
-          />
-          <p className="text-body-compact text-muted-foreground">
-            <span className="font-semibold text-foreground">
-              {done} of {total}
-            </span>{" "}
-            required documents · {remainingLabel}
-          </p>
-        </div>
+        {/* The one progress statement on this screen. */}
+        <Card size="sm" className={PANEL_CLASS}>
+          <CardContent className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <p
+                id={progressLabelId}
+                className="text-body font-semibold tabular-nums text-foreground"
+              >
+                {done} of {total} required documents added
+              </p>
+              <p
+                className={cn(
+                  "text-caption tabular-nums",
+                  remaining > 0 ? "text-muted-foreground" : "text-success-ink"
+                )}
+              >
+                {remaining > 0 ? `${remaining} to go` : "All set"}
+              </p>
+            </div>
+            <Progress value={pct} aria-labelledby={progressLabelId} className="h-2" />
+            <p className="text-caption text-muted-foreground pointer-coarse:hidden">
+              Drag files onto a card or a row, or choose them one at a time.
+            </p>
+          </CardContent>
+        </Card>
 
         {pickError ? (
           <SectionNotice
@@ -534,134 +478,116 @@ export function UploadSection() {
           </SectionNotice>
         ) : null}
 
-        {/* ── The cheques ── */}
-        {intake.cheques.length > 0 ? (
-          <section className="flex flex-col gap-4">
-            <h2 className="text-caption font-semibold text-muted-foreground">
-              The cheques
-            </h2>
+        <div className="flex flex-col gap-8">
+          {/* ── The cheques ── */}
+          {intake.cheques.length > 0 ? (
+            <section className="flex flex-col gap-4">
+              <h2 className="text-caption font-semibold text-muted-foreground">The cheques</h2>
 
-            {intake.cheques.map((cheque, index) => (
-              <Card key={cheque.slots[0]?.key ?? `cheque-${index}`} className={PANEL_CLASS}>
-                <CardHeader>
-                  <CardTitle>
-                    <h3 className="flex items-center gap-2">
-                      <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-brand-muted text-brand-muted-foreground">
-                        <CreditCardIcon className="size-4" aria-hidden />
-                      </span>
-                      Cheque {cheque.n}
-                    </h3>
-                  </CardTitle>
-                  {intake.cheques.length > 1 ? (
-                    <CardAction>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="text-muted-foreground"
-                        onClick={() => removeCheque(index)}
-                      >
-                        Remove this cheque
-                      </Button>
-                    </CardAction>
-                  ) : null}
-                </CardHeader>
-                <CardContent className="flex flex-col gap-3">
-                  {cheque.slots.map((slot) => (
-                    <IntakeSlotRow
-                      key={slot.key}
-                      slot={slot}
-                      onChoose={() => chooseFile(slot.key)}
-                      onPreview={() => setPreviewKey(slot.key)}
-                      onDelete={() => deleteFile(slot.key)}
-                    />
-                  ))}
-                </CardContent>
-              </Card>
-            ))}
-
-            <Button type="button" variant="outline" className="w-fit" onClick={addCheque}>
-              <PlusIcon data-icon="inline-start" aria-hidden />
-              Add another cheque
-            </Button>
-          </section>
-        ) : null}
-
-        {/* ── Parties ── */}
-        {intake.parties.length > 0 ? (
-          <section className="flex flex-col gap-4">
-            {intake.parties.map((party, index) => (
-              <Card key={party.slots[0]?.key ?? `party-${index}`} className={PANEL_CLASS}>
-                <CardHeader>
-                  <CardTitle>
-                    <h2 className="flex items-center gap-2">
-                      <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-brand-muted text-brand-muted-foreground">
-                        <UserRoundIcon className="size-4" aria-hidden />
-                      </span>
-                      Party {party.n} details
-                    </h2>
-                  </CardTitle>
-                  {intake.parties.length > 1 ? (
-                    <CardAction>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="text-muted-foreground"
-                        onClick={() => removeParty(index)}
-                      >
-                        Remove
-                      </Button>
-                    </CardAction>
-                  ) : null}
-                </CardHeader>
-                <CardContent className="flex flex-col gap-3">
-                  {party.slots.map((slot) => (
-                    <IntakeSlotRow
-                      key={slot.key}
-                      slot={slot}
-                      onChoose={() => chooseFile(slot.key)}
-                      onPreview={() => setPreviewKey(slot.key)}
-                      onDelete={() => deleteFile(slot.key)}
-                    />
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-fit"
-                    onClick={() => addPartyDoc(index)}
-                  >
-                    <PlusIcon data-icon="inline-start" aria-hidden />
-                    Add other documents
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-
-            <Button type="button" variant="outline" className="w-fit" onClick={addParty}>
-              <PlusIcon data-icon="inline-start" aria-hidden />
-              Add another party
-            </Button>
-          </section>
-        ) : null}
-
-        {/* ── Supporting ── */}
-        {intake.supporting.length > 0 ? (
-          <section className="flex flex-col gap-4">
-            <h2 className="text-caption font-semibold text-muted-foreground">
-              Supporting (optional)
-            </h2>
-            <div className="flex flex-col gap-3">
-              {intake.supporting.map((slot) => (
-                <IntakeSlotRow
-                  key={slot.key}
-                  slot={slot}
-                  onChoose={() => chooseFile(slot.key)}
-                  onPreview={() => setPreviewKey(slot.key)}
-                  onDelete={() => deleteFile(slot.key)}
+              {intake.cheques.map((cheque, index) => (
+                <DocumentCard
+                  key={cheque.slots[0]?.key ?? `cheque-${index}`}
+                  icon={CreditCardIcon}
+                  title={`Cheque ${cheque.n}`}
+                  slots={cheque.slots}
+                  onRemove={
+                    intake.cheques.length > 1
+                      ? () => setPending({ kind: "cheque", index })
+                      : undefined
+                  }
+                  removeLabel={`Remove cheque ${cheque.n}`}
+                  onChoose={chooseFile}
+                  onPreview={setPreviewKey}
+                  onDelete={(key) => setPending({ kind: "slot", key })}
+                  onDropFiles={dropIntoKeys}
                 />
               ))}
-            </div>
-          </section>
-        ) : null}
+
+              <Button type="button" variant="outline" className="w-fit" onClick={addCheque}>
+                <PlusIcon data-icon="inline-start" aria-hidden />
+                Add another cheque
+              </Button>
+            </section>
+          ) : null}
+
+          {/* ── The parties ── */}
+          {intake.parties.length > 0 ? (
+            <section className="flex flex-col gap-4">
+              <h2 className="text-caption font-semibold text-muted-foreground">The parties</h2>
+
+              {intake.parties.map((party, index) => (
+                <DocumentCard
+                  key={party.slots[0]?.key ?? `party-${index}`}
+                  icon={UserIcon}
+                  title={`Party ${party.n} details`}
+                  slots={party.slots}
+                  onRemove={
+                    intake.parties.length > 1
+                      ? () => setPending({ kind: "party", index })
+                      : undefined
+                  }
+                  removeLabel={`Remove party ${party.n}`}
+                  onChoose={chooseFile}
+                  onPreview={setPreviewKey}
+                  onDelete={(key) => setPending({ kind: "slot", key })}
+                  onDropFiles={dropIntoKeys}
+                  optionalFooter={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-fit"
+                      onClick={() => addPartyDoc(index)}
+                    >
+                      <PlusIcon data-icon="inline-start" aria-hidden />
+                      Add other documents
+                    </Button>
+                  }
+                />
+              ))}
+
+              <Button type="button" variant="outline" className="w-fit" onClick={addParty}>
+                <PlusIcon data-icon="inline-start" aria-hidden />
+                Add another party
+              </Button>
+            </section>
+          ) : null}
+
+          {/* ── Supporting ── */}
+          {intake.supporting.length > 0 ? (
+            <section className="flex flex-col gap-4">
+              <h2 className="text-caption font-semibold text-muted-foreground">
+                Supporting documents
+              </h2>
+
+              <Card
+                {...supporting.dropProps}
+                className={cn(
+                  PANEL_CLASS,
+                  "transition-shadow",
+                  supporting.isOver && "ring-3 ring-focus-ring"
+                )}
+              >
+                <CardContent className="flex flex-col gap-3">
+                  {intake.supporting.map((slot) => (
+                    <IntakeSlotRow
+                      key={slot.key}
+                      slot={slot}
+                      onChoose={() => chooseFile(slot.key)}
+                      onPreview={() => setPreviewKey(slot.key)}
+                      onDelete={() => setPending({ kind: "slot", key: slot.key })}
+                      onFiles={(dropped) =>
+                        dropIntoKeys(
+                          [slot.key, ...supportingKeys.filter((k) => k !== slot.key)],
+                          dropped
+                        )
+                      }
+                    />
+                  ))}
+                </CardContent>
+              </Card>
+            </section>
+          ) : null}
+        </div>
       </FilingMain>
 
       <FilingFooter
@@ -671,11 +597,12 @@ export function UploadSection() {
         leading={
           <span className="flex items-center gap-2 text-body-compact text-muted-foreground">
             <span
-              className={
+              className={cn(
+                "flex size-6 shrink-0 items-center justify-center rounded-full",
                 remaining > 0
-                  ? "flex size-6 shrink-0 items-center justify-center rounded-full bg-warning-muted text-warning-muted-foreground"
-                  : "flex size-6 shrink-0 items-center justify-center rounded-full bg-success-muted text-success-muted-foreground"
-              }
+                  ? "bg-warning-muted text-warning-muted-foreground"
+                  : "bg-success-muted text-success-muted-foreground"
+              )}
             >
               {remaining > 0 ? (
                 <TriangleAlertIcon className="size-4" aria-hidden />
@@ -683,7 +610,7 @@ export function UploadSection() {
                 <CheckIcon className="size-4" aria-hidden />
               )}
             </span>
-            {footerText}
+            {remaining > 0 ? "Required documents still missing" : "Ready to continue"}
           </span>
         }
       />
@@ -724,6 +651,17 @@ export function UploadSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Removals delete stored files and their machine-read values — always ask first. */}
+      <ConfirmDialog
+        open={!!confirmCopy}
+        onOpenChange={(open) => {
+          if (!open) setPending(null);
+        }}
+        title={confirmCopy?.title ?? ""}
+        description={confirmCopy?.description}
+        onConfirm={runPending}
+      />
     </div>
   );
 }

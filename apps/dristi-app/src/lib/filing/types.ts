@@ -353,8 +353,6 @@ export type SignState = {
 
 /** Standing notices the user has closed; each is remembered on the draft. */
 export type DismissedNotices = {
-  complainantPrefill: boolean;
-  chequePrefill: boolean;
   advocateInfo: boolean;
   accusedAddress: boolean;
 };

@@ -8,6 +8,7 @@ import type { Address } from "@/lib/filing/types";
 import { FormRow } from "@/components/filing/form-card";
 import { FormField } from "@/components/filing/form-field";
 import { OptionSelect, TextField } from "@/components/filing/inputs";
+import { LookupStatus } from "@/components/filing/lookup-status";
 
 /** Wait after the sixth digit before asking the PIN service, so typing isn't chased. */
 const PIN_DEBOUNCE_MS = 400;
@@ -162,11 +163,12 @@ export function AddressFields({
             />
           </FormField>
         </FormRow>
-        {filledLabel && shownFill ? (
-          <p className="text-caption text-success-ink">
-            {filledLabel} filled from PIN {shownFill.pin}
-          </p>
-        ) : null}
+        {/* Mounted whether or not it has anything to say, so the fill is announced. */}
+        <LookupStatus>
+          {filledLabel && shownFill
+            ? `${filledLabel} filled from PIN ${shownFill.pin}`
+            : null}
+        </LookupStatus>
       </div>
     </div>
   );

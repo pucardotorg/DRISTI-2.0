@@ -15,7 +15,11 @@ import { InfoIcon } from "lucide-react";
 
 import { blankAccused } from "@/lib/filing/blank";
 import { ACCUSED_TYPES } from "@/lib/filing/options";
-import { accusedComplete, accusedHasContact } from "@/lib/filing/selectors";
+import {
+  accusedComplete,
+  accusedHasContact,
+  accusedLabel,
+} from "@/lib/filing/selectors";
 import { neighbours } from "@/lib/filing/steps";
 import { useFiling } from "@/lib/filing/store";
 import type { Accused, AccusedType } from "@/lib/filing/types";
@@ -30,6 +34,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { ConfirmDialog } from "@/components/filing/confirm-dialog";
 import { FilingFooter } from "@/components/filing/filing-footer";
 import { FilingPageHeader } from "@/components/filing/filing-page-header";
 import { FilingMain } from "@/components/filing/filing-shell";
@@ -41,6 +46,12 @@ import { AddressBlockList, ContactList } from "@/components/filing/repeat-lists"
 import { SectionTabs } from "@/components/filing/section-tabs";
 import { YesNoSegmented } from "@/components/filing/segmented";
 
+/** "Accused 1 and Rajesh Kumar" — names read as a sentence, not as a list. */
+function nameList(labels: string[]): string {
+  if (labels.length < 2) return labels[0] ?? "";
+  return `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`;
+}
+
 export function AccusedSection() {
   const { draft, update, hrefFor } = useFiling();
   const router = useRouter();
@@ -51,6 +62,9 @@ export function AccusedSection() {
   const [noContactOpen, setNoContactOpen] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [confirmChecked, setConfirmChecked] = React.useState(false);
+  const [pendingRemove, setPendingRemove] = React.useState<string | null>(null);
+  // Held apart from `pendingRemove` so the title stays put while the dialog animates out.
+  const [pendingRemoveLabel, setPendingRemoveLabel] = React.useState("");
 
   const found = draft.accused.findIndex((x) => x.id === activeId);
   const index = found >= 0 ? found : draft.accused.length - 1;
@@ -73,6 +87,13 @@ export function AccusedSection() {
     setActiveId(created.id);
   };
 
+  const askRemove = (id: string) => {
+    const i = draft.accused.findIndex((x) => x.id === id);
+    if (i < 0 || draft.accused.length <= 1) return;
+    setPendingRemoveLabel(accusedLabel(draft.accused[i], i));
+    setPendingRemove(id);
+  };
+
   const removeAccused = (id: string) => {
     if (draft.accused.length <= 1) return;
     const i = draft.accused.findIndex((x) => x.id === id);
@@ -90,13 +111,31 @@ export function AccusedSection() {
     router.push(hrefFor(next ?? "cheque"));
   };
 
+  /**
+   * Every accused is checked, not just the one on screen: with two tabs open the guard
+   * would otherwise wave through whichever one is not being looked at.
+   */
+  const missingContact = draft.accused.filter((acc) => !accusedHasContact(acc));
+  const missingNames = nameList(
+    draft.accused.flatMap((acc, i) =>
+      accusedHasContact(acc) ? [] : [accusedLabel(acc, i)]
+    )
+  );
+
   const handleContinue = () => {
-    if (accusedHasContact(a)) {
+    if (missingContact.length === 0) {
       goToNext();
       return;
     }
     setConfirmChecked(false);
     setNoContactOpen(true);
+  };
+
+  /** Send the person to the first accused that is actually missing a contact. */
+  const goToMissing = () => {
+    setNoContactOpen(false);
+    setConfirmOpen(false);
+    if (missingContact[0]) setActiveId(missingContact[0].id);
   };
 
   const proceedWithoutDetails = () => {
@@ -123,7 +162,7 @@ export function AccusedSection() {
           }))}
           activeId={a.id}
           onSelect={setActiveId}
-          onRemove={removeAccused}
+          onRemove={askRemove}
           addLabel="Add accused"
           onAdd={addAccused}
         />
@@ -213,7 +252,7 @@ export function AccusedSection() {
         onContinue={handleContinue}
       />
 
-      {/* Continue with no phone or email on the active accused. */}
+      {/* Continue while some accused — named here — has no phone or email. */}
       <Dialog open={noContactOpen} onOpenChange={setNoContactOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -227,15 +266,15 @@ export function AccusedSection() {
               <DialogTitle>No contact details added</DialogTitle>
             </div>
             <DialogDescription>
-              Adding a phone number or email increases the chances of the summons being
-              delivered to the accused.
+              No phone number or email has been added for {missingNames}. Adding one
+              increases the chances of the summons being delivered.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={proceedWithoutDetails}>
               Proceed without details
             </Button>
-            <Button type="button" onClick={() => setNoContactOpen(false)}>
+            <Button type="button" onClick={goToMissing}>
               Add details
             </Button>
           </DialogFooter>
@@ -261,12 +300,12 @@ export function AccusedSection() {
             />
             {/* Wraps to several lines — the Label's own leading-none would collide. */}
             <span className="leading-normal">
-              I confirm that I have no knowledge of the accused&apos;s electronic contact
-              details and cannot locate them with reasonable effort.
+              I confirm that I have no knowledge of the electronic contact details of{" "}
+              {missingNames}, and cannot locate them with reasonable effort.
             </span>
           </Label>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setConfirmOpen(false)}>
+            <Button type="button" variant="outline" onClick={goToMissing}>
               Add details
             </Button>
             <Button
@@ -280,6 +319,20 @@ export function AccusedSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={pendingRemove !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingRemove(null);
+        }}
+        title={`Remove ${pendingRemoveLabel || "accused"}`}
+        description="Are you sure you want to delete this accused and all their contact and address details? This cannot be undone."
+        confirmLabel="Yes, remove"
+        onConfirm={() => {
+          if (pendingRemove) removeAccused(pendingRemove);
+          setPendingRemove(null);
+        }}
+      />
     </>
   );
 }

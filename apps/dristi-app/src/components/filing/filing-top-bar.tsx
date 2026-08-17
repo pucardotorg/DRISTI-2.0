@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { GlobeIcon, ScaleIcon, UserRoundPenIcon } from "lucide-react";
+import { ScaleIcon, UserRoundPenIcon } from "lucide-react";
 
 import { COURT } from "@/lib/filing/options";
 import { initialsOf, useProfile } from "@/lib/filing/profile";
@@ -20,8 +20,11 @@ import {
 import { ProfileDialog } from "@/components/filing/profile-dialog";
 
 /**
- * Product header for the filing area: court identity on the left, language / support /
- * account on the right. Sticky so the section footer and this bar frame every screen.
+ * Product header for the filing area: court identity on the left, account on the right.
+ * Sticky so the section footer and this bar frame every screen.
+ *
+ * Language and support belong here, but neither is built — they are left out rather than
+ * rendered as controls that do nothing.
  */
 export function FilingTopBar() {
   const { profile, ready } = useProfile();
@@ -51,24 +54,19 @@ export function FilingTopBar() {
         </Link>
 
         <nav aria-label="Account" className="ml-auto flex items-center gap-1 sm:gap-2">
-          <Button variant="ghost" type="button">
-            <GlobeIcon data-icon="inline-start" aria-hidden />
-            EN
-          </Button>
-          <Button variant="ghost" type="button">
-            Support
-          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon"
                 aria-label={name ? `Account: ${name}` : "Account"}
-                className="ml-1 rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="rounded-full"
               >
                 <Avatar className="size-8">
                   <AvatarFallback>{initials || "?"}</AvatarFallback>
                 </Avatar>
-              </button>
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-56">
               <DropdownMenuLabel className="flex flex-col gap-0.5">

@@ -19,7 +19,6 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   CopyIcon,
-  DownloadIcon,
   FileTextIcon,
   InfoIcon,
   PrinterIcon,
@@ -144,7 +143,12 @@ function SignatureList({ title, rows }: { title: string; rows: Signatory[] }) {
                 <span className="text-body-compact font-semibold text-foreground">
                   {s.name}
                 </span>
-                {s.you ? <Badge variant="secondary">You</Badge> : null}
+                {/* One chip per row — the status. "You" is a caption, not a badge. */}
+                {s.you ? (
+                  <span className="text-caption font-medium text-muted-foreground">
+                    You
+                  </span>
+                ) : null}
               </div>
               <p className="text-caption font-medium text-muted-foreground">{s.role}</p>
             </div>
@@ -435,7 +439,7 @@ export function SignSection() {
         </Button>
         <Button type="button" variant="ghost" onClick={printFile}>
           <PrinterIcon data-icon="inline-start" aria-hidden />
-          Print case file
+          Print or save as PDF
         </Button>
       </div>
 
@@ -536,8 +540,8 @@ export function SignSection() {
               }
               actions={
                 <Button type="button" variant="outline" size="sm" onClick={printFile}>
-                  <DownloadIcon data-icon="inline-start" aria-hidden />
-                  Download case PDF
+                  <PrinterIcon data-icon="inline-start" aria-hidden />
+                  Print or save as PDF
                 </Button>
               }
             />
@@ -554,7 +558,14 @@ export function SignSection() {
               </Card>
             </div>
 
-            <div className="max-h-[calc(100vh-18rem)] overflow-y-auto">
+            {/* Scrolls on its own, so it is focusable — a keyboard user must be able to
+                reach the scroll region to read the document. */}
+            <div
+              tabIndex={0}
+              role="region"
+              aria-label="Complaint document"
+              className="max-h-[calc(100vh-18rem)] overflow-y-auto rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
               <CourtDocument draft={draft} />
             </div>
           </div>
@@ -575,7 +586,7 @@ export function SignSection() {
           extra={
             <Button type="button" variant="outline" size="lg" onClick={printFile}>
               <PrinterIcon data-icon="inline-start" aria-hidden />
-              Print case file
+              Print or save as PDF
             </Button>
           }
         />
@@ -589,7 +600,7 @@ export function SignSection() {
           extra={
             <Button type="button" variant="outline" size="lg" onClick={printFile}>
               <PrinterIcon data-icon="inline-start" aria-hidden />
-              Print case file
+              Print or save as PDF
             </Button>
           }
         />
@@ -608,14 +619,17 @@ export function SignSection() {
             If E-Sign is selected, all parties must sign using their{" "}
             <strong className="font-semibold">Aadhaar-linked mobile number</strong>.
           </p>
-          <Button
-            type="button"
-            variant="link"
-            className="h-auto w-fit p-0 underline"
-            onClick={printFile}
-          >
-            Download submission
-          </Button>
+          <p className="flex flex-wrap items-center gap-1 text-body-compact">
+            Need the complaint to sign on paper?
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto p-0 underline"
+              onClick={printFile}
+            >
+              Print or save as PDF
+            </Button>
+          </p>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setModal("upload")}>
               Upload signed copy
@@ -641,20 +655,21 @@ export function SignSection() {
             <DialogDescription>
               {mobileTail ? (
                 <>
-                  Enter the 6-digit OTP sent to your Aadhaar-linked mobile ending{" "}
+                  In the live service, a 6-digit OTP goes to your Aadhaar-linked mobile
+                  ending{" "}
                   <strong className="font-semibold text-foreground tabular-nums">
                     •••• {mobileTail}
                   </strong>
                   .
                 </>
               ) : (
-                "Enter the 6-digit OTP sent to your Aadhaar-linked mobile."
+                "In the live service, a 6-digit OTP goes to your Aadhaar-linked mobile."
               )}
             </DialogDescription>
           </DialogHeader>
 
           <SectionNotice>
-            Every other party has been sent their own SMS link to e-sign.
+            Each other party will need to sign too.
           </SectionNotice>
 
           <div className="flex flex-col gap-2">
@@ -781,14 +796,14 @@ export function SignSection() {
             Upload .jpg, .png, .jpeg, .webp or .pdf. Maximum upload size of 15 MB.
           </p>
           <p className="flex flex-wrap items-center gap-1 text-body-compact">
-            Want to download the unsigned document?
+            Need the unsigned document to sign on paper?
             <Button
               type="button"
               variant="link"
               className="h-auto p-0 underline"
               onClick={printFile}
             >
-              Click here
+              Print or save as PDF
             </Button>
           </p>
 
@@ -1067,7 +1082,7 @@ export function SignSection() {
                 onClick={printFile}
               >
                 <PrinterIcon data-icon="inline-start" aria-hidden />
-                Print case file
+                Print or save as PDF
               </Button>
             </div>
           </div>

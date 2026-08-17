@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowUpRightIcon, PanelLeftCloseIcon } from "lucide-react";
+import { FilesIcon } from "lucide-react";
 
 import { draftProgress } from "@/lib/filing/selectors";
 import {
@@ -14,12 +14,40 @@ import {
 } from "@/lib/filing/steps";
 import { useFiling } from "@/lib/filing/store";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarRail,
+  SidebarTrigger,
+  useSidebar,
+} from "@/components/ui/sidebar";
 import {
   UploadedCountBadge,
   UploadedDocsDrawer,
 } from "@/components/filing/uploaded-docs-drawer";
+
+/**
+ * Height of `FilingTopBar`. The rail hangs below it and the form column is sized
+ * against it, so both read the same number.
+ */
+export const TOP_BAR_HEIGHT = "3.5rem";
+
+/**
+ * DS `SidebarMenuButton` is 32px tall (and exactly 32×32 when the rail is collapsed, forced
+ * with `!`). These rows are the filing's primary navigation, so they have to meet the
+ * 40×40 floor: `ACCESSIBILITY.md` §8's own remedy is to expand the hit area rather than
+ * grow the control. `-inset-1` adds 4px a side → 40px; the menus below carry `gap-2` so
+ * neighbouring hit areas meet without overlapping.
+ */
+const HIT_AREA = "relative after:absolute after:-inset-1 after:content-['']";
 
 export function useActiveStep(): FilingStep | undefined {
   const pathname = usePathname();
@@ -28,117 +56,144 @@ export function useActiveStep(): FilingStep | undefined {
 }
 
 /**
- * Sections navigation for the filing form: progress, uploaded documents, and every
- * section grouped as in the court form. Used inside the desktop rail and the mobile sheet.
+ * Sections rail for the filing form, on the DS Sidebar: progress and uploaded documents
+ * in the header, then every section grouped as in the court form. Collapses to the icon
+ * strip on desktop (⌘/Ctrl+B, remembered in a cookie) and becomes a sheet below `md`.
+ *
+ * The rail starts under the sticky product header rather than running the full viewport
+ * height — `FilingTopBar` is chrome for the whole filings area, the rail only for one
+ * draft. See `FilingShell` for the offset.
  */
-export function SidebarSections({
-  onNavigate,
-  onHide,
-}: {
-  onNavigate?: () => void;
-  onHide?: () => void;
-}) {
+export function FilingSidebar() {
   const active = useActiveStep();
   const { draft, hrefFor } = useFiling();
+  const { isMobile, setOpenMobile } = useSidebar();
   const [docsOpen, setDocsOpen] = React.useState(false);
   const progress = draftProgress(draft);
 
+  const closeMobile = () => {
+    if (isMobile) setOpenMobile(false);
+  };
+
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
-      <div className="flex items-center justify-between gap-2 px-1">
-        <span className="text-body font-medium text-foreground">Sections</span>
-        {onHide ? (
-          <Button type="button" variant="ghost" onClick={onHide}>
-            Hide
-            <PanelLeftCloseIcon data-icon="inline-end" aria-hidden />
-          </Button>
-        ) : null}
-      </div>
-
-      <div className="flex flex-col gap-1.5 px-1">
-        <div className="flex items-center justify-between text-caption">
-          <span className="font-medium text-foreground">Progress</span>
-          <span className="tabular-nums text-muted-foreground">{progress}%</span>
-        </div>
-        <Progress value={progress} aria-label="Filing progress" className="h-1.5" />
-      </div>
-
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full justify-start"
-        onClick={() => setDocsOpen(true)}
+    <>
+      <Sidebar
+        collapsible="icon"
+        className="border-hairline"
+        style={{ top: TOP_BAR_HEIGHT, height: "auto" }}
       >
-        View uploaded documents
-        <ArrowUpRightIcon aria-hidden />
-        <span className="ml-auto">
-          <UploadedCountBadge />
-        </span>
-      </Button>
-      <UploadedDocsDrawer open={docsOpen} onOpenChange={setDocsOpen} />
-
-      <nav aria-label="Filing sections" className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1">
-        {stepGroups().map((g) => (
-          <div key={g.group} className="mb-4 last:mb-0">
-            <p className="px-2 pb-1 pt-2 text-caption text-muted-foreground">{g.group}</p>
-            <ul className="flex flex-col gap-0.5">
-              {g.steps.map((s) => {
-                const isActive = active?.id === s.id;
-                const Icon = s.icon;
-                const base =
-                  "flex h-10 w-full items-center gap-2.5 rounded-lg px-2.5 text-body-compact font-medium outline-none transition-colors";
-                if (s.placeholder) {
-                  return (
-                    <li key={s.id}>
-                      <span
-                        aria-disabled
-                        className={cn(base, "cursor-default text-muted-foreground")}
-                      >
-                        <Icon className="size-4 shrink-0" aria-hidden />
-                        {s.title}
-                      </span>
-                    </li>
-                  );
-                }
-                return (
-                  <li key={s.id}>
-                    <Link
-                      href={hrefFor(s.id)}
-                      onClick={onNavigate}
-                      aria-current={isActive ? "page" : undefined}
-                      className={cn(
-                        base,
-                        "focus-visible:ring-3 focus-visible:ring-ring/50",
-                        isActive
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                          : "text-foreground hover:bg-accent"
-                      )}
-                    >
-                      <Icon
-                        className={cn(
-                          "size-4 shrink-0",
-                          isActive ? "text-primary" : "text-muted-foreground"
-                        )}
-                        aria-hidden
-                      />
-                      {s.title}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+        <SidebarHeader className="gap-3 p-3 group-data-[collapsible=icon]:p-1">
+          <div className="flex items-center justify-between gap-2 group-data-[collapsible=icon]:justify-center">
+            <span className="text-body font-medium text-foreground group-data-[collapsible=icon]:hidden">
+              Sections
+            </span>
+            {/* The DS ships this at 36px; 40 is the accessibility floor. */}
+            <SidebarTrigger
+              size="icon"
+              aria-label="Toggle sections"
+              className="text-muted-foreground"
+            />
           </div>
-        ))}
-      </nav>
-    </div>
-  );
-}
 
-/** Desktop rail (lg and up). */
-export function FilingSidebar({ onHide }: { onHide?: () => void }) {
-  return (
-    <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-72 shrink-0 border-r border-hairline bg-sidebar p-4 lg:block">
-      <SidebarSections onHide={onHide} />
-    </aside>
+          <div className="flex flex-col gap-1.5 group-data-[collapsible=icon]:hidden">
+            <div className="flex items-center justify-between text-caption">
+              <span className="font-medium text-foreground">Progress</span>
+              <span className="tabular-nums text-muted-foreground">{progress}%</span>
+            </div>
+            <Progress value={progress} aria-label="Filing progress" className="h-1.5" />
+          </div>
+        </SidebarHeader>
+
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-2">
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    /* Collapsed, the DS forces these to 32px with `!`; the sanctioned
+                       remedy (ACCESSIBILITY.md §8) is to expand the hit area to 40px. */
+                    className={HIT_AREA}
+                    tooltip="View uploaded documents"
+                    onClick={() => {
+                      closeMobile();
+                      setDocsOpen(true);
+                    }}
+                  >
+                    <FilesIcon aria-hidden className="text-muted-foreground" />
+                    <span className="min-w-0 truncate">View uploaded documents</span>
+                    <span className="ml-auto">
+                      <UploadedCountBadge />
+                    </span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          {stepGroups().map((g) => (
+            <SidebarGroup key={g.group}>
+              <SidebarGroupLabel className="text-muted-foreground">
+                {g.group}
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className="gap-2">
+                  {g.steps.map((s) => {
+                    const Icon = s.icon;
+
+                    // Listed for orientation, but there is no screen behind them yet —
+                    // a label, not a disabled control, so it keeps full contrast.
+                    if (s.placeholder) {
+                      return (
+                        <SidebarMenuItem key={s.id}>
+                          <SidebarMenuButton
+                            asChild
+                            className="text-muted-foreground aria-disabled:opacity-100"
+                          >
+                            <span aria-disabled="true">
+                              <Icon aria-hidden />
+                              <span className="truncate">{s.title}</span>
+                            </span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      );
+                    }
+
+                    const isActive = active?.id === s.id;
+                    return (
+                      <SidebarMenuItem key={s.id}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={s.title}
+                          className={HIT_AREA}
+                        >
+                          <Link
+                            href={hrefFor(s.id)}
+                            onClick={closeMobile}
+                            aria-current={isActive ? "page" : undefined}
+                          >
+                            <Icon
+                              aria-hidden
+                              className={cn(
+                                isActive ? "text-primary" : "text-muted-foreground"
+                              )}
+                            />
+                            <span className="truncate">{s.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          ))}
+        </SidebarContent>
+
+        <SidebarRail />
+      </Sidebar>
+
+      <UploadedDocsDrawer open={docsOpen} onOpenChange={setDocsOpen} />
+    </>
   );
 }

@@ -4,7 +4,14 @@ import * as React from "react";
 import { InfoIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Field, FieldDescription, FieldLabel, FieldTitle } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+  FieldTitle,
+} from "@/components/ui/field";
 import {
   Tooltip,
   TooltipContent,
@@ -26,18 +33,24 @@ export function RequiredMark({ optional }: { optional?: boolean }) {
   );
 }
 
-/** Small "i" tooltip beside a label. Keyboard-reachable; the visible label carries meaning. */
+/**
+ * Small "i" tooltip beside a label. Keyboard-reachable; the visible label carries meaning.
+ * The target is the DS 40px icon button — pulled back with `-my-2` so a label row that
+ * carries a tip is still the height of one that doesn't.
+ */
 export function LabelTip({ children }: { children: React.ReactNode }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon"
           aria-label="More about this field"
-          className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="-my-2 text-muted-foreground"
         >
-          <InfoIcon className="size-4" aria-hidden />
-        </button>
+          <InfoIcon aria-hidden />
+        </Button>
       </TooltipTrigger>
       <TooltipContent className="max-w-64">{children}</TooltipContent>
     </Tooltip>
@@ -45,9 +58,14 @@ export function LabelTip({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Label + control + help text, wired through the DS `Field` so descriptions bind via
- * aria-describedby. `required` adds the asterisk; `optional` adds the muted "optional".
- * Use `asGroup` when the control isn't a single labelled input (segmented, address block).
+ * Label + control + help text, wired through the DS `Field` so descriptions and errors
+ * bind via aria-describedby. `required` adds the asterisk; `optional` adds the muted
+ * "optional". Use `asGroup` when the control isn't a single labelled input (segmented,
+ * address block).
+ *
+ * Passing `error` renders `FieldError` and marks the field invalid, which the DS `Input`
+ * and `Textarea` read for `aria-invalid`. Other controls need `aria-invalid` themselves —
+ * the DS only wires the two that call `useFieldControlProps`.
  */
 export function FormField({
   label,
@@ -56,6 +74,7 @@ export function FormField({
   tip,
   help,
   helpPlacement = "below",
+  error,
   asGroup = false,
   className,
   children,
@@ -67,6 +86,8 @@ export function FormField({
   help?: React.ReactNode;
   /** Guidance normally follows the control; "above" puts it between label and control. */
   helpPlacement?: "above" | "below";
+  /** What is wrong with the current value. Shown under the control, read out with it. */
+  error?: React.ReactNode;
   asGroup?: boolean;
   className?: string;
   children: React.ReactNode;
@@ -82,7 +103,7 @@ export function FormField({
   );
 
   return (
-    <Field className={cn("gap-2", className)}>
+    <Field className={cn("gap-2", className)} data-invalid={error ? true : undefined}>
       {asGroup ? (
         <FieldTitle className="text-body-compact">{labelBody}</FieldTitle>
       ) : (
@@ -91,6 +112,7 @@ export function FormField({
       {help && helpPlacement === "above" ? <FieldDescription>{help}</FieldDescription> : null}
       {children}
       {help && helpPlacement === "below" ? <FieldDescription>{help}</FieldDescription> : null}
+      {error ? <FieldError>{error}</FieldError> : null}
     </Field>
   );
 }

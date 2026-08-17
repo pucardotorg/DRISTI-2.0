@@ -24,7 +24,17 @@ import type {
   PoaHolder,
   Representative,
 } from "@/lib/filing/types";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Label } from "@/components/ui/label";
 import { AddressFields } from "@/components/filing/address-fields";
 import { ConfirmDialog } from "@/components/filing/confirm-dialog";
 import { FilingFooter } from "@/components/filing/filing-footer";
@@ -39,7 +49,7 @@ import {
 } from "@/components/filing/form-card";
 import { FormField } from "@/components/filing/form-field";
 import { OptionSelect, PrefixInput, TextField } from "@/components/filing/inputs";
-import { SectionNotice } from "@/components/filing/notices";
+import { PrefillNotice } from "@/components/filing/prefill-notice";
 import { RichTextEditor } from "@/components/filing/rich-text-editor";
 import { SectionTabs } from "@/components/filing/section-tabs";
 import { Segmented, YesNoSegmented } from "@/components/filing/segmented";
@@ -96,17 +106,34 @@ export function ComplainantSection() {
   const active = Math.min(activeIndex, complainants.length - 1);
   const c = complainants[active];
 
-  const [sourceOpen, setSourceOpen] = React.useState(true);
+  /**
+   * The source panel is docked beside the form from `xl` up, so it starts open there as in
+   * the demo. Below that it is a sheet over the form — opened on request (a prefilled
+   * field, or "View source document") rather than covering the screen on arrival.
+   */
+  const docked = useMediaQuery("(min-width: 1280px)");
+  const [sourceOpen, setSourceOpen] = React.useState(docked);
   const [sourceField, setSourceField] = React.useState<ComplainantPrefillKey>("name");
   /** Which of the complainant's uploads the panel shows; the chips switch between them. */
   const [sourceDoc, setSourceDoc] = React.useState<PartyDoc>("id-proof");
   const [pendingRemove, setPendingRemove] = React.useState<number | null>(null);
+  /** The sandbox stand-in for mobile verification — see the dialog at the foot of the file. */
+  const [otpOpen, setOtpOpen] = React.useState(false);
+  const [otp, setOtp] = React.useState("");
 
   /* ── writes ──────────────────────────────────────────────────────────────── */
 
   const set = <K extends keyof Complainant>(key: K, value: Complainant[K]) =>
     update((d) => {
       d.complainants[active][key] = value;
+    });
+
+  /** Changing the number retires the check that was run against the old one. */
+  const setMobile = (value: string) =>
+    update((d) => {
+      const target = d.complainants[active];
+      if (value !== target.mobile) target.verified = false;
+      target.mobile = value;
     });
 
   /** Editing a machine-filled field clears its amber marker. */
@@ -233,19 +260,7 @@ export function ComplainantSection() {
           }
         />
 
-        {!anyPrefilled || draft.dismissed.complainantPrefill ? null : (
-          <SectionNotice
-            title="We've pre-filled some details"
-            onDismiss={() =>
-              update((d) => {
-                d.dismissed.complainantPrefill = true;
-              })
-            }
-          >
-            Highlighted fields were read from your uploaded identity proof — click one to
-            see its source. Please check them before continuing.
-          </SectionNotice>
-        )}
+        <PrefillNotice show={anyPrefilled} />
 
         {/* Representation & type */}
         <FormCard title="Representation & type">
@@ -284,7 +299,7 @@ export function ComplainantSection() {
                     c.verified ? (
                       <span className="inline-flex items-center gap-1 font-medium text-success-ink">
                         <CheckIcon className="size-4" aria-hidden />
-                        Verified by OTP
+                        Verified in sandbox — no OTP was sent
                       </span>
                     ) : undefined
                   }
@@ -293,7 +308,7 @@ export function ComplainantSection() {
                     <PrefixInput
                       prefix="+91"
                       value={c.mobile}
-                      onChange={(v) => set("mobile", v)}
+                      onChange={setMobile}
                       placeholder="10-digit number"
                       inputMode="numeric"
                       autoComplete="tel-national"
@@ -302,7 +317,10 @@ export function ComplainantSection() {
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => set("verified", true)}
+                        onClick={() => {
+                          setOtp("");
+                          setOtpOpen(true);
+                        }}
                         disabled={!canVerify}
                       >
                         Verify by OTP
@@ -615,6 +633,66 @@ export function ComplainantSection() {
         region={sourceRegion}
         note="Shown from your uploaded document."
       />
+
+      {/* Mobile verification — the sandbox stand-in, shown as one. Nothing is sent, so the
+          dialog says so in place and the field afterwards says so too. */}
+      <Dialog
+        open={otpOpen}
+        onOpenChange={(open) => {
+          setOtpOpen(open);
+          if (!open) setOtp("");
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Verify the mobile number</DialogTitle>
+            <DialogDescription>
+              This confirms the number the court will use to reach{" "}
+              {complainantLabel(c, active)}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="complainant-otp" className="text-body-compact">
+              Enter OTP
+            </Label>
+            <InputOTP
+              id="complainant-otp"
+              maxLength={6}
+              value={otp}
+              onChange={setOtp}
+              containerClassName="gap-2"
+            >
+              <InputOTPGroup className="gap-2">
+                {[0, 1, 2, 3, 4, 5].map((i) => (
+                  <InputOTPSlot
+                    key={i}
+                    index={i}
+                    className="size-10 rounded-lg border border-input"
+                  />
+                ))}
+              </InputOTPGroup>
+            </InputOTP>
+            <p className="text-caption text-muted-foreground">
+              Sandbox — no OTP is sent, and any 6-digit code is accepted here.
+            </p>
+          </div>
+
+          <Button
+            type="button"
+            size="lg"
+            className="w-full"
+            disabled={otp.length < 6}
+            onClick={() => {
+              set("verified", true);
+              setOtp("");
+              setOtpOpen(false);
+            }}
+          >
+            Verify number
+          </Button>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={pendingRemove !== null}

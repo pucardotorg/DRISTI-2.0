@@ -9,7 +9,16 @@ import { extractable } from "@/lib/filing/ocr";
 import { extractedFieldCount, uploadedIntakeSlots } from "@/lib/filing/selectors";
 import { useFiling } from "@/lib/filing/store";
 import type { IntakeSlot } from "@/lib/filing/types";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle,
+} from "@/components/ui/item";
 import {
   Sheet,
   SheetContent,
@@ -43,41 +52,41 @@ function DrawerRow({
   const img = preview.status === "ready" ? preview.imageUrl : null;
   const body = (
     <>
-      <span className="flex h-11 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface-sunken text-caption font-semibold text-muted-foreground">
+      {/* Page-shaped, not the DS square: a cropped 40×40 of a document reads as noise.
+          Sized here rather than via variant="image" so nothing collides with `size-10`.
+          `bg-card` because the row it sits in is already the sunken layer. */}
+      <ItemMedia className="h-11 w-16 overflow-hidden rounded-sm bg-card [&_img]:size-full [&_img]:object-cover">
         {preview.status === "loading" ? (
           <Skeleton className="size-full" />
         ) : img ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={img} alt="" className="size-full object-cover" />
+          <img src={img} alt="" />
         ) : (
-          slot.file?.ext ?? "FILE"
+          <span className="text-caption font-semibold text-muted-foreground">
+            {slot.file?.ext ?? "FILE"}
+          </span>
         )}
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col text-left">
-        <span className="truncate text-body-compact font-medium text-foreground">
-          {slot.label}
-        </span>
-        <span className="truncate text-caption text-muted-foreground">{slot.file?.name}</span>
-        <span
-          className={
-            summary.read ? "text-caption text-success-ink" : "text-caption text-muted-foreground"
-          }
-        >
+      </ItemMedia>
+      <ItemContent className="min-w-0">
+        <ItemTitle className="w-full">{slot.label}</ItemTitle>
+        <ItemDescription className="truncate">{slot.file?.name}</ItemDescription>
+        <ItemDescription className={cn(summary.read && "text-success-ink")}>
           {summary.text}
-        </span>
-      </span>
+        </ItemDescription>
+      </ItemContent>
     </>
   );
   return img ? (
-    <button
-      type="button"
-      onClick={() => onOpen(img, `Uploaded ${slot.label.toLowerCase()}`)}
-      className="flex items-center gap-3 rounded-lg bg-surface-sunken p-2 text-left outline-none transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
-    >
-      {body}
-    </button>
+    <Item asChild className="bg-surface-sunken hover:bg-accent">
+      <button
+        type="button"
+        onClick={() => onOpen(img, `Uploaded ${slot.label.toLowerCase()}`)}
+      >
+        {body}
+      </button>
+    </Item>
   ) : (
-    <div className="flex items-center gap-3 rounded-lg bg-surface-sunken p-2">{body}</div>
+    <Item className="bg-surface-sunken">{body}</Item>
   );
 }
 
@@ -152,8 +161,9 @@ export function UploadedCountBadge() {
   const { draft } = useFiling();
   const n = uploadedIntakeSlots(draft.intake).length;
   return (
-    <span className="text-body-compact tabular-nums text-muted-foreground" aria-label={`${n} uploaded`}>
+    <Badge variant="secondary" className="tabular-nums">
       {n}
-    </span>
+      <span className="sr-only">uploaded</span>
+    </Badge>
   );
 }
