@@ -32,3 +32,5 @@ Orientation for this repo. Docs describe the product and how we design; they are
 - A bespoke docs-only `agents/` folder for orchestration prose — tool-native paths
   above (`.claude/agents/`, `.claude/rules/`, `.claude/skills/`) are the agent layer;
   agent roles get a real frontmatter file there, not a description in `docs/`.
+
+- [docs/design/ds-diagnosis.md](design/ds-diagnosis.md) — measured diagnosis of why the built UI reads dull (neutrals, type stack, surfaces) with DS token proposals and an A/B.

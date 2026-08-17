@@ -116,6 +116,7 @@ the role names.
 | Panel/rail with `border-l border-border` sitting on `bg-sidebar` / `bg-muted` | The fill change already separates it — drop to `border-hairline` or remove |
 | `bg-surface-sunken` well *plus* `border border-border` | Pick one: sunken fill with no border (the box-in-box ban — depth is fill, not borders) |
 | `shadow-raised` box nested inside another `shadow-raised` card | Inner box becomes a flat fill (`bg-card` on a tinted parent, `bg-surface-sunken` on a white one); shadow only on the outermost lifted surface |
+| Info/warning notice as a tinted colour block with tinted body copy | Quiet notice: white panel (`Alert` default + hairline + `shadow-raised`), icon in `*-ink`, title foreground, body muted — status by icon + words |
 | Card where title, number, badge, and metadata are all `font-semibold` | Title keeps 600; numbers drop to 500 + `tabular-nums`; metadata to 400 `text-muted-foreground` — two weights per component |
 | 3–4 chips/badges on one card row (status + ownership + count + avatar) | One chip carries the status; ownership becomes the avatar itself or plain caption text; counts become text |
 | `Badge variant="destructive"` on every overdue row in a list | Rows state the fact in `text-destructive-ink` caption text; at most the single most-urgent item (or a rail header count) keeps the badge |
@@ -142,11 +143,19 @@ never invent a lighter grey). All headings require `font-semibold` (gate-enforce
 | `text-display-s` | 40/48 | Rare page hero | 600 | foreground | `tracking-tight` |
 | `text-title-l` | 32/40 | The page title (one per screen) | 600 | foreground | `tracking-tight` allowed |
 | `text-title` | 24/32 | Focal card / section hero title | 600 | foreground | `tracking-tight` allowed |
-| `text-title-s` | 20/28 | Panel & sheet titles | 600 | foreground | — |
-| `text-body` | 16/24 | Citizen-facing copy default | 400; 500 for field labels | foreground; muted for support | — |
+| `text-title-s` | 20/28 | Section headings above a group of cards; sheet titles | 600 | foreground | — |
+| `text-body` | 16/24 | Citizen-facing copy default; **card/panel titles at 600** (the Card master's own `text-base`) | 400; 500 for field labels; 600 for card titles | foreground; muted for support | — |
 | `text-body-compact` | 14/20 | Dense staff tables/rows — opt-in only | 400; 500–600 for the row's ONE emphasized cell | foreground / muted | never citizen default |
 | `text-caption` | 12/16 | Metadata, timestamps, eyebrows | 500 (weight floor); 600 only for eyebrow section labels | muted; status via `*-ink` | never tracked tighter |
 | `font-mono` | at body-compact/caption | CNRs, codes | 400–500 | muted unless focal | `tabular-nums` implicit-check |
+
+**Scale discipline (measured 2026-08-17):** the shipped stack (`"Helvetica Neue"`) has no
+600 face on macOS, so every `font-semibold` renders as **Bold**; on Windows it falls to
+Arial (400/700). Big semibold headings therefore read heavier than the Figma/Inter
+intent. Until the DS retunes the stack (see `docs/design/ds-diagnosis.md`), keep form
+screens at the demo's scale — page title `text-title` (24), card titles `text-body`
+600 (16), labels 14/500 — and do **not** step titles up to compensate for weak
+hierarchy; fix hierarchy with colour and spacing.
 
 Numbers: `tabular-nums` on anything columnar or compared (item numbers, dates, counts,
 amounts). Currency and counts right-align in tables. One `font-semibold` number per
