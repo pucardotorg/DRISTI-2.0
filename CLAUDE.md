@@ -17,6 +17,9 @@ layered on top of identical national law.
 `src/components/ui/*` — then `npm run sync:ui -- <name>` (do not hand-write).
 Gates: `npm run check:tokens`, `npm run check:typography`, `npm run check:ui-sync`, and
 `npm run check:rails`. See [docs/design/design-system.md](docs/design/design-system.md).
+**Craft (mandatory, every iteration):** also load the `ui-craft` skill for any UI build,
+change, or polish — layering (canvas → chrome → panel → well), strokes, type, elevation —
+and run its pre-flight checklist on the render before reporting done.
 
 **Always-on agent rails:** `.cursor/rules/` / `.claude/rules/` (mandatory DS gate).
 

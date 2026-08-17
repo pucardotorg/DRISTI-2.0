@@ -60,6 +60,17 @@ Use named DS type roles in screen composition: citizen copy is `text-body`;
 titles are `text-title-* font-semibold`. Primitive-internal `text-sm` is not a
 screen-copy pattern.
 
+## 3a. Craft — mandatory on every UI change, every iteration
+
+The gates above prove legality; they say nothing about whether the screen reads as a
+product or a wireframe. So on **every** UI build, change, or polish pass — first
+iteration and every one after it, on every branch — load the `ui-craft` skill
+(`.claude/skills/ui-craft/SKILL.md` / `.cursor/skills/ui-craft/SKILL.md`) alongside
+`pull-ui-from-ds`, apply its layering model (canvas → chrome → panel → well) and run its
+pre-flight checklist on the **render** before reporting done. If the skill file is
+missing on the branch you are on, restore it from `main` before touching UI (do not build
+without it). Subagents that build UI must be handed the skill explicitly.
+
 ## 4. Review
 
 After UI changes, use skill `review-ui-ds` (Cursor + Claude).

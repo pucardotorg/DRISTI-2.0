@@ -25,6 +25,12 @@ Invoke the `pull-ui-from-ds` skill (or follow it directly): resolve the DS root,
 `AGENTS.md` / `ACCESSIBILITY.md` / `RESPONSIVE.md` / Laws / typography / spacing, then
 sync every primitive you need.
 
+Then invoke the `ui-craft` skill — every build, every iteration, on every branch. It
+carries the taste rules the gates cannot: the layering model (canvas → chrome → panel →
+well), strokes, type hierarchy, elevation. Compose to it, and run its pre-flight
+checklist on the render before you report done. If the skill file is missing on your
+branch, restore it from `main` first.
+
 Foundations live at `{DS}/src/app/(docs)/foundations/<name>/page.tsx` — eight of them:
 `laws`, `typography`, `spacing`, `colors`, `elevation`, `radius`, `icons`,
 `accessibility`. Beyond the always-read set, pull `colors` before choosing any status or

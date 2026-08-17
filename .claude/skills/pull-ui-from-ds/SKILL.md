@@ -22,6 +22,12 @@ Verify with `git -C "$DS" remote get-url origin` — must contain
 If unavailable or wrong org: stop and ask the user to run `npm install`. Never search
 Desktop/home for other `pucar-design-system` folders. Do not freestyle.
 
+## Also load `ui-craft` (every UI task)
+
+This skill gets the rules right; `ui-craft` gets the *judgment* right — layering,
+strokes, type, elevation. Load both on every build, change, or polish pass, and finish
+with ui-craft's pre-flight checklist on the render.
+
 ## Mandatory reads (every UI task)
 
 1. `{DS}/AGENTS.md`

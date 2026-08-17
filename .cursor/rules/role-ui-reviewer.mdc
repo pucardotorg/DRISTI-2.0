@@ -29,6 +29,11 @@ files under `apps/dristi-app/`. Read the DS component source for every primitive
 screen uses — reviewing composition without knowing what the primitive actually does is
 guessing.
 
+Also load the `ui-craft` skill and audit the **render** against it: the layering model
+(canvas → chrome → panel → well), the stroke policy, type hierarchy, elevation, and its
+pre-flight checklist. A screen that passes every gate but reads as a wireframe is a
+Critical finding, not a nit.
+
 Foundations at `{DS}/src/app/(docs)/foundations/<name>/page.tsx` — eight: `laws`,
 `typography`, `spacing`, `colors`, `elevation`, `radius`, `icons`, `accessibility`. Read
 `colors` before ruling on any status or state token, `elevation` before ruling on a
