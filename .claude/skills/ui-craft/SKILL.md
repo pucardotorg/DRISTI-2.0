@@ -18,10 +18,10 @@ can catch: whether the screen was composed with judgment or blindly executed. It
 this skill seem to disagree, the Law wins — and if the Law itself is what makes the
 screen feel cheap, that is upstream feedback (§6), not a local hack.
 
-Reference bar: three visible layers (canvas → panel → well) separated by background
-value and soft elevation, one saturated focal card per view, big quiet type, almost no
-visible strokes. **White panels on a white page separated only by borders is a
-wireframe** — the single most common way a build reads amateur. Extended rationale and measurements:
+Reference bar: three visible layers (page → panel → well) separated by soft elevation and
+fill, one saturated focal card per view, big quiet type, almost no visible strokes.
+**White panels on a white page separated only by borders is a wireframe** — the single
+most common way a build reads amateur. The cure is a lifted panel, not a grey page. Extended rationale and measurements:
 `references/research.md` in this skill's folder.
 
 ## 0. The reference is the spec
@@ -50,13 +50,15 @@ drift cheap. Rules:
 
 ## 1. The six non-negotiables
 
-0. **Layer the surface before you draw a stroke.** Every product screen with panels
-   (forms, wizards, dashboards, review, sign) sits on a **canvas** of
-   `bg-surface-sunken`; chrome (header, rails, footers, docked panels) and panels are
-   `bg-card` and lift off it; wells inside panels are `bg-surface-sunken` again. If you
-   cannot tell canvas from panel from well with every border removed, the layering is
-   missing and no stroke will fix it. Only reading/text pages stay on a flat
-   `bg-background`. (See §4 for the exact recipe.)
+0. **Layer the surface before you draw a stroke — the DS way.** The page stays
+   `bg-background` (the DS `SidebarInset` default); rails are `bg-sidebar`; panels are
+   `Card` **lifted** with `border-hairline shadow-raised` (the owner's demo: card + 5%
+   shadow; the DS: `SidebarInset variant="inset"` floats a white sheet with
+   `shadow-raised`); wells inside panels are `bg-surface-sunken`. If you cannot tell
+   page from panel from well with every border removed, the layering is missing and no
+   stroke will fix it. **Do not paint a grey canvas under the whole page** — it reads as
+   a dull admin panel and departs from the DS's flat-page model (owner-rejected
+   2026-08-17). (See §4 for the exact recipe.)
 
 1. **Borders are the last resort for separation.** To separate two regions try, in
    order: spacing → background shift (`bg-surface-sunken`, `bg-muted` stage per the
@@ -105,10 +107,10 @@ the role names.
 
 | Cheap tell | Premium move |
 | --- | --- |
-| White page, white cards, only `border-border` between them ("wireframe", "flat", "no elevation") | Put the screen on the canvas: `bg-surface-sunken` on the area root; chrome and Cards stay `bg-card`. The fill difference does the separating |
-| Card on the canvas still wearing `border-border` | Panel recipe: `border-hairline shadow-raised` (soft edge + soft lift). Full-strength stroke only on a flat white page where the Law needs it |
-| Rail/sidebar on `bg-sidebar`/`bg-muted` next to a muted canvas | Rails are chrome — `bg-card` with a `border-hairline` seam, so canvas and rail read as different layers |
-| A sunken well wrapped around a white sheet that already sits on the canvas | Delete the wrapper — canvas is the backdrop; wells live *inside* panels only |
+| White page, white cards, only `border-border` between them ("wireframe", "flat", "no elevation") | Lift the panels: `Card` + `border-hairline shadow-raised` (`PANEL_CLASS`). The DS shadow does the separating; the page stays white |
+| Grey canvas painted under the whole page to "add depth" | Revert to `bg-background`; depth comes from the lifted panel and the `bg-sidebar` rail, not from a tinted page (owner-rejected) |
+| Rail/sidebar on `bg-card` (same white as the content) | Rails are `bg-sidebar` with a `border-hairline` seam — the DS's own rail tone is the second layer |
+| A sunken well wrapped around a white sheet that already lifts off the page | Delete the wrapper — wells live *inside* panels only |
 | `border-b border-border` under a header/tab row that already changes fill or has an active underline | `border-b border-hairline`, or delete the rule and let spacing + the underline separate |
 | Table with `border border-border` outside AND `border-b border-border` on every row | Keep the outer frame `border-border` (structural); rows become `border-b border-hairline` or `divide-y divide-hairline`; header row separated by `bg-surface-sunken`, not a second stroke |
 | Panel/rail with `border-l border-border` sitting on `bg-sidebar` / `bg-muted` | The fill change already separates it — drop to `border-hairline` or remove |
@@ -152,35 +154,30 @@ card is emphasis; five is noise.
 
 ## 4. Surface & depth spec
 
-Four layers, in order — this is the model, not a menu:
+Four layers, in order — this is the model, not a menu (it is the DS's own model, seen in
+`SidebarInset`, and the owner's demo):
 
-1. **Canvas** — the screen's ground for any product surface with panels: forms,
-   wizards, dashboards, review, sign, tables-in-cards. `bg-surface-sunken` on the area
-   root (layout), so chrome and panels have something to lift off. Reading/text-only
-   pages stay on `bg-background`. (The Laws name `bg-muted` as the stage; measured at
-   1.03:1 against card it is imperceptible on most displays, so use `surface-sunken`
-   — the DS's tuned 2.5-step — and see §6.)
-2. **Chrome** — header, sidebar/rails, sticky footers, docked side panels: `bg-card`,
-   seams `border-hairline` (or none). Chrome frames the canvas; it never sits on the
-   same fill as the canvas.
-3. **Panel** — `Card` on the canvas: `bg-card border-hairline shadow-raised` (the
-   Dristi `PANEL_CLASS` recipe) — the fill and the soft dual-layer shadow define the
-   panel, so no full-strength stroke. On a *flat white page* the Law's default
-   `border-border` Card is what defines it — there, keep the border and skip the shadow.
-   Never both at full strength.
-4. **Well** — `bg-surface-sunken`, borderless, `rounded-md`/`rounded-lg` insets
-   *inside a panel* (media wells, filled document rows, info wells, number chips,
-   collapsed strips, search pills). A well needs a white panel between it and the
-   canvas, or it disappears.
+1. **Page** — `bg-background`, always. Not a tinted canvas.
+2. **Chrome** — header and sticky footers `bg-card`; sidebar/rails `bg-sidebar` (the DS
+   rail tone, one step off white); docked side panels `bg-card`. Seams `border-hairline`
+   or none. Chrome never carries `border-border`.
+3. **Panel** — `Card` lifted: `bg-card border-hairline shadow-raised` (the Dristi
+   `PANEL_CLASS` recipe in `components/filing/form-card.tsx`) — the DS dual-layer
+   shadow defines the panel; the hairline is a soft edge, not a stroke. Flat
+   `border-border` Cards belong to *inside* a muted dialog stage (the Laws' recipe), not
+   to product pages.
+4. **Well** — `bg-surface-sunken`, borderless, `rounded-md`/`rounded-lg` insets *inside a
+   panel* (media wells, filled document rows, info wells, number chips, collapsed
+   strips, search pills). A well needs a white panel between it and the page.
 
-Shadows by role only: `shadow-raised` = panels on the canvas and genuinely lifted small
-boxes (never nested); `shadow-overlay` = popovers/menus/tooltips; `shadow-modal` =
-dialogs/sheets. A hovered card may deepen via `transition-shadow`.
+Shadows by role only: `shadow-raised` = panels and genuinely lifted small boxes (never
+nested); `shadow-overlay` = popovers/menus/tooltips; `shadow-modal` = dialogs/sheets. A
+hovered card may deepen via `transition-shadow`.
 
-Border policy per surface: chrome seams → `border-hairline` or none; panel on canvas →
-`border-hairline` (+ `shadow-raised`); panel on flat page → `border-border`; control
-edge → `border-input`; wells → borderless; structural table frames → `border-border`,
-rows `border-hairline`; focus → `ring` tokens, never a darkened border.
+Border policy per surface: chrome seams → `border-hairline` or none; panel →
+`border-hairline` (+ `shadow-raised`); control edge → `border-input`; wells →
+borderless; structural table frames → the panel edge itself, rows `border-hairline`;
+focus → `ring` tokens, never a darkened border.
 
 Radius nesting: containers `rounded-xl` (14), large/hero surfaces `rounded-2xl`–`3xl`
 (18/22), controls `rounded-lg` (10), insets `rounded-md`/`sm` (8/6), chips
@@ -191,9 +188,9 @@ Radius nesting: containers `rounded-xl` (14), large/hero surfaces `rounded-2xl`�
 
 Run before declaring any screen done (after the token gates):
 
-- [ ] Layering check: squint at the render — canvas, chrome, panels and wells are each
-      a distinct value *with the strokes ignored*; the area root is `bg-surface-sunken`,
-      chrome and panels `bg-card`, panels carry `PANEL_CLASS`
+- [ ] Layering check: squint at the render — page, rail, panels and wells are each a
+      distinct value *with the strokes ignored*; page `bg-background`, rail
+      `bg-sidebar`, panels carry `PANEL_CLASS`, wells sunken and inside panels only
 - [ ] Stroke audit: list every `border-*` on the screen; each is justified as panel
       edge, control edge, or structural frame — the rest are hairline or gone
 - [ ] No box shows border + shadow at full strength; no shadow inside a shadow
@@ -225,10 +222,12 @@ Run before declaring any screen done (after the token gates):
 Open upstream items (restate them in build reports until the DS resolves them):
 
 - **Stage token.** The Laws' `bg-muted` stage (neutral-2, `#f9f9fb`) is 1.03:1 against
-  `card` — invisible. Dristi uses `surface-sunken` (`#f4f4f7`) as the canvas. Proposal:
-  a `--canvas` token (or retune `--muted`) at the 2.5-step value.
-- **Raised Card.** Panels on a canvas want `border-hairline shadow-raised`; today that is
-  a per-use className (`PANEL_CLASS`). Proposal: `Card variant="raised"`.
+  `card` — invisible as a stage. Product pages therefore lift panels with shadow instead
+  of tinting the page. Proposal: decide whether `muted` should read as a stage at all.
+- **Raised Card.** Product panels want `border-hairline shadow-raised`; today that is a
+  per-use className (`PANEL_CLASS`). Proposal: `Card variant="raised"`.
+- **Neutral temperature.** The ramp is cool; the owner's demo used warm neutrals (OKLCH
+  hue ≈ 83) and read warmer/less sterile. See `docs/design/ds-diagnosis.md`.
 - **`--border` at neutral-8** (1.86:1) is the loudest non-text mark on any flat page.
 
 When a cheapness issue traces to a token's *value* — `--border` sitting at neutral-8
