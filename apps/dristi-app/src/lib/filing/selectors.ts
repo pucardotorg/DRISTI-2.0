@@ -1,0 +1,274 @@
+/** Derived reads over the draft — pure functions so screens and the shell agree. */
+
+import { WALK_ORDER } from "./steps";
+import type {
+  Accused,
+  Advocate,
+  ChequeDetails,
+  Complainant,
+  DemandNotice,
+  DocumentGroup,
+  FilingDraft,
+  Intake,
+  IntakeSlot,
+  Signatory,
+  StepId,
+  UserProfile,
+  Witness,
+} from "./types";
+
+/* ───────────────────────────── Intake ──────────────────────────────── */
+
+export function intakeSlots(intake: Intake): IntakeSlot[] {
+  return [
+    ...intake.cheques.flatMap((g) => g.slots),
+    ...intake.parties.flatMap((g) => g.slots),
+    ...intake.supporting,
+  ];
+}
+
+export function findIntakeSlot(intake: Intake, key: string): IntakeSlot | undefined {
+  return intakeSlots(intake).find((s) => s.key === key);
+}
+
+/** Required-document progress for the intake step (supporting docs are optional). */
+export function intakeProgress(intake: Intake) {
+  const required = [
+    ...intake.cheques.flatMap((g) => g.slots),
+    ...intake.parties.flatMap((g) => g.slots),
+  ].filter((s) => s.required);
+  const done = required.filter((s) => s.file).length;
+  const total = required.length;
+  const remaining = total - done;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  return { done, total, remaining, pct };
+}
+
+/** Files already uploaded at intake — feeds the sidebar count and the documents drawer. */
+export function uploadedIntakeSlots(intake: Intake): IntakeSlot[] {
+  return intakeSlots(intake).filter((s) => !!s.file);
+}
+
+/** How many fields document reading filled from this slot. */
+export function extractedFieldCount(slot: IntakeSlot): number {
+  return slot.extract ? Object.keys(slot.extract.fields).length : 0;
+}
+
+/* ───────────────────────────── Parties ─────────────────────────────── */
+
+export function complainantLabel(c: Complainant, index: number): string {
+  return c.name || c.entName || `Complainant ${index + 1}`;
+}
+
+/** Complainant names as the advocate multi-select shows them. */
+export function complainantChoices(complainants: Complainant[]): string[] {
+  return complainants.map((c, i) => `Complainant ${i + 1}${c.name ? ` — ${c.name}` : ""}`);
+}
+
+export function advocateName(a: Advocate): string {
+  return a.name.trim();
+}
+
+export function accusedLabel(a: Accused, index: number): string {
+  return a.name.trim() || `Accused ${index + 1}`;
+}
+
+export function accusedComplete(a: Accused): boolean {
+  return !!a.name.trim() && a.addresses.some((b) => b.addr.line1.trim());
+}
+
+export function accusedHasContact(a: Accused): boolean {
+  return a.contacts.some((c) => c.mobile.trim() || c.email.trim());
+}
+
+export function complainantComplete(c: Complainant): boolean {
+  const named = c.type === "institution" ? !!c.entName.trim() : !!c.name.trim();
+  const addr = c.type === "institution" ? c.entAddr : c.res;
+  return named && !!c.mobile.trim() && !!addr.line1.trim();
+}
+
+/* ───────────────────────────── Case details ────────────────────────── */
+
+export function chequeComplete(c: ChequeDetails): boolean {
+  return !!(c.dateOnCheque && c.amount && c.chequeNumber);
+}
+
+export function chequeFullyComplete(c: ChequeDetails, index: number): boolean {
+  const bank = index > 0 && c.sameAsPrev === "yes" ? true : !!(c.ifsc && c.bankName);
+  return chequeComplete(c) && bank && !!(c.presentDate && c.returnDate && c.returnReason);
+}
+
+export function noticeComplete(n: DemandNotice): boolean {
+  return !!(n.natureDebt && n.dispatchDate && n.modeService);
+}
+
+export function witnessComplete(w: Witness): boolean {
+  return !!(w.fullName.trim() || w.designation.trim());
+}
+
+/** Sum of cheque amounts typed so far (digits only), or 0. */
+export function totalChequeAmount(cheques: ChequeDetails[]): number {
+  return cheques.reduce((sum, c) => sum + (parseInt(c.amount.replace(/[^\d]/g, ""), 10) || 0), 0);
+}
+
+/* ───────────────────────────── List of documents ───────────────────── */
+
+export function documentsProgress(groups: DocumentGroup[]) {
+  let total = 0;
+  let done = 0;
+  for (const g of groups) {
+    for (const d of g.docs) {
+      if (d.required) {
+        total += 1;
+        if (d.file) done += 1;
+      }
+    }
+  }
+  const remaining = total - done;
+  return { total, done, remaining, pct: total ? Math.round((done / total) * 100) : 0 };
+}
+
+/* ───────────────────────────── Sign ────────────────────────────────── */
+
+function sameMobile(a: string, b: string): boolean {
+  const da = a.replace(/\D/g, "").slice(-10);
+  const db = b.replace(/\D/g, "").slice(-10);
+  return da.length === 10 && da === db;
+}
+
+/**
+ * Everyone who signs the complaint: each complainant (or the person acting for one) and
+ * each advocate. "You" is whoever matches the profile — by bar number for advocates, by
+ * mobile for complainants — else the first advocate, else the first complainant.
+ */
+export function signatories(
+  draft: FilingDraft,
+  profile: UserProfile | null
+): { complainants: Signatory[]; advocates: Signatory[] } {
+  const signedOf = (id: string): Signatory["status"] => (draft.sign.signed[id] ? "signed" : "pending");
+
+  const complainants: Signatory[] = draft.complainants.map((c, i) => {
+    const n = i + 1;
+    let name: string;
+    let role: string;
+    if (c.type === "institution") {
+      const rep = c.rep.name.trim();
+      name = c.entName.trim() || `Complainant ${n}`;
+      role = rep ? `Complainant ${n} · via ${rep}` : `Complainant ${n} · Institution`;
+    } else if (c.poa === "yes" && c.poaHolder.name.trim()) {
+      name = c.poaHolder.name.trim();
+      role = `Complainant ${n} · PoA holder for ${c.name.trim() || `Complainant ${n}`}`;
+    } else {
+      name = c.name.trim() || `Complainant ${n}`;
+      role = `Complainant ${n} · Individual`;
+    }
+    const you = !!profile?.mobile && sameMobile(profile.mobile, c.mobile);
+    return { id: `sig-c-${c.id}`, name, role, status: signedOf(`sig-c-${c.id}`), you };
+  });
+
+  const advocates: Signatory[] = draft.advocates
+    .filter((a) => a.barNumber.trim() || a.name.trim())
+    .map((a, i) => {
+      const bar = a.barNumber.trim();
+      const you =
+        !!profile?.barNumber &&
+        !!bar &&
+        profile.barNumber.trim().toUpperCase() === bar.toUpperCase();
+      return {
+        id: `sig-a-${a.id}`,
+        name: a.name.trim() || `Advocate ${i + 1}`,
+        role: bar ? `Advocate · ${bar}` : "Advocate",
+        status: signedOf(`sig-a-${a.id}`),
+        you,
+      };
+    });
+
+  const anyYou = [...complainants, ...advocates].some((s) => s.you);
+  if (!anyYou) {
+    if (advocates[0]) advocates[0].you = true;
+    else if (complainants[0]) complainants[0].you = true;
+  }
+  return { complainants, advocates };
+}
+
+/* ───────────────────────────── Whole-draft reads ───────────────────── */
+
+/** "Prateek vs Rajesh" style title from what has been typed so far. */
+export function draftTitle(draft: FilingDraft): string {
+  const c = draft.complainants[0];
+  const a = draft.accused[0];
+  const cName = c ? (c.type === "institution" ? c.entName : c.name).trim() : "";
+  const aName = a?.name.trim() ?? "";
+  if (cName && aName) return `${cName} vs ${aName}`;
+  if (cName) return `${cName} vs …`;
+  if (aName) return `… vs ${aName}`;
+  return "Untitled filing";
+}
+
+/** Whether a section has everything it needs — drives the sidebar progress. */
+export function sectionComplete(draft: FilingDraft, step: StepId): boolean {
+  switch (step) {
+    case "upload":
+      return intakeProgress(draft.intake).remaining === 0;
+    case "complainant":
+      return draft.complainants.length > 0 && draft.complainants.every(complainantComplete);
+    case "advocate":
+      return (
+        draft.complainants.every((c) => c.pip === "yes") ||
+        draft.advocates.some((a) => a.barNumber.trim() && a.name.trim())
+      );
+    case "accused":
+      return draft.accused.length > 0 && draft.accused.every(accusedComplete);
+    case "cheque":
+      return draft.cheques.length > 0 && draft.cheques.every(chequeFullyComplete);
+    case "demand-notice":
+      return draft.notices.length > 0 && draft.notices.every(noticeComplete);
+    case "jurisdiction":
+      return (
+        !!draft.jurisdiction.causeDate &&
+        (draft.jurisdiction.deposited === "no" || !!draft.jurisdiction.payeeBankName.trim())
+      );
+    case "adr-prayer":
+      return !!draft.adr.finalRelief.trim();
+    case "witnesses":
+      return true; // optional
+    case "documents":
+      return documentsProgress(draft.documents).remaining === 0;
+    case "preview":
+      return WALK_ORDER.filter((s) => s !== "preview" && s !== "sign").every((s) =>
+        sectionComplete(draft, s)
+      );
+    case "sign":
+      return draft.status === "filed";
+    default:
+      return false;
+  }
+}
+
+/** 0–100: share of the walkable steps that are complete. */
+export function draftProgress(draft: FilingDraft): number {
+  if (draft.status === "filed") return 100;
+  const steps = WALK_ORDER;
+  const done = steps.filter((s) => sectionComplete(draft, s)).length;
+  return Math.round((done / steps.length) * 100);
+}
+
+/* ───────────────────────────── Source documents ────────────────────── */
+
+/** The intake upload behind cheque `index` (0-based) of the given kind, if any. */
+export function chequeSourceSlot(
+  draft: FilingDraft,
+  index: number,
+  docType: "cheque-front" | "return-memo" | "demand-notice" | "dispatch-proof" | "delivery-proof" | "notice-reply"
+): IntakeSlot | undefined {
+  return draft.intake.cheques[index]?.slots.find((s) => s.docType === docType);
+}
+
+/** The intake upload behind complainant `index` (0-based) of the given kind, if any. */
+export function partySourceSlot(
+  draft: FilingDraft,
+  index: number,
+  docType: "id-proof" | "poa" | "vakalatnama"
+): IntakeSlot | undefined {
+  return draft.intake.parties[index]?.slots.find((s) => s.docType === docType);
+}

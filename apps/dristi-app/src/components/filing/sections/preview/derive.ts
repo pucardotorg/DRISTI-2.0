@@ -1,0 +1,373 @@
+/**
+ * Read-only views over the draft for Preview and the court document.
+ *
+ * Every value here comes from `draft`. Where the person has not typed something, these
+ * reads say so (`NOT_PROVIDED`) rather than printing a plausible stand-in — the court
+ * sheet must never assert a fact the filing does not contain.
+ */
+
+import {
+  addressToString,
+  daysBetween,
+  formatINR,
+  joinDot,
+  plural,
+  rupees,
+  toDisplayDate,
+} from "@/lib/filing/format";
+import {
+  ACCUSED_TYPES,
+  MODE_OF_SERVICE,
+  NATURE_OF_DEBT,
+  PAYMENT_STATUS,
+  RETURN_REASONS,
+  type Option,
+} from "@/lib/filing/options";
+import {
+  advocateName,
+  documentsProgress,
+  totalChequeAmount,
+} from "@/lib/filing/selectors";
+import type {
+  Accused,
+  CaseDocument,
+  Complainant,
+  DemandNotice,
+  FilingDraft,
+} from "@/lib/filing/types";
+
+export const NOT_PROVIDED = "Not provided";
+
+export function orNot(value: string | undefined | null): string {
+  const trimmed = (value ?? "").trim();
+  return trimmed || NOT_PROVIDED;
+}
+
+export function optionLabel(options: Option[], value: string): string {
+  return options.find((o) => o.value === value)?.label ?? "";
+}
+
+/** `dd/mm/yyyy` or "Not provided". */
+export function displayDate(iso: string): string {
+  return orNot(toDisplayDate(iso));
+}
+
+function commaJoin(...parts: Array<string | undefined | null>): string {
+  return parts.filter((p) => p && p.trim()).join(", ");
+}
+
+/** Rich-text values are stored as HTML; the court sheet prints them as plain paragraphs. */
+export function htmlToParagraphs(html: string): string[] {
+  return String(html ?? "")
+    .split(/<\/p>|<br\s*\/?>/i)
+    .map((chunk) =>
+      chunk
+        .replace(/<[^>]*>/g, "")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&#39;|&apos;/g, "'")
+        .replace(/&quot;/g, '"')
+        .trim()
+    )
+    .filter(Boolean);
+}
+
+/* ───────────────────────────── Parties ─────────────────────────────── */
+
+export function complainantSummary(c: Complainant | undefined) {
+  const institution = c?.type === "institution";
+  // Present address is where the person lives now; permanent repeats it unless they said
+  // the two differ. An institution has the one registered address.
+  const present = institution ? c?.entAddr : c?.res;
+  const permanent = institution ? c?.entAddr : c?.permSame === "no" ? c?.perm : c?.res;
+  return {
+    name: orNot(institution ? c?.entName : c?.name),
+    type: institution ? "Institution" : "Individual",
+    mobile: orNot(institution ? c?.entPhone : c?.mobile),
+    email: orNot(institution ? c?.entEmail : c?.email),
+    presentAddress: orNot(addressToString(present)),
+    permanentAddress: orNot(addressToString(permanent)),
+    poa: c?.poa === "yes" ? "Appointed" : "Not appointed",
+    age: (c?.age ?? "").trim(),
+  };
+}
+
+export type AdvocateSummary = {
+  key: string;
+  label: string;
+  name: string;
+  bar: string;
+  /** Name and bar number as one line — the bar number is dropped when unknown. */
+  nameWithBar: string;
+  appearingFor: string;
+  forAll: boolean;
+};
+
+export function advocateSummaries(draft: FilingDraft): AdvocateSummary[] {
+  const complainants = draft.complainants;
+  return draft.advocates.map((a, i) => {
+    const forAll =
+      complainants.length > 0 &&
+      complainants.every((_, ci) => a.forComplainants.includes(ci));
+    const named = a.forComplainants
+      .filter((ci) => ci < complainants.length)
+      .map((ci) => `Complainant ${ci + 1}`)
+      .join(", ");
+    const name = advocateName(a);
+    const bar = a.barNumber.trim();
+    return {
+      key: a.id,
+      label: `Advocate ${i + 1}`,
+      name: orNot(name),
+      bar: orNot(bar),
+      nameWithBar: orNot(joinDot(name, bar)),
+      appearingFor: forAll ? "All complainants" : orNot(named),
+      forAll,
+    };
+  });
+}
+
+/** The advocate the court document names on the synopsis. */
+export function leadAdvocateName(draft: FilingDraft): string {
+  const first = draft.advocates[0];
+  return orNot(first ? advocateName(first) : "");
+}
+
+export function accusedHeading(a: Accused, index: number): string {
+  return a.name.trim() || `Accused ${index + 1}`;
+}
+
+export type AccusedSummary = {
+  key: string;
+  label: string;
+  heading: string;
+  name: string;
+  type: string;
+  isEntity: boolean;
+  age: string;
+  address: string;
+  addressWithPolice: string;
+};
+
+export function accusedSummaries(draft: FilingDraft): AccusedSummary[] {
+  return draft.accused.map((a, i) => {
+    const block = a.addresses[0];
+    const address = addressToString(block?.addr);
+    return {
+      key: a.id,
+      label: `Accused ${i + 1}`,
+      heading: accusedHeading(a, i),
+      name: orNot(a.name),
+      type: optionLabel(ACCUSED_TYPES, a.type) || "Individual",
+      isEntity: a.type !== "individual",
+      age: a.age.trim(),
+      address: orNot(address),
+      addressWithPolice: orNot(joinDot(address, block?.police)),
+    };
+  });
+}
+
+/* ───────────────────────────── Case details ────────────────────────── */
+
+export type ChequeSummary = {
+  key: string;
+  label: string;
+  amount: string;
+  number: string;
+  dateOnCheque: string;
+  numberAndDate: string;
+  drawerBank: string;
+  bankName: string;
+  bankBranch: string;
+  presentDate: string;
+  returnDate: string;
+  returnReason: string;
+  receiptDate: string;
+  returned: string;
+};
+
+export function chequeSummaries(draft: FilingDraft): ChequeSummary[] {
+  return draft.cheques.map((c, i) => {
+    const reason = optionLabel(RETURN_REASONS, c.returnReason);
+    const returned = [toDisplayDate(c.returnDate), reason].filter(Boolean).join(" — ");
+    return {
+      key: c.id,
+      label: `Cheque ${i + 1}`,
+      amount: orNot(rupees(c.amount)),
+      number: orNot(c.chequeNumber),
+      dateOnCheque: displayDate(c.dateOnCheque),
+      numberAndDate: orNot(joinDot(c.chequeNumber, toDisplayDate(c.dateOnCheque))),
+      drawerBank: orNot(commaJoin(c.bankName, c.bankBranch)),
+      bankName: orNot(c.bankName),
+      bankBranch: orNot(c.bankBranch),
+      presentDate: displayDate(c.presentDate),
+      returnDate: displayDate(c.returnDate),
+      returnReason: orNot(reason),
+      receiptDate: displayDate(c.receiptDate),
+      returned: returned || NOT_PROVIDED,
+    };
+  });
+}
+
+export function chequeTotal(draft: FilingDraft): number {
+  return totalChequeAmount(draft.cheques);
+}
+
+/** The label the return memo carries for the first cheque — "" when none is chosen yet. */
+export function firstReturnReason(draft: FilingDraft): string {
+  return optionLabel(RETURN_REASONS, draft.cheques[0]?.returnReason ?? "");
+}
+
+/**
+ * What the complaint asks for, in one line each. Both follow the prayer templates in
+ * options.ts: the interim figure is the statute's ceiling (S-143A), the final relief is
+ * the cheque amount itself — so it is only stated in rupees once cheques have been typed.
+ */
+export const INTERIM_RELIEF_SUMMARY =
+  "Interim compensation of up to 20% of the cheque amount (S-143A)";
+
+export function finalReliefSummary(draft: FilingDraft): string {
+  const total = chequeTotal(draft);
+  const compensation = total
+    ? `compensation of ₹${formatINR(total)} together with interest`
+    : "compensation equal to the cheque amount together with interest";
+  return `Conviction under S-138, ${compensation}, and process/summons`;
+}
+
+/** The year the complaint is numbered in — the year it was filed, else this year. */
+export function complaintYear(draft: FilingDraft): number {
+  const filed = draft.filedAt ? new Date(draft.filedAt) : null;
+  return filed && !Number.isNaN(filed.getTime())
+    ? filed.getFullYear()
+    : new Date().getFullYear();
+}
+
+/** "₹52,05,000 (2 cheques)" — the filing summary's headline figure. */
+export function totalChequeText(draft: FilingDraft): string {
+  const total = chequeTotal(draft);
+  const count = plural(draft.cheques.length, "cheque");
+  return total ? `${rupees(total)} (${count})` : `${NOT_PROVIDED} (${count})`;
+}
+
+export function amountClaimedText(draft: FilingDraft): string {
+  const total = chequeTotal(draft);
+  return total ? `${rupees(total)} + interest @ 6% p.a.` : NOT_PROVIDED;
+}
+
+export function noticeSummary(n: DemandNotice | undefined) {
+  const delivered = n?.delivered === "yes";
+  const deliveryDate = toDisplayDate(n?.deliveryDate ?? "");
+  const payment = optionLabel(PAYMENT_STATUS, n?.paymentStatus ?? "");
+  const partAmount = rupees(n?.partAmount ?? "");
+  return {
+    nature: orNot(optionLabel(NATURE_OF_DEBT, n?.natureDebt ?? "")),
+    dispatched: orNot(
+      joinDot(
+        toDisplayDate(n?.dispatchDate ?? ""),
+        optionLabel(MODE_OF_SERVICE, n?.modeService ?? "")
+      )
+    ),
+    dispatchDate: displayDate(n?.dispatchDate ?? ""),
+    mode: orNot(optionLabel(MODE_OF_SERVICE, n?.modeService ?? "")),
+    delivered: delivered ? (deliveryDate ? `Yes — ${deliveryDate}` : "Yes") : "No",
+    deliveredYesNo: delivered ? "Yes" : "No",
+    deliveryDate: orNot(deliveryDate),
+    replied: n?.replied === "yes" ? "Yes" : "No",
+    payment:
+      payment && n?.paymentStatus === "part" && partAmount
+        ? `${payment} — ${partAmount}`
+        : orNot(payment),
+    paidYesNo: n?.paymentStatus === "part" ? "Yes, in part" : "No",
+  };
+}
+
+export function jurisdictionSummary(draft: FilingDraft) {
+  const j = draft.jurisdiction;
+  const bank = commaJoin(j.payeeBankName, j.payeeBankBranch);
+  const delay = daysBetween(j.causeDate, j.filingDate);
+  const beyond = delay === null ? 0 : delay - 30;
+  return {
+    depositedByPayee: j.deposited === "yes",
+    presentedBy:
+      j.deposited === "yes"
+        ? bank
+          ? `Complainant — ${bank}`
+          : "Complainant"
+        : "Drawer (accused) bank branch",
+    police: orNot(j.deposited === "yes" ? j.payeePolice : j.drawerPolice),
+    ifsc: orNot(j.ifsc),
+    bankName: orNot(j.payeeBankName),
+    bankBranch: orNot(j.payeeBankBranch),
+    bank: orNot(bank),
+    causeDate: displayDate(j.causeDate),
+    filingDate: displayDate(j.filingDate),
+    filingDateIso: j.filingDate,
+    otherPending: j.otherPending === "yes" ? "Yes" : "No",
+    otherCases: j.otherCases.filter((c) => c.court.trim() || c.caseNumber.trim()),
+    inTime: delay === null || delay <= 30,
+    delayText:
+      delay === null
+        ? NOT_PROVIDED
+        : delay <= 30
+          ? "None — within limitation"
+          : `${plural(beyond, "day")} beyond the one-month limit`,
+    condonationReason: j.condonationReason.trim(),
+  };
+}
+
+const ADR_LABELS: Record<FilingDraft["adr"]["adr"], string> = {
+  yes: "Yes",
+  no: "No",
+  maybe: "Maybe",
+};
+
+export function adrLabel(draft: FilingDraft): string {
+  return ADR_LABELS[draft.adr.adr] ?? "No";
+}
+
+/* ───────────────────────────── Evidence ────────────────────────────── */
+
+export type WitnessSummary = {
+  key: string;
+  label: string;
+  term: string;
+  name: string;
+  prove: string;
+  mobile: string;
+  email: string;
+  address: string;
+};
+
+export function witnessSummaries(draft: FilingDraft): WitnessSummary[] {
+  return draft.witnesses.map((w, i) => {
+    const byDesignation = !w.fullName.trim() && !!w.designation.trim();
+    const contact = w.contacts[0];
+    return {
+      key: w.id,
+      label: `Witness ${i + 1}`,
+      term: byDesignation ? "Designation" : "Name",
+      name: orNot(w.fullName || w.designation),
+      prove: orNot(w.prove),
+      mobile: orNot(contact?.mobile),
+      email: orNot(contact?.email),
+      address: orNot(addressToString(w.addresses[0]?.addr)),
+    };
+  });
+}
+
+export function documentSummary(draft: FilingDraft) {
+  const uploaded: CaseDocument[] = draft.documents.flatMap((g) =>
+    g.docs.filter((d) => !!d.file)
+  );
+  const lines = draft.documents
+    .map((g) =>
+      g.docs
+        .filter((d) => !!d.file)
+        .map((d) => d.name)
+        .join(" · ")
+    )
+    .filter(Boolean);
+  return { uploaded, lines, ...documentsProgress(draft.documents) };
+}

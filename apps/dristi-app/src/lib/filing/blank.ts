@@ -1,0 +1,459 @@
+/**
+ * Blank factories for the e-filing draft.
+ *
+ * A new filing starts empty: one complainant, one advocate, one accused, one cheque with
+ * its notice, one witness row, and the intake slots those imply. Nothing is pre-typed —
+ * values arrive from what the person uploads (document reading) or types.
+ */
+
+import { newId } from "./data";
+import {
+  AFFIDAVIT_PIP_TEMPLATE,
+  FINAL_RELIEF_TEMPLATE,
+  INTERIM_RELIEF_TEMPLATE,
+} from "./options";
+import type {
+  Accused,
+  Address,
+  AddressBlock,
+  Advocate,
+  CaseDocument,
+  ChequeDetails,
+  Complainant,
+  Contact,
+  DemandNotice,
+  DocumentGroup,
+  FilingDraft,
+  IntakeGroup,
+  IntakeSlot,
+  Jurisdiction,
+  UserProfile,
+  Witness,
+} from "./types";
+
+/** Row ids for repeatable things (parties, cheques, documents…). */
+export function uid(prefix = "id"): string {
+  return newId(prefix);
+}
+
+/* ───────────────────────────── Blank factories ─────────────────────── */
+
+export const blankAddress = (): Address => ({
+  line1: "",
+  city: "",
+  pin: "",
+  district: "",
+  state: "",
+});
+
+export const blankContact = (): Contact => ({ mobile: "", email: "" });
+
+export const blankAddressBlock = (): AddressBlock => ({
+  addr: blankAddress(),
+  police: "",
+  geo: "",
+});
+
+export function blankComplainant(): Complainant {
+  return {
+    id: uid("cp"),
+    pip: "no",
+    type: "individual",
+    mobile: "",
+    confirm: "",
+    verified: false,
+    name: "",
+    age: "",
+    email: "",
+    res: blankAddress(),
+    permSame: "yes",
+    perm: blankAddress(),
+    poa: "no",
+    poaHolder: {
+      mobile: "",
+      name: "",
+      age: "",
+      res: blankAddress(),
+      permSame: "yes",
+      perm: blankAddress(),
+    },
+    entType: "",
+    entName: "",
+    entPhone: "",
+    entEmail: "",
+    entAddr: blankAddress(),
+    rep: { mobile: "", name: "", age: "", email: "", addr: blankAddress() },
+    affidavit: AFFIDAVIT_PIP_TEMPLATE,
+    prefilled: {},
+    edited: {},
+    toReview: false,
+  };
+}
+
+export const blankAdvocate = (profile?: UserProfile | null): Advocate => ({
+  id: uid("adv"),
+  forComplainants: [0],
+  barNumber: profile?.barNumber ?? "",
+  name: profile?.name ?? "",
+});
+
+export const blankAccused = (): Accused => ({
+  id: uid("acc"),
+  type: "individual",
+  name: "",
+  age: "",
+  contacts: [blankContact()],
+  addresses: [blankAddressBlock()],
+  jurisdiction: "yes",
+});
+
+export const blankCheque = (): ChequeDetails => ({
+  id: uid("chq"),
+  dateOnCheque: "",
+  amount: "",
+  chequeNumber: "",
+  sameAsPrev: "no",
+  ifsc: "",
+  bankName: "",
+  bankBranch: "",
+  presentDate: "",
+  returnDate: "",
+  returnReason: "",
+  receiptDate: "",
+  prefilled: {},
+  edited: {},
+  ifscFetched: false,
+});
+
+export const blankNotice = (): DemandNotice => ({
+  id: uid("dn"),
+  natureDebt: "",
+  whyIssued: "",
+  dispatchDate: "",
+  modeService: "",
+  tracking: "",
+  delivered: "yes",
+  deliveryDate: "",
+  replied: "no",
+  returnDate: "",
+  nonDeliveryReason: "",
+  paymentStatus: "",
+  partAmount: "",
+  prefilled: {},
+  edited: {},
+});
+
+export const blankJurisdiction = (): Jurisdiction => ({
+  deposited: "yes",
+  ifsc: "",
+  payeeBankName: "",
+  payeeBankBranch: "",
+  payeeFetched: false,
+  payeePolice: "",
+  drawerPolice: "",
+  otherPending: "no",
+  otherCases: [{ court: "", caseNumber: "" }],
+  causeDate: "",
+  filingDate: "",
+  condonationReason: "",
+});
+
+export const blankWitness = (): Witness => ({
+  id: uid("wit"),
+  fullName: "",
+  designation: "",
+  age: "",
+  prove: "",
+  contacts: [blankContact()],
+  addresses: [blankAddressBlock()],
+});
+
+/* ───────────────────────────── Intake groups ───────────────────────── */
+
+/** The six documents every cheque needs (five required + the optional reply). */
+export function intakeChequeGroup(n: number): IntakeGroup {
+  return {
+    n,
+    slots: [
+      {
+        key: `c${n}f`,
+        docType: "cheque-front",
+        label: "Cheque (front side)",
+        desc: "The bounced cheque, front side — a photo or scan.",
+        required: true,
+        file: null,
+      },
+      {
+        key: `c${n}m`,
+        docType: "return-memo",
+        label: "Cheque return memo",
+        desc: "The memo your bank issued when this cheque bounced.",
+        required: true,
+        file: null,
+      },
+      {
+        key: `c${n}dn`,
+        docType: "demand-notice",
+        label: "Demand notice",
+        desc: "The statutory demand notice sent to the accused.",
+        required: true,
+        file: null,
+      },
+      {
+        key: `c${n}dp`,
+        docType: "dispatch-proof",
+        label: "Proof of dispatch of demand notice (postal receipt)",
+        desc: "Speed post / RPAD receipt showing dispatch.",
+        required: true,
+        file: null,
+      },
+      {
+        key: `c${n}ad`,
+        docType: "delivery-proof",
+        label: "Proof of delivery of demand notice (AD card)",
+        desc: "Acknowledgement-due card or tracking proof of delivery.",
+        required: true,
+        file: null,
+      },
+      {
+        key: `c${n}rp`,
+        docType: "notice-reply",
+        label: "Reply to the demand notice",
+        desc: "The accused's reply to the notice, if any.",
+        required: false,
+        file: null,
+      },
+    ],
+  };
+}
+
+export function intakePartyGroup(n: number): IntakeGroup {
+  return {
+    n,
+    slots: [
+      {
+        key: `p${n}id`,
+        docType: "id-proof",
+        label: "Identity proof (complainant)",
+        desc: "PAN, Aadhaar, Passport, Driving licence, Voter ID, Ration card or Bank passbook.",
+        required: true,
+        file: null,
+      },
+      {
+        key: `p${n}poa`,
+        docType: "poa",
+        label: "Power of attorney",
+        desc: "If the complaint is filed through a PoA holder.",
+        required: false,
+        file: null,
+      },
+      {
+        key: `p${n}vak`,
+        docType: "vakalatnama",
+        label: "Vakalatnama",
+        desc: "Signed authorisation appointing your advocate(s).",
+        required: true,
+        file: null,
+      },
+    ],
+  };
+}
+
+export function intakeOtherPartyDoc(partyN: number, index: number): IntakeSlot {
+  return {
+    key: `p${partyN}x${index}`,
+    docType: "other",
+    label: "Other document",
+    desc: "Any additional document for this party.",
+    required: false,
+    file: null,
+  };
+}
+
+export function intakeSupporting(): IntakeSlot[] {
+  return [
+    {
+      key: "sl",
+      docType: "supporting",
+      label: "Loan agreement / invoice / ledger",
+      desc: "Anything that records the debt, if you have it.",
+      required: false,
+      file: null,
+    },
+  ];
+}
+
+/* ───────────────────────────── List of documents ───────────────────── */
+
+type DocSpec = {
+  name: string;
+  required: boolean;
+  intakeKey?: string;
+};
+
+function docRow(spec: DocSpec, existing: CaseDocument | undefined, slot?: IntakeSlot): CaseDocument {
+  const mirrored = spec.intakeKey ? slot ?? null : null;
+  return {
+    id: existing?.id ?? uid("doc"),
+    name: spec.name,
+    required: spec.required,
+    // Rows that mirror an intake slot always show that slot's file; others keep their own.
+    file: mirrored ? mirrored.file : existing?.file ?? null,
+    quality: mirrored
+      ? mirrored.file
+        ? mirrored.poor
+          ? "bad"
+          : "good"
+        : null
+      : existing?.quality ?? null,
+    digital: existing?.digital ?? false,
+    intakeKey: spec.intakeKey,
+    custom: false,
+  };
+}
+
+/**
+ * The "List of documents" step, derived from the case: one row per document each cheque
+ * and party needs, mirroring what intake already holds. Existing rows keep their id,
+ * digital flag and any file uploaded on that step; custom rows the person added are kept.
+ */
+export function buildDocumentGroups(draft: FilingDraft): DocumentGroup[] {
+  const slotByKey = new Map<string, IntakeSlot>();
+  for (const g of draft.intake.cheques) g.slots.forEach((s) => slotByKey.set(s.key, s));
+  for (const g of draft.intake.parties) g.slots.forEach((s) => slotByKey.set(s.key, s));
+  draft.intake.supporting.forEach((s) => slotByKey.set(s.key, s));
+
+  const prevGroups = new Map(draft.documents.map((g) => [g.id, g]));
+  const findExisting = (groupId: string, spec: DocSpec) => {
+    const g = prevGroups.get(groupId);
+    if (!g) return undefined;
+    return (
+      (spec.intakeKey && g.docs.find((d) => d.intakeKey === spec.intakeKey)) ||
+      g.docs.find((d) => !d.custom && d.name === spec.name)
+    );
+  };
+  const customOf = (groupId: string) => prevGroups.get(groupId)?.docs.filter((d) => d.custom) ?? [];
+
+  const groups: DocumentGroup[] = [];
+
+  // Case details — per cheque.
+  const many = draft.intake.cheques.length > 1;
+  const caseSpecs: DocSpec[] = draft.intake.cheques.flatMap((g) => {
+    const sfx = many ? ` ${g.n}` : "";
+    return [
+      { name: `Cheque${sfx}`, required: true, intakeKey: `c${g.n}f` },
+      { name: `Cheque return memo${sfx}`, required: true, intakeKey: `c${g.n}m` },
+      { name: `Demand notice${sfx}`, required: true, intakeKey: `c${g.n}dn` },
+      { name: `Proof of dispatch of demand notice (postal receipt)${sfx}`, required: true, intakeKey: `c${g.n}dp` },
+      { name: `Proof of delivery of demand notice (AD card)${sfx}`, required: true, intakeKey: `c${g.n}ad` },
+      { name: `Reply to the demand notice${sfx}`, required: false, intakeKey: `c${g.n}rp` },
+    ];
+  });
+  // Intake keys can carry a "-2" suffix after a remove/add; resolve by prefix.
+  const resolveSlot = (key?: string) => {
+    if (!key) return undefined;
+    if (slotByKey.has(key)) return slotByKey.get(key);
+    for (const [k, s] of slotByKey) if (k.startsWith(`${key}-`)) return s;
+    return undefined;
+  };
+  groups.push({
+    id: "case",
+    title: "Case details",
+    docs: [
+      ...caseSpecs.map((s) => docRow(s, findExisting("case", s), resolveSlot(s.intakeKey))),
+      ...customOf("case"),
+    ],
+  });
+
+  // One group per complainant.
+  draft.complainants.forEach((c, i) => {
+    const n = i + 1;
+    const id = `complainant-${n}`;
+    const specs: DocSpec[] = [
+      { name: "Identity proof — complainant", required: true, intakeKey: `p${n}id` },
+      { name: "Power of attorney", required: c.poa === "yes", intakeKey: `p${n}poa` },
+      { name: "Vakalatnama", required: c.pip !== "yes", intakeKey: `p${n}vak` },
+    ];
+    groups.push({
+      id,
+      title: `Party ${n} details — complainant`,
+      docs: [
+        ...specs.map((s) => docRow(s, findExisting(id, s), resolveSlot(s.intakeKey))),
+        ...customOf(id),
+      ],
+    });
+  });
+
+  // One group per accused — nothing is required from them at filing.
+  draft.accused.forEach((_, i) => {
+    const n = draft.complainants.length + i + 1;
+    const id = `accused-${i + 1}`;
+    const specs: DocSpec[] = [
+      { name: "Identity proof — accused", required: false },
+      { name: "Power of attorney", required: false },
+      { name: "Vakalatnama", required: false },
+    ];
+    groups.push({
+      id,
+      title: `Party ${n} details — accused`,
+      docs: [...specs.map((s) => docRow(s, findExisting(id, s))), ...customOf(id)],
+    });
+  });
+
+  return groups;
+}
+
+/* ───────────────────────────── Blank draft ─────────────────────────── */
+
+export function createBlankDraft(id: string, profile?: UserProfile | null): FilingDraft {
+  const now = new Date().toISOString();
+  const draft: FilingDraft = {
+    version: 2,
+    id,
+    caseType: "s138",
+    status: "draft",
+    lastStep: "upload",
+    intake: {
+      cheques: [intakeChequeGroup(1)],
+      parties: [intakePartyGroup(1)],
+      supporting: intakeSupporting(),
+    },
+    complainants: [blankComplainant()],
+    advocates: [blankAdvocate(profile)],
+    accused: [blankAccused()],
+    cheques: [blankCheque()],
+    notices: [blankNotice()],
+    jurisdiction: blankJurisdiction(),
+    adr: {
+      adr: "yes",
+      otherDetails: "",
+      interimRelief: INTERIM_RELIEF_TEMPLATE,
+      finalRelief: FINAL_RELIEF_TEMPLATE,
+    },
+    witnesses: [blankWitness()],
+    documents: [],
+    sign: {
+      mode: null,
+      signed: {},
+      signedCopy: null,
+      deliveryChannel: "",
+      processTypes: ["notice"],
+      processAddresses: [],
+      paid: false,
+      paidAt: null,
+      paymentRef: null,
+      caseFileNumber: null,
+    },
+    dismissed: {
+      complainantPrefill: false,
+      chequePrefill: false,
+      advocateInfo: false,
+      accusedAddress: false,
+    },
+    createdAt: now,
+    updatedAt: now,
+    filedAt: null,
+  };
+  draft.documents = buildDocumentGroups(draft);
+  return draft;
+}
