@@ -12,6 +12,7 @@ Orientation for this repo. Docs describe the product and how we design; they are
 |---|---|---|
 | **Product** | What DRISTI is — domain, journey, standards, open questions | [product/README.md](product/README.md) |
 | **Design** | How Dristi UI is built — always pull from pucar-design-system | [design/design-system.md](design/design-system.md) |
+| **Design → research** | Research memos that feed a brief (per feature: the verbatim ask, domain findings, UX findings). Inputs, not decisions — the brief in `design/proposals/` decides | [design/research/](design/research/) |
 
 ## Repo layers (outside `docs/`)
 

@@ -25,3 +25,6 @@ next-env.d.ts
 
 # local design-system clone (fetched by npm install → vendor/pucar-design-system)
 vendor/pucar-design-system/
+
+# runtime assets copied from node_modules on other branches (never committed)
+apps/dristi-app/public/vendor/

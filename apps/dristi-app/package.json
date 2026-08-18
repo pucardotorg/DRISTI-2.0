@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint && npm run check:tokens && npm run check:typography && npm run check:ui-sync",
+    "test": "node --import tsx --test src/lib/tasks/*.test.ts",
     "check:tokens": "node scripts/check-tokens.mjs",
     "check:typography": "node scripts/check-typography.mjs",
     "check:ui-sync": "node scripts/check-ui-sync.mjs",
@@ -15,6 +16,10 @@
   "dependencies": {
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "date-fns": "^4.4.0",
+    "idb": "^8.0.3",
+    "input-otp": "^1.4.2",
     "lucide-react": "^1.28.0",
     "next": "16.2.12",
     "next-themes": "^0.4.6",
@@ -22,6 +27,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "shadcn": "^4.16.0",
+    "sonner": "^2.0.8",
     "tailwind-merge": "^3.6.0",
     "tw-animate-css": "^1.4.0"
   },
@@ -33,6 +39,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5"
   }
 }
