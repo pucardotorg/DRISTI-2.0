@@ -1,8 +1,12 @@
 "use client";
 
 /**
- * Sign the complaint — signatures on the left, the document in the middle, the signing
- * actions on the right (stacked above the document below `xl`, so they are never hidden).
+ * Sign the complaint — the document in the column, and one rail beside it carrying both
+ * who has signed and what you can do about it (stacked above the document below `xl`).
+ *
+ * It keeps the filing's Sections rail like every other step: the old two-rail layout ate
+ * the width the rail needed, which left Sign the one screen you could not navigate out of
+ * the way the rest of the flow had taught you.
  *
  * The paying half of the flow lives here too: fees → process and address → payment →
  * the case file number. The document itself is the shared court sheet Preview renders.
@@ -13,7 +17,9 @@
  */
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -76,9 +82,14 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
+import { useSourceDock } from "@/hooks/use-min-width";
+import { TOP_BAR_HEIGHT } from "@/components/filing/chrome";
+import { ConfirmDialog } from "@/components/filing/confirm-dialog";
 import { FilingFooter } from "@/components/filing/filing-footer";
 import { FilingPageHeader } from "@/components/filing/filing-page-header";
+import { FilingMain, useSourceRailSlot } from "@/components/filing/filing-shell";
 import { PANEL_CLASS } from "@/components/filing/form-card";
+import { useLeaveGuard } from "@/components/filing/leave-guard";
 import { SectionNotice } from "@/components/filing/notices";
 import { CourtDocument } from "@/components/filing/sections/preview/court-document";
 import { pickErrorMessage, useFilePicker } from "@/components/filing/use-file-picker";
@@ -206,8 +217,13 @@ export function SignSection() {
   const { profile } = useProfile();
   const { prev } = neighbours("sign");
   const { pick, input } = useFilePicker();
+  const router = useRouter();
+  const docked = useSourceDock();
+  const slot = useSourceRailSlot();
 
   const [modal, setModal] = React.useState<ModalKey>(null);
+  /** Where the person asked to go while signatures are on the sheet. */
+  const [leaveTo, setLeaveTo] = React.useState<string | null>(null);
   const [otp, setOtp] = React.useState("");
   const [resent, setResent] = React.useState(false);
   const [feesOpen, setFeesOpen] = React.useState(true);
@@ -234,11 +250,53 @@ export function SignSection() {
     () => signatories(draft, profile),
     [draft, profile]
   );
+  const everyone = React.useMemo(
+    () => [...complainants, ...advocates],
+    [complainants, advocates]
+  );
   // The same person can be both a complainant and the advocate — one signature covers
   // every capacity they sign in.
-  const yous = [...complainants, ...advocates].filter((s) => s.you);
+  const yous = everyone.filter((s) => s.you);
   const you = yous[0] ?? null;
   const youSigned = yous.length > 0 && yous.every((s) => s.status === "signed");
+  const allSigned = everyone.length > 0 && everyone.every((s) => s.status === "signed");
+  const anySigned = everyone.some((s) => s.status === "signed");
+  const pending = everyone.filter((s) => s.status === "pending").length;
+
+  /**
+   * Every signature on this screen belongs to *this* version of the complaint. Going back
+   * to change the case means the sheet the parties signed no longer exists, so the
+   * signatures cannot survive the trip — the question is asked before the move, not after.
+   */
+  const guardLeaving = React.useCallback(
+    (href: string) => {
+      if (filed || !anySigned) return false;
+      setLeaveTo(href);
+      return true;
+    },
+    [filed, anySigned, setLeaveTo]
+  );
+  useLeaveGuard(guardLeaving);
+
+  const discardSignatures = () => {
+    const copy = sign.signedCopy;
+    update((d) => {
+      d.sign.signed = {};
+      d.sign.mode = null;
+      d.sign.signedCopy = null;
+    });
+    if (copy) {
+      forgetFile(copy.id);
+      void getRepository().deleteFile(copy.id);
+    }
+  };
+
+  const confirmLeave = () => {
+    const href = leaveTo;
+    discardSignatures();
+    setLeaveTo(null);
+    if (href) router.push(href);
+  };
 
   // A filed draft must reach storage even if the tab closes on the success screen.
   React.useEffect(() => {
@@ -275,13 +333,29 @@ export function SignSection() {
 
   const closeModal = () => setModal(null);
 
-  const signYou = (mode: "esign" | "upload") => {
+  /** E-Sign records one person's signature; the other parties still have to sign. */
+  const signYou = () => {
     if (yous.length === 0) return;
     update((d) => {
       for (const s of yous) d.sign.signed[s.id] = true;
-      d.sign.mode = mode;
+      d.sign.mode = "esign";
     });
     setOtp("");
+    setModal(null);
+  };
+
+  /**
+   * An uploaded copy is the complaint *after* every party has signed it — that is what
+   * the upload asks for and what the person confirms by submitting it. So it settles the
+   * whole sheet, not the uploader's own row: no one is asked to sign again for a
+   * signature already on the page in front of them.
+   */
+  const submitSignedCopy = () => {
+    if (!sign.signedCopy) return;
+    update((d) => {
+      for (const s of everyone) d.sign.signed[s.id] = true;
+      d.sign.mode = "upload";
+    });
     setModal(null);
   };
 
@@ -388,11 +462,11 @@ export function SignSection() {
   };
 
   /**
-   * What the rail carries once the filing is done — the record, not the actions.
-   * `wellClass` is the record block's fill: white on the tinted rail, sunken inside the
-   * white card it stacks into below `xl`, so it reads as one layer in from its parent.
+   * What the rail carries once the filing is done — the record, not the actions. The rail
+   * is a white panel in both places it appears (its own column, and the card it stacks
+   * into below `xl`), so the record block is one layer in from it either way.
    */
-  const filedRecord = (wellClass: string) => (
+  const filedRecord = () => (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <h2 className="text-body font-semibold">Filed</h2>
@@ -401,7 +475,7 @@ export function SignSection() {
         </p>
       </div>
 
-      <dl className={cn("flex flex-col gap-3 rounded-lg p-4", wellClass)}>
+      <dl className="flex flex-col gap-3 rounded-lg bg-surface-sunken p-4">
         <div className="flex flex-col gap-0.5">
           <dt className="text-caption font-medium text-muted-foreground">
             Case file number
@@ -449,12 +523,18 @@ export function SignSection() {
     </div>
   );
 
-  /** "Add your signature" — the rail on `xl`, stacked above the document below it. */
+  /** "Add your signature" — the lower half of the signing rail. */
   const signActions = (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <h2 className="text-body font-semibold">Add your signature</h2>
-        {you ? (
+        <h2 className="text-body font-semibold">
+          {allSigned ? "Signing complete" : "Add your signature"}
+        </h2>
+        {allSigned ? (
+          <p className="text-body-compact text-muted-foreground">
+            Nothing further is needed from the parties.
+          </p>
+        ) : you ? (
           <p className="text-body-compact text-muted-foreground">
             Signing as <strong className="font-semibold text-foreground">{you.name}</strong>{" "}
             ({you.role}).
@@ -466,10 +546,36 @@ export function SignSection() {
         )}
       </div>
 
-      {youSigned ? (
+      {allSigned ? (
+        <>
+          <SectionNotice
+            variant="success"
+            announce="polite"
+            title={
+              sign.mode === "upload" ? "Signed copy received" : "All signatures collected"
+            }
+          >
+            {sign.mode === "upload"
+              ? "The copy you uploaded carries every party’s signature, so there is nothing left to sign here."
+              : "Every party on this complaint has signed."}
+          </SectionNotice>
+          {sign.mode === "upload" ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full"
+              onClick={() => setModal("upload")}
+            >
+              <UploadIcon data-icon="inline-start" aria-hidden />
+              Replace signed copy
+            </Button>
+          ) : null}
+        </>
+      ) : youSigned ? (
         <SectionNotice variant="success" announce="polite" title="You have signed">
-          Your signature is recorded. The other parties still have to sign before the
-          complaint can be filed.
+          Your signature is recorded. {pending} more{" "}
+          {pending === 1 ? "party has" : "parties have"} to sign before the complaint can
+          be filed.
         </SectionNotice>
       ) : (
         <>
@@ -508,78 +614,88 @@ export function SignSection() {
         </>
       )}
 
-      <SectionNotice variant="neutral">
-        All parties must sign using the{" "}
-        <strong className="font-semibold text-foreground">same mode</strong>. E-Sign
-        requires each signatory’s Aadhaar-linked mobile number.
-      </SectionNotice>
+      {allSigned ? null : (
+        <SectionNotice variant="neutral">
+          All parties must sign using the{" "}
+          <strong className="font-semibold text-foreground">same mode</strong>. E-Sign
+          requires each signatory’s Aadhaar-linked mobile number.
+        </SectionNotice>
+      )}
     </div>
   );
 
-  const railContent = filed ? filedRecord("bg-card") : signActions;
-  const stackedContent = filed ? filedRecord("bg-surface-sunken") : signActions;
+  /**
+   * One rail, not two. Who has signed and what you can do about it are the same question,
+   * and splitting them across opposite edges of the screen cost the filing its Sections
+   * rail — the only screen in the flow you could not navigate out of the way you had been
+   * taught (owner, 2026-08-18).
+   */
+  const railBody = filed ? (
+    filedRecord()
+  ) : (
+    <div className="flex flex-col gap-6">
+      <SignatureSummary complainants={complainants} advocates={advocates} />
+      <div role="separator" className="h-px w-full bg-hairline" />
+      {signActions}
+    </div>
+  );
+
+  const backHref = filed ? hrefFor("preview") : prev ? hrefFor(prev) : hrefFor("preview");
 
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)] flex-1 flex-col">
+    <>
       {input}
-      <div className="flex flex-1 items-start">
-        {/* Signatures */}
-        <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-80 shrink-0 overflow-y-auto border-r border-hairline bg-sidebar p-6 lg:block">
-          <SignatureSummary complainants={complainants} advocates={advocates} />
-        </aside>
 
-        {/* The document */}
-        <main className="min-w-0 flex-1 px-4 pb-8 pt-6 sm:px-6 lg:px-8">
-          <div className="flex w-full flex-col gap-6">
-            <FilingPageHeader
-              title={filed ? "Complaint filed" : "Sign the complaint"}
-              description={
-                filed
-                  ? `Filed in the ${COURT.name} under S-138, Negotiable Instruments Act.`
-                  : `You are filing a criminal complaint under S-138, Negotiable Instruments Act in the ${COURT.name}.`
-              }
-              actions={
-                <Button type="button" variant="outline" size="sm" onClick={printFile}>
-                  <PrinterIcon data-icon="inline-start" aria-hidden />
-                  Print or save as PDF
-                </Button>
-              }
-            />
+      <FilingMain width="wide" sourceOpen={docked}>
+        <FilingPageHeader
+          title={filed ? "Complaint filed" : "Sign the complaint"}
+          description={
+            filed
+              ? `Filed in the ${COURT.name} under S-138, Negotiable Instruments Act.`
+              : `You are filing a criminal complaint under S-138, Negotiable Instruments Act in the ${COURT.name}.`
+          }
+          actions={
+            <Button type="button" variant="outline" size="sm" onClick={printFile}>
+              <PrinterIcon data-icon="inline-start" aria-hidden />
+              Print or save as PDF
+            </Button>
+          }
+        />
 
-            {/* Below xl the rails collapse into the column, actions first. */}
-            <div className="flex flex-col gap-6 xl:hidden">
-              <Card className={cn(PANEL_CLASS, "lg:hidden")}>
-                <CardContent>
-                  <SignatureSummary complainants={complainants} advocates={advocates} />
-                </CardContent>
-              </Card>
-              <Card className={PANEL_CLASS}>
-                <CardContent>{stackedContent}</CardContent>
-              </Card>
-            </div>
+        {/* Below xl there is no width for a rail column, so it stacks above the document. */}
+        <Card className={cn(PANEL_CLASS, "xl:hidden")}>
+          <CardContent>{railBody}</CardContent>
+        </Card>
 
-            {/* Scrolls on its own, so it is focusable — a keyboard user must be able to
-                reach the scroll region to read the document. */}
-            <div
-              tabIndex={0}
-              role="region"
-              aria-label="Complaint document"
-              className="max-h-[calc(100vh-18rem)] overflow-y-auto rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        {/* Scrolls on its own, so it is focusable — a keyboard user must be able to
+            reach the scroll region to read the document. */}
+        <div
+          tabIndex={0}
+          role="region"
+          aria-label="Complaint document"
+          className="max-h-[calc(100vh-18rem)] overflow-y-auto rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <CourtDocument draft={draft} />
+        </div>
+      </FilingMain>
+
+      {/* From xl the rail takes the shell's third column, beside the document. */}
+      {docked && slot
+        ? createPortal(
+            <aside
+              aria-label={filed ? "Filing record" : "Signatures"}
+              style={{ top: TOP_BAR_HEIGHT, height: `calc(100svh - ${TOP_BAR_HEIGHT})` }}
+              className="sticky flex w-80 shrink-0 flex-col self-start overflow-y-auto border-l border-hairline bg-card p-6"
             >
-              <CourtDocument draft={draft} />
-            </div>
-          </div>
-        </main>
-
-        {/* Add your signature — or, once filed, the record of the filing. */}
-        <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-72 shrink-0 overflow-y-auto border-l border-hairline bg-sidebar p-6 xl:block">
-          {railContent}
-        </aside>
-      </div>
+              {railBody}
+            </aside>,
+            slot
+          )
+        : null}
 
       {filed ? (
         <FilingFooter
-          backHref={hrefFor("preview")}
+          backHref={backHref}
           continueHref={FILINGS_HOME}
           continueLabel="Back to dashboard"
           showSaveState={false}
@@ -592,9 +708,11 @@ export function SignSection() {
         />
       ) : (
         <FilingFooter
-          backHref={prev ? hrefFor(prev) : hrefFor("preview")}
+          onBack={() => {
+            if (!guardLeaving(backHref)) router.push(backHref);
+          }}
           continueLabel="Continue to pay fees"
-          continueVariant={youSigned ? "default" : "outline"}
+          continueVariant={allSigned ? "default" : "outline"}
           showSaveState={false}
           onContinue={() => setModal("payment")}
           extra={
@@ -717,7 +835,7 @@ export function SignSection() {
             size="lg"
             className="w-full"
             disabled={otp.length < 6}
-            onClick={() => signYou("esign")}
+            onClick={signYou}
           >
             Verify &amp; sign
           </Button>
@@ -742,15 +860,12 @@ export function SignSection() {
             </DialogDescription>
           </DialogHeader>
 
-          <SectionNotice variant="neutral" title="Please note">
-            Please ensure you have collected the signatures of all parties (
-            <strong className="font-semibold">
-              all complainants and an advocate for each complainant must sign the case
-            </strong>
-            ). You can upload a file signed physically or with a{" "}
-            <strong className="font-semibold">
-              Digital Signature Certificate (DSC)
-            </strong>
+          <SectionNotice variant="warning" title="This settles every signature">
+            Submitting this copy records{" "}
+            <strong className="font-semibold">all {everyone.length} signatures</strong> as
+            collected, so upload it only once every party has signed — each complainant,
+            and one advocate for each complainant. The file may be signed on paper or with
+            a <strong className="font-semibold">Digital Signature Certificate (DSC)</strong>
             .
           </SectionNotice>
 
@@ -814,12 +929,8 @@ export function SignSection() {
           </p>
 
           <DialogFooter>
-            <Button
-              type="button"
-              disabled={!sign.signedCopy}
-              onClick={() => signYou("upload")}
-            >
-              Submit
+            <Button type="button" disabled={!sign.signedCopy} onClick={submitSignedCopy}>
+              Submit as fully signed
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1094,6 +1205,27 @@ export function SignSection() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+
+      {/* ── Leaving with signatures on the sheet ── */}
+      <ConfirmDialog
+        open={leaveTo !== null}
+        onOpenChange={(open) => {
+          if (!open) setLeaveTo(null);
+        }}
+        title="Going back voids the signatures"
+        description={
+          sign.mode === "upload"
+            ? "The signed copy you uploaded was signed against this version of the complaint. Editing the case makes it a different document, so the copy is removed and every party has to sign again."
+            : `The parties signed this version of the complaint. Editing the case makes it a different document, so ${
+                everyone.filter((s) => s.status === "signed").length === 1
+                  ? "the signature already collected is"
+                  : "the signatures already collected are"
+              } discarded and everyone has to sign again.`
+        }
+        confirmLabel="Go back and re-sign"
+        cancelLabel="Stay here"
+        onConfirm={confirmLeave}
+      />
+    </>
   );
 }

@@ -201,7 +201,6 @@ export function DemandNoticeSection() {
   const uploadedDocs = (Object.keys(slots) as (keyof typeof slots)[]).filter(
     (doc) => slots[doc]?.file
   );
-  const hasSource = uploadedDocs.length > 0;
 
   const addNotice = () => {
     update((d) => {
@@ -233,7 +232,7 @@ export function DemandNoticeSection() {
 
   return (
     <>
-      <FilingMain sourceOpen={hasSource && sourceOpen}>
+      <FilingMain sourceOpen={sourceOpen}>
         <FilingPageHeader
           title="Demand notice & debt"
           description="Details of the statutory demand notice you sent, and the debt the cheque was meant to discharge."
@@ -252,7 +251,7 @@ export function DemandNoticeSection() {
           addLabel="Add demand notice"
           onAdd={addNotice}
           trailing={
-            hasSource && !sourceOpen ? (
+            !sourceOpen ? (
               <ViewSourceButton onClick={() => setSourceOpen(true)} />
             ) : null
           }
@@ -480,7 +479,6 @@ export function DemandNoticeSection() {
               }
             : undefined
         }
-        hasSource={hasSource}
         chips={uploadedDocs.map((doc) => ({
           label: slots[doc]?.file?.name ?? slots[doc]?.label ?? DOC_LABELS[doc],
           active: doc === sourceDoc,

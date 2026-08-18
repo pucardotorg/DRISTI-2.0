@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { LeaveGuardProvider } from "@/components/filing/leave-guard";
 import { SectionsRail, SectionsTrigger } from "@/components/filing/sections-rail";
 
 /**
@@ -26,17 +27,19 @@ export function FilingShell({ children }: { children: React.ReactNode }) {
   const [slot, setSlot] = React.useState<HTMLElement | null>(null);
 
   return (
-    <SourceRailSlot.Provider value={slot}>
-      <SectionsRail />
+    <LeaveGuardProvider>
+      <SourceRailSlot.Provider value={slot}>
+        <SectionsRail />
 
-      <main className="flex min-w-0 flex-1 flex-col">
-        <SectionsTrigger />
-        {children}
-      </main>
+        <main className="flex min-w-0 flex-1 flex-col">
+          <SectionsTrigger />
+          {children}
+        </main>
 
-      {/* Zero-width until a source rail mounts into it. */}
-      <div ref={setSlot} className="flex shrink-0" />
-    </SourceRailSlot.Provider>
+        {/* Zero-width until a source or signing rail mounts into it. */}
+        <div ref={setSlot} className="flex shrink-0" />
+      </SourceRailSlot.Provider>
+    </LeaveGuardProvider>
   );
 }
 

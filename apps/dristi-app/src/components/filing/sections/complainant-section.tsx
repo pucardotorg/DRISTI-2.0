@@ -203,7 +203,6 @@ export function ComplainantSection() {
   }));
   /* Only documents actually uploaded are offered; with none there is no rail at all. */
   const uploadedDocs = partySlots.filter((s) => s.slot?.file);
-  const hasSource = uploadedDocs.length > 0;
   const shownDoc = uploadedDocs.some((s) => s.doc === sourceDoc)
     ? sourceDoc
     : uploadedDocs[0]?.doc;
@@ -256,7 +255,7 @@ export function ComplainantSection() {
 
   return (
     <>
-      <FilingMain sourceOpen={hasSource && sourceOpen}>
+      <FilingMain sourceOpen={sourceOpen}>
         <FilingPageHeader title="Complainant details" />
 
         <SectionTabs
@@ -278,7 +277,7 @@ export function ComplainantSection() {
           addLabel="Add complainant"
           onAdd={addComplainant}
           trailing={
-            hasSource && !sourceOpen ? (
+            !sourceOpen ? (
               <ViewSourceButton onClick={() => setSourceOpen(true)} />
             ) : null
           }
@@ -646,7 +645,6 @@ export function ComplainantSection() {
         title={SOURCE_TITLES[sourceField]}
         value={sourceValue}
         onValueChange={(v) => setRead(sourceField, v)}
-        hasSource={hasSource}
         chips={uploadedDocs.map(({ doc, slot }) => ({
           label: slot?.file?.name ?? slot?.label ?? PARTY_DOC_LABELS[doc],
           active: doc === shownDoc,

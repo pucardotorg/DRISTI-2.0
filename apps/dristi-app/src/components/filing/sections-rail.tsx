@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TOP_BAR_HEIGHT, useFilingChrome } from "@/components/filing/chrome";
+import { useLeaveBlocked } from "@/components/filing/leave-guard";
 import {
   UploadedCountBadge,
   UploadedDocsDrawer,
@@ -70,6 +71,7 @@ function StepRow({
   onNavigate: () => void;
 }) {
   const { hrefFor } = useFiling();
+  const blocked = useLeaveBlocked();
   const Icon = step.icon;
 
   if (step.placeholder) {
@@ -95,11 +97,21 @@ function StepRow({
     );
   }
 
+  const href = hrefFor(step.id);
+
   const row = (
     <Button asChild variant="ghost" className={cn(ROW, active && ROW_ACTIVE)}>
       <Link
-        href={hrefFor(step.id)}
-        onClick={onNavigate}
+        href={href}
+        onClick={(event) => {
+          // Sign registers a guard: leaving that step voids the signatures collected on
+          // it, so the rail asks before it follows the link rather than after.
+          if (blocked(href)) {
+            event.preventDefault();
+            return;
+          }
+          onNavigate();
+        }}
         aria-current={active ? "page" : undefined}
       >
         <Icon aria-hidden className={active ? undefined : "text-muted-foreground"} />

@@ -21,7 +21,7 @@ import { ConfirmDialog } from "@/components/filing/confirm-dialog";
 import { FilingFooter } from "@/components/filing/filing-footer";
 import { FilingPageHeader } from "@/components/filing/filing-page-header";
 import { FilingMain } from "@/components/filing/filing-shell";
-import { FormCard, FormRow } from "@/components/filing/form-card";
+import { FormCard, HalfWidth } from "@/components/filing/form-card";
 import { FormField } from "@/components/filing/form-field";
 import { TextField } from "@/components/filing/inputs";
 import { SectionNotice } from "@/components/filing/notices";
@@ -100,28 +100,46 @@ export function WitnessesSection() {
         {/* Identity */}
         <FormCard
           title={`Witness ${index + 1}`}
-          description="Identify the witness by name, or by official designation."
+          description="The court needs enough to identify this witness and reach them."
         >
-          <FormField label="Full name" required>
-            <TextField
-              value={w.fullName}
-              onChange={(v) => setField("fullName", v)}
-              placeholder="Enter"
-              autoComplete="off"
-            />
+          {/*
+            Name and designation are one question with two ways of answering it, so the
+            requirement sits on the group and neither field is marked required on its own
+            — a `*` on both said "fill in both", which is the opposite of what the OR
+            means. Age is a separate question and lives outside the group, where the rule
+            between the two alternatives cannot be read as reaching it.
+          */}
+          <FormField
+            asGroup
+            label="How is this witness identified?"
+            required
+            help="Enter their full name, or — if you only know the office they hold — their designation. Either one on its own is enough."
+            helpPlacement="above"
+          >
+            <div className="flex flex-col gap-4">
+              <FormField label="Full name">
+                <TextField
+                  value={w.fullName}
+                  onChange={(v) => setField("fullName", v)}
+                  placeholder="Enter"
+                  autoComplete="off"
+                />
+              </FormField>
+
+              <FieldSeparator>OR</FieldSeparator>
+
+              <FormField label="Designation">
+                <TextField
+                  value={w.designation}
+                  onChange={(v) => setField("designation", v)}
+                  placeholder="e.g. Bank Manager, SBI Sector 17"
+                  autoComplete="off"
+                />
+              </FormField>
+            </div>
           </FormField>
 
-          <FieldSeparator>OR</FieldSeparator>
-
-          <FormRow>
-            <FormField label="Designation" required>
-              <TextField
-                value={w.designation}
-                onChange={(v) => setField("designation", v)}
-                placeholder="e.g. Bank Manager, SBI Sector 17"
-                autoComplete="off"
-              />
-            </FormField>
+          <HalfWidth>
             <FormField label="Age" optional>
               <TextField
                 value={w.age}
@@ -130,9 +148,9 @@ export function WitnessesSection() {
                 inputMode="numeric"
               />
             </FormField>
-          </FormRow>
+          </HalfWidth>
 
-          <FormField label="What will this witness prove?">
+          <FormField label="What will this witness prove?" optional>
             <Textarea
               value={w.prove}
               onChange={(e) => setField("prove", e.target.value)}

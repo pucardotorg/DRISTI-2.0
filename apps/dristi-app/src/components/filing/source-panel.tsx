@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   ArrowUpRightIcon,
   FileTextIcon,
+  FileUpIcon,
   MaximizeIcon,
   UploadIcon,
 } from "lucide-react";
@@ -15,6 +16,14 @@ import type { DocExtract, ExtractBox, StoredFileRef } from "@/lib/filing/types";
 import { useRoomForLabelledNav, useSourceDock } from "@/hooks/use-min-width";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -52,12 +61,6 @@ export function regionFromBox(
 export type SourcePanelProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /**
-   * `false` when nothing has been uploaded for this screen yet. There is no source
-   * document to show, so the rail does not exist — the form takes the width instead of a
-   * permanent column explaining its own emptiness.
-   */
-  hasSource?: boolean;
   /** Field the panel explains ("Full name", "Date on cheque"). */
   title: string;
   eyebrow?: string;
@@ -96,29 +99,29 @@ export function useSourceOpenState(): [boolean, (open: boolean) => void] {
  * rather than covered and the sticky footer keeps its own width. Below `xl` there is no
  * room for a permanent column, so it is a sheet.
  *
- * It exists only when there is something to show: with nothing uploaded for this screen
- * there is no source document, so the rail is not rendered at all.
+ * With nothing uploaded it stays in place as an empty state rather than disappearing: a
+ * person who skipped intake has no other way of learning that these fields can be read
+ * off a document, and the rail is where that offer belongs (owner, 2026-08-18). What it
+ * must not do is imply a document is there — so the empty state names the gap and offers
+ * the upload, and no chip, filename or preview is drawn for a file that does not exist.
  */
 export function SourcePanel(props: SourcePanelProps) {
   const docked = useSourceDock();
   const roomy = useRoomForLabelledNav();
   const slot = useSourceRailSlot();
   const { foldNav } = useFilingChrome();
-  const hasSource = props.hasSource ?? !!props.file;
 
   /**
    * A third column below `2xl` would leave the form too narrow to read. The nav gives up
    * its labels for it rather than the form its width — once, so a person who puts the
    * labels back is not overruled on the next render.
    */
-  const crowded = hasSource && docked && !roomy;
+  const crowded = docked && !roomy;
   const wasCrowded = React.useRef(false);
   React.useEffect(() => {
     if (crowded && !wasCrowded.current) foldNav();
     wasCrowded.current = crowded;
   }, [crowded, foldNav]);
-
-  if (!hasSource) return null;
 
   if (docked && slot) {
     return createPortal(
@@ -148,6 +151,44 @@ export function SourcePanel(props: SourcePanelProps) {
   );
 }
 
+/**
+ * The rail with nothing behind it yet. It states the gap in the person's own terms —
+ * this field could have been filled from a document — and carries the one action that
+ * closes it. Nothing here pretends a document exists: no chip, no filename, no preview
+ * frame standing in for a page that was never uploaded.
+ */
+function SourceEmptyState({ uploadHref }: { uploadHref: string }) {
+  return (
+    <Empty className="px-6 py-10">
+      <EmptyHeader>
+        {/* 32px is the DS default; in a 320px rail the mark carries the state, so it
+            takes the next step up rather than reading as a stray glyph. */}
+        <EmptyMedia variant="icon" className="mb-3 size-12 [&_svg]:size-6">
+          <FileUpIcon aria-hidden />
+        </EmptyMedia>
+        <EmptyTitle className="text-body font-semibold">
+          No document to read from
+        </EmptyTitle>
+        <EmptyDescription className="text-body-compact">
+          Upload it and we’ll fill what we can into these fields — and show you where on
+          the page each value came from.
+        </EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent>
+        <Button asChild variant="outline">
+          <Link href={uploadHref}>
+            <UploadIcon data-icon="inline-start" aria-hidden />
+            Add documents
+          </Link>
+        </Button>
+        <p className="text-caption text-muted-foreground">
+          Optional — every field can be typed by hand.
+        </p>
+      </EmptyContent>
+    </Empty>
+  );
+}
+
 function SourcePanelBody(p: SourcePanelProps) {
   const [zoom, setZoom] = React.useState(false);
   const preview = useFilePreview(p.file);
@@ -160,17 +201,27 @@ function SourcePanelBody(p: SourcePanelProps) {
         <div className="flex items-center gap-3">
           <span
             aria-hidden
-            className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-info-muted text-info-muted-foreground"
+            className={cn(
+              "flex size-10 shrink-0 items-center justify-center rounded-lg",
+              p.file
+                ? "bg-info-muted text-info-muted-foreground"
+                : "bg-surface-sunken text-muted-foreground"
+            )}
           >
             <FileTextIcon className="size-5" />
           </span>
           <div className="min-w-0">
-            <p className="text-caption text-muted-foreground">{p.eyebrow ?? "Source"}</p>
+            <p className="text-caption text-muted-foreground">
+              {p.file ? (p.eyebrow ?? "Source") : "Source document"}
+            </p>
             <p className="text-body font-semibold text-foreground">{p.title}</p>
           </div>
         </div>
       </div>
 
+      {!p.file ? (
+        <SourceEmptyState uploadHref={p.uploadHref} />
+      ) : (
       <div className="flex flex-col gap-6 px-6 py-6">
         {p.onValueChange !== undefined ? (
           <Field className="gap-2">
@@ -205,20 +256,7 @@ function SourcePanelBody(p: SourcePanelProps) {
           </div>
         ) : null}
 
-        {!p.file ? (
-          <div className="flex flex-col items-center gap-3 rounded-lg bg-surface-sunken px-6 py-8 text-center">
-            <FileTextIcon className="size-8 text-muted-foreground" aria-hidden />
-            <p className="text-body-compact text-muted-foreground">
-              Nothing uploaded for this document yet.
-            </p>
-            <Button asChild variant="outline" size="sm">
-              <Link href={p.uploadHref}>
-                <UploadIcon data-icon="inline-start" aria-hidden />
-                Upload it
-              </Link>
-            </Button>
-          </div>
-        ) : preview.status === "loading" ? (
+        {preview.status === "loading" ? (
           <Skeleton className="aspect-[4/3] w-full rounded-xl" />
         ) : imageUrl ? (
           <div className="group/img relative overflow-hidden rounded-xl bg-surface-sunken">
@@ -262,7 +300,7 @@ function SourcePanelBody(p: SourcePanelProps) {
         <div className="flex flex-col gap-2">
           <Button asChild variant="outline">
             <Link href={p.uploadHref}>
-              {p.file ? "Replace" : "Upload"}
+              Replace
               <UploadIcon data-icon="inline-end" aria-hidden />
             </Link>
           </Button>
@@ -276,6 +314,7 @@ function SourcePanelBody(p: SourcePanelProps) {
           ) : null}
         </div>
       </div>
+      )}
 
       {imageUrl ? (
         <Lightbox open={zoom} onOpenChange={setZoom} src={imageUrl} alt={p.imageAlt} />

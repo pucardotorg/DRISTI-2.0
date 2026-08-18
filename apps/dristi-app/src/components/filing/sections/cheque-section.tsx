@@ -164,7 +164,6 @@ export function ChequeSection() {
     { slot: frontSlot, entry: chequeEntry, fallbackLabel: "Cheque (front side)" },
     { slot: memoSlot, entry: memoEntry, fallbackLabel: "Cheque return memo" },
   ].filter((d) => d.slot?.file);
-  const hasSource = sourceDocs.length > 0;
 
   const sourceKey = `${cheque.id}:${sourceField}`;
   const sourceText = sourceEdit?.key === sourceKey ? sourceEdit.text : null;
@@ -266,7 +265,7 @@ export function ChequeSection() {
 
   return (
     <>
-      <FilingMain sourceOpen={hasSource && sourceOpen}>
+      <FilingMain sourceOpen={sourceOpen}>
         <FilingPageHeader
           title="Cheque & return memo"
           description="Add the dishonoured cheque(s) and the bank's return memo for each."
@@ -286,7 +285,7 @@ export function ChequeSection() {
           addLabel="Add cheque"
           onAdd={addCheque}
           trailing={
-            hasSource && !sourceOpen ? (
+            !sourceOpen ? (
               <ViewSourceButton onClick={() => setSourceOpen(true)} />
             ) : null
           }
@@ -516,7 +515,6 @@ export function ChequeSection() {
         title={FIELD_LABELS[sourceField]}
         value={sourceValue}
         onValueChange={setSourceValue}
-        hasSource={hasSource}
         chips={sourceDocs.map((d) => ({
           label: d.slot?.file?.name ?? d.slot?.label ?? d.fallbackLabel,
           active: d.slot === sourceSlot,

@@ -65,8 +65,34 @@ export function complainantChoices(complainants: Complainant[]): string[] {
   return complainants.map((c, i) => `Complainant ${i + 1}${c.name ? ` — ${c.name}` : ""}`);
 }
 
+/**
+ * A complainant who has said they appear as a party in person conducts the case
+ * themselves, so no advocate goes on record for them and none signs in their place.
+ */
+export function isPartyInPerson(c: Complainant): boolean {
+  return c.pip === "yes";
+}
+
+/** Complainant indices that an advocate may be put on record for. */
+export function representedIndices(complainants: Complainant[]): number[] {
+  return complainants.flatMap((c, i) => (isPartyInPerson(c) ? [] : [i]));
+}
+
 export function advocateName(a: Advocate): string {
   return a.name.trim();
+}
+
+/** An advocate row counts as filled in once it carries a name or a bar number. */
+export function advocateNamed(a: Advocate): boolean {
+  return !!(a.name.trim() || a.barNumber.trim());
+}
+
+/** The advocates put on record for one complainant, by that complainant's index. */
+export function advocatesForComplainant(
+  advocates: Advocate[],
+  index: number
+): Advocate[] {
+  return advocates.filter((a) => advocateNamed(a) && a.forComplainants.includes(index));
 }
 
 export function accusedLabel(a: Accused, index: number): string {
@@ -137,9 +163,16 @@ function sameMobile(a: string, b: string): boolean {
 }
 
 /**
- * Everyone who signs the complaint: each complainant (or the person acting for one) and
- * each advocate. "You" is whoever matches the profile — by bar number for advocates, by
- * mobile for complainants — else the first advocate, else the first complainant.
+ * Everyone who signs the complaint: each complainant (or the person acting for one), and
+ * one advocate signature per complainant who has an advocate.
+ *
+ * The advocate half is a slot per litigant, not a row per advocate: a complainant may
+ * have several advocates on record but only one of them signs for them, so the row is
+ * "Advocate for Complainant 1" and the names beneath it say who may fill it. A
+ * complainant appearing as a party in person has no advocate row at all.
+ *
+ * "You" is whoever matches the profile — by bar number for advocates, by mobile for
+ * complainants — else the first advocate slot, else the first complainant.
  */
 export function signatories(
   draft: FilingDraft,
@@ -166,22 +199,30 @@ export function signatories(
     return { id: `sig-c-${c.id}`, name, role, status: signedOf(`sig-c-${c.id}`), you };
   });
 
-  const advocates: Signatory[] = draft.advocates
-    .filter((a) => a.barNumber.trim() || a.name.trim())
-    .map((a, i) => {
-      const bar = a.barNumber.trim();
-      const you =
-        !!profile?.barNumber &&
-        !!bar &&
-        profile.barNumber.trim().toUpperCase() === bar.toUpperCase();
-      return {
-        id: `sig-a-${a.id}`,
-        name: a.name.trim() || `Advocate ${i + 1}`,
-        role: bar ? `Advocate · ${bar}` : "Advocate",
-        status: signedOf(`sig-a-${a.id}`),
+  const myBar = profile?.barNumber.trim().toUpperCase() ?? "";
+
+  const advocates: Signatory[] = draft.complainants.flatMap((c, i) => {
+    if (isPartyInPerson(c)) return [];
+    const acting = advocatesForComplainant(draft.advocates, i);
+    if (!acting.length) return [];
+    const first = acting[0];
+    // One signature is needed, so the row names the slot; the line beneath says who can
+    // fill it — the single advocate by name, or that any one of several may.
+    const role =
+      acting.length === 1
+        ? [first.name.trim(), first.barNumber.trim()].filter(Boolean).join(" · ")
+        : `Any one of ${acting.length} advocates on record`;
+    const you = !!myBar && acting.some((a) => a.barNumber.trim().toUpperCase() === myBar);
+    return [
+      {
+        id: `sig-a-${c.id}`,
+        name: `Advocate for Complainant ${i + 1}`,
+        role,
+        status: signedOf(`sig-a-${c.id}`),
         you,
-      };
-    });
+      },
+    ];
+  });
 
   const anyYou = [...complainants, ...advocates].some((s) => s.you);
   if (!anyYou) {
