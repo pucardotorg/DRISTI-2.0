@@ -1,18 +1,19 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
   ArrowUpRightIcon,
   FileTextIcon,
   MaximizeIcon,
+  PanelRightIcon,
   UploadIcon,
-  XIcon,
 } from "lucide-react";
 
 import { useFilePreview } from "@/lib/filing/files";
 import type { DocExtract, ExtractBox, StoredFileRef } from "@/lib/filing/types";
-import { useMediaQuery } from "@/hooks/use-media-query";
+import { useRoomForLabelledNav, useSourceDock } from "@/hooks/use-min-width";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
@@ -25,6 +26,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TOP_BAR_HEIGHT, useFilingChrome } from "@/components/filing/chrome";
+import { useSourceRailSlot } from "@/components/filing/filing-shell";
 import { Lightbox } from "@/components/filing/lightbox";
 
 export type SourceChip = { label: string; active: boolean; onClick: () => void };
@@ -67,24 +70,97 @@ export type SourcePanelProps = {
 };
 
 /**
+ * Whether the source rail starts open on this screen.
+ *
+ * From `xl` the rail is a column of the layout, so it starts expanded — the document is
+ * the point of these screens. Below that it is a sheet over the form, so it stays shut
+ * until it is asked for. The person's own choice wins from the first time they make one.
+ */
+export function useSourceOpenState(): [boolean, (open: boolean) => void] {
+  const docked = useSourceDock();
+  const [chosen, setChosen] = React.useState<boolean | null>(null);
+  const set = React.useCallback((open: boolean) => setChosen(open), []);
+  return [chosen ?? docked, set];
+}
+
+/** The rail's resting width, never its absence — 48px that says what it holds. */
+function SourceRailStrip({ title, onOpen }: { title: string; onOpen: () => void }) {
+  return (
+    <aside
+      aria-label="Source document"
+      style={{ top: TOP_BAR_HEIGHT, height: `calc(100svh - ${TOP_BAR_HEIGHT})` }}
+      className="sticky flex w-12 shrink-0 flex-col items-center gap-2 self-start border-l border-hairline bg-sidebar py-3"
+    >
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-expanded={false}
+        aria-label={`Open the source document for ${title}`}
+        onClick={onOpen}
+        className="text-muted-foreground"
+      >
+        <FileTextIcon aria-hidden />
+      </Button>
+      {/* Turned, not hidden: the strip names itself without waiting for a hover. */}
+      <span
+        aria-hidden
+        className="rotate-180 text-caption font-medium text-muted-foreground [writing-mode:vertical-rl]"
+      >
+        Source document
+      </span>
+    </aside>
+  );
+}
+
+/**
  * "Where did this value come from?" — the uploaded document with the read region
- * highlighted, plus the value box to correct a misread. Docked to the right on wide
- * screens (the form is pushed, not covered); a sheet elsewhere.
+ * highlighted, plus the value box to correct a misread.
+ *
+ * From `xl` it is a column of the shell beside the form, in one of two widths: the panel
+ * or a 48px strip. It expands and collapses in place and never leaves the layout, so the
+ * form is pushed rather than covered and the sticky footer keeps its own width. Below
+ * `xl` there is no room for a permanent column, so it is a sheet.
  */
 export function SourcePanel(props: SourcePanelProps) {
-  const isWide = useMediaQuery("(min-width: 1280px)");
-  if (!props.open) return null;
+  const docked = useSourceDock();
+  const roomy = useRoomForLabelledNav();
+  const slot = useSourceRailSlot();
+  const { foldNav } = useFilingChrome();
 
-  if (isWide) {
-    return (
-      <aside
-        aria-label={`Source for ${props.title}`}
-        className="fixed right-0 top-14 z-20 flex h-[calc(100vh-3.5rem)] w-(--source-panel-w) flex-col overflow-y-auto border-l border-hairline bg-card"
-      >
-        <SourcePanelBody {...props} showClose />
-      </aside>
+  /**
+   * A third column below `2xl` would leave the form too narrow to read. The nav gives up
+   * its labels for it rather than the form its width — once per opening, so a person who
+   * puts the labels back is not overruled on the next render.
+   */
+  const crowded = props.open && docked && !roomy;
+  const wasCrowded = React.useRef(false);
+  React.useEffect(() => {
+    if (crowded && !wasCrowded.current) foldNav();
+    wasCrowded.current = crowded;
+  }, [crowded, foldNav]);
+
+  if (docked && slot) {
+    return createPortal(
+      props.open ? (
+        <aside
+          aria-label={`Source for ${props.title}`}
+          style={{ top: TOP_BAR_HEIGHT, height: `calc(100svh - ${TOP_BAR_HEIGHT})` }}
+          className="sticky flex w-(--source-panel-w) shrink-0 flex-col self-start overflow-y-auto border-l border-hairline bg-card"
+        >
+          <SourcePanelBody {...props} showClose />
+        </aside>
+      ) : (
+        <SourceRailStrip
+          title={props.title}
+          onOpen={() => props.onOpenChange(true)}
+        />
+      ),
+      slot
     );
   }
+
+  if (!props.open) return null;
 
   return (
     <Sheet open={props.open} onOpenChange={props.onOpenChange}>
@@ -124,14 +200,17 @@ function SourcePanelBody({
           </div>
         </div>
         {showClose ? (
+          /* Collapse, not close: the rail stays in the layout as its strip. */
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            aria-label="Close source panel"
+            aria-expanded
+            aria-label="Collapse the source document"
             onClick={() => p.onOpenChange(false)}
+            className="text-muted-foreground"
           >
-            <XIcon aria-hidden />
+            <PanelRightIcon aria-hidden />
           </Button>
         ) : null}
       </div>

@@ -83,7 +83,7 @@ export function JurisdictionSection() {
             />
           </FormField>
 
-          <SectionNotice>
+          <SectionNotice variant="info">
             Jurisdiction is based on the bank branch where the cheque is presented for
             collection and the account is maintained by the complainant.
           </SectionNotice>
@@ -163,7 +163,7 @@ export function JurisdictionSection() {
 
           {j.otherPending === "yes" ? (
             <>
-              <SectionNotice>
+              <SectionNotice variant="neutral">
                 Please state the case details of such cases (court &amp; case number).
               </SectionNotice>
               <div className="flex flex-col gap-4">

@@ -1,80 +1,50 @@
 "use client";
 
 import * as React from "react";
-import { PanelLeftIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
-import { FilingSidebar, TOP_BAR_HEIGHT } from "@/components/filing/filing-sidebar";
-
-/** Wider than the DS default 16rem — the section titles ("Demand notice & debt") need it. */
-const RAIL_WIDTH = "18rem";
+import { SectionsRail, SectionsTrigger } from "@/components/filing/sections-rail";
 
 /**
- * Frame for the form sections, on the DS Sidebar: the Sections rail on the left, the
- * screen inside `SidebarInset`. Screens supply their own `FilingMain` + `FilingFooter`.
- *
- * The sticky `FilingTopBar` stays full-width above this: it is chrome for the whole
- * filings area (court identity, language, account) while the rail belongs to one draft,
- * so the brand keeps the page origin and does not move when the rail collapses. The DS
- * rail is `fixed inset-y-0 h-svh`, so it is offset below the bar here — the primitive
- * has no prop for that (see the build report).
+ * Where the source rail mounts. `SourcePanel` is rendered deep inside a section, but the
+ * rail has to be a *column* beside the form — otherwise it can only cover the form or
+ * float over the sticky footer. The slot lets it stay a sibling of the content column
+ * without every section having to know about the shell's layout.
+ */
+const SourceRailSlot = React.createContext<HTMLElement | null>(null);
+
+export function useSourceRailSlot(): HTMLElement | null {
+  return React.useContext(SourceRailSlot);
+}
+
+/**
+ * Frame for the form sections: the Sections rail, the screen, and the source rail's
+ * column — three siblings in the row the filings shell opened. Screens supply their own
+ * `FilingMain` + `FilingFooter`.
  */
 export function FilingShell({ children }: { children: React.ReactNode }) {
-  return (
-    <SidebarProvider
-      style={
-        {
-          "--sidebar-width": RAIL_WIDTH,
-          // Replaces the provider's own `min-h-svh`, which would add the header's
-          // height to the page and leave every screen scrolling by 3.5rem.
-          minHeight: 0,
-        } as React.CSSProperties
-      }
-    >
-      <FilingSidebar />
+  const [slot, setSlot] = React.useState<HTMLElement | null>(null);
 
-      <SidebarInset
-        className="min-w-0"
-        style={{ minHeight: `calc(100svh - ${TOP_BAR_HEIGHT})` }}
-      >
+  return (
+    <SourceRailSlot.Provider value={slot}>
+      <SectionsRail />
+
+      <main className="flex min-w-0 flex-1 flex-col">
         <SectionsTrigger />
         {children}
-      </SidebarInset>
-    </SidebarProvider>
+      </main>
+
+      {/* Zero-width until a source rail mounts into it. */}
+      <div ref={setSlot} className="flex shrink-0" />
+    </SourceRailSlot.Provider>
   );
 }
 
 /**
- * Opens the rail below `md`, where the DS renders it as a sheet. Above `md` the rail is
- * always on screen — collapsed to the icon strip at worst — and toggles from its own
- * header, so this is the only trigger that has to exist in the content column.
- */
-function SectionsTrigger() {
-  const { toggleSidebar, openMobile } = useSidebar();
-
-  return (
-    <div className="px-4 pt-4 sm:px-6 md:hidden">
-      <Button
-        type="button"
-        variant="outline"
-        aria-expanded={openMobile}
-        onClick={toggleSidebar}
-      >
-        <PanelLeftIcon data-icon="inline-start" aria-hidden />
-        Sections
-      </Button>
-    </div>
-  );
-}
-
-/**
- * The scrolling column of a filing screen. `sourceOpen` reserves room on wide screens
- * for the fixed source-document panel so the form is pushed rather than covered.
+ * The scrolling column of a filing screen.
  *
- * A `div`, not a `main`: inside `FilingShell` the landmark is `SidebarInset`, and the
- * two screens outside it (upload, sign) carry their own.
+ * A `div`, not a `main`: inside `FilingShell` the landmark is the shell's own `main`, and
+ * the two screens outside it (upload, sign) carry theirs.
  */
 export function FilingMain({
   children,
@@ -84,14 +54,15 @@ export function FilingMain({
 }: {
   children: React.ReactNode;
   width?: "default" | "wide" | "narrow";
+  /** The source rail has taken a column, so the form has less width to spend on gutters. */
   sourceOpen?: boolean;
   className?: string;
 }) {
   return (
     <div
       className={cn(
-        "flex-1 px-4 pb-8 pt-6 sm:px-6 lg:px-12",
-        sourceOpen && "xl:mr-(--source-panel-w)",
+        "flex-1 px-4 pb-8 pt-6 sm:px-6",
+        sourceOpen ? "lg:px-6" : "lg:px-12",
         className
       )}
     >

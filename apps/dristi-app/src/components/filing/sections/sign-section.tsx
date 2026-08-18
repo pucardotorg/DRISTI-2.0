@@ -467,7 +467,7 @@ export function SignSection() {
       </div>
 
       {youSigned ? (
-        <SectionNotice variant="success" title="You have signed">
+        <SectionNotice variant="success" announce="polite" title="You have signed">
           Your signature is recorded. The other parties still have to sign before the
           complaint can be filed.
         </SectionNotice>
@@ -508,7 +508,7 @@ export function SignSection() {
         </>
       )}
 
-      <SectionNotice>
+      <SectionNotice variant="neutral">
         All parties must sign using the{" "}
         <strong className="font-semibold text-foreground">same mode</strong>. E-Sign
         requires each signatory’s Aadhaar-linked mobile number.
@@ -668,7 +668,7 @@ export function SignSection() {
             </DialogDescription>
           </DialogHeader>
 
-          <SectionNotice>
+          <SectionNotice variant="neutral">
             Each other party will need to sign too.
           </SectionNotice>
 
@@ -742,7 +742,7 @@ export function SignSection() {
             </DialogDescription>
           </DialogHeader>
 
-          <SectionNotice title="Please note">
+          <SectionNotice variant="neutral" title="Please note">
             Please ensure you have collected the signatures of all parties (
             <strong className="font-semibold">
               all complainants and an advocate for each complainant must sign the case
@@ -789,7 +789,13 @@ export function SignSection() {
           )}
 
           {uploadError ? (
-            <SectionNotice variant="warning">{uploadError}</SectionNotice>
+            <SectionNotice
+              variant="destructive"
+              announce="assertive"
+              title="That file wasn’t added"
+            >
+              {uploadError}
+            </SectionNotice>
           ) : null}
 
           <p className="text-body-compact text-muted-foreground">

@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { ArrowLeftIcon, FileQuestionIcon } from "lucide-react";
 
+import { draftTitle } from "@/lib/filing/selectors";
 import { FILINGS_HOME } from "@/lib/filing/steps";
-import { FilingProvider } from "@/lib/filing/store";
+import { FilingProvider, useFiling } from "@/lib/filing/store";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -15,6 +16,13 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
+import { DraftBreadcrumbLabel } from "@/components/filing/chrome";
+
+/** Names the loaded draft for the top bar's breadcrumb. */
+function DraftTitle() {
+  const { draft } = useFiling();
+  return <DraftBreadcrumbLabel label={draftTitle(draft)} />;
+}
 
 /** Loads one draft into the store; shows the read state and the "no such draft" case. */
 export function DraftFrame({
@@ -64,6 +72,7 @@ export function DraftFrame({
         </div>
       }
     >
+      <DraftTitle />
       {children}
     </FilingProvider>
   );

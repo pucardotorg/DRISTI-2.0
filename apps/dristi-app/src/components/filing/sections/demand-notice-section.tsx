@@ -25,7 +25,6 @@ import { chequeSourceSlot, noticeComplete } from "@/lib/filing/selectors";
 import { neighbours } from "@/lib/filing/steps";
 import { useFiling } from "@/lib/filing/store";
 import type { DemandNotice, NoticeField } from "@/lib/filing/types";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { ConfirmDialog } from "@/components/filing/confirm-dialog";
 import { DateField } from "@/components/filing/date-field";
 import { FilingFooter } from "@/components/filing/filing-footer";
@@ -42,6 +41,7 @@ import {
   SourcePanel,
   ViewSourceButton,
   regionFromBox,
+  useSourceOpenState,
 } from "@/components/filing/source-panel";
 
 /**
@@ -110,12 +110,12 @@ export function DemandNoticeSection() {
   const [removeIndex, setRemoveIndex] = React.useState(0);
   const [removeOpen, setRemoveOpen] = React.useState(false);
   /**
-   * The source panel is docked beside the form from `xl` up, so it starts open there as in
-   * the demo. Below that it is a sheet over the form — opened on request (a prefilled
-   * field, or "View source document") rather than covering the screen on arrival.
+   * The source rail is a column beside the form from `xl` up, so it starts expanded
+   * there as in the demo; collapsed, it stays in the layout as a strip. Below that it
+   * is a sheet over the form — opened on request (a prefilled field, or "View source
+   * document") rather than covering the screen on arrival.
    */
-  const docked = useMediaQuery("(min-width: 1280px)");
-  const [sourceOpen, setSourceOpen] = React.useState(docked);
+  const [sourceOpen, setSourceOpen] = useSourceOpenState();
   const [sourceField, setSourceField] = React.useState<SourceField>("dispatchDate");
 
   const index = Math.min(active, notices.length - 1);
@@ -228,7 +228,7 @@ export function DemandNoticeSection() {
 
         <PrefillNotice show={anyPrefilled} />
 
-        <SectionNotice>
+        <SectionNotice variant="neutral">
           If you have issued multiple demand notices for the same cheque, share the one
           validly issued within 30 days of receiving information about the return of the
           cheque. In case of multiple cheques, you can add more than one demand notice.
@@ -367,7 +367,7 @@ export function DemandNoticeSection() {
                   />
                 </FormField>
               </FormRow>
-              <SectionNotice>
+              <SectionNotice variant="info">
                 A notice returned unserved after being correctly addressed and dispatched
                 can still count as valid service in law. Keep the returned envelope and
                 tracking record as proof.

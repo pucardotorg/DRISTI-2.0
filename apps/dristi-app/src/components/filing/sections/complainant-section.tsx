@@ -24,7 +24,6 @@ import type {
   PoaHolder,
   Representative,
 } from "@/lib/filing/types";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -57,6 +56,7 @@ import {
   SourcePanel,
   ViewSourceButton,
   regionFromBox,
+  useSourceOpenState,
 } from "@/components/filing/source-panel";
 
 /** Panel title per machine-filled field. */
@@ -107,12 +107,12 @@ export function ComplainantSection() {
   const c = complainants[active];
 
   /**
-   * The source panel is docked beside the form from `xl` up, so it starts open there as in
-   * the demo. Below that it is a sheet over the form — opened on request (a prefilled
-   * field, or "View source document") rather than covering the screen on arrival.
+   * The source rail is a column beside the form from `xl` up, so it starts expanded
+   * there as in the demo; collapsed, it stays in the layout as a strip. Below that it
+   * is a sheet over the form — opened on request (a prefilled field, or "View source
+   * document") rather than covering the screen on arrival.
    */
-  const docked = useMediaQuery("(min-width: 1280px)");
-  const [sourceOpen, setSourceOpen] = React.useState(docked);
+  const [sourceOpen, setSourceOpen] = useSourceOpenState();
   const [sourceField, setSourceField] = React.useState<ComplainantPrefillKey>("name");
   /** Which of the complainant's uploads the panel shows; the chips switch between them. */
   const [sourceDoc, setSourceDoc] = React.useState<PartyDoc>("id-proof");

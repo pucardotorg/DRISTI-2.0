@@ -5,5 +5,10 @@ import { FilingsDashboard } from "@/components/filing/dashboard/filings-dashboar
 export const metadata: Metadata = { title: "Filings" };
 
 export default function FilingsPage() {
-  return <FilingsDashboard />;
+  return (
+    // The shell owns the header and nav landmarks, so the screen owns `main`.
+    <main className="flex min-w-0 flex-1 flex-col">
+      <FilingsDashboard />
+    </main>
+  );
 }

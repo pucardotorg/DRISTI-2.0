@@ -158,7 +158,7 @@ export function WitnessesSection() {
 
         {/* Service addresses */}
         <FormCard title={`Witness ${index + 1} address details`}>
-          <SectionNotice>
+          <SectionNotice variant="info">
             Adding multiple addresses will increase your chances of successful delivery.
           </SectionNotice>
           <AddressBlockList

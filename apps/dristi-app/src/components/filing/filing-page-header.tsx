@@ -1,43 +1,13 @@
 import * as React from "react";
-import Link from "next/link";
 
-import { CASE_TYPE } from "@/lib/filing/options";
-import { FILINGS_HOME } from "@/lib/filing/steps";
 import { cn } from "@/lib/utils";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-
-/** Breadcrumb every filing screen carries: Dashboard › Case filing under S-138, NI Act. */
-export function FilingBreadcrumb({ className }: { className?: string }) {
-  return (
-    <Breadcrumb className={className}>
-      <BreadcrumbList>
-        <BreadcrumbItem>
-          <BreadcrumbLink asChild>
-            <Link href={FILINGS_HOME}>Dashboard</Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbPage>
-            Case filing under{" "}
-            <span className="font-medium text-foreground">{CASE_TYPE.short}</span>
-          </BreadcrumbPage>
-        </BreadcrumbItem>
-      </BreadcrumbList>
-    </Breadcrumb>
-  );
-}
 
 /**
  * Title block for a filing screen. `eyebrow` is the small primary label used on the
  * intake step ("Documents"); `actions` sits to the right of the title on wide screens.
+ *
+ * No breadcrumb here — the top bar carries the one the app has, so the trail is stated
+ * once and in the same place on every screen.
  */
 export function FilingPageHeader({
   eyebrow,
@@ -54,7 +24,6 @@ export function FilingPageHeader({
 }) {
   return (
     <div className={cn("flex flex-col gap-4", className)}>
-      <FilingBreadcrumb />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 flex-col gap-2">
           {eyebrow ? (

@@ -12,7 +12,7 @@ import { SectionNotice } from "@/components/filing/notices";
 export function PrefillNotice({ show }: { show: boolean }) {
   if (!show) return null;
   return (
-    <SectionNotice>
+    <SectionNotice variant="info">
       Highlighted fields were read from your uploaded documents — select one to see its
       source, and check it before you continue.
     </SectionNotice>

@@ -470,7 +470,8 @@ export function UploadSection() {
 
         {pickError ? (
           <SectionNotice
-            variant="warning"
+            variant="destructive"
+            announce="assertive"
             title="That file wasn’t added"
             onDismiss={() => setPickError(null)}
           >

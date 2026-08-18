@@ -215,6 +215,7 @@ export function AccusedSection() {
         <FormCard title="Address details">
           {!draft.dismissed.accusedAddress ? (
             <SectionNotice
+              variant="info"
               onDismiss={() =>
                 update((d) => {
                   d.dismissed.accusedAddress = true;

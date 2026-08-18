@@ -249,6 +249,42 @@ Recorded in `docs/design/ds-requests.md` when round 2 confirms them.
   - Runtime assets (pdf.js worker, Tesseract worker/cores/English data) are copied into
     `public/vendor/` on dev/build — no CDN at runtime.
 
+- 2026-08-18 — Owner: adopt the **advocate-home v3 app shell** for the filing area, and
+  answer for the white notices. Decisions:
+  - **Shell.** Top bar becomes chrome: sidebar collapse trigger · breadcrumb · search ·
+    account. Court/product identity moves into the main sidebar header (v3's placement).
+    Main navigation is the DS `Sidebar collapsible="icon"`; it is **collapsed by default
+    inside the filing flow** and expanded on the dashboard, with the person's own toggle
+    winning afterwards. The in-page breadcrumb leaves `FilingPageHeader` — the top bar
+    carries the only one.
+  - **Two rails, one provider.** The filing steps rail and the source panel are *composed*
+    surfaces, not DS `Sidebar`s. Measured constraint: every `SidebarProvider` registers its
+    own ⌘B `window` listener and writes the same `sidebar_state` cookie, so nesting two
+    means one shortcut toggles both rails and the cookie stops meaning anything. This
+    partly reverses the 2026-08-17 adoption of `Sidebar` for the filing rail — that
+    adoption was right when the rail was the *only* one; with a real main nav the roles
+    change, and v3 already models secondary surfaces (`PendingTasksRail`,
+    `CaseDetailPanel`) as composed rails. The behaviours the adoption bought — collapse to
+    a strip in place, persistence, mobile sheet, `aria-current`, 40px hit areas — are
+    carried over by hand and must not regress.
+  - **Source panel → right rail.** Collapses to a strip on the right edge and expands in
+    place rather than disappearing; still pushes the form rather than covering it above
+    `xl`, still a Sheet below.
+  - **Search is built, not mimed.** A DS `Command` palette (⌘K) over the person's own
+    drafts and filed cases (party names, case-file number), opening a result at its last
+    step. A search box that does nothing would be the same defect as the "EN" / "Support"
+    controls removed the day before.
+  - **Notices get their semantic colour back.** `SectionNotice` already received
+    `variant`, but the component discarded it and rendered every notice as a white panel
+    with a tinted icon — a `ui-craft` cheap-tell row written in `3a22ca0` that over-reached
+    into banning a treatment the DS ships (`Alert` has opaque `-muted` variants with their
+    own foreground pairs). The Law is "status never by colour **alone**", not "never by
+    colour". The rule is corrected in both skill copies: the cheap tell is *stacking*
+    tinted blocks, tinting *body copy* grey on a tint, or tinting *pure instruction* —
+    not using the system's own status fills.
+  - Notifications are **not** built: v3 has a bell, this product has no notification data,
+    and inventing one would be a claim.
+
 ### Round 2 candidates (design pass)
 Card title scale vs demo (16/600); select trigger truncation on half-width fields;
 DatePicker display format vs dd/mm/yyyy; DocumentSlot progress + actions row; the

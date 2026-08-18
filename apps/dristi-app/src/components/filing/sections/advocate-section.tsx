@@ -17,7 +17,6 @@ import { useProfile } from "@/lib/filing/profile";
 import { complainantChoices, partySourceSlot } from "@/lib/filing/selectors";
 import { neighbours } from "@/lib/filing/steps";
 import { useFiling } from "@/lib/filing/store";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -33,7 +32,11 @@ import { FormField } from "@/components/filing/form-field";
 import { TextField } from "@/components/filing/inputs";
 import { SectionNotice } from "@/components/filing/notices";
 import { RemoveButton } from "@/components/filing/repeat-lists";
-import { SourcePanel, ViewSourceButton } from "@/components/filing/source-panel";
+import {
+  SourcePanel,
+  useSourceOpenState,
+  ViewSourceButton,
+} from "@/components/filing/source-panel";
 
 /** A filing carries at most six advocates. */
 const MAX_ADVOCATES = 6;
@@ -47,12 +50,12 @@ export function AdvocateSection() {
   const choices = complainantChoices(draft.complainants);
 
   /**
-   * The source panel is docked beside the form from `xl` up, so it starts open there as in
-   * the demo. Below that it is a sheet over the form — opened on request ("View source
-   * document") rather than covering the screen on arrival.
+   * The source rail is a column beside the form from `xl` up, so it starts expanded
+   * there as in the demo; collapsed, it stays in the layout as a strip. Below that it
+   * is a sheet over the form — opened on request ("View source document") rather than
+   * covering the screen on arrival.
    */
-  const docked = useMediaQuery("(min-width: 1280px)");
-  const [sourceOpen, setSourceOpen] = React.useState(docked);
+  const [sourceOpen, setSourceOpen] = useSourceOpenState();
 
   // One Vakalatnama is uploaded per complainant; show the one belonging to the complainant
   // the first advocate acts for (clamped, since indices survive a complainant's removal).
@@ -118,6 +121,7 @@ export function AdvocateSection() {
             requirement without implying the app enforces it. */}
         {draft.dismissed.advocateInfo ? null : (
           <SectionNotice
+            variant="neutral"
             title="Adding an advocate"
             onDismiss={() =>
               update((d) => {

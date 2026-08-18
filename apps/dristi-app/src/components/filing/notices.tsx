@@ -1,7 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, XIcon } from "lucide-react";
+import {
+  CircleAlertIcon,
+  CircleCheckIcon,
+  InfoIcon,
+  TriangleAlertIcon,
+  XIcon,
+  type LucideIcon,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -13,9 +20,65 @@ const NOTICE_ROLE = {
   assertive: "alert",
 } as const;
 
+export type NoticeVariant =
+  | "neutral"
+  | "info"
+  | "warning"
+  | "success"
+  | "destructive";
+
 /**
- * Standing notice at the top of a section (info, warning or success). `onDismiss` adds a
- * close control; the dismissal itself is remembered on the draft by the caller.
+ * A notice that carries a status wears that status: the DS `Alert` variants ship the
+ * sanctioned opaque `*-muted` fill together with its own `*-muted-foreground` pair for
+ * title, body and icon, so nothing here re-colours them — the primitive owns the fill,
+ * the border and the text. `neutral` is the DS default (a white panel) and is for
+ * guidance that has no status to report: how to fill the control next to it.
+ */
+const NOTICE_STYLE: Record<
+  NoticeVariant,
+  {
+    Icon: LucideIcon;
+    /** `undefined` = the DS default Alert. */
+    alert?: "info" | "warning" | "success" | "destructive";
+    /** Extra surface classes — only the white panel needs an edge and a lift. */
+    surface?: string;
+    /** Icon colour — only the white panel needs one; tints supply their own. */
+    icon?: string;
+    /** Dismiss control, kept in the notice's own colour rather than a grey-on-tint. */
+    dismiss: string;
+  }
+> = {
+  neutral: {
+    Icon: InfoIcon,
+    surface: "border-hairline shadow-raised",
+    icon: "text-muted-foreground",
+    dismiss: "text-muted-foreground",
+  },
+  info: {
+    Icon: InfoIcon,
+    alert: "info",
+    dismiss: "text-current hover:bg-info-muted-hover hover:text-current",
+  },
+  warning: {
+    Icon: TriangleAlertIcon,
+    alert: "warning",
+    dismiss: "text-current hover:bg-warning-muted-hover hover:text-current",
+  },
+  success: {
+    Icon: CircleCheckIcon,
+    alert: "success",
+    dismiss: "text-current hover:bg-success-muted-hover hover:text-current",
+  },
+  destructive: {
+    Icon: CircleAlertIcon,
+    alert: "destructive",
+    dismiss: "text-current hover:bg-destructive-muted-hover hover:text-current",
+  },
+};
+
+/**
+ * Standing notice at the top of a section. `onDismiss` adds a close control; the
+ * dismissal itself is remembered on the draft by the caller.
  *
  * The DS `Alert` hardcodes `role="alert"`, which makes a screen reader interrupt on every
  * mount — right for something that has just gone wrong, wrong for guidance that was
@@ -25,45 +88,30 @@ const NOTICE_ROLE = {
 export function SectionNotice({
   title,
   children,
-  variant = "info",
+  variant = "neutral",
   announce = "none",
   onDismiss,
   className,
 }: {
   title?: React.ReactNode;
   children: React.ReactNode;
-  variant?: "info" | "warning" | "success";
+  /** Default is `neutral`: a notice is only coloured when it reports a status. */
+  variant?: NoticeVariant;
   /** "polite" for a result the user is waiting for; "assertive" only for real errors. */
   announce?: "none" | "polite" | "assertive";
   onDismiss?: () => void;
   className?: string;
 }) {
-  const Icon =
-    variant === "warning"
-      ? TriangleAlertIcon
-      : variant === "success"
-        ? CircleCheckIcon
-        : InfoIcon;
-  const ink =
-    variant === "warning"
-      ? "text-warning-ink"
-      : variant === "success"
-        ? "text-success-ink"
-        : "text-info-ink";
-  // Status is carried by the glyph and the words (the DS "ink on neutral" treatment);
-  // the notice itself stays a quiet white panel rather than a colour block.
+  const { Icon, alert, surface, icon, dismiss } = NOTICE_STYLE[variant];
   return (
     <Alert
+      variant={alert}
       role={NOTICE_ROLE[announce]}
-      className={cn(
-        "border-hairline py-3 pl-3 shadow-raised",
-        onDismiss && "pr-12",
-        className
-      )}
+      className={cn("py-3 pl-3", surface, onDismiss && "pr-12", className)}
     >
-      <Icon aria-hidden className={ink} />
-      {title ? <AlertTitle className="text-foreground">{title}</AlertTitle> : null}
-      <AlertDescription className="text-muted-foreground">{children}</AlertDescription>
+      <Icon aria-hidden className={icon} />
+      {title ? <AlertTitle>{title}</AlertTitle> : null}
+      <AlertDescription>{children}</AlertDescription>
       {onDismiss ? (
         <Button
           type="button"
@@ -71,7 +119,7 @@ export function SectionNotice({
           size="icon"
           aria-label="Dismiss"
           onClick={onDismiss}
-          className="absolute right-1 top-1 text-muted-foreground"
+          className={cn("absolute right-1 top-1", dismiss)}
         >
           <XIcon aria-hidden />
         </Button>
@@ -80,7 +128,7 @@ export function SectionNotice({
   );
 }
 
-/** Tinted well used for helper actions ("Fetch details" beside a mobile number). */
+/** Sunken well used to echo a value the form carried over, beside the fields it fills. */
 export function InfoWell({
   children,
   className,
