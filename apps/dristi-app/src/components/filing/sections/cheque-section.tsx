@@ -159,6 +159,13 @@ export function ChequeSection() {
   const memoEntry = firstReadField(memoSlot, MEMO_FIELDS, MEMO_FALLBACK);
   const sourceField = chosenField ?? chequeEntry;
 
+  /* Nothing uploaded for this cheque means there is no source document to show at all. */
+  const sourceDocs = [
+    { slot: frontSlot, entry: chequeEntry, fallbackLabel: "Cheque (front side)" },
+    { slot: memoSlot, entry: memoEntry, fallbackLabel: "Cheque return memo" },
+  ].filter((d) => d.slot?.file);
+  const hasSource = sourceDocs.length > 0;
+
   const sourceKey = `${cheque.id}:${sourceField}`;
   const sourceText = sourceEdit?.key === sourceKey ? sourceEdit.text : null;
 
@@ -259,7 +266,7 @@ export function ChequeSection() {
 
   return (
     <>
-      <FilingMain sourceOpen={sourceOpen}>
+      <FilingMain sourceOpen={hasSource && sourceOpen}>
         <FilingPageHeader
           title="Cheque & return memo"
           description="Add the dishonoured cheque(s) and the bank's return memo for each."
@@ -279,7 +286,9 @@ export function ChequeSection() {
           addLabel="Add cheque"
           onAdd={addCheque}
           trailing={
-            sourceOpen ? null : <ViewSourceButton onClick={() => setSourceOpen(true)} />
+            hasSource && !sourceOpen ? (
+              <ViewSourceButton onClick={() => setSourceOpen(true)} />
+            ) : null
           }
         />
 
@@ -507,18 +516,12 @@ export function ChequeSection() {
         title={FIELD_LABELS[sourceField]}
         value={sourceValue}
         onValueChange={setSourceValue}
-        chips={[
-          {
-            label: frontSlot?.file?.name ?? frontSlot?.label ?? "Cheque (front side)",
-            active: fromCheque,
-            onClick: () => setChosenField(chequeEntry),
-          },
-          {
-            label: memoSlot?.file?.name ?? memoSlot?.label ?? "Cheque return memo",
-            active: !fromCheque,
-            onClick: () => setChosenField(memoEntry),
-          },
-        ]}
+        hasSource={hasSource}
+        chips={sourceDocs.map((d) => ({
+          label: d.slot?.file?.name ?? d.slot?.label ?? d.fallbackLabel,
+          active: d.slot === sourceSlot,
+          onClick: () => setChosenField(d.entry),
+        }))}
         file={sourceSlot?.file ?? null}
         uploadHref={hrefFor("upload")}
         imageAlt={fromCheque ? "Uploaded cheque" : "Uploaded cheque return memo"}

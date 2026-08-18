@@ -52,6 +52,12 @@ export function regionFromBox(
 export type SourcePanelProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * `false` when nothing has been uploaded for this screen yet. There is no source
+   * document to show, so the rail does not exist — the form takes the width instead of a
+   * permanent column explaining its own emptiness.
+   */
+  hasSource?: boolean;
   /** Field the panel explains ("Full name", "Date on cheque"). */
   title: string;
   eyebrow?: string;
@@ -89,24 +95,30 @@ export function useSourceOpenState(): [boolean, (open: boolean) => void] {
  * From `xl` it is a permanent column of the shell beside the form, so the form is pushed
  * rather than covered and the sticky footer keeps its own width. Below `xl` there is no
  * room for a permanent column, so it is a sheet.
+ *
+ * It exists only when there is something to show: with nothing uploaded for this screen
+ * there is no source document, so the rail is not rendered at all.
  */
 export function SourcePanel(props: SourcePanelProps) {
   const docked = useSourceDock();
   const roomy = useRoomForLabelledNav();
   const slot = useSourceRailSlot();
   const { foldNav } = useFilingChrome();
+  const hasSource = props.hasSource ?? !!props.file;
 
   /**
    * A third column below `2xl` would leave the form too narrow to read. The nav gives up
    * its labels for it rather than the form its width — once, so a person who puts the
    * labels back is not overruled on the next render.
    */
-  const crowded = docked && !roomy;
+  const crowded = hasSource && docked && !roomy;
   const wasCrowded = React.useRef(false);
   React.useEffect(() => {
     if (crowded && !wasCrowded.current) foldNav();
     wasCrowded.current = crowded;
   }, [crowded, foldNav]);
+
+  if (!hasSource) return null;
 
   if (docked && slot) {
     return createPortal(

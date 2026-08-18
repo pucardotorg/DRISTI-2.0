@@ -197,6 +197,11 @@ export function DemandNoticeSection() {
       ? "dispatch-proof"
       : DOC_OF_FIELD[sourceField];
   const sourceSlot = slots[sourceDoc];
+  /* Only uploaded documents are offered; with none there is no source rail at all. */
+  const uploadedDocs = (Object.keys(slots) as (keyof typeof slots)[]).filter(
+    (doc) => slots[doc]?.file
+  );
+  const hasSource = uploadedDocs.length > 0;
 
   const addNotice = () => {
     update((d) => {
@@ -228,7 +233,7 @@ export function DemandNoticeSection() {
 
   return (
     <>
-      <FilingMain sourceOpen={sourceOpen}>
+      <FilingMain sourceOpen={hasSource && sourceOpen}>
         <FilingPageHeader
           title="Demand notice & debt"
           description="Details of the statutory demand notice you sent, and the debt the cheque was meant to discharge."
@@ -247,7 +252,9 @@ export function DemandNoticeSection() {
           addLabel="Add demand notice"
           onAdd={addNotice}
           trailing={
-            sourceOpen ? null : <ViewSourceButton onClick={() => setSourceOpen(true)} />
+            hasSource && !sourceOpen ? (
+              <ViewSourceButton onClick={() => setSourceOpen(true)} />
+            ) : null
           }
         />
 
@@ -473,7 +480,8 @@ export function DemandNoticeSection() {
               }
             : undefined
         }
-        chips={(Object.keys(slots) as (keyof typeof slots)[]).map((doc) => ({
+        hasSource={hasSource}
+        chips={uploadedDocs.map((doc) => ({
           label: slots[doc]?.file?.name ?? slots[doc]?.label ?? DOC_LABELS[doc],
           active: doc === sourceDoc,
           onClick: () => setChosenField(entryFieldFor(doc)),

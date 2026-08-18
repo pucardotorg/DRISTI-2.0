@@ -108,12 +108,14 @@ export function AdvocateSection() {
 
   return (
     <>
-      <FilingMain sourceOpen={sourceOpen}>
+      <FilingMain sourceOpen={!!vakalatnama?.file && sourceOpen}>
         <FilingPageHeader
           title="Advocate details"
           description="Add the advocates representing the complainant, as listed on the Vakalatnama."
           actions={
-            sourceOpen ? null : <ViewSourceButton onClick={() => setSourceOpen(true)} />
+            vakalatnama?.file && !sourceOpen ? (
+              <ViewSourceButton onClick={() => setSourceOpen(true)} />
+            ) : null
           }
         />
 
@@ -265,13 +267,18 @@ export function AdvocateSection() {
         onOpenChange={setSourceOpen}
         eyebrow="Uploaded document"
         title="Vakalatnama"
-        chips={[
-          {
-            label: vakalatnama?.file?.name ?? vakalatnama?.label ?? "Vakalatnama",
-            active: true,
-            onClick: () => setSourceOpen(true),
-          },
-        ]}
+        hasSource={!!vakalatnama?.file}
+        chips={
+          vakalatnama?.file
+            ? [
+                {
+                  label: vakalatnama.file.name,
+                  active: true,
+                  onClick: () => setSourceOpen(true),
+                },
+              ]
+            : []
+        }
         file={vakalatnama?.file ?? null}
         uploadHref={hrefFor("upload")}
         imageAlt="Uploaded Vakalatnama"

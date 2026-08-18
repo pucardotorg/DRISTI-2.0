@@ -201,8 +201,14 @@ export function ComplainantSection() {
     doc,
     slot: partySourceSlot(draft, active, doc),
   }));
-  const sourceSlot = partySlots.find((s) => s.doc === sourceDoc)?.slot;
-  const idProof = sourceDoc === "id-proof" ? sourceSlot : undefined;
+  /* Only documents actually uploaded are offered; with none there is no rail at all. */
+  const uploadedDocs = partySlots.filter((s) => s.slot?.file);
+  const hasSource = uploadedDocs.length > 0;
+  const shownDoc = uploadedDocs.some((s) => s.doc === sourceDoc)
+    ? sourceDoc
+    : uploadedDocs[0]?.doc;
+  const sourceSlot = partySlots.find((s) => s.doc === shownDoc)?.slot;
+  const idProof = shownDoc === "id-proof" ? sourceSlot : undefined;
   /* Only the identity proof is read, so it alone decides where the panel lands. */
   const idProofSlot = partySlots.find((s) => s.doc === "id-proof")?.slot;
   /* A field's value can come from more than one box (age from `age` or `dob`), so the
@@ -250,7 +256,7 @@ export function ComplainantSection() {
 
   return (
     <>
-      <FilingMain sourceOpen={sourceOpen}>
+      <FilingMain sourceOpen={hasSource && sourceOpen}>
         <FilingPageHeader title="Complainant details" />
 
         <SectionTabs
@@ -272,7 +278,9 @@ export function ComplainantSection() {
           addLabel="Add complainant"
           onAdd={addComplainant}
           trailing={
-            sourceOpen ? null : <ViewSourceButton onClick={() => setSourceOpen(true)} />
+            hasSource && !sourceOpen ? (
+              <ViewSourceButton onClick={() => setSourceOpen(true)} />
+            ) : null
           }
         />
 
@@ -638,9 +646,10 @@ export function ComplainantSection() {
         title={SOURCE_TITLES[sourceField]}
         value={sourceValue}
         onValueChange={(v) => setRead(sourceField, v)}
-        chips={partySlots.map(({ doc, slot }) => ({
+        hasSource={hasSource}
+        chips={uploadedDocs.map(({ doc, slot }) => ({
           label: slot?.file?.name ?? slot?.label ?? PARTY_DOC_LABELS[doc],
-          active: doc === sourceDoc,
+          active: doc === shownDoc,
           onClick: () => setSourceDoc(doc),
         }))}
         file={sourceSlot?.file ?? null}

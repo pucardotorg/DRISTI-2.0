@@ -5,11 +5,9 @@ import Link from "next/link";
 import { FileTextIcon, UploadIcon } from "lucide-react";
 
 import { useFilePreview } from "@/lib/filing/files";
-import { extractable } from "@/lib/filing/ocr";
-import { extractedFieldCount, uploadedIntakeSlots } from "@/lib/filing/selectors";
+import { uploadedIntakeSlots } from "@/lib/filing/selectors";
 import { useFiling } from "@/lib/filing/store";
 import type { IntakeSlot } from "@/lib/filing/types";
-import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,16 +27,7 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Lightbox } from "@/components/filing/lightbox";
-
-/** What reading did with each uploaded file. */
-function readSummary(slot: IntakeSlot): { text: string; read: boolean } {
-  if (slot.processing) return { text: "Reading…", read: false };
-  if (!extractable(slot.docType)) return { text: "Uploaded", read: false };
-  const n = extractedFieldCount(slot);
-  if (n > 0) return { text: `Read · ${n} field${n === 1 ? "" : "s"} filled`, read: true };
-  if (slot.poor) return { text: "Uploaded · poor scan", read: false };
-  return { text: "Uploaded · nothing to pre-fill", read: false };
-}
+import { readOutcome, readToneClass } from "@/components/filing/upload/read-status";
 
 function DrawerRow({
   slot,
@@ -48,7 +37,9 @@ function DrawerRow({
   onOpen: (src: string, alt: string) => void;
 }) {
   const preview = useFilePreview(slot.file);
-  const summary = readSummary(slot);
+  /* Same mapping as the upload row — the drawer takes its compact form. A low-confidence
+     scan that still filled fields reads as a read here too, never as "poor scan". */
+  const outcome = readOutcome(slot);
   const img = preview.status === "ready" ? preview.imageUrl : null;
   const body = (
     <>
@@ -70,9 +61,11 @@ function DrawerRow({
       <ItemContent className="min-w-0">
         <ItemTitle className="w-full">{slot.label}</ItemTitle>
         <ItemDescription className="truncate">{slot.file?.name}</ItemDescription>
-        <ItemDescription className={cn(summary.read && "text-success-ink")}>
-          {summary.text}
-        </ItemDescription>
+        {outcome ? (
+          <ItemDescription className={readToneClass(outcome.tone)}>
+            {outcome.short}
+          </ItemDescription>
+        ) : null}
       </ItemContent>
     </>
   );

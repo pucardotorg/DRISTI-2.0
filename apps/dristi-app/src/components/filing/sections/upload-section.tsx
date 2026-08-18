@@ -64,6 +64,7 @@ import { FilingMain } from "@/components/filing/filing-shell";
 import { PANEL_CLASS } from "@/components/filing/form-card";
 import { SectionNotice } from "@/components/filing/notices";
 import { DocumentCard } from "@/components/filing/upload/document-card";
+import { readOutcomeFor } from "@/components/filing/upload/read-status";
 import { IntakeSlotRow } from "@/components/filing/upload/slot-row";
 import {
   dragCarriesFiles,
@@ -226,22 +227,28 @@ export function UploadSection() {
           s.poor = result.poor;
           applyExtraction(d, key);
         });
-        const filled = Object.keys(result.extract.fields).length;
+        /* Announced from the same mapping the row shows, so a read that filled seven
+           fields is never announced as a failure just because confidence was low. */
         announce(
-          result.poor
-            ? `${slot.label}: we couldn’t read that copy clearly. Re-upload a sharper one, or type the details in later.`
-            : filled > 0
-              ? `${slot.label}: read, ${filled} field${filled === 1 ? "" : "s"} filled in your form.`
-              : `${slot.label}: uploaded, nothing to pre-fill from it.`
+          `${slot.label}: ${
+            readOutcomeFor({
+              fields: Object.keys(result.extract.fields).length,
+              poor: result.poor,
+              readable: true,
+            }).speech
+          }`
         );
       } catch {
         if (runs.current[key] !== runId) return;
+        const failure = "Couldn't read this file — you can still continue and type the details.";
         patchSlot(key, (s) => {
           s.processing = false;
           s.progress = 100;
-          s.error = "Couldn't read this file — you can still continue and type the details.";
+          s.error = failure;
         });
-        announce(`${slot.label}: we couldn’t read that file. You can type the details in.`);
+        announce(
+          `${slot.label}: ${readOutcomeFor({ error: failure, fields: 0, readable: true }).speech}`
+        );
       }
     },
     [intake, update, patchSlot, announce]
@@ -568,7 +575,7 @@ export function UploadSection() {
                   supporting.isOver && "ring-3 ring-focus-ring"
                 )}
               >
-                <CardContent className="flex flex-col gap-3">
+                <CardContent className="flex flex-col gap-4">
                   {intake.supporting.map((slot) => (
                     <IntakeSlotRow
                       key={slot.key}

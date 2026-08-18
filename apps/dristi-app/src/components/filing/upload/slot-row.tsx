@@ -5,68 +5,73 @@
  *
  * The DS `DocumentSlot` is the row; everything here composes *around* it rather than
  * restyling it. The slot's `label` takes a ReactNode, so the guidance ("The memo your
- * bank issued when this cheque bounced.") lives inside the row as a quiet second line
- * instead of an orphan caption underneath — which is also what stops the row from
- * collapsing into a label-left / button-right box with dead space in the middle.
+ * bank issued when this cheque bounced.") and the read status both live *inside* the row
+ * as quiet lines under the title. Nothing about a row's state floats underneath it as an
+ * orphan paragraph — that is what used to leave the re-upload button aligned to nothing.
  *
- * Actions sit once, as a flex sibling on the same sunken fill as the filled slot, so the
- * row still reads as one object at every width. The thumbnail is the preview control.
+ * Every action sits in one right-aligned cluster at the end of the row, delete always
+ * last, so the final control lines up down the column whether a row offers re-upload,
+ * delete, or only the slot's own "Choose file". The thumbnail is the preview control.
  */
 
 import * as React from "react";
-import { RefreshCwIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
+import {
+  CircleCheckIcon,
+  Maximize2Icon,
+  RefreshCwIcon,
+  Trash2Icon,
+  TriangleAlertIcon,
+} from "lucide-react";
 
 import { formatBytes, useFilePreview } from "@/lib/filing/files";
-import { extractable } from "@/lib/filing/ocr";
-import { extractedFieldCount } from "@/lib/filing/selectors";
 import { cn } from "@/lib/utils";
 import type { IntakeSlot } from "@/lib/filing/types";
 import { Button } from "@/components/ui/button";
 import { DocumentSlot } from "@/components/ui/document-slot";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { readOutcome, readToneClass } from "@/components/filing/upload/read-status";
 import {
   useDropTarget,
   type DroppedFiles,
 } from "@/components/filing/upload/use-drop-target";
 
-export const POOR_SCAN_HELP =
-  "We couldn’t read this clearly. Re-upload a sharper copy so we can pre-fill your form, or type the details in later.";
-
-export function slotStatus(
+/**
+ * The DS status variant. Never `filled-poor`: that variant forces the "Poor scan" badge,
+ * and low confidence is not the outcome — a poor scan that filled seven fields is a read,
+ * not a failure. What reading produced is said in words on the row's status line, which
+ * is the row's single status cue. See `read-status.ts`.
+ */
+function slotStatus(
   slot: IntakeSlot
-): "processing" | "filled" | "filled-poor" | "empty" | "empty-optional" {
+): "processing" | "filled" | "empty" | "empty-optional" {
   if (slot.processing) return "processing";
-  if (slot.file) return slot.poor ? "filled-poor" : "filled";
+  if (slot.file) return "filled";
   return slot.required ? "empty" : "empty-optional";
 }
 
-/** Caption under a filled row: what reading did with it. */
-export function readSummary(
-  slot: IntakeSlot
-): { text: string; tone: "success" | "muted" } | null {
-  if (!slot.file || slot.processing) return null;
-  if (slot.error) return { text: slot.error, tone: "muted" };
-  if (!extractable(slot.docType)) return null;
-  const n = extractedFieldCount(slot);
-  if (n > 0) {
-    return {
-      text: `Read · ${n} field${n === 1 ? "" : "s"} filled in your form`,
-      tone: "success",
-    };
-  }
-  if (slot.poor) return null; // the poor-scan help carries the message
-  return {
-    text: "Uploaded — nothing to pre-fill from this one; type the details in the form",
-    tone: "muted",
-  };
-}
+/**
+ * The media well, page-shaped rather than the DS square — a square crop of a cheque or an
+ * Aadhaar card is noise, which is the same conclusion the uploaded-documents drawer
+ * reached. The same box empty or filled, so a row does not jump when a file lands.
+ * Overridden from the row because `DocumentSlot` fixes it at `size-16` / `size-10`.
+ */
+const MEDIA_CLASS = [
+  "[&_[data-slot=document-slot-media]]:h-12",
+  "[&_[data-slot=document-slot-media]]:w-16",
+  "sm:[&_[data-slot=document-slot-media]]:h-14",
+  "sm:[&_[data-slot=document-slot-media]]:w-20",
+].join(" ");
 
 /* ───────────────────────────── Thumbnail ───────────────────────────────── */
 
 /**
  * The filled row's media well, and its preview control. Always a button — a PDF with no
  * image preview still has to be openable by keyboard and by voice.
+ *
+ * "You can enlarge this" cannot live on hover alone (ACCESSIBILITY §7), so the scrim is
+ * revealed on hover *and* on keyboard focus, and stays visible where there is no hover at
+ * all. It is decoration over the one control, not a second control.
  *
  * The DS media well is `overflow-hidden`, which would clip a focus ring, so focus is an
  * inset outline in the same `ring` colour.
@@ -78,7 +83,7 @@ function SlotThumbnail({ slot, onPreview }: { slot: IntakeSlot; onPreview: () =>
       type="button"
       onClick={onPreview}
       aria-label={`Preview ${slot.file?.name ?? slot.label}`}
-      className="size-full cursor-pointer rounded-md outline-none transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+      className="group/thumb relative size-full cursor-pointer rounded-md outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
     >
       {preview.status === "loading" ? (
         <Skeleton className="size-full rounded-md" />
@@ -90,6 +95,17 @@ function SlotThumbnail({ slot, onPreview }: { slot: IntakeSlot; onPreview: () =>
           {slot.file?.ext ?? "File"}
         </span>
       )}
+
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md bg-scrim opacity-0 transition-opacity group-hover/thumb:opacity-100 group-focus-visible/thumb:opacity-100 pointer-coarse:opacity-100"
+      >
+        {/* The glyph rides its own card-on-scrim chip: `scrim` is a 50% black wash in both
+            themes, and no foreground token stays light in both. */}
+        <span className="flex size-6 items-center justify-center rounded-full bg-card text-foreground">
+          <Maximize2Icon className="size-3.5" />
+        </span>
+      </span>
     </button>
   );
 }
@@ -119,7 +135,12 @@ export function IntakeSlotRow({
   const status = slotStatus(slot);
   const pct = Math.round(slot.progress ?? 0);
   const showGuidance = !slot.file && !slot.processing && !!slot.desc;
-  const summary = readSummary(slot);
+
+  const outcome = readOutcome(slot);
+  /* While the read is running the slot's meta line and the progress bar already say so;
+     a third "Reading…" line would be the same fact three times. */
+  const statusLine = outcome && outcome.kind !== "reading" ? outcome : null;
+  const StatusIcon = statusLine?.tone === "success" ? CircleCheckIcon : TriangleAlertIcon;
 
   return (
     <div
@@ -132,7 +153,7 @@ export function IntakeSlotRow({
         className={cn(
           "flex items-center gap-1 rounded-lg transition-shadow",
           // Same fill as the DS filled slot, so the slot and its actions read as one pill.
-          slot.file && "bg-surface-sunken pr-2",
+          slot.file && "bg-surface-sunken pr-4",
           isOver && "ring-3 ring-focus-ring"
         )}
       >
@@ -140,10 +161,23 @@ export function IntakeSlotRow({
           status={status}
           media={slot.file ? "thumbnail" : "icon"}
           label={
-            <span className="flex flex-col gap-0.5">
+            <span className="flex flex-col gap-1">
               <span id={titleId}>{slot.label}</span>
               {showGuidance ? (
                 <span className="text-caption text-muted-foreground">{slot.desc}</span>
+              ) : null}
+              {statusLine ? (
+                <span
+                  className={cn(
+                    "flex items-start gap-1.5 text-caption",
+                    readToneClass(statusLine.tone)
+                  )}
+                >
+                  {statusLine.tone === "muted" ? null : (
+                    <StatusIcon className="size-4 shrink-0" aria-hidden />
+                  )}
+                  <span>{statusLine.text}</span>
+                </span>
               ) : null}
             </span>
           }
@@ -155,61 +189,58 @@ export function IntakeSlotRow({
                 ? formatBytes(slot.file.size)
                 : undefined
           }
-          /* Scan quality is only worth a chip when it is a problem — a good scan is
-             already said in words by the read summary below. */
-          quality={slot.poor && !slot.processing ? "poor" : undefined}
           thumbnail={
             slot.file ? <SlotThumbnail slot={slot} onPreview={onPreview} /> : undefined
           }
           onChooseFile={onChoose}
           /* h-10: the slot's own Choose file button is `size="sm"` (36px), under the DS
-             40×40 touch floor (ACCESSIBILITY.md §8). Height only — see the build report. */
-          className="min-w-0 flex-1 items-center [&>button]:h-10"
+             40×40 touch floor (ACCESSIBILITY.md §8). Height only — see the build report.
+             The empty well is the one place its icon is the primary content, so it takes
+             the 24px step, on `surface-sunken` because `muted` is invisible on a card. */
+          className={cn(
+            "min-w-0 flex-1 items-center [&>button]:h-10",
+            MEDIA_CLASS,
+            slot.file
+              ? "[&_[data-slot=document-slot-media]]:bg-card"
+              : "[&_[data-slot=document-slot-media]]:bg-surface-sunken [&_[data-slot=document-slot-media]_svg]:size-6"
+          )}
         />
 
+        {/* One cluster, vertically centred, delete always last — so the right edge of the
+            row's actions is the same on every row whatever a row can do. */}
         {slot.file ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={onDelete}
-            aria-label={`Remove the file added for ${slot.label}`}
-            className="shrink-0 text-muted-foreground hover:text-destructive"
-          >
-            <Trash2Icon aria-hidden />
-          </Button>
+          <div className="flex shrink-0 items-center gap-1">
+            {statusLine?.reupload ? (
+              /* Labelled where there is room; a 40×40 icon button on a phone, where a
+                 118px label would leave the status line about fifty pixels to wrap in.
+                 The accessible name carries the label at every width. */
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onChoose}
+                aria-label={`Re-upload ${slot.label}`}
+                className="max-sm:w-10 max-sm:gap-0 max-sm:px-0 max-sm:has-data-[icon=inline-start]:pl-0"
+              >
+                <RefreshCwIcon data-icon="inline-start" aria-hidden />
+                <span className="max-sm:sr-only">Re-upload</span>
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onDelete}
+              aria-label={`Remove the file added for ${slot.label}`}
+              className="text-muted-foreground hover:text-destructive"
+            >
+              <Trash2Icon aria-hidden />
+            </Button>
+          </div>
         ) : null}
       </div>
 
       {slot.processing ? (
         <Progress value={pct} aria-label={`Reading ${slot.label}`} />
-      ) : null}
-
-      {slot.file && slot.poor && !slot.processing ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="flex min-w-0 flex-1 items-start gap-1.5 text-caption text-warning-ink">
-            <TriangleAlertIcon className="size-4 shrink-0" aria-hidden />
-            {POOR_SCAN_HELP}
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onChoose}
-            aria-label={`Re-upload ${slot.label}`}
-          >
-            <RefreshCwIcon data-icon="inline-start" aria-hidden />
-            Re-upload
-          </Button>
-        </div>
-      ) : summary ? (
-        <p
-          className={cn(
-            "text-caption",
-            summary.tone === "success" ? "text-success-ink" : "text-muted-foreground"
-          )}
-        >
-          {summary.text}
-        </p>
       ) : null}
     </div>
   );

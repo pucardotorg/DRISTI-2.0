@@ -135,9 +135,11 @@ export function DocumentCard({
     >
       <CardHeader>
         <CardTitle className="text-body font-semibold">
-          <h3 id={headingId} className="flex items-center gap-2">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-muted-foreground">
-              <Icon className="size-4" aria-hidden />
+          <h3 id={headingId} className="flex items-center gap-3">
+            {/* The card's anchor: a well on the DS control metric, so it sits on the same
+                rhythm as the row media below it rather than reading as a stray glyph. */}
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-muted-foreground">
+              <Icon className="size-5" aria-hidden />
             </span>
             {title}
           </h3>
@@ -157,12 +159,12 @@ export function DocumentCard({
         ) : null}
       </CardHeader>
 
-      <CardContent className="flex flex-col gap-3">
+      <CardContent className="flex flex-col gap-4">
         {(collapseOptional ? required : slots).map(row)}
         {collapseOptional ? null : optionalFooter}
 
         {collapseOptional ? (
-          <Collapsible open={open} onOpenChange={setUserOpen} className="flex flex-col gap-3">
+          <Collapsible open={open} onOpenChange={setUserOpen} className="flex flex-col gap-4">
             <CollapsibleTrigger asChild>
               <Button
                 type="button"
@@ -180,7 +182,7 @@ export function DocumentCard({
             {/* Radix hides the closed content with `hidden`; a display utility on the
                 content itself would beat it, so the layout lives on an inner wrapper. */}
             <CollapsibleContent>
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4">
                 {optional.map(row)}
                 {optionalFooter}
               </div>
