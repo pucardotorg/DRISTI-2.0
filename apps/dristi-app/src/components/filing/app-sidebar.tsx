@@ -28,13 +28,14 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 /**
- * DS `SidebarMenuButton` is 32px tall (and exactly 32×32 collapsed, forced with `!`).
- * These are the app's primary navigation, so they have to meet the 40×40 floor;
- * `ACCESSIBILITY.md` §8's own remedy is to expand the hit area rather than grow the
- * control. `-inset-1` adds 4px a side → 40px, and the menu's `gap-2` keeps neighbouring
- * hit areas from overlapping.
+ * DS `SidebarMenuButton` is 32px tall, and exactly 32×32 once the rail collapses (forced
+ * with `!`). These are the app's primary navigation, so they have to meet the 40×40 floor
+ * — and a 32px icon adrift in the rail is what made the collapsed state read as unfinished.
+ * So the control itself grows to 40px in both states rather than wearing an invisible
+ * 40px hit area over a 32px mark. `size-10!` beats the primitive's own `!` through
+ * tailwind-merge (same `size-*` key, ours last). See docs/design/ds-requests.md #10.2.
  */
-const HIT_AREA = "relative after:absolute after:-inset-1 after:content-['']";
+const ROW_SIZE = "h-10 group-data-[collapsible=icon]:size-10!";
 
 type NavItem = { id: string; label: string; icon: LucideIcon; href?: string };
 
@@ -62,13 +63,13 @@ export function AppSidebar() {
       {/* The court identity sits at the page origin, in the rail — the top bar carries
           the breadcrumb instead, so the brand does not move when the rail collapses.
           The seam comes from the rail's own fill, so no border is drawn. */}
-      <SidebarHeader className="p-2">
-        <div className="flex items-center gap-2 px-1 py-1">
+      <SidebarHeader className="h-14 justify-center p-2 group-data-[collapsible=icon]:px-2">
+        <div className="flex items-center gap-2">
           <span
             aria-hidden
-            className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground"
+            className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground"
           >
-            <ScaleIcon className="size-4" />
+            <ScaleIcon className="size-5" />
           </span>
           <span className="flex min-w-0 flex-col leading-none group-data-[collapsible=icon]:hidden">
             <span className="truncate text-body-compact font-semibold text-foreground">
@@ -86,7 +87,7 @@ export function AppSidebar() {
           {/* The primitives are `div`s; the landmark has to be declared here. */}
           <SidebarGroupContent>
             <nav aria-label="Main">
-              <SidebarMenu className="gap-2">
+              <SidebarMenu className="gap-1">
                 {NAV.map(({ id, label, icon: Icon, href }) => {
                   if (!href) {
                     return (
@@ -99,7 +100,7 @@ export function AppSidebar() {
                                  why it does nothing is more use than one that cannot be
                                  reached to ask. Full contrast — dimming to 50% would
                                  make the label itself unreadable. */
-                              className={`${HIT_AREA} text-muted-foreground aria-disabled:pointer-events-auto aria-disabled:opacity-100`}
+                              className={`${ROW_SIZE} text-muted-foreground aria-disabled:pointer-events-auto aria-disabled:opacity-100`}
                             >
                               <Icon aria-hidden />
                               <span className="truncate">{label}</span>
@@ -123,7 +124,7 @@ export function AppSidebar() {
                         asChild
                         isActive={inArea}
                         tooltip={label}
-                        className={HIT_AREA}
+                        className={ROW_SIZE}
                       >
                         <Link href={href} aria-current={isPage ? "page" : undefined}>
                           <Icon aria-hidden />

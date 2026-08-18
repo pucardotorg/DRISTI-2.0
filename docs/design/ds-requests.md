@@ -23,6 +23,7 @@ Each entry says what is missing, why the product hit it, and what would close it
 | 8 | `DocumentSlot` cannot own a real upload row | [e-filing.md](proposals/e-filing.md) | open — **owner auditing** |
 | 9 | `Alert` is always `role="alert"` — no quiet standing notice | [e-filing.md](proposals/e-filing.md) | open — **owner auditing** |
 | 10 | `Sidebar`: no top offset, 32px nav, hover/selected share a token, hardcoded English chrome | [e-filing.md](proposals/e-filing.md) | open — **owner auditing** |
+| 11 | No selected-on-track pair: `accent-strong` is 1.08:1 on `track` | [e-filing.md](proposals/e-filing.md) | open — **owner auditing** |
 
 ---
 
@@ -206,3 +207,29 @@ accepted, and every product with an app bar will hit the same ones.
    Malayalam and Hindi (`ACCESSIBILITY.md` §13), the navigation dialog announces itself in
    English as "Sidebar" — which is also implementation jargon, not what the user sees.
    **Request:** props for the sheet title/description and the trigger's label.
+
+
+## 11. No selected-on-track pair — `accent-strong` is invisible on `track`
+
+`AGENTS.md` rule 10 names `accent-strong` as "the pressed, engaged and selected fill", and
+`Toggle` uses it for `data-[state=on]`. That is correct on a page or card ground. It is not
+usable on a **track**, which is where a segmented control lives:
+
+| pair | measured |
+|---|---|
+| `accent-strong` `#e0e1e6` on `track` `#d9d9e0` | **1.08:1** |
+| `accent` `#e8e8ec` on `track` (hover) | 1.15:1 |
+| `background` `#fcfcfd` on `track` | 1.37:1 |
+
+At 1.08:1 the selected segment is indistinguishable from the groove — the control reads as
+one grey slab (owner, 2026-08-18: "the tokens of the toggle button have got fucked up").
+
+The system already answers this elsewhere and disagrees with itself: **`Tabs` puts
+`bg-track` on its list and styles the active trigger `data-active:bg-background` plus a
+shadow** (`tabs.tsx:68`), i.e. a raised light chip, not `accent-strong`. Dristi's segmented
+control now follows `Tabs` for that reason.
+
+**Request:** either a named selected-on-track pair (`track-selected` / `track-selected-foreground`,
+or simply blessing `background` + `shadow-raised` as the documented recipe), or a `Segmented`
+primitive that owns it — so consumers do not have to discover the conflict by measuring.
+A hover pair for the same ground is needed too: `accent` at 1.15:1 has the same problem.

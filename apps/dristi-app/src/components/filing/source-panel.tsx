@@ -7,7 +7,6 @@ import {
   ArrowUpRightIcon,
   FileTextIcon,
   MaximizeIcon,
-  PanelRightIcon,
   UploadIcon,
 } from "lucide-react";
 
@@ -70,57 +69,26 @@ export type SourcePanelProps = {
 };
 
 /**
- * Whether the source rail starts open on this screen.
+ * Whether the source rail is showing.
  *
- * From `xl` the rail is a column of the layout, so it starts expanded — the document is
- * the point of these screens. Below that it is a sheet over the form, so it stays shut
- * until it is asked for. The person's own choice wins from the first time they make one.
+ * From `xl` it is simply a column of the layout — always there, never collapsed, because
+ * the document is the point of these screens and one more thing to open and shut is one
+ * too many (owner, 2026-08-18). Below `xl` there is no room for a permanent column, so it
+ * is a sheet that stays shut until "View source document" asks for it.
  */
 export function useSourceOpenState(): [boolean, (open: boolean) => void] {
   const docked = useSourceDock();
-  const [chosen, setChosen] = React.useState<boolean | null>(null);
-  const set = React.useCallback((open: boolean) => setChosen(open), []);
-  return [chosen ?? docked, set];
-}
-
-/** The rail's resting width, never its absence — 48px that says what it holds. */
-function SourceRailStrip({ title, onOpen }: { title: string; onOpen: () => void }) {
-  return (
-    <aside
-      aria-label="Source document"
-      style={{ top: TOP_BAR_HEIGHT, height: `calc(100svh - ${TOP_BAR_HEIGHT})` }}
-      className="sticky flex w-12 shrink-0 flex-col items-center gap-2 self-start border-l border-hairline bg-sidebar py-3"
-    >
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        aria-expanded={false}
-        aria-label={`Open the source document for ${title}`}
-        onClick={onOpen}
-        className="text-muted-foreground"
-      >
-        <FileTextIcon aria-hidden />
-      </Button>
-      {/* Turned, not hidden: the strip names itself without waiting for a hover. */}
-      <span
-        aria-hidden
-        className="rotate-180 text-caption font-medium text-muted-foreground [writing-mode:vertical-rl]"
-      >
-        Source document
-      </span>
-    </aside>
-  );
+  const [sheetOpen, setSheetOpen] = React.useState(false);
+  return [docked || sheetOpen, setSheetOpen];
 }
 
 /**
  * "Where did this value come from?" — the uploaded document with the read region
  * highlighted, plus the value box to correct a misread.
  *
- * From `xl` it is a column of the shell beside the form, in one of two widths: the panel
- * or a 48px strip. It expands and collapses in place and never leaves the layout, so the
- * form is pushed rather than covered and the sticky footer keeps its own width. Below
- * `xl` there is no room for a permanent column, so it is a sheet.
+ * From `xl` it is a permanent column of the shell beside the form, so the form is pushed
+ * rather than covered and the sticky footer keeps its own width. Below `xl` there is no
+ * room for a permanent column, so it is a sheet.
  */
 export function SourcePanel(props: SourcePanelProps) {
   const docked = useSourceDock();
@@ -130,10 +98,10 @@ export function SourcePanel(props: SourcePanelProps) {
 
   /**
    * A third column below `2xl` would leave the form too narrow to read. The nav gives up
-   * its labels for it rather than the form its width — once per opening, so a person who
-   * puts the labels back is not overruled on the next render.
+   * its labels for it rather than the form its width — once, so a person who puts the
+   * labels back is not overruled on the next render.
    */
-  const crowded = props.open && docked && !roomy;
+  const crowded = docked && !roomy;
   const wasCrowded = React.useRef(false);
   React.useEffect(() => {
     if (crowded && !wasCrowded.current) foldNav();
@@ -142,20 +110,13 @@ export function SourcePanel(props: SourcePanelProps) {
 
   if (docked && slot) {
     return createPortal(
-      props.open ? (
-        <aside
-          aria-label={`Source for ${props.title}`}
-          style={{ top: TOP_BAR_HEIGHT, height: `calc(100svh - ${TOP_BAR_HEIGHT})` }}
-          className="sticky flex w-(--source-panel-w) shrink-0 flex-col self-start overflow-y-auto border-l border-hairline bg-card"
-        >
-          <SourcePanelBody {...props} showClose />
-        </aside>
-      ) : (
-        <SourceRailStrip
-          title={props.title}
-          onOpen={() => props.onOpenChange(true)}
-        />
-      ),
+      <aside
+        aria-label={`Source for ${props.title}`}
+        style={{ top: TOP_BAR_HEIGHT, height: `calc(100svh - ${TOP_BAR_HEIGHT})` }}
+        className="sticky flex w-(--source-panel-w) shrink-0 flex-col self-start overflow-y-auto border-l border-hairline bg-card"
+      >
+        <SourcePanelBody {...props} />
+      </aside>,
       slot
     );
   }
@@ -175,10 +136,7 @@ export function SourcePanel(props: SourcePanelProps) {
   );
 }
 
-function SourcePanelBody({
-  showClose = false,
-  ...p
-}: SourcePanelProps & { showClose?: boolean }) {
+function SourcePanelBody(p: SourcePanelProps) {
   const [zoom, setZoom] = React.useState(false);
   const preview = useFilePreview(p.file);
   const imageUrl = preview.status === "ready" ? preview.imageUrl : null;
@@ -186,7 +144,7 @@ function SourcePanelBody({
 
   return (
     <div className="flex flex-col">
-      <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-hairline bg-card px-6 py-4">
+      <div className="sticky top-0 z-10 flex items-start gap-3 border-b border-hairline bg-card px-6 py-4">
         <div className="flex items-center gap-3">
           <span
             aria-hidden
@@ -199,20 +157,6 @@ function SourcePanelBody({
             <p className="text-body font-semibold text-foreground">{p.title}</p>
           </div>
         </div>
-        {showClose ? (
-          /* Collapse, not close: the rail stays in the layout as its strip. */
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-expanded
-            aria-label="Collapse the source document"
-            onClick={() => p.onOpenChange(false)}
-            className="text-muted-foreground"
-          >
-            <PanelRightIcon aria-hidden />
-          </Button>
-        ) : null}
       </div>
 
       <div className="flex flex-col gap-6 px-6 py-6">

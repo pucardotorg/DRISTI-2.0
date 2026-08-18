@@ -83,7 +83,16 @@ export function FilingsAppShell({
   return (
     <TooltipProvider>
       <FilingChromeContext.Provider value={chrome}>
-        <SidebarProvider open={navOpen} onOpenChange={setNavOpen}>
+        {/*
+          * The collapsed rail is widened from the DS's 3rem so a 40px control sits in it
+          * with an even 8px gutter — at 3rem a 40px row leaves 4px a side and the icons
+          * read as crowded against the edge.
+          */}
+        <SidebarProvider
+          open={navOpen}
+          onOpenChange={setNavOpen}
+          style={{ "--sidebar-width-icon": "3.5rem" } as React.CSSProperties}
+        >
           <AppSidebar />
           {/* Not `SidebarInset`: that primitive is itself a `<main>`, and the screens
               below already own that landmark. */}

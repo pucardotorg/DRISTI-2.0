@@ -40,12 +40,17 @@ export function Segmented<T extends string>({
         )}
       >
         {options.map((o) => (
-          // Selected fill, hover fill and pressed state all come from the DS Toggle
-          // (`accent` / `accent-strong`) — the label is the accessible name.
+          /*
+           * Selected reads as a raised chip on the track, which is the DS's own treatment
+           * for "selected on a track": `Tabs` puts `bg-track` on its list and gives the
+           * active trigger `data-active:bg-background` plus a shadow. `Toggle`'s
+           * `accent-strong` is the right fill for a toggle on a page, but on this track it
+           * measures 1.08:1 — an invisible selection. See docs/design/ds-requests.md #11.
+           */
           <ToggleGroupItem
             key={o.value}
             value={o.value}
-            className="h-9 min-w-16 rounded-md px-4 text-muted-foreground hover:text-foreground data-[state=on]:text-foreground"
+            className="h-9 min-w-16 rounded-md px-4 text-muted-foreground hover:text-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-raised"
           >
             {o.label}
           </ToggleGroupItem>

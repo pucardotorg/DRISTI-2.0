@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FilesIcon, PanelLeftIcon } from "lucide-react";
 
-import { draftProgress, uploadedIntakeSlots } from "@/lib/filing/selectors";
+import { draftProgress } from "@/lib/filing/selectors";
 import {
   FILING_STEPS,
   stepFromPathname,
@@ -39,7 +39,6 @@ import {
 const ROW = "h-10 w-full justify-start gap-2 px-2 font-normal";
 const ROW_ACTIVE =
   "bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
-const ROW_ICON = "size-10 justify-center px-0";
 /**
  * Steps listed for orientation with no screen behind them. They keep full contrast — a
  * 50% label is not a readable one — and stay focusable, so the note saying where that
@@ -64,12 +63,10 @@ function useActiveStep(): FilingStep | undefined {
 function StepRow({
   step,
   active,
-  compact,
   onNavigate,
 }: {
   step: FilingStep;
   active: boolean;
-  compact: boolean;
   onNavigate: () => void;
 }) {
   const { hrefFor } = useFiling();
@@ -84,14 +81,10 @@ function StepRow({
               type="button"
               variant="ghost"
               aria-disabled="true"
-              className={cn(compact ? ROW_ICON : ROW, ROW_PLACEHOLDER)}
+              className={cn(ROW, ROW_PLACEHOLDER)}
             >
               <Icon aria-hidden />
-              {compact ? (
-                <span className="sr-only">{step.title}</span>
-              ) : (
-                <span className="min-w-0 truncate">{step.title}</span>
-              )}
+              <span className="min-w-0 truncate">{step.title}</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right">
@@ -103,113 +96,67 @@ function StepRow({
   }
 
   const row = (
-    <Button
-      asChild
-      variant="ghost"
-      className={cn(compact ? ROW_ICON : ROW, active && ROW_ACTIVE)}
-    >
+    <Button asChild variant="ghost" className={cn(ROW, active && ROW_ACTIVE)}>
       <Link
         href={hrefFor(step.id)}
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
       >
         <Icon aria-hidden className={active ? undefined : "text-muted-foreground"} />
-        {compact ? (
-          <span className="sr-only">{step.title}</span>
-        ) : (
-          <span className="min-w-0 truncate">{step.title}</span>
-        )}
+        <span className="min-w-0 truncate">{step.title}</span>
       </Link>
     </Button>
   );
 
-  return (
-    <li>
-      {compact ? (
-        <Tooltip>
-          <TooltipTrigger asChild>{row}</TooltipTrigger>
-          <TooltipContent side="right">{step.title}</TooltipContent>
-        </Tooltip>
-      ) : (
-        row
-      )}
-    </li>
-  );
+  return <li>{row}</li>;
 }
 
-function DocsRow({ compact, onOpen }: { compact: boolean; onOpen: () => void }) {
-  const { draft } = useFiling();
-  const count = uploadedIntakeSlots(draft.intake).length;
-
-  const button = (
+function DocsRow({ onOpen }: { onOpen: () => void }) {
+  return (
     <Button
       type="button"
       variant="ghost"
       onClick={onOpen}
       aria-haspopup="dialog"
-      aria-label={compact ? `View uploaded documents, ${count} uploaded` : undefined}
-      className={cn(compact ? ROW_ICON : ROW)}
+      className={ROW}
     >
       <FilesIcon aria-hidden className="text-muted-foreground" />
-      {compact ? null : (
-        <>
-          <span className="min-w-0 flex-1 truncate text-left">
-            View uploaded documents
-          </span>
-          <UploadedCountBadge />
-        </>
-      )}
+      <span className="min-w-0 flex-1 truncate text-left">View uploaded documents</span>
+      <UploadedCountBadge />
     </Button>
-  );
-
-  if (!compact) return button;
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent side="right">View uploaded documents ({count})</TooltipContent>
-    </Tooltip>
   );
 }
 
 /* ───────────────────────────── Rail body ───────────────────────────── */
 
 function StepList({
-  compact,
   onNavigate,
   onOpenDocs,
 }: {
-  compact: boolean;
   onNavigate: () => void;
   onOpenDocs: () => void;
 }) {
   const active = useActiveStep();
 
   return (
-    <nav
-      aria-label="Filing sections"
-      className={cn("flex flex-col gap-4", compact ? "items-center px-1" : "px-2")}
-    >
+    <nav aria-label="Filing sections" className="flex flex-col gap-4 px-2">
       <ul className="flex w-full flex-col gap-1">
         <li>
-          <DocsRow compact={compact} onOpen={onOpenDocs} />
+          <DocsRow onOpen={onOpenDocs} />
         </li>
       </ul>
 
       {stepGroups().map((g) => (
         <div key={g.group} className="flex w-full flex-col gap-1">
-          {compact ? null : (
-            <h2 className="px-2 text-caption font-medium text-muted-foreground">
-              {g.group}
-            </h2>
-          )}
+          <h2 className="px-2 text-caption font-medium text-muted-foreground">
+            {g.group}
+          </h2>
           <ul className="flex flex-col gap-1">
             {g.steps.map((s) => (
               <StepRow
                 key={s.id}
                 step={s}
                 active={active?.id === s.id}
-                compact={compact}
                 onNavigate={onNavigate}
               />
             ))}
@@ -235,17 +182,6 @@ function ProgressBlock() {
   );
 }
 
-/** The strip's stand-in for the progress bar — 48px has room for the number, not the bar. */
-function ProgressChip() {
-  const { draft } = useFiling();
-
-  return (
-    <span className="text-caption font-medium tabular-nums text-muted-foreground">
-      {draftProgress(draft)}%<span className="sr-only"> of this filing is complete</span>
-    </span>
-  );
-}
-
 /* ───────────────────────────── Rail ────────────────────────────────── */
 
 /**
@@ -256,14 +192,13 @@ function ProgressChip() {
  * is already a `Sidebar`, and its provider owns ⌘B and the `sidebar_state` cookie for the
  * whole page, so a second provider would toggle two rails at once.
  *
- * From `lg` up it is a column in one of two widths — a 48px strip or an 18rem panel —
- * expanding in place; collapsing returns it to the strip and it never leaves the layout.
- * Narrower than that there is no width for a permanent strip, so it becomes a sheet
- * opened from the "Sections" button on the screen.
+ * It does not collapse. The main nav already collapses, and a screen where three separate
+ * surfaces can each be open or shut asks the person to manage the furniture instead of the
+ * filing (owner, 2026-08-18). From `lg` up it is a fixed column; narrower than that there
+ * is no width for it, so it becomes a sheet opened from the "Sections" button.
  */
 export function SectionsRail() {
-  const { sectionsOpen, setSectionsOpen, sectionsSheetOpen, setSectionsSheetOpen } =
-    useFilingChrome();
+  const { sectionsSheetOpen, setSectionsSheetOpen } = useFilingChrome();
   const [docsOpen, setDocsOpen] = React.useState(false);
   const closeSheet = () => setSectionsSheetOpen(false);
 
@@ -272,49 +207,15 @@ export function SectionsRail() {
       <aside
         aria-label="Sections"
         style={{ top: TOP_BAR_HEIGHT, height: `calc(100svh - ${TOP_BAR_HEIGHT})` }}
-        className={cn(
-          "sticky hidden shrink-0 flex-col self-start overflow-y-auto border-r border-hairline bg-sidebar transition-[width] duration-200 ease-out lg:flex",
-          sectionsOpen ? "w-72" : "w-12"
-        )}
+        className="sticky hidden w-72 shrink-0 flex-col self-start overflow-y-auto border-r border-hairline bg-sidebar lg:flex"
       >
-        <div
-          className={cn(
-            "flex flex-col gap-3 py-3",
-            sectionsOpen ? "px-4" : "items-center gap-2 px-1"
-          )}
-        >
-          <div
-            className={cn(
-              "flex items-center gap-2",
-              sectionsOpen ? "justify-between" : "flex-col"
-            )}
-          >
-            {sectionsOpen ? (
-              <span className="text-body font-medium text-foreground">Sections</span>
-            ) : null}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-expanded={sectionsOpen}
-              aria-label={sectionsOpen ? "Collapse sections" : "Expand sections"}
-              onClick={() => setSectionsOpen(!sectionsOpen)}
-              className="shrink-0 text-muted-foreground"
-            >
-              <PanelLeftIcon aria-hidden />
-            </Button>
-            {sectionsOpen ? null : <ProgressChip />}
-          </div>
-
-          {sectionsOpen ? <ProgressBlock /> : null}
+        <div className="flex flex-col gap-3 px-4 py-4">
+          <span className="text-body font-medium text-foreground">Sections</span>
+          <ProgressBlock />
         </div>
 
         <div className="pb-4">
-          <StepList
-            compact={!sectionsOpen}
-            onNavigate={() => undefined}
-            onOpenDocs={() => setDocsOpen(true)}
-          />
+          <StepList onNavigate={() => undefined} onOpenDocs={() => setDocsOpen(true)} />
         </div>
       </aside>
 
@@ -331,7 +232,6 @@ export function SectionsRail() {
           </div>
           <div className="pb-6">
             <StepList
-              compact={false}
               onNavigate={closeSheet}
               onOpenDocs={() => {
                 closeSheet();
@@ -349,8 +249,7 @@ export function SectionsRail() {
 
 /**
  * Opens the rail below `lg`, where it is a sheet rather than a column. From `lg` up the
- * rail is always on screen — collapsed to its strip at worst — and toggles from its own
- * header, so this is the only trigger that has to exist in the content column.
+ * rail is simply always there, so this is the only trigger that has to exist at all.
  */
 export function SectionsTrigger() {
   const { sectionsSheetOpen, setSectionsSheetOpen } = useFilingChrome();
