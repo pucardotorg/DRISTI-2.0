@@ -73,6 +73,8 @@ const SOURCE_TITLES: Record<ComplainantPrefillKey, string> = {
  * birth on most IDs, and an address line comes from the address block (or, failing that,
  * the pincode) — so each falls back to what the parser actually found.
  */
+const PREFILL_ORDER: ComplainantPrefillKey[] = ["name", "age", "res", "email", "entName"];
+
 const SOURCE_BOX_KEYS: Record<ComplainantPrefillKey, string[]> = {
   name: ["name"],
   age: ["age", "dob"],
@@ -113,7 +115,11 @@ export function ComplainantSection() {
    * document") rather than covering the screen on arrival.
    */
   const [sourceOpen, setSourceOpen] = useSourceOpenState();
-  const [sourceField, setSourceField] = React.useState<ComplainantPrefillKey>("name");
+  /**
+   * `null` until the person picks a field, so the panel lands on something the identity
+   * proof actually gave up rather than on a fixed field that may be empty.
+   */
+  const [chosenField, setChosenField] = React.useState<ComplainantPrefillKey | null>(null);
   /** Which of the complainant's uploads the panel shows; the chips switch between them. */
   const [sourceDoc, setSourceDoc] = React.useState<PartyDoc>("id-proof");
   const [pendingRemove, setPendingRemove] = React.useState<number | null>(null);
@@ -184,7 +190,7 @@ export function ComplainantSection() {
   /* ── source panel ────────────────────────────────────────────────────────── */
 
   const openSource = (field: ComplainantPrefillKey) => {
-    setSourceField(field);
+    setChosenField(field);
     setSourceDoc("id-proof");
     setSourceOpen(true);
   };
@@ -197,6 +203,16 @@ export function ComplainantSection() {
   }));
   const sourceSlot = partySlots.find((s) => s.doc === sourceDoc)?.slot;
   const idProof = sourceDoc === "id-proof" ? sourceSlot : undefined;
+  /* Only the identity proof is read, so it alone decides where the panel lands. */
+  const idProofSlot = partySlots.find((s) => s.doc === "id-proof")?.slot;
+  /* A field's value can come from more than one box (age from `age` or `dob`), so the
+     landing field is the first whose boxes the parser actually filled. */
+  const sourceField =
+    chosenField ??
+    PREFILL_ORDER.find((key) =>
+      SOURCE_BOX_KEYS[key].some((box) => idProofSlot?.extract?.fields[box]?.value)
+    ) ??
+    "name";
   const sourceValue =
     sourceField === "res"
       ? c.res.line1

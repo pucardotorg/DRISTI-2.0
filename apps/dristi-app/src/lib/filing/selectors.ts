@@ -272,3 +272,21 @@ export function partySourceSlot(
 ): IntakeSlot | undefined {
   return draft.intake.parties[index]?.slots.find((s) => s.docType === docType);
 }
+
+/**
+ * Which field the source panel should land on for a document: the first one, in the
+ * screen's own order, that reading actually found a value for.
+ *
+ * Landing on a fixed field instead means the panel can open on something nothing was read
+ * for — an empty "value used in this field" box beside a document with no region marked,
+ * which reads as a broken panel rather than as "we didn't find this one".
+ */
+export function firstReadField<T extends string>(
+  slot: IntakeSlot | undefined,
+  order: readonly T[],
+  fallback: T
+): T {
+  const fields = slot?.extract?.fields;
+  if (!fields) return fallback;
+  return order.find((key) => fields[key]?.value) ?? fallback;
+}

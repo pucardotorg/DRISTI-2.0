@@ -17,7 +17,11 @@ import { blankCheque } from "@/lib/filing/blank";
 import { fromDisplayDate, toDisplayDate } from "@/lib/filing/format";
 import type { IfscResult } from "@/lib/filing/lookups";
 import { RETURN_REASONS, S138_SAFE_REASONS } from "@/lib/filing/options";
-import { chequeComplete, chequeSourceSlot } from "@/lib/filing/selectors";
+import {
+  chequeComplete,
+  chequeSourceSlot,
+  firstReadField,
+} from "@/lib/filing/selectors";
 import { neighbours } from "@/lib/filing/steps";
 import { useFiling } from "@/lib/filing/store";
 import type { ChequeField } from "@/lib/filing/types";
@@ -80,9 +84,17 @@ const DATE_FIELDS: ChequeField[] = [
   "receiptDate",
 ];
 
-/** Where the source panel lands when a chip switches which document is on screen. */
-const CHEQUE_ENTRY_FIELD: ChequeField = "dateOnCheque";
-const MEMO_ENTRY_FIELD: ChequeField = "returnDate";
+/** Fields read off the return memo, in the order the panel prefers to land on them. */
+const MEMO_FIELDS: ChequeField[] = [
+  "returnDate",
+  "returnReason",
+  "presentDate",
+  "receiptDate",
+];
+
+/** Where a chip lands when reading found nothing on that document at all. */
+const CHEQUE_FALLBACK: ChequeField = "dateOnCheque";
+const MEMO_FALLBACK: ChequeField = "returnDate";
 
 /** Tab ids are cheque ids; `null` when a stale id arrives after a removal. */
 function indexOfId(cheques: { id: string }[], id: string): number | null {
@@ -121,7 +133,12 @@ export function ChequeSection() {
    * document") rather than covering the screen on arrival.
    */
   const [sourceOpen, setSourceOpen] = useSourceOpenState();
-  const [sourceField, setSourceField] = React.useState<ChequeField>("dateOnCheque");
+  /**
+   * `null` until the person picks a field, so the panel follows what reading actually
+   * found rather than opening on a fixed field that may be empty. Their choice wins from
+   * the moment they make one.
+   */
+  const [chosenField, setChosenField] = React.useState<ChequeField | null>(null);
   /**
    * What the panel's value box shows while it is being retyped — a half-typed date reads
    * back as "" from the draft, so keep the keystrokes here. Tagged with the field it
@@ -134,6 +151,14 @@ export function ChequeSection() {
 
   const index = Math.min(active, cheques.length - 1);
   const cheque = cheques[index];
+
+  const frontSlot = chequeSourceSlot(draft, index, "cheque-front");
+  const memoSlot = chequeSourceSlot(draft, index, "return-memo");
+  /** The field each document opens on: the first one reading found there. */
+  const chequeEntry = firstReadField(frontSlot, CHEQUE_FIELDS, CHEQUE_FALLBACK);
+  const memoEntry = firstReadField(memoSlot, MEMO_FIELDS, MEMO_FALLBACK);
+  const sourceField = chosenField ?? chequeEntry;
+
   const sourceKey = `${cheque.id}:${sourceField}`;
   const sourceText = sourceEdit?.key === sourceKey ? sourceEdit.text : null;
 
@@ -160,7 +185,7 @@ export function ChequeSection() {
     });
 
   const openSource = (field: ChequeField) => {
-    setSourceField(field);
+    setChosenField(field);
     setSourceOpen(true);
   };
 
@@ -215,8 +240,6 @@ export function ChequeSection() {
   // Source panel — which upload, which region, and the value we read there. The two
   // documents behind this cheque come from intake; either may not be uploaded yet.
   const fromCheque = CHEQUE_FIELDS.includes(sourceField);
-  const frontSlot = chequeSourceSlot(draft, index, "cheque-front");
-  const memoSlot = chequeSourceSlot(draft, index, "return-memo");
   const sourceSlot = fromCheque ? frontSlot : memoSlot;
   const isDateSource = DATE_FIELDS.includes(sourceField);
   const storedValue = isDateSource
@@ -488,12 +511,12 @@ export function ChequeSection() {
           {
             label: frontSlot?.file?.name ?? frontSlot?.label ?? "Cheque (front side)",
             active: fromCheque,
-            onClick: () => setSourceField(CHEQUE_ENTRY_FIELD),
+            onClick: () => setChosenField(chequeEntry),
           },
           {
             label: memoSlot?.file?.name ?? memoSlot?.label ?? "Cheque return memo",
             active: !fromCheque,
-            onClick: () => setSourceField(MEMO_ENTRY_FIELD),
+            onClick: () => setChosenField(memoEntry),
           },
         ]}
         file={sourceSlot?.file ?? null}

@@ -21,7 +21,11 @@ import {
   PAYMENT_STATUS,
   WHY_ISSUED,
 } from "@/lib/filing/options";
-import { chequeSourceSlot, noticeComplete } from "@/lib/filing/selectors";
+import {
+  chequeSourceSlot,
+  firstReadField,
+  noticeComplete,
+} from "@/lib/filing/selectors";
 import { neighbours } from "@/lib/filing/steps";
 import { useFiling } from "@/lib/filing/store";
 import type { DemandNotice, NoticeField } from "@/lib/filing/types";
@@ -71,6 +75,13 @@ const DOC_OF_FIELD: Record<SourceField, "demand-notice" | "dispatch-proof" | "de
   deliveryDate: "delivery-proof",
 };
 
+/** Field order per document, and the fallback when reading found nothing there. */
+const DOC_FIELDS = {
+  "demand-notice": ["dispatchDate", "natureDebt", "whyIssued"],
+  "dispatch-proof": ["tracking", "modeService"],
+  "delivery-proof": ["deliveryDate"],
+} as const satisfies Record<string, readonly SourceField[]>;
+
 const ENTRY_FIELD = {
   "demand-notice": "dispatchDate",
   "dispatch-proof": "tracking",
@@ -116,7 +127,11 @@ export function DemandNoticeSection() {
    * document") rather than covering the screen on arrival.
    */
   const [sourceOpen, setSourceOpen] = useSourceOpenState();
-  const [sourceField, setSourceField] = React.useState<SourceField>("dispatchDate");
+  /**
+   * `null` until the person picks a field, so the panel lands on something the notice's
+   * uploads actually gave up rather than on a fixed field that may be empty.
+   */
+  const [chosenField, setChosenField] = React.useState<SourceField | null>(null);
 
   const index = Math.min(active, notices.length - 1);
   const notice = notices[index];
@@ -127,6 +142,16 @@ export function DemandNoticeSection() {
     "dispatch-proof": chequeSourceSlot(draft, index, "dispatch-proof"),
     "delivery-proof": chequeSourceSlot(draft, index, "delivery-proof"),
   };
+
+  /** Where the panel lands: the first field any of the three uploads was read for. */
+  const entryFieldFor = (doc: keyof typeof DOC_FIELDS): SourceField =>
+    firstReadField(slots[doc], DOC_FIELDS[doc], ENTRY_FIELD[doc]);
+  const sourceField =
+    chosenField ??
+    (["demand-notice", "dispatch-proof", "delivery-proof"] as const)
+      .map((doc) => ({ doc, field: entryFieldFor(doc) }))
+      .find(({ doc, field }) => slots[doc]?.extract?.fields[field]?.value)?.field ??
+    ENTRY_FIELD["demand-notice"];
 
   const set = <K extends keyof DemandNotice>(key: K, value: DemandNotice[K]) =>
     update((d) => {
@@ -158,7 +183,7 @@ export function DemandNoticeSection() {
   }
 
   const openSource = (field: NoticeField) => {
-    setSourceField(field);
+    setChosenField(field);
     setSourceOpen(true);
     if (field === "dispatchDate") setDispatchText(toDisplayDate(notice.dispatchDate));
   };
@@ -451,7 +476,7 @@ export function DemandNoticeSection() {
         chips={(Object.keys(slots) as (keyof typeof slots)[]).map((doc) => ({
           label: slots[doc]?.file?.name ?? slots[doc]?.label ?? DOC_LABELS[doc],
           active: doc === sourceDoc,
-          onClick: () => setSourceField(ENTRY_FIELD[doc]),
+          onClick: () => setChosenField(entryFieldFor(doc)),
         }))}
         file={sourceSlot?.file ?? null}
         uploadHref={hrefFor("upload")}
