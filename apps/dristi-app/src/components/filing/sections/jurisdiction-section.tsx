@@ -76,8 +76,8 @@ export function JurisdictionSection() {
           </FormField>
 
           <SectionNotice variant="info">
-            Jurisdiction is based on the bank branch where the cheque is presented for
-            collection and the account is maintained by the complainant.
+            Jurisdiction follows the branch where the cheque was presented and the
+            complainant holds the account.
           </SectionNotice>
 
           {j.deposited === "yes" ? (
@@ -122,7 +122,7 @@ export function JurisdictionSection() {
                     onChange={(v: string) => set("payeePolice", v)}
                     items={POLICE_STATIONS}
                     placeholder="Search stations"
-                    emptyLabel="No station by that name — what you typed is kept."
+                    emptyLabel="No station by that name."
                     ariaLabel="Police station of bank branch"
                   />
                 </FormField>
@@ -136,7 +136,7 @@ export function JurisdictionSection() {
                   onChange={(v: string) => set("drawerPolice", v)}
                   items={POLICE_STATIONS}
                   placeholder="Search stations"
-                  emptyLabel="No station by that name — what you typed is kept."
+                  emptyLabel="No station by that name."
                   ariaLabel="Police station of drawer (accused) bank branch"
                 />
               </FormField>
@@ -160,7 +160,7 @@ export function JurisdictionSection() {
           {j.otherPending === "yes" ? (
             <>
               <SectionNotice variant="neutral">
-                Please state the case details of such cases (court &amp; case number).
+                List each one — the court and the case number.
               </SectionNotice>
               <div className="flex flex-col gap-4">
                 {j.otherCases.map((oc, i) => (
@@ -174,7 +174,7 @@ export function JurisdictionSection() {
                               d.jurisdiction.otherCases[i].court = v;
                             })
                           }
-                          placeholder="Enter"
+                          placeholder="e.g. JMFC-II, Kollam"
                         />
                       </FormField>
                       <FormField label="Case number" required>
@@ -185,7 +185,7 @@ export function JurisdictionSection() {
                               d.jurisdiction.otherCases[i].caseNumber = v;
                             })
                           }
-                          placeholder="Enter"
+                          placeholder="e.g. CC/482/2025"
                         />
                       </FormField>
                     </FormRow>
@@ -253,22 +253,19 @@ export function JurisdictionSection() {
               announce="polite"
               title={`${overBy} day${overBy === 1 ? "" : "s"} beyond the one-month limit`}
             >
-              The court can still take this complaint on file, but it has to be asked to
-              condone the delay first — give the reason below.
+              The court can still take this on file, but it must be asked to condone the
+              delay.
             </SectionNotice>
           )}
 
           {/* Only asked for when there is a delay to condone. */}
           {withinLimit || delay === null ? null : (
-            <FormField
-              label="Reason for praying condonation of delay"
-              required
-              help="What kept the complaint from being filed inside the one-month limit."
-            >
+            <FormField label="Reason for condonation of delay" required>
               <Textarea
                 value={j.condonationReason}
                 onChange={(e) => set("condonationReason", e.target.value)}
-                placeholder="Enter"
+                placeholder="e.g. The complainant was hospitalised between 12 June and 30 July, and the papers could not be settled in that time."
+                rows={4}
               />
             </FormField>
           )}

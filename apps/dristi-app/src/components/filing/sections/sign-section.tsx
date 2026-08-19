@@ -131,11 +131,11 @@ function SignatureList({ title, rows }: { title: string; rows: Signatory[] }) {
         {rows.map((s, i) => (
           <li
             key={s.id}
-            className="flex items-center gap-3 border-b border-hairline py-3 last:border-b-0"
+            className="flex items-start gap-3 border-b border-hairline py-3 last:border-b-0"
           >
             <span
               aria-hidden
-              className="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-caption font-medium text-secondary-foreground tabular-nums"
+              className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-caption font-medium text-secondary-foreground tabular-nums"
             >
               {i + 1}
             </span>
@@ -153,14 +153,16 @@ function SignatureList({ title, rows }: { title: string; rows: Signatory[] }) {
               </div>
               <p className="text-caption font-medium text-muted-foreground">{s.role}</p>
             </div>
-            {s.status === "signed" ? (
-              <Badge variant="success">
-                <CheckIcon aria-hidden />
-                Signed
-              </Badge>
-            ) : (
-              <Badge variant="secondary">Pending</Badge>
-            )}
+            <span className="mt-px shrink-0">
+              {s.status === "signed" ? (
+                <Badge variant="success">
+                  <CheckIcon aria-hidden />
+                  Signed
+                </Badge>
+              ) : (
+                <Badge variant="secondary">Pending</Badge>
+              )}
+            </span>
           </li>
         ))}
       </ul>
@@ -826,72 +828,59 @@ export function SignSection() {
         </DialogContent>
       </Dialog>
 
-      {/* ── E-Sign with Aadhaar ── */}
+      {/*
+        ── E-Sign with Aadhaar ──
+        One job: take six digits. The code is the focal thing on the sheet, so it is
+        centred and given the room to read as a code rather than six small boxes in a
+        corner, and everything around it is a caption.
+      */}
       <Dialog open={modal === "esign"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>E-Sign with Aadhaar</DialogTitle>
+            <DialogTitle>Enter the OTP</DialogTitle>
             <DialogDescription>
               {mobileTail ? (
                 <>
-                  In the live service, a 6-digit OTP goes to your Aadhaar-linked mobile
-                  ending{" "}
+                  Sent to your Aadhaar-linked mobile ending{" "}
                   <strong className="font-semibold text-foreground tabular-nums">
-                    •••• {mobileTail}
+                    {mobileTail}
                   </strong>
                   .
                 </>
               ) : (
-                "In the live service, a 6-digit OTP goes to your Aadhaar-linked mobile."
+                "Sent to your Aadhaar-linked mobile."
               )}
             </DialogDescription>
           </DialogHeader>
 
-          {otherSigners > 0 ? (
-            <SectionNotice variant="neutral">
-              {otherSigners === 1
-                ? "The other party will get a link to sign too, once you have."
-                : `The other ${otherSigners} parties will get a link to sign too, once you have.`}
-            </SectionNotice>
-          ) : null}
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="esign-otp" className="text-body-compact">
-              Enter OTP
-            </Label>
+          <div className="flex flex-col items-center gap-3 py-2">
             <InputOTP
               id="esign-otp"
               maxLength={6}
               value={otp}
               onChange={setOtp}
+              aria-label="One-time password"
               containerClassName="gap-2"
+              autoFocus
             >
               <InputOTPGroup className="gap-2">
                 {[0, 1, 2, 3, 4, 5].map((i) => (
                   <InputOTPSlot
                     key={i}
                     index={i}
-                    className="size-10 rounded-lg border border-input"
+                    className="size-12 rounded-lg border border-input text-title-s font-semibold tabular-nums"
                   />
                 ))}
               </InputOTPGroup>
             </InputOTP>
-            <p className="text-caption text-muted-foreground">
-              Sandbox — any 6-digit code is accepted here.
-            </p>
-          </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-body-compact text-muted-foreground">
-              Didn’t get it?
-            </span>
             <Button
               type="button"
               variant="link"
-              className="h-auto p-0 underline"
+              className="h-auto p-0 text-body-compact"
               onClick={resendOtp}
             >
-              {resent ? "Sent again" : "Resend OTP"}
+              {resent ? "Sent again" : "Send it again"}
             </Button>
           </div>
 
@@ -902,8 +891,20 @@ export function SignSection() {
             disabled={otp.length < 6}
             onClick={signYou}
           >
-            Verify &amp; sign
+            Verify and sign
           </Button>
+
+          {otherSigners > 0 ? (
+            <p className="text-center text-caption text-muted-foreground">
+              {otherSigners === 1
+                ? "The other party signs next."
+                : `The other ${otherSigners} parties sign next.`}
+            </p>
+          ) : null}
+
+          <p className="text-center text-caption text-muted-foreground">
+            Sandbox — any six digits work.
+          </p>
         </DialogContent>
       </Dialog>
 
@@ -926,12 +927,10 @@ export function SignSection() {
           </DialogHeader>
 
           <SectionNotice variant="warning" title="This settles every signature">
-            Submitting this copy records{" "}
+            Submitting records{" "}
             <strong className="font-semibold">all {everyone.length} signatures</strong> as
-            collected, so upload it only once every party has signed — each complainant,
-            and one advocate for each complainant. The file may be signed on paper or with
-            a <strong className="font-semibold">Digital Signature Certificate (DSC)</strong>
-            .
+            collected. Upload only once everyone has signed — on paper or with a Digital
+            Signature Certificate.
           </SectionNotice>
 
           {sign.signedCopy ? (
@@ -1067,7 +1066,7 @@ export function SignSection() {
               <p className="text-caption text-muted-foreground">
                 {deferProcess
                   ? "The complaint is registered, but nothing is served on the accused until these are paid."
-                  : "Paying now avoids a second step before the accused is served. It is not mandatory."}
+                  : "Pay now and the accused is served without a second step."}
               </p>
           </div>
 

@@ -61,16 +61,16 @@ export function AffidavitSection() {
 
         {/* Sworn evidence, so what it is gets said before the box, not after. */}
         <SectionNotice variant="warning" title="You are swearing to this">
-          It is sworn under Section 225 of the Bharatiya Nagarik Suraksha Sanhita, 2023.
-          Read every line and edit anything that does not match your case.
+          Sworn under Section 225 of the Bharatiya Nagarik Suraksha Sanhita, 2023. Read
+          it through and change anything that does not match your case.
         </SectionNotice>
 
         <FormCard
           title="Affidavit of fact"
           description={
             edited
-              ? "Your wording. It no longer changes when you edit the rest of the filing."
-              : "Written from the details you have entered, and kept up to date with them until you edit it."
+              ? "Your wording — it no longer follows the rest of the filing."
+              : "Written from your case details, and follows them until you edit it."
           }
         >
           <RichTextEditor
@@ -95,7 +95,7 @@ export function AffidavitSection() {
         open={resetOpen}
         onOpenChange={setResetOpen}
         title="Restore the standard affidavit?"
-        description="Your edits are discarded and the text goes back to the one written from your case details. It will track the case again as you change it."
+        description="Your edits are discarded and the text goes back to the standard wording."
         confirmLabel="Restore"
         onConfirm={() => {
           update((d) => {

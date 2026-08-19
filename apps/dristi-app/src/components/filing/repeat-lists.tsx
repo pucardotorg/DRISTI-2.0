@@ -147,14 +147,14 @@ export function AddressBlockList({
             <FormField
               label="Police station"
               required
-              help="The station in whose jurisdiction this address falls."
+              help="The station this address falls under."
             >
               <ComboField
                 value={b.police}
                 onChange={(v: string) => setAt(i, { police: v })}
                 items={POLICE_STATIONS}
                 placeholder="Search stations"
-                emptyLabel="No station by that name — what you typed is kept."
+                emptyLabel="No station by that name."
                 ariaLabel="Police station"
               />
             </FormField>

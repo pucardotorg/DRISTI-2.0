@@ -446,7 +446,7 @@ export function UploadSection() {
         <FilingPageHeader
           eyebrow="Documents"
           title="Add your case documents"
-          description="Put each document in its place. We read them and fill your form where we can — anything we can’t read, you type in. Add a card for every cheque and complainant in your case."
+          description="Add a card for every cheque and every complainant. We read what we can and fill the form from it."
         />
 
         {/* The one progress statement on this screen. */}

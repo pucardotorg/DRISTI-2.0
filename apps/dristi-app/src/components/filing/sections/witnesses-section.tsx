@@ -100,7 +100,7 @@ export function WitnessesSection() {
         {/* Identity */}
         <FormCard
           title={`Witness ${index + 1}`}
-          description="The court needs enough to identify this witness and reach them."
+          description="Enough for the court to identify this witness."
         >
           {/*
             Name and designation are one question with two ways of answering it, so the
@@ -113,7 +113,7 @@ export function WitnessesSection() {
             asGroup
             label="How is this witness identified?"
             required
-            help="Enter their full name, or — if you only know the office they hold — their designation. Either one on its own is enough."
+            help="Either one is enough. Use the designation if you only know the office they hold."
             helpPlacement="above"
           >
             <div className="flex flex-col gap-4">
@@ -121,7 +121,7 @@ export function WitnessesSection() {
                 <TextField
                   value={w.fullName}
                   onChange={(v) => setField("fullName", v)}
-                  placeholder="Enter"
+                  placeholder="e.g. Ramesh Nair"
                   autoComplete="off"
                 />
               </FormField>
@@ -144,7 +144,7 @@ export function WitnessesSection() {
               <TextField
                 value={w.age}
                 onChange={(v) => setField("age", v)}
-                placeholder="Enter"
+                placeholder="e.g. 42"
                 inputMode="numeric"
               />
             </FormField>
@@ -154,7 +154,7 @@ export function WitnessesSection() {
             <Textarea
               value={w.prove}
               onChange={(e) => setField("prove", e.target.value)}
-              placeholder="Briefly describe what this witness will testify to."
+              placeholder="e.g. Confirms the cheque was handed over on 4 March"
             />
           </FormField>
         </FormCard>
@@ -162,7 +162,7 @@ export function WitnessesSection() {
         {/* Contact */}
         <FormCard
           title={`Witness ${index + 1} contact details`}
-          description="A phone number or email helps the court reach the witness."
+          description="Where the court can reach this witness."
         >
           <ContactList
             contacts={w.contacts}
@@ -177,7 +177,7 @@ export function WitnessesSection() {
         {/* Service addresses */}
         <FormCard title={`Witness ${index + 1} address details`}>
           <SectionNotice variant="info">
-            Adding multiple addresses will increase your chances of successful delivery.
+            The court tries every address listed here.
           </SectionNotice>
           <AddressBlockList
             blocks={w.addresses}

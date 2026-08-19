@@ -220,7 +220,7 @@ export function AccusedSection() {
         {isIndividual ? null : (
           <FormCard
             title="Who is summoned for the entity"
-            description="The directors, partners or officers in charge of the business when the cheque was dishonoured. Each of them is summoned alongside the entity."
+            description="Directors, partners or officers in charge of the business when the cheque was dishonoured. Each is summoned with the entity."
           >
             <RepresentativeList
               reps={a.reps}
@@ -232,7 +232,7 @@ export function AccusedSection() {
         {/* Contact */}
         <FormCard
           title="Contact details"
-          description="A phone number or email helps the court deliver the summons faster."
+          description="Where the court can reach the accused."
         >
           <ContactList
             contacts={a.contacts}
@@ -251,8 +251,7 @@ export function AccusedSection() {
                 })
               }
             >
-              Adding more than one address improves the chances of the summons reaching the
-              accused.
+              The summons goes to every address listed here.
             </SectionNotice>
           ) : null}
           <AddressBlockList
@@ -266,7 +265,7 @@ export function AccusedSection() {
           <FormField
             asGroup
             label="Does the accused reside within the jurisdiction of this court?"
-            help="Your answer here doesn't by itself decide the court's jurisdiction — the court determines that on the facts."
+            help="The court decides jurisdiction on the facts."
           >
             <YesNoSegmented
               value={a.jurisdiction}

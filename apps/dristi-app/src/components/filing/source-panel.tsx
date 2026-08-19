@@ -167,11 +167,10 @@ function SourceEmptyState({ uploadHref }: { uploadHref: string }) {
           <FileUpIcon aria-hidden />
         </EmptyMedia>
         <EmptyTitle className="text-body font-semibold">
-          No document to read from
+          Nothing uploaded yet
         </EmptyTitle>
         <EmptyDescription className="text-body-compact">
-          Upload it and we’ll fill what we can into these fields — and show you where on
-          the page each value came from.
+          Upload the document and we fill what we can read from it.
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
@@ -181,9 +180,7 @@ function SourceEmptyState({ uploadHref }: { uploadHref: string }) {
             Add documents
           </Link>
         </Button>
-        <p className="text-caption text-muted-foreground">
-          Optional — every field can be typed by hand.
-        </p>
+
       </EmptyContent>
     </Empty>
   );

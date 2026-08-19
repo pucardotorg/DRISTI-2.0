@@ -260,9 +260,8 @@ export function DemandNoticeSection() {
         <PrefillNotice show={anyPrefilled} />
 
         <SectionNotice variant="neutral">
-          If you have issued multiple demand notices for the same cheque, share the one
-          validly issued within 30 days of receiving information about the return of the
-          cheque. In case of multiple cheques, you can add more than one demand notice.
+          Where several notices went out for one cheque, use the one issued within 30
+          days of the return. Add a notice per cheque.
         </SectionNotice>
 
         {/* What the cheque was meant to discharge */}
@@ -399,9 +398,9 @@ export function DemandNoticeSection() {
                 </FormField>
               </FormRow>
               <SectionNotice variant="info">
-                A notice returned unserved after being correctly addressed and dispatched
-                can still count as valid service in law. Keep the returned envelope and
-                tracking record as proof.
+                A notice returned unserved can still count as valid service, if it was
+                correctly addressed and dispatched. Keep the envelope and the tracking
+                record.
               </SectionNotice>
             </>
           )}

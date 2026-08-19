@@ -276,7 +276,7 @@ export function FilingsDashboard() {
       {/* Start a new case */}
       <Section
         title="Start a new case"
-        description="Choose the type of case you want to file. We'll guide you through the rest."
+        description="Choose the type of case you want to file."
       >
         <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           {CASE_TYPES.map((c) => {
@@ -340,7 +340,7 @@ export function FilingsDashboard() {
           to it, so the row says only what this browser did and there is no next date. */}
       <Section
         title="Recently filed cases"
-        description="Cases you submitted from this browser. Registry status — scrutiny, listing and next date — isn't connected yet."
+        description="Filed from this browser. Registry status is not connected yet."
       >
         {!showData ? null : filed.length === 0 ? (
           <p className="text-body text-muted-foreground">
