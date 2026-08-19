@@ -27,9 +27,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   CheckIcon,
-  ChevronDownIcon,
   ChevronRightIcon,
-  ChevronUpIcon,
   CopyIcon,
   FileTextIcon,
   PrinterIcon,
@@ -40,14 +38,14 @@ import {
 import { getRepository, storeUpload } from "@/lib/filing/data";
 import { forgetFile, formatBytes } from "@/lib/filing/files";
 import { addressToString, rupees, toLongDate } from "@/lib/filing/format";
-import {
-  COURT,
-  COURT_FEE_LINES,
-  DELIVERY_CHANNELS,
-  PROCESS_TYPES,
-} from "@/lib/filing/options";
+import { COURT, DELIVERY_CHANNELS, PROCESS_TYPES } from "@/lib/filing/options";
 import { useProfile } from "@/lib/filing/profile";
-import { accusedLabel, signatories } from "@/lib/filing/selectors";
+import {
+  accusedLabel,
+  feeBill,
+  signatories,
+  type BilledLine,
+} from "@/lib/filing/selectors";
 import { FILINGS_HOME, neighbours } from "@/lib/filing/steps";
 import { useFiling } from "@/lib/filing/store";
 import type { Signatory, StoredFileRef } from "@/lib/filing/types";
@@ -56,11 +54,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -81,6 +74,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import { useSourceDock } from "@/hooks/use-min-width";
 import { TOP_BAR_HEIGHT } from "@/components/filing/chrome";
 import { ConfirmDialog } from "@/components/filing/confirm-dialog";
@@ -102,9 +96,6 @@ type ModalKey =
   | "processing"
   | "success"
   | null;
-
-/** What the court charges for this filing — the schedule is the court's, the sum is ours. */
-const FEE_TOTAL = COURT_FEE_LINES.reduce((sum, line) => sum + line.amount, 0);
 
 const REF_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
@@ -209,6 +200,64 @@ function SignatureSummary({
   );
 }
 
+/* ───────────────────────────── Fees ────────────────────────────────── */
+
+/**
+ * One group of the bill: its lines, and what they come to.
+ *
+ * A line states its rate and its multiplier whenever it is charged more than once
+ * ("₹49 × 3 addresses"), so the number on the right can always be accounted for. The
+ * group is a well inside the dialog panel, and its total is the only bold thing in it.
+ */
+function FeeGroup({
+  title,
+  caption,
+  lines,
+  total,
+  deferred = false,
+}: {
+  title: React.ReactNode;
+  caption?: string;
+  lines: BilledLine[];
+  total: number;
+  /**
+   * Being paid later. The group stays fully legible and says so instead — what you are
+   * putting off is exactly what you need to be able to read.
+   */
+  deferred?: boolean;
+}) {
+  if (!lines.length) return null;
+  return (
+    <div className="flex flex-col gap-3 rounded-lg bg-surface-sunken p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-body-compact font-semibold text-foreground">{title}</h3>
+          {deferred ? <Badge variant="secondary">Paying later</Badge> : null}
+        </div>
+        <span className="text-body-compact font-semibold tabular-nums">
+          {rupees(total)}
+        </span>
+      </div>
+      {caption ? <p className="text-caption text-muted-foreground">{caption}</p> : null}
+      <dl className="flex flex-col divide-y divide-hairline">
+        {lines.map((line) => (
+          <div key={line.key} className="flex items-baseline justify-between gap-4 py-2">
+            <dt className="min-w-0 text-body-compact text-muted-foreground">
+              {line.label}
+              {line.units > 1 ? (
+                <span className="tabular-nums"> · {rupees(line.rate)} × {line.units}</span>
+              ) : null}
+            </dt>
+            <dd className="shrink-0 text-body-compact font-medium tabular-nums">
+              {rupees(line.amount)}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
 /* ───────────────────────────── Screen ──────────────────────────────── */
 
 export function SignSection() {
@@ -225,7 +274,6 @@ export function SignSection() {
   const [leaveTo, setLeaveTo] = React.useState<string | null>(null);
   const [otp, setOtp] = React.useState("");
   const [resent, setResent] = React.useState(false);
-  const [feesOpen, setFeesOpen] = React.useState(true);
   const [copied, setCopied] = React.useState(false);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
 
@@ -243,6 +291,11 @@ export function SignSection() {
 
   const filed = draft.status === "filed";
   const sign = draft.sign;
+
+  /** The bill, derived from this draft — see `feeBill` for what makes it specific. */
+  const bill = React.useMemo(() => feeBill(draft), [draft]);
+  const deferProcess = sign.deferProcessFees;
+  const payableNow = bill.courtTotal + (deferProcess ? 0 : bill.processTotal);
 
   // Who signs is derived from the parties, never stored: editing a party changes this list.
   const { complainants, advocates } = React.useMemo(
@@ -434,6 +487,7 @@ export function SignSection() {
       update((d) => {
         d.sign.paid = true;
         d.sign.paidAt = now;
+        d.sign.paidAmount = payableNow;
         d.sign.paymentRef = ref;
         d.sign.caseFileNumber = caseNumber;
         d.status = "filed";
@@ -494,7 +548,7 @@ export function SignSection() {
         <div className="flex flex-col gap-0.5">
           <dt className="text-caption font-medium text-muted-foreground">Amount paid</dt>
           <dd className="text-body-compact font-medium tabular-nums">
-            {rupees(FEE_TOTAL)}
+            {rupees(sign.paidAmount ?? payableNow)}
           </dd>
         </div>
         <div className="flex flex-col gap-0.5">
@@ -948,54 +1002,81 @@ export function SignSection() {
       </Dialog>
 
       {/* ── Pay court fees ── */}
+      {/*
+        ── Pay court fees ──
+        A bill, not a price tag. Two groups because the court treats them differently:
+        court fees decide whether the complaint is registered at all, process fees buy
+        delivery to the accused and may be paid later. Every line shows its rate and how
+        many times it is charged, because the per-address ones move with the case and a
+        total nobody can account for is a total nobody should be asked to pay.
+      */}
       <Dialog open={modal === "payment"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Pay court fees</DialogTitle>
             <DialogDescription>
-              These fees are payable to the court before the complaint is registered.
+              Payable to the {COURT.name} for this complaint.
             </DialogDescription>
           </DialogHeader>
 
-          <Collapsible open={feesOpen} onOpenChange={setFeesOpen}>
-            <CollapsibleTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                className="h-auto w-full justify-start gap-3 px-2 py-3"
-              >
-                <span className="text-body font-semibold">Court fees</span>
-                {feesOpen ? (
-                  <ChevronUpIcon className="text-muted-foreground" aria-hidden />
-                ) : (
-                  <ChevronDownIcon className="text-muted-foreground" aria-hidden />
-                )}
-                <Badge variant="warning">Pending</Badge>
-                <span className="ml-auto text-title-s font-semibold tabular-nums">
-                  {rupees(FEE_TOTAL)}
-                </span>
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <dl className="flex flex-col border-t border-hairline">
-                {COURT_FEE_LINES.map((line) => (
-                  <div
-                    key={line.label}
-                    className="flex items-center justify-between gap-4 border-b border-hairline px-2 py-3 last:border-b-0"
-                  >
-                    <dt className="text-body-compact">{line.label}</dt>
-                    <dd className="text-body-compact font-medium text-muted-foreground tabular-nums">
-                      {rupees(line.amount)}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </CollapsibleContent>
-          </Collapsible>
+          <div className="flex max-h-[40vh] flex-col gap-4 overflow-y-auto">
+            <FeeGroup
+              title="Court fees"
+              caption="Due before the complaint is registered."
+              lines={bill.court}
+              total={bill.courtTotal}
+            />
 
-          <p className="text-caption text-muted-foreground">
-            Sandbox payment — no money moves.
-          </p>
+            <FeeGroup
+              title="Process &amp; delivery"
+              caption={
+                bill.addresses === 1
+                  ? "Serving the accused at 1 address."
+                  : `Serving the accused at ${bill.addresses} addresses.`
+              }
+              lines={bill.process}
+              total={bill.processTotal}
+              deferred={deferProcess}
+            />
+          </div>
+
+          {/*
+            The choice the reference put behind a second button. As a switch it can show
+            its own consequence — the total moves the moment it is flipped, which a button
+            that closes the dialog cannot do. It sits outside the scrolling bill, because
+            a control that changes the total must not be something you can scroll past.
+          */}
+          <div className="flex flex-col gap-3 rounded-lg bg-surface-sunken p-4">
+              <div className="flex items-start justify-between gap-4">
+                <Label
+                  htmlFor="defer-process"
+                  className="text-body-compact font-medium text-foreground"
+                >
+                  Pay process fees later
+                </Label>
+                <Switch
+                  id="defer-process"
+                  checked={deferProcess}
+                  onCheckedChange={(on) =>
+                    update((d) => {
+                      d.sign.deferProcessFees = on;
+                    })
+                  }
+                />
+              </div>
+              <p className="text-caption text-muted-foreground">
+                {deferProcess
+                  ? "The complaint is registered, but nothing is served on the accused until these are paid."
+                  : "Paying now avoids a second step before the accused is served. It is not mandatory."}
+              </p>
+          </div>
+
+          <div className="flex items-baseline justify-between gap-4 border-t border-hairline pt-4">
+            <span className="text-body font-semibold">Payable now</span>
+            <span className="text-title-s font-semibold tabular-nums">
+              {rupees(payableNow)}
+            </span>
+          </div>
 
           <Button
             type="button"
@@ -1003,8 +1084,12 @@ export function SignSection() {
             className="w-full"
             onClick={() => setModal("procaddr")}
           >
-            Pay online
+            Pay {rupees(payableNow)} online
           </Button>
+
+          <p className="text-caption text-muted-foreground">
+            Sandbox payment — no money moves.
+          </p>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={closeModal}>
@@ -1190,7 +1275,7 @@ export function SignSection() {
             <div className="flex items-center justify-between gap-4 text-body-compact">
               <span className="text-muted-foreground">Amount paid</span>
               <span className="font-semibold text-foreground tabular-nums">
-                {rupees(FEE_TOTAL)}
+                {rupees(sign.paidAmount ?? payableNow)}
               </span>
             </div>
             <div className="flex items-center justify-between gap-4 text-body-compact">

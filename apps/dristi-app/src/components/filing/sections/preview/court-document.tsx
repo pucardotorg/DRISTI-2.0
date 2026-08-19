@@ -25,11 +25,10 @@ import {
   complaintYear,
   documentSummary,
   finalReliefSummary,
-  firstReturnReason,
   htmlToParagraphs,
   jurisdictionSummary,
   leadAdvocateName,
-  noticeAffidavit,
+  affidavitBody,
   noticeSummary,
   optionLabel,
   orNot,
@@ -114,15 +113,12 @@ export function CourtDocument({ draft }: { draft: FilingDraft }) {
   const accused = accusedSummaries(draft);
   const cheques = chequeSummaries(draft);
   const notice = noticeSummary(draft.notices[0]);
-  // The sworn paragraphs follow the notice on the draft, never a fixed form of words.
-  const affidavit = noticeAffidavit(draft.notices[0]);
   const jurisdiction = jurisdictionSummary(draft);
   const witnesses = witnessSummaries(draft);
   const documents = documentSummary(draft);
 
   const longDate = (iso: string) => orNot(toLongDate(iso));
 
-  const returnReason = firstReturnReason(draft);
   const firstAccused = accused[0];
   const otherDetails = htmlToParagraphs(draft.adr.otherDetails);
   const interimRelief = htmlToParagraphs(draft.adr.interimRelief);
@@ -613,39 +609,15 @@ export function CourtDocument({ draft }: { draft: FilingDraft }) {
 
       {/* ── 4. Affidavit ── */}
       <DocSection>4. Affidavit</DocSection>
-      <DocP>
-        I am the complainant / authorised representative of the complainant in the above
-        case and am fully acquainted with the facts and circumstances of the case. I am
-        competent and authorised to swear to this affidavit.
-      </DocP>
-      {/* The reason for return is quoted from the memo, never assumed. The payment and
-          service sentences are derived from the notice — see `noticeAffidavit`. */}
-      <DocP>
-        The accused issued the above cheque in discharge of a legally enforceable debt or
-        liability. It has been dishonoured
-        {returnReason ? `, the return memo recording the reason as “${returnReason}”` : ""}.{" "}
-        {affidavit.payment} All other requirements under Section 138 of the Negotiable
-        Instruments Act, 1881 have been complied with.
-      </DocP>
-      <DocP>{affidavit.service}</DocP>
-      <DocP>
-        In accordance with Section 225 of the Bharatiya Nagarik Suraksha Sanhita, 2023, I
-        confirm that there is sufficient ground for proceeding against the accused.
-      </DocP>
-      <DocP>
-        In accordance with Section 223 and other relevant provisions of the Bharatiya
-        Nagarik Suraksha Sanhita, 2023, I confirm that the contents of this complaint are
-        true and correct to the best of my knowledge, belief and information.
-      </DocP>
-      <DocP>
-        The physical or electronic records of the documents etc. produced by me with this
-        complaint are in my lawful and proper custody and possession.
-      </DocP>
-      <DocP>
-        It is therefore humbly prayed that this Hon’ble Court may be pleased to take
-        cognizance of the offence committed by the accused, and issue process to the
-        accused.
-      </DocP>
+      {/*
+        The same text the Affidavit step shows and the filer may have edited — rendered
+        from one expression rather than regenerated here, because a sworn document that
+        disagrees with the form it came from is the worst outcome available.
+      */}
+      <div
+        className="flex flex-col gap-3 [&_p]:text-body-compact [&_p]:leading-relaxed"
+        dangerouslySetInnerHTML={{ __html: affidavitBody(draft) }}
+      />
 
       <h4 className="mt-8 text-body-compact font-semibold">Complainant</h4>
       <DocP>

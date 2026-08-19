@@ -2,7 +2,7 @@
  * The e-filing sections in order — drives the sidebar, footer navigation and progress.
  * Every draft has its own routes: `/filings/<draftId>/<segment>`. Steps marked
  * `placeholder` exist in the sidebar (as in the court form) but have no screen of their
- * own yet: the affidavit is composed on Preview and fees are paid from Sign.
+ * own yet: fees are paid from the Sign screen.
  */
 
 import type { LucideIcon } from "lucide-react";
@@ -52,7 +52,7 @@ export const FILING_STEPS: FilingStep[] = [
   { id: "adr-prayer", title: "ADR, other & prayer", group: "Case details", segment: "adr-prayer", icon: ClipboardCheckIcon },
   { id: "witnesses", title: "Witnesses", group: "Evidence", segment: "witnesses", icon: MessageCircleIcon },
   { id: "documents", title: "Documents", group: "Evidence", segment: "documents", icon: FileTextIcon },
-  { id: "affidavit", title: "Affidavit", group: "Affidavit", segment: "preview", icon: FileCheckIcon, placeholder: true },
+  { id: "affidavit", title: "Affidavit", group: "Affidavit", segment: "affidavit", icon: FileCheckIcon },
   { id: "preview", title: "Preview", group: "Preview", segment: "preview", icon: EyeIcon },
   { id: "sign", title: "Sign", group: "Sign", segment: "sign", icon: PenToolIcon },
   { id: "pay-fees", title: "Pay fees", group: "Pay fees", segment: "sign", icon: WalletIcon, placeholder: true },
@@ -79,6 +79,7 @@ export const WALK_ORDER: StepId[] = [
   "adr-prayer",
   "witnesses",
   "documents",
+  "affidavit",
   "preview",
   "sign",
 ];

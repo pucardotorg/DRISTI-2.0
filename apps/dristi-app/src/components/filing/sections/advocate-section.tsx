@@ -41,7 +41,7 @@ import {
 import { FilingFooter } from "@/components/filing/filing-footer";
 import { FilingPageHeader } from "@/components/filing/filing-page-header";
 import { FilingMain } from "@/components/filing/filing-shell";
-import { FormCard, FormRow } from "@/components/filing/form-card";
+import { FormCard, FormRow, HalfWidth } from "@/components/filing/form-card";
 import { FormField } from "@/components/filing/form-field";
 import { ComboField, TextField } from "@/components/filing/inputs";
 import { SectionNotice } from "@/components/filing/notices";
@@ -259,7 +259,9 @@ export function AdvocateSection() {
                 ) : undefined
               }
             >
-              <FormField asGroup label="Advocate for" required>
+              {/* A lone short answer takes half the card, like every other one. */}
+              <HalfWidth>
+                <FormField asGroup label="Advocate for" required>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -312,8 +314,9 @@ export function AdvocateSection() {
                       );
                     })}
                   </DropdownMenuContent>
-                </DropdownMenu>
-              </FormField>
+                  </DropdownMenu>
+                </FormField>
+              </HalfWidth>
 
               {/*
                 One question, not two. Bar number and full name are the same lookup from

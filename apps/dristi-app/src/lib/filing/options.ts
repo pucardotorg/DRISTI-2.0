@@ -185,14 +185,69 @@ export const PROCESS_TYPES: { key: string; label: string; optional: boolean }[] 
 ];
 
 /**
- * Court fee lines for an S-138 complaint in the ON Court. Amounts here are the sandbox's
- * schedule (fee computation is the court's, not the app's); the total is derived.
+ * What the court charges for an S-138 complaint.
+ *
+ * Two kinds of line, and the difference matters to the person paying. **Court fees** are
+ * due before the complaint is registered at all. **Process fees** buy the delivery of
+ * notice, summons and warrants to the accused — the court lets those be paid later, so
+ * they are billed per process and per address and can be deferred as a group.
+ *
+ * Amounts are the sandbox's schedule: fee computation belongs to the court, not to this
+ * app, and every total here is derived from these lines rather than typed in anywhere.
+ *
+ * ENGINEERING SEAM — a live deployment reads this schedule from the court's fee master.
+ * Keep the shape: the screen needs to know which lines are deferrable and which scale
+ * with the number of addresses, or it cannot state a truthful total.
  */
-export const COURT_FEE_LINES: { label: string; amount: number }[] = [
-  { label: "Court fee", amount: 100 },
-  { label: "Advocate Welfare Fund", amount: 5 },
-  { label: "Process fee (notice to accused)", amount: 60 },
+export type FeeLine = {
+  key: string;
+  label: string;
+  /** Rupees per unit — per filing, or per address when `perAddress`. */
+  amount: number;
+  /** Charged once for every address process is served at. */
+  perAddress?: boolean;
+  note?: string;
+};
+
+/** Due before the complaint is registered. */
+export const COURT_FEE_LINES: FeeLine[] = [
+  { key: "complaint", label: "Complaint fee", amount: 25 },
+  { key: "legal-benefit", label: "Legal Benefit Fund", amount: 25 },
+  { key: "advocate-welfare", label: "Advocate Welfare Fund", amount: 25 },
+  { key: "clerk-welfare", label: "Advocate Clerk Welfare Fund", amount: 25 },
+  { key: "delay-notice", label: "Court fee — delay notice", amount: 1 },
 ];
+
+/** Charged only when the complaint is filed after the one-month limitation period. */
+export const CONDONATION_FEE: FeeLine = {
+  key: "condonation",
+  label: "Application fee — condonation of delay",
+  amount: 25,
+  note: "Charged because this complaint is being filed after the limitation period.",
+};
+
+/**
+ * Delivery. Keyed to `PROCESS_TYPES` so the bill only lists what the filer actually asked
+ * the court to issue, and multiplied by the addresses process is served at.
+ */
+export const PROCESS_FEE_LINES: FeeLine[] = [
+  { key: "notice", label: "Process fee — notice", amount: 49, perAddress: true },
+  { key: "summons", label: "Process fee — summons", amount: 49, perAddress: true },
+  { key: "warrants", label: "Process fee — warrants", amount: 50, perAddress: true },
+];
+
+/**
+ * What the delivery channel itself charges — the registered-post or courier tariff the
+ * court passes on. It is a placeholder rate until e-post is integrated, which is the
+ * point at which this becomes a real per-article charge rather than a flat one.
+ */
+export const CHANNEL_FEE: FeeLine = {
+  key: "channel",
+  label: "Delivery channel fee",
+  amount: 10,
+  perAddress: true,
+  note: "Placeholder rate — set by the delivery channel once e-post is integrated.",
+};
 
 
 /* ───────────────────────────── Police stations ─────────────────────── */

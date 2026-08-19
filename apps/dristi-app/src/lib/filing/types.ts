@@ -351,8 +351,15 @@ export type SignState = {
   processTypes: string[];
   /** `${accusedId}:${addressIndex}` for each address process goes to. */
   processAddresses: string[];
+  /**
+   * Process fees deferred to later. The court allows it; the complaint is still
+   * registered, but nothing is served until they are paid.
+   */
+  deferProcessFees: boolean;
   paid: boolean;
   paidAt: string | null;
+  /** Rupees actually taken — court fees alone when process fees were deferred. */
+  paidAmount: number | null;
   paymentRef: string | null;
   caseFileNumber: string | null;
 };
@@ -381,6 +388,11 @@ export type FilingDraft = {
   jurisdiction: Jurisdiction;
   adr: AdrPrayer;
   witnesses: Witness[];
+  /**
+   * The affidavit as the filer edited it (HTML). Empty means it is still the standard
+   * text, which is composed from the case — see `affidavitBody`.
+   */
+  affidavit: string;
   documents: DocumentGroup[];
   sign: SignState;
   dismissed: DismissedNotices;

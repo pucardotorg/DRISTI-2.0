@@ -432,6 +432,7 @@ export function createBlankDraft(id: string, profile?: UserProfile | null): Fili
       finalRelief: FINAL_RELIEF_TEMPLATE,
     },
     witnesses: [blankWitness()],
+    affidavit: "",
     documents: [],
     sign: {
       mode: null,
@@ -440,8 +441,10 @@ export function createBlankDraft(id: string, profile?: UserProfile | null): Fili
       deliveryChannel: "",
       processTypes: ["notice"],
       processAddresses: [],
+      deferProcessFees: false,
       paid: false,
       paidAt: null,
+      paidAmount: null,
       paymentRef: null,
       caseFileNumber: null,
     },
@@ -490,6 +493,9 @@ export function migrateDraft(draft: FilingDraft): FilingDraft {
     c.fetched ??= false;
     c.rep.designation ??= "";
   }
+  draft.sign.deferProcessFees ??= false;
+  draft.sign.paidAmount ??= null;
+  draft.affidavit ??= "";
   draft.version = 3;
   return draft;
 }

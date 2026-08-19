@@ -288,7 +288,10 @@ export function ComplainantSection() {
   return (
     <>
       <FilingMain sourceOpen={sourceOpen}>
-        <FilingPageHeader title="Complainant details" />
+        <FilingPageHeader
+          title="Complainant details"
+          description="Who is bringing this complaint, and where the court can reach them."
+        />
 
         <SectionTabs
           tabs={complainants.map((cp, i) => ({
@@ -399,6 +402,11 @@ export function ComplainantSection() {
             </FormCard>
 
             {/* Basic details */}
+            {/*
+              Name beside age, then email — the same order the PoA holder and the
+              authorised representative are asked for further down this screen. Asking
+              for one person three ways on one screen is what made the form feel loose.
+            */}
             <FormCard title="Basic details">
               <FormRow>
                 <FormField label="Full name" required>
@@ -411,6 +419,18 @@ export function ComplainantSection() {
                     onViewSource={() => openSource("name")}
                   />
                 </FormField>
+                <FormField label="Age" required>
+                  <TextField
+                    value={c.age}
+                    onChange={(v) => setRead("age", v)}
+                    placeholder="e.g. 47"
+                    inputMode="numeric"
+                    prefilled={agePrefilled}
+                    onViewSource={() => openSource("age")}
+                  />
+                </FormField>
+              </FormRow>
+              <HalfWidth>
                 <FormField label="Email address" optional>
                   <TextField
                     type="email"
@@ -420,18 +440,6 @@ export function ComplainantSection() {
                     autoComplete="email"
                     prefilled={emailPrefilled}
                     onViewSource={() => openSource("email")}
-                  />
-                </FormField>
-              </FormRow>
-              <HalfWidth>
-                <FormField label="Age" required>
-                  <TextField
-                    value={c.age}
-                    onChange={(v) => setRead("age", v)}
-                    placeholder="e.g. 47"
-                    inputMode="numeric"
-                    prefilled={agePrefilled}
-                    onViewSource={() => openSource("age")}
                   />
                 </FormField>
               </HalfWidth>

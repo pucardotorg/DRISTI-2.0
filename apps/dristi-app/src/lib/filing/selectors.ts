@@ -1,5 +1,13 @@
 /** Derived reads over the draft — pure functions so screens and the shell agree. */
 
+import { daysBetween } from "./format";
+import {
+  CHANNEL_FEE,
+  CONDONATION_FEE,
+  COURT_FEE_LINES,
+  PROCESS_FEE_LINES,
+  PROCESS_TYPES,
+} from "./options";
 import { WALK_ORDER } from "./steps";
 import type {
   Accused,
@@ -330,4 +338,102 @@ export function firstReadField<T extends string>(
   const fields = slot?.extract?.fields;
   if (!fields) return fallback;
   return order.find((key) => fields[key]?.value) ?? fallback;
+}
+
+/* ───────────────────────────── Court fees ──────────────────────────── */
+
+export type BilledLine = {
+  key: string;
+  label: string;
+  /** Per-unit rate, as the schedule states it. */
+  rate: number;
+  /** How many units — addresses for per-address lines, otherwise 1. */
+  units: number;
+  amount: number;
+  note?: string;
+};
+
+export type FeeBill = {
+  court: BilledLine[];
+  process: BilledLine[];
+  courtTotal: number;
+  processTotal: number;
+  /** Addresses process is served at — what the per-address lines are multiplied by. */
+  addresses: number;
+  /** `true` when the filing is past the limitation period and the extra fee applies. */
+  delayed: boolean;
+};
+
+/**
+ * What this filing owes, derived — never stored.
+ *
+ * Two things make the bill specific to the draft rather than a fixed price list: whether
+ * the complaint is late (which adds the condonation application fee), and how many
+ * addresses process has to reach (which multiplies every delivery line). Both are read
+ * from the draft here so the screen can state them, because a total nobody can account
+ * for is a total nobody should be asked to pay.
+ */
+export function feeBill(draft: FilingDraft): FeeBill {
+  const delay = daysBetween(draft.jurisdiction.causeDate, draft.jurisdiction.filingDate);
+  const delayed = delay !== null && delay > 30;
+
+  const court: BilledLine[] = COURT_FEE_LINES.map((l) => ({
+    key: l.key,
+    label: l.label,
+    rate: l.amount,
+    units: 1,
+    amount: l.amount,
+    note: l.note,
+  }));
+  if (delayed) {
+    court.push({
+      key: CONDONATION_FEE.key,
+      label: CONDONATION_FEE.label,
+      rate: CONDONATION_FEE.amount,
+      units: 1,
+      amount: CONDONATION_FEE.amount,
+      note: CONDONATION_FEE.note,
+    });
+  }
+
+  // Process goes to every address chosen on the process-and-address step; before that
+  // choice is made it goes to every address on record, which is what the court assumes.
+  const onRecord = draft.accused.reduce(
+    (n, a) => n + a.addresses.filter((b) => b.addr.line1.trim()).length,
+    0
+  );
+  const chosen = draft.sign.processAddresses.length;
+  const addresses = Math.max(1, chosen || onRecord);
+
+  // Only what the filer actually asked the court to issue is billed for.
+  const issuing = new Set(
+    PROCESS_TYPES.filter(
+      (p) => !p.optional || draft.sign.processTypes.includes(p.key)
+    ).map((p) => p.key)
+  );
+
+  const process: BilledLine[] = [
+    ...PROCESS_FEE_LINES.filter((l) => issuing.has(l.key)),
+    CHANNEL_FEE,
+  ].map((l) => {
+    const units = l.perAddress ? addresses : 1;
+    return {
+      key: l.key,
+      label: l.label,
+      rate: l.amount,
+      units,
+      amount: l.amount * units,
+      note: l.note,
+    };
+  });
+
+  const sum = (rows: BilledLine[]) => rows.reduce((t, r) => t + r.amount, 0);
+  return {
+    court,
+    process,
+    courtTotal: sum(court),
+    processTotal: sum(process),
+    addresses,
+    delayed,
+  };
 }
