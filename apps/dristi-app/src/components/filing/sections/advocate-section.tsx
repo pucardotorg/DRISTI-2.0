@@ -3,12 +3,13 @@
 /**
  * Advocate details — the advocates on the Vakalatnama, and which complainant each acts for.
  *
- * The bar number leads and the name follows from it: typing the registration number
- * searches the register (`lib/filing/registry.ts` — a stand-in for the real one) and
- * picking a row fills the name, so the name that reaches the Vakalatnama is the
- * register's spelling rather than a re-keying of it. A number the register does not hold
- * is still accepted. An advocate filing for themselves can fill their own row from their
- * profile in one click, and the panel beside the form reads the uploaded Vakalatnama.
+ * An advocate is found once, not described twice: one search box takes either a name or
+ * a bar number and looks both up in the register (`lib/filing/registry.ts` — a stand-in
+ * for the real one). What it finds is then shown as a result — name, number and bar
+ * council — so the spelling that reaches the Vakalatnama is the register's rather than a
+ * re-keying of it. An advocate the register does not list is entered by hand instead, one
+ * click away. An advocate filing for themselves can fill their own row from their profile
+ * in one click, and the panel beside the form reads the uploaded Vakalatnama.
  */
 
 import * as React from "react";
@@ -84,9 +85,12 @@ export function AdvocateSection() {
   const [sourceOpen, setSourceOpen] = useSourceOpenState();
 
   /**
-   * The rows the bar-number field offers. `searchAdvocates` is the seam a real registry
-   * call replaces, so it is loaded rather than imported as a constant — the screen
-   * already copes with the list arriving after the first render.
+   * The rows the register field offers, live-searched as the person types — in either
+   * the bar number box or the name box, since either one is a real way to search for an
+   * advocate and the register is keyed on neither exclusively. `searchAdvocates` already
+   * matches on both; what changed is that the screen now asks it again on every
+   * keystroke instead of filtering one list fetched at mount, which used to leave rows
+   * past the first page unreachable no matter what was typed.
    */
   const [register, setRegister] = React.useState<RegisteredAdvocate[]>([]);
   React.useEffect(() => {
@@ -98,6 +102,28 @@ export function AdvocateSection() {
       live = false;
     };
   }, []);
+  const searchRegister = React.useCallback((query: string) => {
+    void searchAdvocates(query).then(setRegister);
+  }, []);
+
+  /**
+   * What is typed into the search box, per advocate row. It is not the advocate's name:
+   * searching and having-found are different states, and conflating them is what made
+   * the field look like two boxes for one answer.
+   */
+  const [queries, setQueries] = React.useState<Record<string, string>>({});
+  const setQuery = (id: string, value: string) =>
+    setQueries((q) => ({ ...q, [id]: value }));
+
+  /** Rows the person chose to fill by hand because the register does not list them. */
+  const [manualIds, setManualIds] = React.useState<ReadonlySet<string>>(new Set());
+  const setManual = (id: string, on: boolean) =>
+    setManualIds((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
 
   // One Vakalatnama is uploaded per complainant; show the one belonging to the complainant
   // the first advocate acts for (clamped, since indices survive a complainant's removal).
@@ -198,9 +224,8 @@ export function AdvocateSection() {
               })
             }
           >
-            The advocate must be registered on the court portal. Search by bar number —
-            if it is not on the register, type it and the name as they appear on the
-            Vakalatnama.
+            The advocate must be registered on the court portal. Search by name or bar
+            number; if they are not on the register, enter the details by hand.
           </SectionNotice>
         )}
 
@@ -208,6 +233,8 @@ export function AdvocateSection() {
           // Indices are kept even if a complainant is removed or turns party-in-person;
           // only the ones an advocate may still act for count as selected.
           const selected = a.forComplainants.filter((k) => represented.includes(k));
+          // A row filled from the register — the source of truth for "already found".
+          const onRegister = findAdvocate(a.barNumber);
           const allSelected =
             represented.length > 0 && selected.length === represented.length;
           // "All complainants" is only true when none were held back for appearing in
@@ -289,63 +316,130 @@ export function AdvocateSection() {
               </FormField>
 
               {/*
-                Number first, name second: the registration number is the thing an
-                advocate knows by heart and the thing the register is keyed on, so it
-                leads and the name follows from it. Typing it searches the register;
-                picking a row fills the name. A number the register does not hold is
-                still accepted — the register is not the last word on who is enrolled.
+                One question, not two. Bar number and full name are the same lookup from
+                two directions — offering both as searchable fields put the identical
+                register behind two boxes and reported "found on the register" twice for
+                one advocate (owner, 2026-08-19). So: search once, by whichever you have,
+                and what you found is shown as a result rather than re-offered as fields
+                to fill in. The register is still not the last word on who is enrolled, so
+                entering an unlisted advocate by hand stays one click away.
               */}
-              <FormRow>
-                <FormField
-                  label="Bar registration number"
-                  required
-                  help={
-                    findAdvocate(a.barNumber) ? (
-                      <span className="inline-flex items-center gap-1 font-medium text-success-ink">
-                        <CheckIcon className="size-4" aria-hidden />
-                        Found on the bar register
-                      </span>
-                    ) : undefined
-                  }
-                >
-                  <ComboField
-                    value={a.barNumber}
-                    onChange={(v: string) => setField(i, "barNumber", v)}
-                    items={register}
-                    onSelect={(item) => {
-                      const adv = item as RegisteredAdvocate;
-                      update((d) => {
-                        d.advocates[i].barNumber = adv.barNumber;
-                        d.advocates[i].name = adv.name;
-                      });
-                    }}
-                    itemKey={(item) => (item as RegisteredAdvocate).barNumber}
-                    itemLabel={(item) => (item as RegisteredAdvocate).barNumber}
-                    renderItem={(item) => {
-                      const adv = item as RegisteredAdvocate;
-                      return (
-                        <span className="flex min-w-0 flex-col">
-                          <span className="truncate font-medium">{adv.barNumber}</span>
-                          <span className="truncate text-caption text-muted-foreground">
-                            {adv.name} · {adv.bar}
+              {onRegister ? (
+                <FormField asGroup label="Advocate" required>
+                  <div className="flex items-start gap-3 rounded-lg bg-surface-sunken p-4">
+                    <span
+                      aria-hidden
+                      className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-success-muted text-success-muted-foreground"
+                    >
+                      <CheckIcon className="size-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-body font-semibold text-foreground">
+                        {onRegister.name}
+                      </p>
+                      <p className="truncate text-caption text-muted-foreground">
+                        <span className="tabular-nums">{onRegister.barNumber}</span> ·{" "}
+                        {onRegister.bar}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Change advocate ${i + 1}`}
+                      onClick={() => {
+                        setQuery(a.id, "");
+                        update((d) => {
+                          d.advocates[i].barNumber = "";
+                          d.advocates[i].name = "";
+                        });
+                      }}
+                    >
+                      Change
+                    </Button>
+                  </div>
+                </FormField>
+              ) : manualIds.has(a.id) ? (
+                <>
+                  <FormRow>
+                    <FormField label="Full name" required>
+                      <TextField
+                        value={a.name}
+                        onChange={(v) => setField(i, "name", v)}
+                        placeholder="As signed on the Vakalatnama"
+                        autoComplete="off"
+                      />
+                    </FormField>
+                    <FormField label="Bar registration number" required>
+                      <TextField
+                        value={a.barNumber}
+                        onChange={(v) => setField(i, "barNumber", v)}
+                        placeholder="e.g. K/1204/2011"
+                        autoComplete="off"
+                      />
+                    </FormField>
+                  </FormRow>
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="h-auto w-fit p-0 underline"
+                    onClick={() => setManual(a.id, false)}
+                  >
+                    Search the register instead
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <FormField
+                    label="Advocate"
+                    required
+                    help="Search by name or bar registration number — whichever you have."
+                  >
+                    <ComboField
+                      value={queries[a.id] ?? ""}
+                      onChange={(v: string) => {
+                        setQuery(a.id, v);
+                        searchRegister(v);
+                      }}
+                      items={register}
+                      filter={null}
+                      onSelect={(item) => {
+                        const adv = item as RegisteredAdvocate;
+                        setQuery(a.id, "");
+                        update((d) => {
+                          d.advocates[i].barNumber = adv.barNumber;
+                          d.advocates[i].name = adv.name;
+                        });
+                      }}
+                      itemKey={(item) => (item as RegisteredAdvocate).barNumber}
+                      itemLabel={(item) => (item as RegisteredAdvocate).name}
+                      renderItem={(item) => {
+                        const adv = item as RegisteredAdvocate;
+                        return (
+                          <span className="flex min-w-0 flex-col">
+                            <span className="truncate font-medium">{adv.name}</span>
+                            <span className="truncate text-caption text-muted-foreground">
+                              <span className="tabular-nums">{adv.barNumber}</span> ·{" "}
+                              {adv.bar}
+                            </span>
                           </span>
-                        </span>
-                      );
-                    }}
-                    placeholder="e.g. K/1204/2011"
-                    emptyLabel="Not on the register — the number you typed is kept."
-                    ariaLabel="Bar registration number"
-                  />
-                </FormField>
-                <FormField label="Full name" required>
-                  <TextField
-                    value={a.name}
-                    onChange={(v) => setField(i, "name", v)}
-                    placeholder="As signed on the Vakalatnama"
-                    autoComplete="off"
-                  />
-                </FormField>
-              </FormRow>
+                        );
+                      }}
+                      placeholder="Search the bar register"
+                      emptyLabel="No match on the register."
+                      ariaLabel="Search the bar register"
+                    />
+                  </FormField>
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="h-auto w-fit p-0 underline"
+                    onClick={() => setManual(a.id, true)}
+                  >
+                    Not on the register? Enter the details by hand
+                  </Button>
+                </>
+              )}
 
               {canUseProfile ? (
                 <Button

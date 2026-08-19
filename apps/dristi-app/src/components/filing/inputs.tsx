@@ -172,6 +172,15 @@ export function ComboField({
   renderItem,
   itemKey = (item) => String(item),
   itemLabel = (item) => String(item),
+  /**
+   * `undefined` (default) leaves Base UI's own matching in place — it checks the typed
+   * text against `itemToStringLabel`, which is right for a field with one thing to match
+   * on (a police station's name). `null` turns internal matching off entirely: use this
+   * when `items` already *is* the matched set, e.g. handed down from an async search that
+   * matched on more than the one string this field displays (a name search that has to
+   * find rows by registration number too, or the reverse).
+   */
+  filter,
   disabled,
   ariaLabel,
   id,
@@ -186,6 +195,7 @@ export function ComboField({
   renderItem?: (item: unknown) => React.ReactNode;
   itemKey?: (item: unknown) => string;
   itemLabel?: (item: unknown) => string;
+  filter?: null;
   disabled?: boolean;
   ariaLabel?: string;
   id?: string;
@@ -194,6 +204,7 @@ export function ComboField({
     <Combobox
       items={items as unknown[]}
       itemToStringLabel={(item) => itemLabel(item)}
+      filter={filter}
       inputValue={value}
       onInputValueChange={(text) => onChange(text)}
       onValueChange={(item) => {

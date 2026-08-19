@@ -8,6 +8,11 @@
  * the width the rail needed, which left Sign the one screen you could not navigate out of
  * the way the rest of the flow had taught you.
  *
+ * Committing to a mode is its own step, not a click on the rail: the rail carries one
+ * "Continue to sign" button, which opens a dialog naming both paths and what each one
+ * does to the *other* signatories — before either is clickable, not after. Nothing here
+ * is a private action; every party on the complaint signs the one way that was chosen.
+ *
  * The paying half of the flow lives here too: fees → process and address → payment →
  * the case file number. The document itself is the shared court sheet Preview renders.
  *
@@ -23,10 +28,10 @@ import { useRouter } from "next/navigation";
 import {
   CheckIcon,
   ChevronDownIcon,
+  ChevronRightIcon,
   ChevronUpIcon,
   CopyIcon,
   FileTextIcon,
-  InfoIcon,
   PrinterIcon,
   SignatureIcon,
   UploadIcon,
@@ -64,12 +69,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Field,
   FieldContent,
@@ -262,6 +261,8 @@ export function SignSection() {
   const allSigned = everyone.length > 0 && everyone.every((s) => s.status === "signed");
   const anySigned = everyone.some((s) => s.status === "signed");
   const pending = everyone.filter((s) => s.status === "pending").length;
+  /** Everyone the E-Sign path hands a link to, once "you" have signed your own rows. */
+  const otherSigners = Math.max(0, everyone.length - yous.length);
 
   /**
    * Every signature on this screen belongs to *this* version of the complaint. Going back
@@ -530,16 +531,7 @@ export function SignSection() {
         <h2 className="text-body font-semibold">
           {allSigned ? "Signing complete" : "Add your signature"}
         </h2>
-        {allSigned ? (
-          <p className="text-body-compact text-muted-foreground">
-            Nothing further is needed from the parties.
-          </p>
-        ) : you ? (
-          <p className="text-body-compact text-muted-foreground">
-            Signing as <strong className="font-semibold text-foreground">{you.name}</strong>{" "}
-            ({you.role}).
-          </p>
-        ) : (
+        {you ? null : (
           <p className="text-body-compact text-muted-foreground">
             Add a complainant or an advocate before signing.
           </p>
@@ -548,16 +540,10 @@ export function SignSection() {
 
       {allSigned ? (
         <>
-          <SectionNotice
-            variant="success"
-            announce="polite"
-            title={
-              sign.mode === "upload" ? "Signed copy received" : "All signatures collected"
-            }
-          >
+          <SectionNotice variant="success" announce="polite">
             {sign.mode === "upload"
-              ? "The copy you uploaded carries every party’s signature, so there is nothing left to sign here."
-              : "Every party on this complaint has signed."}
+              ? "The uploaded copy carries every signature."
+              : "Every party has signed."}
           </SectionNotice>
           {sign.mode === "upload" ? (
             <Button
@@ -573,53 +559,26 @@ export function SignSection() {
         </>
       ) : youSigned ? (
         <SectionNotice variant="success" announce="polite" title="You have signed">
-          Your signature is recorded. {pending} more{" "}
-          {pending === 1 ? "party has" : "parties have"} to sign before the complaint can
-          be filed.
+          {pending === 1 ? "One more party" : `${pending} more parties`} still to sign.
         </SectionNotice>
       ) : (
-        <>
-          <Button
-            type="button"
-            size="lg"
-            className="w-full"
-            disabled={!you}
-            onClick={() => {
-              setOtp("");
-              setModal("esign");
-            }}
-          >
-            <SignatureIcon data-icon="inline-start" aria-hidden />
-            E-Sign with Aadhaar OTP
-          </Button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button type="button" variant="ghost" className="w-full" disabled={!you}>
-                Sign another way
-                <ChevronDownIcon data-icon="inline-end" aria-hidden />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onSelect={() => setModal("upload")}>
-                <UploadIcon aria-hidden />
-                Upload signed copy
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setModal("choose")}>
-                <InfoIcon aria-hidden />
-                Choose mode of signing
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </>
-      )}
-
-      {allSigned ? null : (
-        <SectionNotice variant="neutral">
-          All parties must sign using the{" "}
-          <strong className="font-semibold text-foreground">same mode</strong>. E-Sign
-          requires each signatory’s Aadhaar-linked mobile number.
-        </SectionNotice>
+        /*
+         * One CTA, not a button plus a dropdown of two more choices — the previous
+         * shape put "how will this be signed" and "sign now" in the same click, which
+         * is why it read as a personal action. The commitment itself, and what it means
+         * for the *other* signatories, belongs in its own step (owner, 2026-08-19): see
+         * the "How will this complaint be signed?" dialog below.
+         */
+        <Button
+          type="button"
+          size="lg"
+          className="w-full"
+          disabled={!you}
+          onClick={() => setModal("choose")}
+        >
+          <SignatureIcon data-icon="inline-start" aria-hidden />
+          Continue to sign
+        </Button>
       )}
     </div>
   );
@@ -653,12 +612,6 @@ export function SignSection() {
             filed
               ? `Filed in the ${COURT.name} under S-138, Negotiable Instruments Act.`
               : `You are filing a criminal complaint under S-138, Negotiable Instruments Act in the ${COURT.name}.`
-          }
-          actions={
-            <Button type="button" variant="outline" size="sm" onClick={printFile}>
-              <PrinterIcon data-icon="inline-start" aria-hidden />
-              Print or save as PDF
-            </Button>
           }
         />
 
@@ -712,7 +665,9 @@ export function SignSection() {
             if (!guardLeaving(backHref)) router.push(backHref);
           }}
           continueLabel="Continue to pay fees"
-          continueVariant={allSigned ? "default" : "outline"}
+          // Nothing to pay for until the sheet is signed, so the step's one real action
+          // stays dead until it is — and then it is the focal teal, as on every other step.
+          continueDisabled={!allSigned}
           showSaveState={false}
           onContinue={() => setModal("payment")}
           extra={
@@ -724,44 +679,96 @@ export function SignSection() {
         />
       )}
 
-      {/* ── Choose mode of signing ── */}
+      {/*
+        ── How will this complaint be signed? ──
+        The commitment point. Neither path is one person's action — E-Sign hands the
+        rest of the parties a link the moment you pick it, and an uploaded copy is only
+        accepted once it already carries every signature — so both options say who else
+        it reaches before either one is clickable, not after (owner, 2026-08-19).
+      */}
       <Dialog open={modal === "choose"} onOpenChange={(open) => !open && closeModal()}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Choose mode of signing</DialogTitle>
+            <DialogTitle>How will this complaint be signed?</DialogTitle>
             <DialogDescription>
-              All parties must use the same mode of signing.
+              {everyone.length > 1
+                ? `All ${everyone.length} signatories sign the same way.`
+                : "Choose how this complaint is signed."}
             </DialogDescription>
           </DialogHeader>
-          <p className="text-body-compact">
-            If E-Sign is selected, all parties must sign using their{" "}
-            <strong className="font-semibold">Aadhaar-linked mobile number</strong>.
-          </p>
-          <p className="flex flex-wrap items-center gap-1 text-body-compact">
-            Need the complaint to sign on paper?
-            <Button
-              type="button"
-              variant="link"
-              className="h-auto p-0 underline"
-              onClick={printFile}
-            >
-              Print or save as PDF
-            </Button>
-          </p>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setModal("upload")}>
-              Upload signed copy
-            </Button>
-            <Button
+
+          <div className="flex flex-col gap-3">
+            <button
               type="button"
               onClick={() => {
                 setOtp("");
                 setModal("esign");
               }}
+              className="group flex w-full items-start gap-4 rounded-xl border border-border p-4 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             >
-              E-Sign
+              <span
+                aria-hidden
+                className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-info-muted text-info-muted-foreground"
+              >
+                <SignatureIcon className="size-5" />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="text-body font-semibold text-foreground">
+                  E-Sign with Aadhaar OTP
+                </span>
+                <span className="text-body-compact text-muted-foreground">
+                  You sign now.{" "}
+                  {otherSigners === 1
+                    ? "The other party gets"
+                    : `The other ${otherSigners} parties get`}{" "}
+                  a link to sign the same way.
+                </span>
+              </span>
+              <ChevronRightIcon
+                aria-hidden
+                className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+              />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setModal("upload")}
+              className="group flex w-full items-start gap-4 rounded-xl border border-border p-4 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <span
+                aria-hidden
+                className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-warning-muted text-warning-muted-foreground"
+              >
+                <UploadIcon className="size-5" />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="text-body font-semibold text-foreground">
+                  Upload a signed copy
+                </span>
+                <span className="text-body-compact text-muted-foreground">
+                  One file that already carries{" "}
+                  {everyone.length > 1 ? `all ${everyone.length} signatures` : "the signature"}
+                  , on paper or by DSC.
+                </span>
+              </span>
+              <ChevronRightIcon
+                aria-hidden
+                className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+              />
+            </button>
+          </div>
+
+          <p className="flex flex-wrap items-center gap-1 text-caption text-muted-foreground">
+            Nothing is filed until every signature is in.
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto p-0 text-caption underline"
+              onClick={printFile}
+            >
+              Print or save as PDF
             </Button>
-          </DialogFooter>
+          </p>
         </DialogContent>
       </Dialog>
 
@@ -786,9 +793,13 @@ export function SignSection() {
             </DialogDescription>
           </DialogHeader>
 
-          <SectionNotice variant="neutral">
-            Each other party will need to sign too.
-          </SectionNotice>
+          {otherSigners > 0 ? (
+            <SectionNotice variant="neutral">
+              {otherSigners === 1
+                ? "The other party will get a link to sign too, once you have."
+                : `The other ${otherSigners} parties will get a link to sign too, once you have.`}
+            </SectionNotice>
+          ) : null}
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="esign-otp" className="text-body-compact">
