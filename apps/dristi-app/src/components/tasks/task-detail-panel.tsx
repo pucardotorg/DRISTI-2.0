@@ -4,18 +4,10 @@ import * as React from "react";
 import { type ElementType, type ReactNode } from "react";
 import { FileTextIcon, XIcon } from "lucide-react";
 
-import {
-  blockingCueOf,
-  dateTime,
-  dueCueOf,
-  longDate,
-  permissionLineOf,
-  rupees,
-  shortDate,
-} from "@/lib/tasks/format";
-import { canApprove, canMarkDone, PAGED_KINDS, verbFor } from "@/lib/tasks/permissions";
+import { dateTime, dueCueOf, longDate, nameOf, noteOf, permissionLineOf, rupees, shortDate, statusPhraseOf } from "@/lib/tasks/format";
+import { advocatesOf, canMarkDone, PAGED_KINDS, TERMINAL, verbFor, WAITING } from "@/lib/tasks/permissions";
 import { formatBytes } from "@/lib/tasks/data";
-import type { Case, Person, PersonId, Task, Verb } from "@/lib/tasks/types";
+import type { Case, Person, Task, Verb } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
 import { useIsDesktop } from "@/hooks/use-min-width";
 import { Button } from "@/components/ui/button";
@@ -25,29 +17,11 @@ import {
   DescriptionRow,
   DescriptionTerm,
 } from "@/components/ui/description-list";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
-import { Label } from "@/components/ui/label";
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { Textarea } from "@/components/ui/textarea";
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { Timeline, TimelineItem } from "@/components/ui/timeline";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/shell/confirm-dialog";
 import { PersonAvatar } from "@/components/tasks/person-avatar";
-import { ReassignSelect } from "@/components/tasks/reassign-select";
 
 function Fact({ label, children, mono }: { label: string; children: ReactNode; mono?: boolean }) {
   return (
@@ -71,6 +45,23 @@ function Block({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
+function FileList({ files }: { files: Task["files"] }) {
+  if (!files?.length) return null;
+  return (
+    <ul className="flex flex-col gap-1">
+      {files.map((f) => (
+        <li key={f.id} className="flex items-center gap-2 rounded-lg bg-surface-sunken px-3 py-2 text-body-compact">
+          <FileTextIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+          <span className="min-w-0 flex-1 truncate">{f.name}</span>
+          <span className="text-caption text-muted-foreground">
+            {f.ext} · {formatBytes(f.size)}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export type TaskDetailProps = {
   task: Task;
   kase: Case;
@@ -81,9 +72,6 @@ export type TaskDetailProps = {
   busy: boolean;
   onVerb: (verb: Verb) => void;
   onMarkDone: () => void;
-  onWithdraw: () => void;
-  onSendBack: (note: string) => void;
-  onReassign: (assigneeId: PersonId | undefined) => void;
 };
 
 /**
@@ -102,9 +90,6 @@ function TaskDetail({
   close,
   onVerb,
   onMarkDone,
-  onWithdraw,
-  onSendBack,
-  onReassign,
   Title = "h2",
   Description = "p",
 }: TaskDetailProps & {
@@ -114,34 +99,32 @@ function TaskDetail({
 }) {
   const verb = verbFor(user, task, kase);
   const due = dueCueOf(task, now);
-  const blocking = blockingCueOf(task, now);
-  const closed = ["done", "expired", "obsolete"].includes(task.status);
-  const approver = canApprove(user, task, kase);
+  const closed = TERMINAL.has(task.status);
+  const waiting = WAITING.has(task.status);
   const markDone = canMarkDone(user, task, kase);
-  const nameOf = (id?: PersonId) => people.find((p) => p.id === id)?.name ?? "someone";
+  const paged = PAGED_KINDS.has(task.kind);
+  const advocates = advocatesOf(kase, people);
 
   const [confirmDone, setConfirmDone] = React.useState(false);
-  const [sendBackOpen, setSendBackOpen] = React.useState(false);
-  const [note, setNote] = React.useState("");
 
-  // The one primary action — a finalising or preparing verb, or nothing. Withdraw is a
-  // step back, so it stays outline. Waiting and closed tasks of a paged kind still open
-  // their page — that is where the sandbox court/gateway controls and the receipt live.
-  const paged = PAGED_KINDS.has(task.kind);
+  // The one primary action of the view. Waiting and closed tasks of a paged kind still
+  // open their page — that is where the sandbox court/gateway controls and the record
+  // live — but as a quiet secondary, not the teal verb.
   let primary: { label: string; run: () => void } | null = null;
   let secondary: { label: string; run: () => void } | null = null;
   if (verb === "Mark done") {
     primary = { label: "Mark done", run: () => (task.isBlocking ? setConfirmDone(true) : onMarkDone()) };
-  } else if (verb === "Withdraw") {
-    secondary = { label: "Withdraw", run: onWithdraw };
   } else if (verb !== "View") {
     primary = { label: verb, run: () => onVerb(verb) };
-  } else if (paged && !closed) {
-    primary = { label: "Open", run: () => onVerb("View") };
+  } else if (paged && waiting) {
+    secondary = { label: "Open", run: () => onVerb("View") };
+  } else if (paged && closed) {
+    secondary = { label: "View record", run: () => onVerb("View") };
   }
-  const record = closed && paged ? { label: "View record", run: () => onVerb("View") } : null;
 
   const history = [...task.history].reverse();
+  const preparedBy = task.status === "ready" ? task.prepared : null;
+  const draftBy = task.status === "draft" ? task.draft : null;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -175,39 +158,50 @@ function TaskDetail({
           <span className={cn("tabular-nums", due.overdue ? "font-medium text-destructive-ink" : "text-muted-foreground")}>
             {due.text}
           </span>
-          {blocking ? <span className="text-brand-muted-foreground">{blocking}</span> : null}
-          {task.statusNote && task.status !== "sent-back" ? (
-            <span className="text-muted-foreground">{task.statusNote}</span>
-          ) : null}
+          <span className="text-muted-foreground">{statusPhraseOf(task, user, kase, people)}</span>
+          {noteOf(task) ? <span className="text-muted-foreground">{noteOf(task)}</span> : null}
         </p>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-4 py-6 md:px-6">
-        {/* Sent-back note first — it is what the person came for. */}
-        {task.status === "sent-back" && task.approval?.decisionNote ? (
-          <div className="flex flex-col gap-1 rounded-lg bg-surface-sunken p-4">
-            <p className="text-caption font-semibold text-muted-foreground">
-              Sent back by {nameOf(task.approval.decidedBy)}
-              {task.approval.decidedAt ? ` · ${shortDate(task.approval.decidedAt)}` : ""}
-            </p>
-            <p className="text-body-compact">{task.approval.decisionNote}</p>
-          </div>
-        ) : null}
-
-        <Block title="Permission">
+        <Block title="Who can act">
           <p className="text-body-compact">{permissionLineOf(task, user, kase, people)}</p>
         </Block>
 
-        {task.status === "awaiting-approval" && task.approval ? (
-          <Block title={approver ? "Prepared for you" : "Sent for approval"}>
-            <div className="flex flex-col gap-1 rounded-lg bg-surface-sunken p-4">
-              <p className="text-caption font-semibold text-muted-foreground">
-                {nameOf(task.approval.preparedBy)}
-                {task.approval.sentAt ? ` · ${dateTime(task.approval.sentAt)}` : ""}
-              </p>
+        {preparedBy ? (
+          <Block title="Prepared by">
+            <div className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-4">
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const p = people.find((x) => x.id === preparedBy.by);
+                  return p ? <PersonAvatar person={p} you={p.id === user.id} /> : null;
+                })()}
+                <p className="text-caption font-semibold text-muted-foreground">
+                  {nameOf(people, preparedBy.by)} · {dateTime(preparedBy.at)}
+                </p>
+              </div>
               <p className="text-body-compact">
-                {task.approval.note || <span className="text-muted-foreground">No note.</span>}
+                {preparedBy.note || <span className="text-muted-foreground">No note.</span>}
               </p>
+              <FileList files={preparedBy.files ?? task.files} />
+            </div>
+          </Block>
+        ) : null}
+
+        {draftBy ? (
+          <Block title="Draft">
+            <div className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-4">
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const p = people.find((x) => x.id === draftBy.by);
+                  return p ? <PersonAvatar person={p} you={p.id === user.id} /> : null;
+                })()}
+                <p className="text-caption font-semibold text-muted-foreground">
+                  {draftBy.by === user.id ? "You" : nameOf(people, draftBy.by)} saved it · {dateTime(draftBy.savedAt)}
+                </p>
+              </div>
+              {draftBy.note ? <p className="text-body-compact">{draftBy.note}</p> : null}
+              <FileList files={task.files} />
             </div>
           </Block>
         ) : null}
@@ -238,10 +232,10 @@ function TaskDetail({
           </Block>
         ) : null}
 
-        {task.defects?.length ? (
-          <Block title="Defects">
+        {task.returned?.defects.length ? (
+          <Block title="Defects from scrutiny">
             <ol className="flex flex-col gap-2">
-              {task.defects.map((d) => (
+              {task.returned.defects.map((d) => (
                 <li key={d.n} className="flex gap-2 text-body-compact">
                   <span className="font-medium tabular-nums text-muted-foreground">{d.n}.</span>
                   <span className={cn(d.fixed && "text-muted-foreground line-through")}>{d.text}</span>
@@ -276,15 +270,18 @@ function TaskDetail({
                 <span className="text-muted-foreground">No date set — the court did not fix one</span>
               )}
             </Fact>
-            {task.blocksHearingAt ? (
-              <Fact label="Blocks">
-                <span className="tabular-nums">Hearing on {dateTime(task.blocksHearingAt)}</span>
+            {task.hearingAt ? (
+              <Fact label="Hearing">
+                <span className="tabular-nums">{dateTime(task.hearingAt)}</span>
+                {task.isBlocking ? (
+                  <span className="block text-caption text-muted-foreground">The hearing cannot proceed without this</span>
+                ) : null}
               </Fact>
             ) : null}
             {task.completion ? (
               <Fact label={task.completion.how === "manual" ? "Marked done" : "Closed"}>
                 <span className="tabular-nums">{dateTime(task.completion.at)}</span>
-                {task.completion.by ? <span className="text-muted-foreground"> · {nameOf(task.completion.by)}</span> : null}
+                {task.completion.by ? <span className="text-muted-foreground"> · {nameOf(people, task.completion.by)}</span> : null}
                 {task.completion.receipt ? (
                   <span className="block font-mono text-caption tabular-nums text-muted-foreground">
                     Receipt {task.completion.receipt}
@@ -314,37 +311,29 @@ function TaskDetail({
           </DescriptionList>
         </Block>
 
-        <Block title="Assigned to">
-          <div className="flex items-center gap-3">
-            <Label htmlFor="detail-assignee" className="sr-only">
-              Assigned to
-            </Label>
-            <ReassignSelect
-              id="detail-assignee"
-              value={task.assigneeId && people.some((p) => p.id === task.assigneeId) ? task.assigneeId : undefined}
-              kase={kase}
-              people={people}
-              user={user}
-              disabled={offline || closed || busy}
-              onChange={onReassign}
-              className="w-full max-w-64"
-            />
-          </div>
-        </Block>
-
-        {task.files?.length ? (
-          <Block title="Files">
-            <ul className="flex flex-col gap-1">
-              {task.files.map((f) => (
-                <li key={f.id} className="flex items-center gap-2 rounded-lg bg-surface-sunken px-3 py-2 text-body-compact">
-                  <FileTextIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate">{f.name}</span>
+        <Block title="Advocates on the case">
+          <ul className="flex flex-col gap-2">
+            {advocates.map((p, i) => {
+              const signatory = i < kase.signatories.length;
+              return (
+                <li key={p.id} className="flex items-center gap-3 text-body-compact">
+                  <PersonAvatar person={p} you={p.id === user.id} />
+                  <span className="min-w-0 flex-1">
+                    {p.name}
+                    {p.id === user.id ? <span className="text-muted-foreground"> (you)</span> : null}
+                  </span>
                   <span className="text-caption text-muted-foreground">
-                    {f.ext} · {formatBytes(f.size)}
+                    {i === 0 ? "Main advocate · on the vakalatnama" : signatory ? "On the vakalatnama" : "On the case"}
                   </span>
                 </li>
-              ))}
-            </ul>
+              );
+            })}
+          </ul>
+        </Block>
+
+        {!preparedBy && !draftBy && task.files?.length ? (
+          <Block title="Files">
+            <FileList files={task.files} />
           </Block>
         ) : null}
 
@@ -373,8 +362,8 @@ function TaskDetail({
         </Block>
       </div>
 
-      {/* Actions: the ONE teal action of the view is here; the list's row verbs are outline. */}
-      {primary || secondary || record || markDone || approver ? (
+      {/* Actions: the ONE teal action of the view is here; the table's row verbs are outline. */}
+      {primary || secondary || (markDone && verb !== "Mark done") ? (
         <div className="flex flex-wrap items-center gap-2 border-t border-hairline px-4 py-3 md:px-6">
           {primary ? (
             offline ? (
@@ -393,13 +382,8 @@ function TaskDetail({
             )
           ) : null}
           {secondary ? (
-            <Button variant="outline" disabled={offline || busy} onClick={secondary.run}>
+            <Button variant="outline" onClick={secondary.run}>
               {secondary.label}
-            </Button>
-          ) : null}
-          {record ? (
-            <Button variant="ghost" onClick={record.run}>
-              {record.label}
             </Button>
           ) : null}
           {markDone && verb !== "Mark done" ? (
@@ -411,11 +395,6 @@ function TaskDetail({
               Mark done
             </Button>
           ) : null}
-          {approver ? (
-            <Button variant="ghost" disabled={offline || busy} onClick={() => setSendBackOpen(true)}>
-              Send back
-            </Button>
-          ) : null}
         </div>
       ) : null}
 
@@ -423,7 +402,7 @@ function TaskDetail({
         open={confirmDone}
         onOpenChange={setConfirmDone}
         title="Mark this done?"
-        description={`This task blocks the hearing on ${task.blocksHearingAt ? shortDate(task.blocksHearingAt) : "the next posting"}. Marking it done says the work is finished; nothing is sent to the court.`}
+        description={`This task is for the hearing on ${task.hearingAt ? shortDate(task.hearingAt) : "the next posting"}. Marking it done says it has happened; nothing is sent to the court.`}
         confirmLabel="Mark done"
         destructive={false}
         onConfirm={() => {
@@ -431,44 +410,6 @@ function TaskDetail({
           onMarkDone();
         }}
       />
-
-      <Dialog open={sendBackOpen} onOpenChange={setSendBackOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Send back to {nameOf(task.approval?.preparedBy)}</DialogTitle>
-            <DialogDescription>
-              Say what needs to change. The task returns to the top of their list with your note.
-            </DialogDescription>
-          </DialogHeader>
-          <Field>
-            <FieldLabel htmlFor="send-back-note">Note</FieldLabel>
-            <Textarea
-              id="send-back-note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={4}
-              placeholder="What needs to change before you will sign"
-              required
-            />
-            <FieldDescription>Required — a send-back without a reason helps nobody.</FieldDescription>
-          </Field>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setSendBackOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={!note.trim() || busy}
-              onClick={() => {
-                onSendBack(note.trim());
-                setNote("");
-                setSendBackOpen(false);
-              }}
-            >
-              Send back
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -476,9 +417,9 @@ function TaskDetail({
 /**
  * Task detail.
  *
- * From `lg` up it is an in-flow, non-modal panel that pushes the list left: no scrim, no
- * focus trap, the list stays live — so clicking another row swaps this content in place.
- * Below `lg` the list has no width to give and the detail falls back to the Sheet
+ * From `lg` up it is an in-flow, non-modal panel that pushes the table left: no scrim, no
+ * focus trap, the table stays live — so clicking another row swaps this content in place.
+ * Below `lg` the table has no width to give and the detail falls back to the Sheet
  * overlay, full width on a phone.
  */
 export function TaskDetailPanel({
@@ -514,11 +455,11 @@ export function TaskDetailPanel({
         aria-label="Task detail"
         className={cn(
           "sticky top-14 h-[calc(100svh-3.5rem)] shrink-0 overflow-hidden border-l border-hairline bg-card transition-[width] duration-200 ease-out",
-          open ? "w-md xl:w-lg" : "w-0 border-l-0"
+          open ? "w-md 2xl:w-lg" : "w-0 border-l-0"
         )}
       >
         {/* Held at the open width so the content does not reflow mid-slide. */}
-        <div className="flex h-full w-md flex-col xl:w-lg">
+        <div className="flex h-full w-md flex-col 2xl:w-lg">
           {task && kase ? (
             <TaskDetail
               key={task.id}

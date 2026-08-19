@@ -2,80 +2,108 @@
 
 The pending-tasks area (`/tasks/**`) is a working front end with **no server**: people,
 cases, tasks and uploads live in the browser (IndexedDB), the current person is a
-sandbox identity chosen from the account menu, and pay / sign / submit are sandboxes
-that behave like the real services will. Two tabs signed in as two people see each
-other's changes at once (`BroadcastChannel`). The seams below are where engineering
+sandbox identity chosen from the account menu ("Viewing as"), and pay / sign / file are
+sandboxes that behave like the real services will. Two tabs signed in as two people see
+each other's changes at once (`BroadcastChannel`). The seams below are where engineering
 swaps the local implementation for DRISTI's services. Screens do not change when that
 happens.
 
 ## Model
 
-`types.ts` is the contract. `Person`, `Case` (with `signatories` — on the vakalatnama —
-and `members` — case access without it) and `Task`. A task is created by a court or
-system event (`why`), says what to do, may carry an amount and fee head, has a deadline
-with a kind and provenance (`dueKind`, `deadlineNote`), may block a hearing, and moves
-through the statuses below. `approval` records who prepared it and who decided;
-`completion` records how it closed; `history` is the audit trail — every transition
-appends one line.
+`types.ts` is the contract. `Person`, `Case` (with `signatories` — on the vakalatnama,
+first = the main advocate — and `advocates` — everyone on the case, signatories included)
+and `Task`. A task is created by a court, registry or system event (`why`), says what to
+do, may carry an amount and fee head, has a deadline with a kind and provenance
+(`dueKind`, `deadlineNote`), may be anchored to a hearing (`hearingAt`, `isBlocking`),
+and moves through the statuses below. `draft` / `prepared` record who last saved or
+finished the preparation; `returned` carries scrutiny's defects; `completion` records how
+it closed; `history` is the audit trail — every transition appends one line.
+
+### Kinds → overview cards
+
+| Kind | Card | What it is |
+| --- | --- | --- |
+| `sign` | To sign | A vakalatnama, affidavit, application or memo needing the advocate's e-sign |
+| `pay` | To pay | A fee: process fee, court fee, copying fee |
+| `file` | To file | A document or application due with the court |
+| `returned` | Returned by scrutiny | A filing sent back for compliance — fix the defects and re-file |
+| `hearing` | For a hearing | Court-initiated, anchored to a posting: the plea, a deposition, the sworn statement, arguments — done in court, marked done by hand |
+| `draft` | Drafts | A filing or application someone started and left in draft |
+
+`cardKindOf(task)` decides the card: anything in status `draft` counts under **Drafts**,
+whatever its kind; a `draft`-kind task that has been marked ready or filed counts under
+**To file** from then on.
+
+### Statuses → views
+
+`open` · `draft` · `ready` → **Open** · `awaiting-court` · `payment-confirming` →
+**Waiting on others** · `done` · `expired` · `obsolete` → **Completed**. The same for
+every viewer (`viewOf`).
 
 ## Seams (swap these; keep the signatures)
 
 | Seam | Today | Replace with |
 | --- | --- | --- |
 | `data/repository.ts` → `data/indexeddb.ts` | IndexedDB (`dristi-tasks`: `people`, `cases`, `tasks`, `files`) + `sessionStorage` for the current person | HTTP repository against the tasks/case services; `getRepository()` in `data/index.ts` is the single choice point |
-| `store.tsx` — `useTasks()` | Loads, seeds `sandbox.ts` on first run, `dispatch(taskId, transition)` applies a pure transition and writes it | The same provider over the HTTP repository; the session replaces `setUser` |
-| `sandbox.ts` | Five people, 18 cases, ~35 tasks, dates relative to today | Nothing — delete once the services answer |
+| `store.tsx` — `useTasks()` | Loads, seeds `sandbox.ts` on first run (re-seeds when `SEED_VERSION` moves), `dispatch(taskId, transition)` applies a pure transition and writes it | The same provider over the HTTP repository; the session replaces `setUser` |
+| `sandbox.ts` | Five advocates, 19 cases, ~38 tasks, dates relative to today | Nothing — delete once the services answer |
 | Pay / sign / court (`components/tasks/act/*`) | Sandbox outcome controls: gateway result, any 6-digit OTP, "Court: accept / return with defects" | Payment gateway, eSign provider, registry scrutiny events driving the same transitions |
 | Cross-tab sync | `BroadcastChannel("dristi-tasks")` | Server push / polling |
 
 ## State machine (`transitions.ts`)
 
 ```
-open ──startPrepare──▶ draft (member) / in-progress (signatory) ──saveDraft──▶ (same)
-open · in-progress · draft · sent-back ──sendForApproval──▶ awaiting-approval
-awaiting-approval ──withdraw──▶ draft                       (preparer only)
-awaiting-approval ──approveAndSign──▶ done (sign) · awaiting-court (submit, fix-defects)
-                                    · in-progress (pay → recordPayment)
-awaiting-approval ──sendBack(note)──▶ sent-back              (note required)
-open · in-progress · draft · sent-back ──sign──▶ done         (event)
-open · in-progress · draft · sent-back ──submit──▶ awaiting-court (fix-defects: all defects fixed)
-open · in-progress · draft · sent-back ──recordPayment──▶ done · payment-confirming
-                                       · failed: open, or the same draft, or back to
-                                         awaiting-approval when the approver was paying
-(a finaliser finishing someone else's draft "takes it over" — "Took over from …" in history)
-payment-confirming ──confirmPayment──▶ done                  (event)
-awaiting-court ──courtAccepted──▶ done                       (event)
-awaiting-court ──courtReturned(defects)──▶ obsolete + a new open fix-defects task
-open · in-progress ──markDone──▶ done                        (manual; !systemObservable only)
-any open state ──reassign · redate · expire · obsolete──▶ …
+open · draft · ready ──saveDraft(note?, files?)──▶ draft        (anyone on the case)
+open · draft ──markReady(note?, files?)──▶ ready                (anyone on the case)
+open · draft ──fixDefect(n)──▶ draft                            (returned tasks; anyone on the case)
+open · draft · ready ──sign──▶ done                             (signatory; event)
+open · draft · ready ──recordPayment──▶ done · payment-confirming
+                                       · failed: the same state, "Payment failed — try again"
+open · draft · ready ──file──▶ awaiting-court                   (signatory)
+open · draft · ready ──refile──▶ awaiting-court                 (signatory; every defect fixed)
+payment-confirming ──confirmPayment──▶ done                     (event)
+awaiting-court ──courtAccepted──▶ done                          (event)
+awaiting-court ──courtReturned(defects)──▶ obsolete + a new open `returned` task
+open ──markDone──▶ done                                         (hearing tasks; !systemObservable)
+any open state ──redate · expire · obsolete──▶ …
 ```
 
-Every transition validates the from-state and the actor's permission and throws a
-`TransitionError` (`illegal-state` · `forbidden` · `invalid`) otherwise.
+When a signatory completes work someone else prepared, the history line reads
+"Completed by X — prepared by Y · …". Every transition validates the from-state and the
+actor's permission and throws a `TransitionError` (`illegal-state` · `forbidden` ·
+`invalid`) otherwise.
+
+## Permissions (`permissions.ts`) — file-share, not assignment
+
+`canView` = on the case (`advocates`) · `canComplete` = on the vakalatnama (`signatories`).
+Nobody is assigned anything; nobody approves anything. A non-signatory prepares (draft,
+ready); a signatory completes (sign, pay, file, re-file) — directly, or after someone
+else prepared it. `verbFor` derives the one verb a row shows at render time:
+**Sign · Pay · File · Fix & re-file** (signatory, open/ready) · **Continue** (anyone, on
+a draft) · **Open** (on the case but cannot complete) · **Mark done** (hearing tasks the
+system cannot observe) · **View** (waiting, closed, not on the case).
 
 ## Urgency (`urgency.ts`)
 
-Band = the earlier of `dueAt` and `blocksHearingAt`, on the local calendar:
-**Overdue** (past, ≤ 45 d) → **Due today** → **Due soon** (≤ 7 d, or any
-`before-hearing` task) → **Later** → **No date** → **Long pending** (past > 45 d,
-collapsed). Comparator: band → sent-back first → blocking first → next consequence date
-(the hearing it blocks while that is still ahead, else the deadline — "blocking and
-coming up" leads, however long ago it fell due) → earliest deadline → case → oldest
-created → id. One comparator, used by every list.
-
-## Permissions (`permissions.ts`)
-
-`canView` = signatory or member · `canFinalise` = signatory · `canFinaliseTask` = signatory,
-or anyone with access when the task does not `requiresSignatory` · `isTakeOver` = a finaliser
-on a draft / sent-back task someone else prepared (verb "Take over") · `canPrepare` = view and not
-finalise · `canApprove` = finalise ∧ awaiting-approval ∧ not the preparer (no
-self-approval) · `canMarkDone` = not system-observable ∧ open/in-progress. `viewOf` puts
-an awaiting-approval task in the approver's *To do* and everyone else's *Waiting* —
-including the preparer's, even if they are also a signatory. `verbFor` derives the row's
-verb from these at render time; nothing is cached per row.
+One comparator: overdue first → tasks a listed hearing cannot proceed without ("blocking
+and coming up", the owner's rule) → the next date that will hurt (that hearing while it is
+still ahead, else the deadline) → earliest deadline → case → oldest created → id. Undated
+tasks last. The rail on the home screen and the table here
+sort with it.
 
 ## Selectors (`selectors.ts`)
 
-A `Lens` (view, search, chips, sheet filters, sort, group) lives in the URL. `applyLens`
-filters and sorts; `groupTasks` buckets by band / case / kind / person; `countsFor`
-counts tabs and chips on the view's population before chips apply.
+`Filters` (view, card kind, due, court, advocate, search, sort) live in the URL.
+`applyFilters` narrows and sorts; `cardCounts(world, view)` gives each card its count,
+overdue count and next date for the view — before the other filters apply, so the cards
+always describe the tab; `summaryOf` feeds the header; `courtsOf` the Court filter.
+
+## Vocabulary (`format.ts`, brief D13 — fixed)
+
+Titles are verb-first ("Pay the process fee for the summons", "Fix 2 defects and re-file
+the complaint", "Be present for the plea", "Continue the draft complaint"). Status
+phrases: *Needs signature · X* · *Needs payment · X* · *Needs filing · X* · *Draft · X* ·
+*Returned · n defects* · *With the court* · *Payment confirming* · *Done {date}* ·
+*Expired — {why}* · *No longer needed — {why}*; hearing tasks read *Anyone on the case*.
+X is "you" for a signatory, else the main advocate. Due phrases: *{n} days overdue* ·
+*Due today* · *Due {date}* · *Before hearing {date}* · *No date*.

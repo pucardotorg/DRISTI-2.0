@@ -13,11 +13,29 @@
 import * as React from "react";
 
 import { getRepository } from "./data";
-import { buildTasks, CASES, DEFAULT_USER_ID, PEOPLE } from "./sandbox";
+import { buildTasks, CASES, DEFAULT_USER_ID, PEOPLE, SEED_VERSION } from "./sandbox";
 import { type Ctx, type Transition, TransitionError } from "./transitions";
 import type { Case, Person, PersonId, Task, TaskId } from "./types";
 
 const CHANNEL = "dristi-tasks";
+/** Which seed this browser holds; an older one is wiped and re-seeded on load. */
+const SEED_KEY = "dristi-tasks:seed";
+
+function seedIsCurrent(): boolean {
+  try {
+    return localStorage.getItem(SEED_KEY) === String(SEED_VERSION);
+  } catch {
+    return true;
+  }
+}
+
+function rememberSeed(): void {
+  try {
+    localStorage.setItem(SEED_KEY, String(SEED_VERSION));
+  } catch {
+    /* private mode; nothing to do */
+  }
+}
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -96,12 +114,18 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     try {
       const repo = getRepository();
       let [ppl, cs, ts] = await Promise.all([repo.listPeople(), repo.listCases(), repo.listTasks()]);
+      if (ppl.length && !seedIsCurrent()) {
+        // The model changed under this browser's data: start again from the seed.
+        await repo.clear();
+        ppl = [];
+      }
       if (ppl.length === 0) {
         // First run in this browser: seed the sandbox.
         ppl = PEOPLE;
         cs = CASES;
         ts = buildTasks();
         await Promise.all([repo.putPeople(ppl), repo.putCases(cs), repo.putTasks(ts)]);
+        rememberSeed();
       }
       const uid = (await repo.getCurrentUserId()) ?? DEFAULT_USER_ID;
       // IndexedDB returns rows by key; the team reads in its seeded order (you first).

@@ -11,7 +11,7 @@ import { TopBar } from "@/components/shell/top-bar";
 
 /**
  * Which part of the tasks area a path belongs to. The main nav is expanded on the list
- * and collapsed inside an act flow (pay, sign, submit, fix), where the page needs the
+ * and collapsed inside an act flow (pay, sign, file, fix), where the page needs the
  * width for a document and its actions.
  */
 function areaOf(pathname: string): "list" | "flow" {

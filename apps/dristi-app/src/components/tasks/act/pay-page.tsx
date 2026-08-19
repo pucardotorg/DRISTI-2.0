@@ -2,18 +2,18 @@
 
 /**
  * Pay — the fee, why it is owed, who may pay it, and a sandbox gateway. A signatory pays
- * (with a confirmation before money would move); a member prepares the payment and sends
- * it for approval; the approver approves and pays in one go. Success closes the task by
- * event with a receipt; a pending gateway parks it in Waiting; a failure leaves it open
- * with the cue.
+ * (with a confirmation before money would move); anyone else on the case prepares the
+ * payment and marks it ready. Success closes the task by event with a receipt; a pending
+ * gateway parks it in Waiting; a failure keeps the task where it was, with the cue, and
+ * the person stays on the page with the notice focused.
  */
 
 import * as React from "react";
 import { CircleCheckIcon } from "lucide-react";
 
 import { dateTime, longDate, rupees } from "@/lib/tasks/format";
-import { signatoriesOf } from "@/lib/tasks/permissions";
-import { approveAndSign, confirmPayment, recordPayment } from "@/lib/tasks/transitions";
+import { signatoriesOf, TERMINAL } from "@/lib/tasks/permissions";
+import { confirmPayment, recordPayment } from "@/lib/tasks/transitions";
 import type { PaymentResult } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
 import {
@@ -43,15 +43,13 @@ import {
   ActColumns,
   ActFrame,
   type ActContext,
-  ApproveCard,
-  finaliserLine,
+  closedTitle,
   PrepareCard,
+  PreparedNote,
   RailCard,
   RecordCard,
-  TakeOverNote,
+  signatoryLine,
   useActContext,
-  ViewOnlyCard,
-  WaitingCard,
 } from "@/components/tasks/act/shared";
 
 function Row({ label, children, mono }: { label: string; children: React.ReactNode; mono?: boolean }) {
@@ -68,14 +66,11 @@ function Row({ label, children, mono }: { label: string; children: React.ReactNo
 const OUTCOMES: { value: PaymentResult; label: string; hint: string }[] = [
   { value: "success", label: "Success", hint: "Receipt issued, task closes" },
   { value: "pending", label: "Confirming", hint: "Gateway still confirming — task waits" },
-  { value: "failed", label: "Failed", hint: "Nothing paid — task stays open" },
+  { value: "failed", label: "Failed", hint: "Nothing paid — task stays where it is" },
 ];
 
-/**
- * The gateway sandbox: pick the outcome, confirm, pay. Used on its own by a signatory
- * and inside the approve card by an approver (approve, then pay, in one go).
- */
-function PayControls({ ctx, approving }: { ctx: ActContext; approving?: boolean }) {
+/** The signatory's pay rail: pick the sandbox outcome, confirm, pay. */
+function PayCard({ ctx }: { ctx: ActContext }) {
   const { task, kase, online, finish } = ctx;
   const { act, busy } = useTaskActions();
   const [outcome, setOutcome] = React.useState<PaymentResult>("success");
@@ -88,10 +83,6 @@ function PayControls({ ctx, approving }: { ctx: ActContext; approving?: boolean 
 
   const pay = async () => {
     setConfirm(false);
-    if (approving) {
-      const approved = await act(task.id, approveAndSign);
-      if (!approved) return;
-    }
     const t = await act(task.id, (x, c) => recordPayment(x, c, outcome));
     if (!t) return;
     if (outcome === "failed") {
@@ -112,7 +103,8 @@ function PayControls({ ctx, approving }: { ctx: ActContext; approving?: boolean 
   }, [justFailed, task.lastPayment?.at]);
 
   return (
-    <>
+    <RailCard title="Pay" description={signatoryLine(ctx, "Paying")}>
+      <PreparedNote ctx={ctx} />
       {task.lastPayment?.result === "failed" ? (
         <div ref={failedRef} tabIndex={-1} className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <SectionNotice
@@ -147,8 +139,7 @@ function PayControls({ ctx, approving }: { ctx: ActContext; approving?: boolean 
           disabled={!online || !!busy || task.amountPaise === undefined}
           onClick={() => setConfirm(true)}
         >
-          {approving ? "Approve & pay" : "Pay"}
-          {task.amountPaise !== undefined ? ` ${rupees(task.amountPaise)}` : ""}
+          Pay{task.amountPaise !== undefined ? ` ${rupees(task.amountPaise)}` : ""}
         </Button>
         <p className="text-caption text-muted-foreground">
           {task.amountPaise === undefined
@@ -173,16 +164,6 @@ function PayControls({ ctx, approving }: { ctx: ActContext; approving?: boolean 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
-  );
-}
-
-/** The signatory's pay rail. */
-function PayCard({ ctx }: { ctx: ActContext }) {
-  return (
-    <RailCard title={ctx.takingOver ? "Take over and pay" : "Pay"} description={finaliserLine(ctx, "Paying")}>
-      <TakeOverNote ctx={ctx} />
-      <PayControls ctx={ctx} />
     </RailCard>
   );
 }
@@ -215,28 +196,14 @@ export function PayPage() {
   return (
     <ActFrame ctx={ctx} action="Pay" sandbox="No money moves here. The gateway's answer is whatever you pick below, and the receipt is generated locally.">
       {(c) => {
-        const { task, kase, user, people, finaliser, approver } = c;
+        const { task, kase, people, signatory } = c;
         const payers = signatoriesOf(kase, people);
-        const closed = ["done", "expired", "obsolete"].includes(task.status);
 
         let rail: React.ReactNode;
-        if (task.status === "done") rail = <RecordCard ctx={c} title="Paid" />;
-        else if (closed) rail = <RecordCard ctx={c} title={task.status === "expired" ? "Expired" : "No longer required"} />;
+        if (TERMINAL.has(task.status)) rail = <RecordCard ctx={c} title={closedTitle(task, "Paid")} />;
         else if (task.status === "payment-confirming") rail = <ConfirmingCard ctx={c} />;
-        else if (task.status === "awaiting-approval") {
-          rail = approver ? (
-            <ApproveCard
-              ctx={c}
-              title="Approve and pay"
-              description={`Paying as ${user.name} — approving walks through the same gateway sandbox.`}
-              approve={<PayControls ctx={c} approving />}
-            />
-          ) : (
-            <WaitingCard ctx={c} />
-          );
-        } else if (finaliser) rail = <PayCard ctx={c} />;
-        else if (c.preparer) rail = <PrepareCard ctx={c} what="pay it" />;
-        else rail = <ViewOnlyCard ctx={c} why="You can see this case but cannot act on this task." />;
+        else if (signatory) rail = <PayCard ctx={c} />;
+        else rail = <PrepareCard ctx={c} what="pay" />;
 
         return (
           <ActColumns
@@ -268,7 +235,7 @@ export function PayPage() {
                     </Row>
                     <Row label="Payer">
                       {payers.map((p) => p.name).join(" or ") || "A signatory"}
-                      {finaliser ? <span className="text-muted-foreground"> · you</span> : null}
+                      {signatory ? <span className="text-muted-foreground"> · you</span> : null}
                     </Row>
                     <Row label="Case">
                       {kase.parties}

@@ -30,7 +30,7 @@ import { useChrome } from "@/components/shell/chrome";
 import { ConfirmDialog } from "@/components/shell/confirm-dialog";
 import { PersonAvatar } from "@/components/tasks/person-avatar";
 
-const ROLE_LABEL = { senior: "Senior advocate", junior: "Junior advocate", clerk: "Clerk" } as const;
+const ROLE_LABEL = { senior: "Senior advocate", junior: "Junior advocate" } as const;
 
 /**
  * The one breadcrumb in the app. Route-aware: Tasks › the task › the action. The task
@@ -129,7 +129,7 @@ function AccountMenu() {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuLabel className="text-caption font-medium text-muted-foreground">
-            Sandbox — viewing as
+            Viewing as
           </DropdownMenuLabel>
           <DropdownMenuRadioGroup
             value={user.id}

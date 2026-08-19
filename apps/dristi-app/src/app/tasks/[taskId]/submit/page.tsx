@@ -1,6 +1,7 @@
-import { SubmitPage } from "@/components/tasks/act/submit-page";
+import { redirect } from "next/navigation";
 
-/** Submit documents on a task — real uploads, sandbox registry. */
-export default function Page() {
-  return <SubmitPage />;
+/** v1 route — "submit" became "file". Old links still land. */
+export default async function Page({ params }: { params: Promise<{ taskId: string }> }) {
+  const { taskId } = await params;
+  redirect(`/tasks/${taskId}/file`);
 }

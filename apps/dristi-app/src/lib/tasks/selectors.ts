@@ -1,80 +1,65 @@
 /**
- * Filtering, sorting, grouping and counting — pure, over the loaded world.
+ * Filtering, sorting and counting — pure, over the loaded world.
  *
- * A "lens" is everything the find row, chips and filter sheet hold; it lives in the
- * URL. Counts are computed on the view's population before chips are applied, so a
- * chip's number says how many rows it would keep.
+ * The screen's state (view tab, card kind, the labelled filters, search, sort) lives in
+ * the URL as `Filters`. Card counts are computed on the view's population before the
+ * other filters apply, so the cards always describe the view.
  */
 
-import {
-  canApprove,
-  canView,
-  effectiveAssignee,
-  TERMINAL,
-  viewOf,
-} from "./permissions";
-import { BAND_LABELS, BAND_ORDER, bandOf, compareUrgency, consequenceAt, type Band } from "./urgency";
-import type { Case, Person, PersonId, Task, TaskKind, TaskView } from "./types";
+import { canView, cardKindOf, TERMINAL, viewOf } from "./permissions";
+import { compareUrgency, consequenceAt, daysUntil, isOverdue } from "./urgency";
+import type { Case, CardKind, Person, PersonId, Task, TaskView } from "./types";
 
-export type SortKey = "urgency" | "due" | "case" | "recent";
-export type GroupKey = "band" | "case" | "kind" | "person";
+export type DueFilter = "any" | "overdue" | "today" | "week" | "before-hearing";
+export type SortKey = "due" | "case" | "kind";
 
-export type Lens = {
+export type Filters = {
   view: TaskView;
-  q: string;
-  /** Assignee filter — person ids. */
-  people: PersonId[];
-  blocking: boolean;
-  /** Awaiting my approval. */
-  approval: boolean;
-  unassigned: boolean;
-  kinds: TaskKind[];
-  courts: string[];
-  stages: string[];
-  dueFrom?: string;
-  dueTo?: string;
-  createdFrom?: string;
-  createdTo?: string;
-  /** Done view: include expired and obsolete tasks. */
-  showClosed: boolean;
+  /** One card at a time; null = every kind. */
+  kind: CardKind | null;
+  due: DueFilter;
+  /** A court name; "" = all courts. */
+  court: string;
+  /** An advocate on the case; "" = anyone. */
+  advocate: PersonId | "";
+  query: string;
   sort: SortKey;
-  group: GroupKey;
 };
 
-export const DEFAULT_LENS: Lens = {
-  view: "todo",
-  q: "",
-  people: [],
-  blocking: false,
-  approval: false,
-  unassigned: false,
-  kinds: [],
-  courts: [],
-  stages: [],
-  showClosed: true,
-  sort: "urgency",
-  group: "band",
+export const DEFAULT_FILTERS: Filters = {
+  view: "open",
+  kind: null,
+  due: "any",
+  court: "",
+  advocate: "",
+  query: "",
+  sort: "due",
 };
 
-export const KIND_LABELS: Record<TaskKind, string> = {
-  sign: "Sign",
-  pay: "Pay",
-  submit: "Submit",
-  "fix-defects": "Fix defects",
-  respond: "Respond",
-  appear: "Appear",
-  other: "Other",
+export const CARD_ORDER: CardKind[] = ["sign", "pay", "file", "returned", "hearing", "draft"];
+
+export const CARD_LABELS: Record<CardKind, string> = {
+  sign: "To sign",
+  pay: "To pay",
+  file: "To file",
+  returned: "Returned by scrutiny",
+  hearing: "For a hearing",
+  draft: "Drafts",
 };
 
-export const KIND_ORDER: TaskKind[] = [
-  "sign",
-  "pay",
-  "submit",
-  "fix-defects",
-  "respond",
-  "appear",
-  "other",
-];
+export const VIEW_LABELS: Record<TaskView, string> = {
+  open: "Open",
+  waiting: "Waiting on others",
+  completed: "Completed",
+};
+
+export const DUE_LABELS: Record<DueFilter, string> = {
+  any: "Any time",
+  overdue: "Overdue",
+  today: "Today",
+  week: "This week",
+  "before-hearing": "Before next hearing",
+};
 
 export type World = {
   people: Person[];
@@ -92,7 +77,7 @@ export function personOf(world: Pick<World, "people">, id?: PersonId): Person | 
   return id ? world.people.find((p) => p.id === id) : undefined;
 }
 
-/** Tasks on cases the person can see. Everything else starts here. */
+/** Tasks on cases the person is on. Everything else starts here. */
 export function visibleTasks(world: World): Task[] {
   return world.tasks.filter((t) => {
     const kase = caseOf(world, t);
@@ -100,56 +85,35 @@ export function visibleTasks(world: World): Task[] {
   });
 }
 
-/** The visible tasks that belong to a tab for this person. */
+/** The visible tasks that belong to a tab. */
 export function tasksInView(world: World, view: TaskView): Task[] {
-  return visibleTasks(world).filter((t) => viewOf(t, world.user, caseOf(world, t)!) === view);
+  return visibleTasks(world).filter((t) => viewOf(t) === view);
 }
 
 function matchesSearch(task: Task, kase: Case, q: string): boolean {
   const needle = q.trim().toLowerCase();
   if (!needle) return true;
-  const hay = [task.title, kase.parties, kase.stNumber, kase.cnr, kase.court]
-    .join(" ")
-    .toLowerCase();
+  const hay = [task.title, kase.parties, kase.stNumber, kase.cnr, kase.court].join(" ").toLowerCase();
   return needle.split(/\s+/).every((word) => hay.includes(word));
 }
 
-function within(iso: string | undefined, from?: string, to?: string): boolean {
-  if (!from && !to) return true;
-  if (!iso) return false;
-  const t = new Date(iso).getTime();
-  if (from && t < new Date(from).setHours(0, 0, 0, 0)) return false;
-  if (to && t > new Date(to).setHours(23, 59, 59, 999)) return false;
-  return true;
+function matchesDue(task: Task, due: DueFilter, now: Date | string): boolean {
+  if (due === "any") return true;
+  if (due === "before-hearing") return !!task.hearingAt && daysUntil(task.hearingAt, now) >= 0;
+  const at = consequenceAt(task);
+  if (!at) return false;
+  const days = daysUntil(at, now);
+  if (due === "overdue") return days < 0;
+  if (due === "today") return days === 0;
+  return days >= 0 && days <= 7;
 }
 
-/** Everything but the chips — search + the filter sheet + the view. */
-function passesDeepFilters(world: World, task: Task, kase: Case, lens: Lens): boolean {
-  if (!matchesSearch(task, kase, lens.q)) return false;
-  if (lens.kinds.length && !lens.kinds.includes(task.kind)) return false;
-  if (lens.courts.length && !lens.courts.includes(kase.court)) return false;
-  if (lens.stages.length && !lens.stages.includes(kase.stage)) return false;
-  if (!within(task.dueAt, lens.dueFrom, lens.dueTo)) return false;
-  if (!within(task.createdAt, lens.createdFrom, lens.createdTo)) return false;
-  if (
-    lens.view === "done" &&
-    !lens.showClosed &&
-    (task.status === "expired" || task.status === "obsolete")
-  ) {
-    return false;
-  }
-  return true;
-}
-
-function passesChips(world: World, task: Task, kase: Case, lens: Lens): boolean {
-  const assignee = effectiveAssignee(task, kase);
-  if (lens.people.length || lens.unassigned) {
-    const byPerson = lens.people.length > 0 && !!assignee && lens.people.includes(assignee);
-    const byUnassigned = lens.unassigned && !assignee;
-    if (!byPerson && !byUnassigned) return false;
-  }
-  if (lens.blocking && !task.isBlocking) return false;
-  if (lens.approval && !canApprove(world.user, task, kase)) return false;
+/** Everything but the view and the card: the labelled filters and the search. */
+function passesFilters(task: Task, kase: Case, f: Filters, now: Date | string): boolean {
+  if (!matchesSearch(task, kase, f.query)) return false;
+  if (f.court && kase.court !== f.court) return false;
+  if (f.advocate && !canView(f.advocate, kase)) return false;
+  if (!matchesDue(task, f.due, now)) return false;
   return true;
 }
 
@@ -159,213 +123,94 @@ export function closedAt(task: Task): number {
   return new Date(at).getTime();
 }
 
-const CLOSED_LABEL: Record<string, string> = {
-  done: "Done",
-  expired: "Expired",
-  obsolete: "No longer required",
-};
-
-export function sortTasks(world: World, tasks: Task[], sort: SortKey): Task[] {
+export function sortBy(world: World, tasks: Task[], sort: SortKey): Task[] {
   const now = world.now;
   const list = [...tasks];
+  // Closed tasks have no urgency; the most recently closed comes first.
+  const urgency = (a: Task, b: Task) => {
+    const ta = TERMINAL.has(a.status);
+    const tb = TERMINAL.has(b.status);
+    if (ta && tb) return closedAt(b) - closedAt(a) || compareUrgency(a, b, now);
+    if (ta !== tb) return ta ? 1 : -1;
+    return compareUrgency(a, b, now);
+  };
   switch (sort) {
-    case "urgency":
-      // Closed tasks have no urgency; the most recently closed comes first.
-      return list.sort((a, b) => {
-        const ta = TERMINAL.has(a.status);
-        const tb = TERMINAL.has(b.status);
-        if (ta && tb) return closedAt(b) - closedAt(a) || compareUrgency(a, b, now);
-        if (ta !== tb) return ta ? 1 : -1;
-        return compareUrgency(a, b, now);
-      });
     case "due":
-      return list.sort((a, b) => {
-        const ca = consequenceAt(a);
-        const cb = consequenceAt(b);
-        if (ca && cb) {
-          const d = new Date(ca).getTime() - new Date(cb).getTime();
-          if (d) return d;
-        } else if (ca || cb) {
-          return ca ? -1 : 1;
-        }
-        return compareUrgency(a, b, now);
-      });
+      return list.sort(urgency);
     case "case":
       return list.sort((a, b) => {
         const pa = caseOf(world, a)?.parties ?? "";
         const pb = caseOf(world, b)?.parties ?? "";
-        return pa.localeCompare(pb) || compareUrgency(a, b, now);
-      });
-    case "recent":
-      return list.sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() ||
-          compareUrgency(a, b, now)
-      );
-  }
-}
-
-/** The rows the list shows for a lens, sorted. */
-export function applyLens(world: World, lens: Lens): Task[] {
-  const rows = tasksInView(world, lens.view).filter((t) => {
-    const kase = caseOf(world, t)!;
-    return passesDeepFilters(world, t, kase, lens) && passesChips(world, t, kase, lens);
-  });
-  return sortTasks(world, rows, lens.sort);
-}
-
-export type Group = {
-  key: string;
-  label: string;
-  count: number;
-  tasks: Task[];
-  /** Long pending starts collapsed. */
-  collapsed?: boolean;
-};
-
-export function groupTasks(world: World, tasks: Task[], group: GroupKey): Group[] {
-  const buckets = new Map<string, Group>();
-  const put = (key: string, label: string, task: Task, collapsed?: boolean) => {
-    const g = buckets.get(key) ?? { key, label, count: 0, tasks: [], collapsed };
-    g.tasks.push(task);
-    g.count += 1;
-    buckets.set(key, g);
-  };
-
-  for (const task of tasks) {
-    switch (group) {
-      case "band": {
-        // A closed task has no urgency band — it groups by how it closed.
-        if (TERMINAL.has(task.status)) {
-          put(`closed-${task.status}`, CLOSED_LABEL[task.status], task);
-          break;
-        }
-        const band = bandOf(task, world.now);
-        put(band, BAND_LABELS[band], task, band === "long-pending");
-        break;
-      }
-      case "case": {
-        const kase = caseOf(world, task);
-        put(task.caseId, kase?.parties ?? "Unknown case", task);
-        break;
-      }
-      case "kind":
-        put(task.kind, KIND_LABELS[task.kind], task);
-        break;
-      case "person": {
-        const kase = caseOf(world, task)!;
-        const who = effectiveAssignee(task, kase);
-        const person = personOf(world, who);
-        put(who ?? "unassigned", person?.name ?? "Unassigned", task);
-        break;
-      }
-    }
-  }
-
-  const groups = [...buckets.values()];
-  const closedOrder = ["closed-done", "closed-expired", "closed-obsolete"];
-  switch (group) {
-    case "band":
-      return groups.sort((a, b) => {
-        const ia = a.key.startsWith("closed-") ? BAND_ORDER.length + closedOrder.indexOf(a.key) : BAND_ORDER.indexOf(a.key as Band);
-        const ib = b.key.startsWith("closed-") ? BAND_ORDER.length + closedOrder.indexOf(b.key) : BAND_ORDER.indexOf(b.key as Band);
-        return ia - ib;
+        return pa.localeCompare(pb) || urgency(a, b);
       });
     case "kind":
-      return groups.sort(
-        (a, b) => KIND_ORDER.indexOf(a.key as TaskKind) - KIND_ORDER.indexOf(b.key as TaskKind)
+      return list.sort(
+        (a, b) => CARD_ORDER.indexOf(cardKindOf(a)) - CARD_ORDER.indexOf(cardKindOf(b)) || urgency(a, b)
       );
-    case "person":
-      // Me first, then the team by name, unassigned last.
-      return groups.sort((a, b) => {
-        if (a.key === "unassigned") return 1;
-        if (b.key === "unassigned") return -1;
-        if (a.key === world.user.id) return -1;
-        if (b.key === world.user.id) return 1;
-        return a.label.localeCompare(b.label);
-      });
-    case "case":
-      return groups.sort((a, b) => a.label.localeCompare(b.label));
   }
 }
 
-export type Counts = {
-  views: Record<TaskView, number>;
-  people: Record<PersonId, number>;
-  blocking: number;
-  approval: number;
-  unassigned: number;
+/** The rows the table shows for the filters, sorted. */
+export function applyFilters(world: World, f: Filters): Task[] {
+  const rows = tasksInView(world, f.view).filter((t) => {
+    const kase = caseOf(world, t)!;
+    if (f.kind && cardKindOf(t) !== f.kind) return false;
+    return passesFilters(t, kase, f, world.now);
+  });
+  return sortBy(world, rows, f.sort);
+}
+
+export type CardCount = {
+  count: number;
+  overdue: number;
+  /** The nearest upcoming consequence date among the kind's tasks, if any. */
+  nextDue?: string;
 };
 
-/** Counts for the tabs (whole view) and the chips (this view, deep filters applied). */
-export function countsFor(world: World, lens: Lens): Counts {
-  const visible = visibleTasks(world);
-  const views: Record<TaskView, number> = { todo: 0, waiting: 0, done: 0 };
-  for (const t of visible) views[viewOf(t, world.user, caseOf(world, t)!)] += 1;
-
-  const population = tasksInView(world, lens.view).filter((t) =>
-    passesDeepFilters(world, t, caseOf(world, t)!, lens)
-  );
-  const people: Record<PersonId, number> = {};
-  let blocking = 0;
-  let approval = 0;
-  let unassigned = 0;
-  for (const t of population) {
-    const kase = caseOf(world, t)!;
-    const who = effectiveAssignee(t, kase);
-    if (who) people[who] = (people[who] ?? 0) + 1;
-    else unassigned += 1;
-    if (t.isBlocking) blocking += 1;
-    if (canApprove(world.user, t, kase)) approval += 1;
-  }
-  return { views, people, blocking, approval, unassigned };
-}
-
 /**
- * "12 to do · 3 waiting · 5 overdue · 2 long pending" — the header line. Overdue and
- * long pending are counted apart so the line agrees with the band headers below it.
+ * What each overview card says for a view: how many, how many overdue, and the next
+ * date. Counts respect the view only — not the other filters — so the cards always
+ * describe the tab.
  */
-export function summaryOf(world: World): {
-  todo: number;
-  waiting: number;
-  overdue: number;
-  longPending: number;
-} {
-  const todo = tasksInView(world, "todo");
-  const waiting = tasksInView(world, "waiting");
-  let overdue = 0;
-  let longPending = 0;
-  for (const t of todo) {
-    const band = bandOf(t, world.now);
-    if (band === "overdue") overdue += 1;
-    else if (band === "long-pending") longPending += 1;
+export function cardCounts(world: World, view: TaskView): Record<CardKind, CardCount> {
+  const out = Object.fromEntries(CARD_ORDER.map((k) => [k, { count: 0, overdue: 0 }])) as Record<CardKind, CardCount>;
+  for (const t of tasksInView(world, view)) {
+    const c = out[cardKindOf(t)];
+    c.count += 1;
+    // Only open work is overdue or due next; waiting and completed tasks just count.
+    if (view !== "open") continue;
+    if (isOverdue(t, world.now)) {
+      c.overdue += 1;
+      continue;
+    }
+    const at = consequenceAt(t);
+    if (at && (!c.nextDue || new Date(at) < new Date(c.nextDue))) c.nextDue = at;
   }
-  return { todo: todo.length, waiting: waiting.length, overdue, longPending };
+  return out;
 }
 
-/** Distinct courts / stages among visible cases — for the filter sheet. */
-export function facetsOf(world: World): { courts: string[]; stages: string[] } {
+/** "26 open · 2 waiting on others · 5 overdue" — the header line. */
+export function summaryOf(world: World): { open: number; waiting: number; overdue: number } {
+  const open = tasksInView(world, "open");
+  const waiting = tasksInView(world, "waiting");
+  const overdue = open.filter((t) => isOverdue(t, world.now)).length;
+  return { open: open.length, waiting: waiting.length, overdue };
+}
+
+/** Counts for the three tabs, over everything visible. */
+export function viewCounts(world: World): Record<TaskView, number> {
+  const views: Record<TaskView, number> = { open: 0, waiting: 0, completed: 0 };
+  for (const t of visibleTasks(world)) views[viewOf(t)] += 1;
+  return views;
+}
+
+/** Distinct courts among visible cases — for the Court filter. */
+export function courtsOf(world: World): string[] {
   const visible = world.cases.filter((c) => canView(world.user, c));
-  const courts = [...new Set(visible.map((c) => c.court))].sort();
-  const stages = [...new Set(visible.map((c) => c.stage))].sort();
-  return { courts, stages };
+  return [...new Set(visible.map((c) => c.court))].sort();
 }
 
-/** Whether the lens narrows beyond the view (for "Clear all" and the empty-filtered state). */
-export function lensIsNarrowed(lens: Lens): boolean {
-  return (
-    !!lens.q.trim() ||
-    lens.people.length > 0 ||
-    lens.blocking ||
-    lens.approval ||
-    lens.unassigned ||
-    lens.kinds.length > 0 ||
-    lens.courts.length > 0 ||
-    lens.stages.length > 0 ||
-    !!lens.dueFrom ||
-    !!lens.dueTo ||
-    !!lens.createdFrom ||
-    !!lens.createdTo ||
-    !lens.showClosed
-  );
+/** Whether anything narrows the view beyond the tab (for "Clear filters" and the empty state). */
+export function isNarrowed(f: Filters): boolean {
+  return !!f.kind || f.due !== "any" || !!f.court || !!f.advocate || !!f.query.trim();
 }

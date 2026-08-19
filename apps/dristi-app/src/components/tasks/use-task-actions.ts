@@ -8,11 +8,18 @@ import { useTasks } from "@/lib/tasks/store";
 import { type Transition, TransitionError } from "@/lib/tasks/transitions";
 import type { Task, TaskId, Verb } from "@/lib/tasks/types";
 
-/** The act page for a task, if its kind has one. */
+const PAGE_OF: Partial<Record<Task["kind"], string>> = {
+  sign: "sign",
+  pay: "pay",
+  file: "file",
+  draft: "file",
+  returned: "fix",
+};
+
+/** The act page for a task, if its kind has one. Hearing tasks are done in court. */
 export function actHref(task: Task): string | null {
   if (!PAGED_KINDS.has(task.kind)) return null;
-  const page = task.kind === "fix-defects" ? "fix" : task.kind;
-  return `/tasks/${encodeURIComponent(task.id)}/${page}`;
+  return `/tasks/${encodeURIComponent(task.id)}/${PAGE_OF[task.kind] ?? task.kind}`;
 }
 
 /** Where a row's verb goes: the act page for paged kinds, otherwise the detail panel. */

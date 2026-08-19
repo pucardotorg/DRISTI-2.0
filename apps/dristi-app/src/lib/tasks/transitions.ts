@@ -6,34 +6,24 @@
  * timeline is the audit trail. Nothing here touches storage — the store applies the
  * result and writes it.
  *
- *   open ──startPrepare──▶ draft / in-progress ──saveDraft──▶ (same)
- *   open · in-progress · draft · sent-back ──sendForApproval──▶ awaiting-approval
- *   awaiting-approval ──withdraw──▶ draft
- *   awaiting-approval ──approveAndSign──▶ done (sign) · awaiting-court (submit, fix) ·
- *                                          in-progress (pay — then recordPayment)
- *   awaiting-approval ──sendBack(note)──▶ sent-back
- *   open · in-progress · draft · sent-back ──sign──▶ done            (event)
- *   open · in-progress · draft · sent-back ──submit──▶ awaiting-court
- *   open · in-progress · draft · sent-back ──recordPayment──▶ done · payment-confirming
- *                                          · open / same draft / awaiting-approval (failed)
- *   (a finaliser finishing someone else's draft "takes it over" — named in history)
- *   payment-confirming ──confirmPayment──▶ done  (event)
- *   awaiting-court ──courtAccepted──▶ done       (event)
- *   awaiting-court ──courtReturned(defects)──▶ obsolete + a new fix-defects task
- *   open · in-progress ──markDone──▶ done        (manual; only !systemObservable)
- *   any non-terminal ──reassign · redate · expire · obsolete──▶ …
+ *   open · draft · ready ──saveDraft──▶ draft            (anyone on the case)
+ *   open · draft ──markReady──▶ ready                    (anyone on the case)
+ *   open · draft · ready ──sign──▶ done                  (signatory; event)
+ *   open · draft · ready ──recordPayment──▶ done · payment-confirming · (failed) same state
+ *   open · draft · ready ──file──▶ awaiting-court        (signatory)
+ *   open · draft · ready ──refile──▶ awaiting-court      (signatory; every defect fixed)
+ *   open · draft ──fixDefect──▶ draft                    (anyone on the case)
+ *   payment-confirming ──confirmPayment──▶ done          (event)
+ *   awaiting-court ──courtAccepted──▶ done               (event)
+ *   awaiting-court ──courtReturned(defects)──▶ obsolete + a new open `returned` task
+ *   open ──markDone──▶ done                              (hearing tasks; !systemObservable)
+ *   any open state ──redate · expire · obsolete──▶ …
+ *
+ * When a signatory completes work someone else prepared, the history says so:
+ * "Completed by X — prepared by Y".
  */
 
-import {
-  canApprove,
-  canFinalise,
-  canFinaliseTask,
-  canMarkDone,
-  canPrepare,
-  canView,
-  isTakeOver,
-  TERMINAL,
-} from "./permissions";
+import { canComplete, canMarkDone, canView, TERMINAL } from "./permissions";
 import type {
   Case,
   Defect,
@@ -110,53 +100,25 @@ export function newRef(prefix: string, seed?: number): string {
 
 /* ─────────────────────────── preparing ─────────────────────────── */
 
-/** Start work: a preparer opens a draft; a signatory marks it in progress. */
-export function startPrepare(task: Task, ctx: Ctx): Task {
-  assertState(task, ["open", "sent-back"], "start");
-  assertAllowed(canView(ctx.actor, ctx.kase), "work on");
-  const finaliser = canFinalise(ctx.actor, ctx.kase);
-  const status: TaskStatus = finaliser ? "in-progress" : "draft";
-  return withHistory(
-    {
-      ...task,
-      status,
-      assigneeId: task.assigneeId ?? ctx.actor.id,
-      approval:
-        task.approval ??
-        (finaliser ? undefined : { preparedBy: ctx.actor.id, sentAt: "", prepared: {} }),
-    },
-    ctx,
-    finaliser ? `${ctx.actor.name} started this task` : `${ctx.actor.name} started preparing`
-  );
-}
+const PREPARABLE: TaskStatus[] = ["open", "draft", "ready"];
 
-/** Save what has been filled or uploaded so far, without changing state. */
-export function saveDraft(
-  task: Task,
-  ctx: Ctx,
-  prepared: Record<string, unknown>,
-  files?: StoredFileRef[]
-): Task {
-  assertState(task, ["open", "draft", "in-progress", "sent-back"], "save");
-  assertAllowed(canView(ctx.actor, ctx.kase), "save");
-  const finaliser = canFinalise(ctx.actor, ctx.kase);
-  const status: TaskStatus =
-    task.status === "open" ? (finaliser ? "in-progress" : "draft") : task.status;
-  // A signatory's saved work is not "prepared for approval"; a preparer's is.
-  const approval = finaliser
-    ? task.approval
-    : {
-        preparedBy: ctx.actor.id,
-        sentAt: task.approval?.sentAt ?? "",
-        prepared: { ...(task.approval?.prepared ?? {}), ...prepared },
-        note: task.approval?.note,
-      };
+/**
+ * Save what has been filled or uploaded so far. Anyone on the case; the task becomes
+ * (or stays) a draft in their name. A ready task saved again goes back to draft — the
+ * preparation is being reworked.
+ */
+export function saveDraft(task: Task, ctx: Ctx, note?: string, files?: StoredFileRef[]): Task {
+  assertState(task, PREPARABLE, "save");
+  assertAllowed(canView(ctx.actor, ctx.kase), "work on");
+  if (task.kind === "hearing") throw new TransitionError("invalid", "A hearing task has nothing to draft.");
+  const at = nowOf(ctx);
   return withHistory(
     {
       ...task,
-      status,
-      assigneeId: task.assigneeId ?? ctx.actor.id,
-      approval,
+      status: "draft",
+      statusNote: undefined,
+      draft: { by: ctx.actor.id, savedAt: at, note: note?.trim() || task.draft?.note },
+      prepared: undefined,
       files: files ?? task.files,
     },
     ctx,
@@ -164,139 +126,105 @@ export function saveDraft(
   );
 }
 
+/** The same move, named for the first save. */
+export const startDraft = saveDraft;
+
 /**
- * Hand the prepared task to a signatory. Only a non-signatory needs to — including on a
- * task a signatory started (in-progress) and a member then picked up.
+ * The preparation is complete: hand it to a signatory. Anyone on the case — a
+ * signatory rarely needs to, since they can complete it directly, but the move is not
+ * refused. The status note names the preparer so the row says so at a glance.
  */
-export function sendForApproval(task: Task, ctx: Ctx, note?: string): Task {
-  assertState(task, ["open", "in-progress", "draft", "sent-back"], "send for approval");
-  assertAllowed(canPrepare(ctx.actor, ctx.kase), "send for approval");
-  if (!task.requiresSignatory) {
-    throw new TransitionError("invalid", "This task does not need a signatory's approval.");
-  }
+export function markReady(task: Task, ctx: Ctx, note?: string, files?: StoredFileRef[]): Task {
+  assertState(task, ["open", "draft"], "mark ready");
+  assertAllowed(canView(ctx.actor, ctx.kase), "prepare");
+  if (task.kind === "hearing") throw new TransitionError("invalid", "A hearing task is done in court, not prepared.");
   const at = nowOf(ctx);
+  const allFiles = files ?? task.files;
+  const text = note?.trim() || task.draft?.note;
   return withHistory(
     {
       ...task,
-      status: "awaiting-approval",
+      status: "ready",
+      statusNote: `Prepared by ${ctx.actor.name}`,
+      draft: undefined,
+      prepared: { by: ctx.actor.id, at, note: text, files: allFiles },
+      files: allFiles,
+    },
+    ctx,
+    `${ctx.actor.name} marked this ready${text ? ` — “${text}”` : ""}`
+  );
+}
+
+/** Mark a defect fixed / unfixed, optionally with a replacement upload. Anyone on the case. */
+export function fixDefect(task: Task, ctx: Ctx, n: number, fixed: boolean, replacement?: StoredFileRef): Task {
+  if (task.kind !== "returned") throw new TransitionError("invalid", "Not a returned filing.");
+  assertState(task, PREPARABLE, "edit defects on");
+  assertAllowed(canView(ctx.actor, ctx.kase), "edit");
+  const defects = (task.returned?.defects ?? []).map((d) =>
+    d.n === n ? { ...d, fixed, replacement: replacement ?? d.replacement } : d
+  );
+  const at = nowOf(ctx);
+  // Touching a defect is preparation: an open task becomes this person's draft; a ready
+  // task stays ready (a signatory unticking on review is not a rework).
+  const status: TaskStatus = task.status === "open" ? "draft" : task.status;
+  return withHistory(
+    {
+      ...task,
+      status,
+      returned: task.returned ? { ...task.returned, defects } : task.returned,
+      draft: status === "draft" ? { by: ctx.actor.id, savedAt: at, note: task.draft?.note } : task.draft,
+    },
+    ctx,
+    `${ctx.actor.name} marked defect ${n} ${fixed ? "fixed" : "not fixed"}`
+  );
+}
+
+/* ─────────────────────────── completing ─────────────────────────── */
+
+/** Who prepared the work the signatory is completing, if it was someone else. */
+function preparerOf(task: Task, ctx: Ctx): PersonId | undefined {
+  const who = task.prepared?.by ?? task.draft?.by;
+  return who && who !== ctx.actor.id ? who : undefined;
+}
+
+/**
+ * The gate every completing step passes: a legal from-state and a signatory. Returns
+ * the history line for the step: "X did it" — or, when someone else prepared the work,
+ * "Completed by X — prepared by Y · did it".
+ */
+function beginComplete(task: Task, ctx: Ctx, what: string): (detail: string) => string {
+  assertState(task, PREPARABLE, what);
+  assertAllowed(canComplete(ctx.actor, ctx.kase), what);
+  const preparer = preparerOf(task, ctx);
+  return (detail) =>
+    preparer
+      ? `Completed by ${ctx.actor.name} — prepared by ${nameOf(ctx, preparer)} · ${detail}`
+      : `${ctx.actor.name} ${detail}`;
+}
+
+/** E-sign applied. Signatories only. */
+export function sign(task: Task, ctx: Ctx): Task {
+  if (task.kind !== "sign") throw new TransitionError("invalid", "Not a signature task.");
+  const line = beginComplete(task, ctx, "sign");
+  const at = nowOf(ctx);
+  const ref = newRef("ESIGN");
+  return withHistory(
+    {
+      ...task,
+      status: "done",
       statusNote: undefined,
-      assigneeId: task.assigneeId ?? ctx.actor.id,
-      approval: {
-        preparedBy: ctx.actor.id,
-        sentAt: at,
-        note: note?.trim() || undefined,
-        prepared: task.approval?.prepared ?? {},
-      },
+      draft: undefined,
+      completion: { by: ctx.actor.id, at, how: "event", receipt: ref },
     },
     ctx,
-    `${ctx.actor.name} sent this for approval${note?.trim() ? ` — “${note.trim()}”` : ""}`
+    line(`signed with Aadhaar e-Sign — ${ref}`)
   );
 }
 
-/** The preparer takes it back before anyone decides. */
-export function withdraw(task: Task, ctx: Ctx): Task {
-  assertState(task, ["awaiting-approval"], "withdraw");
-  assertAllowed(task.approval?.preparedBy === ctx.actor.id, "withdraw");
-  return withHistory(
-    {
-      ...task,
-      status: "draft",
-      approval: { ...task.approval!, sentAt: "" },
-    },
-    ctx,
-    `${ctx.actor.name} withdrew this from approval`
-  );
-}
-
-/* ─────────────────────────── approving ─────────────────────────── */
-
-/**
- * The signatory approves and their signature is applied. Sign closes by event; submit
- * and fix-defects go to the court; pay moves to in-progress so the same person records
- * the payment next (see `recordPayment`).
- */
-export function approveAndSign(task: Task, ctx: Ctx): Task {
-  assertState(task, ["awaiting-approval"], "approve");
-  assertAllowed(canApprove(ctx.actor, task, ctx.kase), "approve");
-  const at = nowOf(ctx);
-  const approval = {
-    ...task.approval!,
-    decidedBy: ctx.actor.id,
-    decidedAt: at,
-    decision: "approved" as const,
-  };
-  const preparer = nameOf(ctx, task.approval?.preparedBy);
-  const base = withHistory(
-    { ...task, approval, statusNote: undefined },
-    ctx,
-    `${ctx.actor.name} approved ${preparer}'s preparation and signed`
-  );
-  switch (task.kind) {
-    case "sign":
-      return {
-        ...base,
-        status: "done",
-        completion: { by: ctx.actor.id, at, how: "event", receipt: newRef("ESIGN") },
-      };
-    case "submit":
-    case "fix-defects":
-      return withHistory(
-        { ...base, status: "awaiting-court" },
-        ctx,
-        `Submitted to the court — awaiting scrutiny`
-      );
-    case "pay":
-      return { ...base, status: "in-progress" };
-    default:
-      return { ...base, status: "in-progress" };
-  }
-}
-
-/** Return it to the preparer with a note. The note is required. */
-export function sendBack(task: Task, ctx: Ctx, note: string): Task {
-  assertState(task, ["awaiting-approval"], "send back");
-  assertAllowed(canApprove(ctx.actor, task, ctx.kase), "send back");
-  const text = note.trim();
-  if (!text) throw new TransitionError("invalid", "A note is required when sending back.");
-  const at = nowOf(ctx);
-  return withHistory(
-    {
-      ...task,
-      status: "sent-back",
-      statusNote: text,
-      approval: {
-        ...task.approval!,
-        decidedBy: ctx.actor.id,
-        decidedAt: at,
-        decision: "sent-back",
-        decisionNote: text,
-      },
-    },
-    ctx,
-    `${ctx.actor.name} sent this back — “${text}”`
-  );
-}
-
-/* ─────────────────────────── finalising ─────────────────────────── */
-
-const FINALISABLE: TaskStatus[] = ["open", "in-progress", "draft", "sent-back"];
-
-/**
- * The gate every finalising step passes: a legal from-state, and an actor who may
- * complete this task. When the task is a draft someone else was preparing, the actor
- * takes it over and the history says so — the preparer's work is not silently absorbed.
- */
-function beginFinalise(task: Task, ctx: Ctx, what: string): Task {
-  assertState(task, FINALISABLE, what);
-  assertAllowed(canFinaliseTask(ctx.actor, task, ctx.kase), what);
-  if (!isTakeOver(ctx.actor, task, ctx.kase)) return task;
-  return withHistory(task, ctx, `${ctx.actor.name} took over from ${nameOf(ctx, task.approval?.preparedBy)}`);
-}
-
-/** Record the gateway's answer. Payment is finalising — signatories only. */
+/** Record the gateway's answer. Payment is completing — signatories only. */
 export function recordPayment(task: Task, ctx: Ctx, result: PaymentResult): Task {
   if (task.kind !== "pay") throw new TransitionError("invalid", "Not a payment task.");
-  const started = beginFinalise(task, ctx, "pay");
+  const line = beginComplete(task, ctx, "pay");
   const at = nowOf(ctx);
   const ref = newRef("TXN");
   const lastPayment = { result, ref, at };
@@ -304,221 +232,75 @@ export function recordPayment(task: Task, ctx: Ctx, result: PaymentResult): Task
     case "success":
       return withHistory(
         {
-          ...started,
+          ...task,
           status: "done",
           statusNote: undefined,
+          draft: undefined,
           lastPayment,
           completion: { by: ctx.actor.id, at, how: "event", receipt: ref },
         },
         ctx,
-        `${ctx.actor.name} paid — receipt ${ref}`
+        line(`paid — receipt ${ref}`)
       );
     case "pending":
       return withHistory(
         {
-          ...started,
+          ...task,
           status: "payment-confirming",
-          statusNote: `Payment confirming · ref ${ref}`,
+          statusNote: `Gateway ref ${ref}`,
+          draft: undefined,
           lastPayment,
         },
         ctx,
-        `${ctx.actor.name} paid — gateway is confirming (ref ${ref})`
+        line(`paid — gateway is confirming (ref ${ref})`)
       );
-    case "failed": {
-      // An approver's failed payment un-does the approval step: the task returns to
-      // awaiting-approval so the preparer still waits and the approver still sees
-      // "Approve & pay". Otherwise a draft stays a draft; open / in-progress fall to open.
-      const approving = task.approval?.decision === "approved" && task.status === "in-progress";
-      const status: TaskStatus = approving
-        ? "awaiting-approval"
-        : task.status === "draft" || task.status === "sent-back"
-          ? task.status
-          : "open";
-      const approval = approving
-        ? { ...task.approval!, decidedBy: undefined, decidedAt: undefined, decision: undefined }
-        : started.approval;
+    case "failed":
+      // Nothing moved: the task keeps its state (open stays open, a draft stays a draft,
+      // a ready item stays ready) and says why.
       return withHistory(
-        {
-          ...started,
-          status,
-          statusNote: "Payment failed — try again",
-          lastPayment,
-          approval,
-        },
+        { ...task, statusNote: "Payment failed — try again", lastPayment },
         ctx,
-        approving
-          ? `Payment failed (ref ${ref}) — back to awaiting approval`
-          : `Payment failed (ref ${ref}) — the task stays open`
+        `Payment failed (ref ${ref}) — nothing was paid`
       );
-    }
   }
 }
 
-/** The gateway confirms a pending payment. System event; anyone with access may record it. */
-export function confirmPayment(task: Task, ctx: Ctx): Task {
-  assertState(task, ["payment-confirming"], "confirm payment on");
-  assertAllowed(canView(ctx.actor, ctx.kase), "confirm payment on");
-  const at = nowOf(ctx);
-  const ref = task.lastPayment?.ref ?? newRef("TXN");
+/** File with the court. Signatories only. */
+export function file(task: Task, ctx: Ctx, files?: StoredFileRef[]): Task {
+  if (task.kind !== "file" && task.kind !== "draft") {
+    throw new TransitionError("invalid", "Not a filing task.");
+  }
+  const line = beginComplete(task, ctx, "file");
   return withHistory(
     {
       ...task,
-      status: "done",
-      statusNote: undefined,
-      lastPayment: { result: "success", ref, at },
-      completion: { by: task.lastPayment ? task.assigneeId : ctx.actor.id, at, how: "event", receipt: ref },
-    },
-    ctx,
-    `Payment confirmed — receipt ${ref}`,
-    undefined
-  );
-}
-
-/** E-sign applied. Signatories only. */
-export function sign(task: Task, ctx: Ctx): Task {
-  if (task.kind !== "sign") throw new TransitionError("invalid", "Not a signature task.");
-  const started = beginFinalise(task, ctx, "sign");
-  const at = nowOf(ctx);
-  const ref = newRef("ESIGN");
-  return withHistory(
-    {
-      ...started,
-      status: "done",
-      statusNote: undefined,
-      completion: { by: ctx.actor.id, at, how: "event", receipt: ref },
-    },
-    ctx,
-    `${ctx.actor.name} signed with Aadhaar e-Sign — ${ref}`
-  );
-}
-
-/** Submit to the court. Signatories only. */
-export function submit(task: Task, ctx: Ctx, files?: StoredFileRef[]): Task {
-  if (task.kind !== "submit" && task.kind !== "fix-defects") {
-    throw new TransitionError("invalid", "Not a submission task.");
-  }
-  const started = beginFinalise(task, ctx, "submit");
-  if (task.kind === "fix-defects" && task.defects?.some((d) => !d.fixed)) {
-    throw new TransitionError("invalid", "Every defect must be marked fixed before re-submitting.");
-  }
-  return withHistory(
-    {
-      ...started,
       status: "awaiting-court",
       statusNote: undefined,
+      draft: undefined,
       files: files ?? task.files,
     },
     ctx,
-    `${ctx.actor.name} submitted to the court — awaiting scrutiny`
+    line("filed with the court — awaiting scrutiny")
   );
 }
 
-/** Registry accepted the filing. */
-export function courtAccepted(task: Task, ctx: Ctx): Task {
-  assertState(task, ["awaiting-court"], "accept");
-  assertAllowed(canView(ctx.actor, ctx.kase), "record acceptance on");
-  const at = nowOf(ctx);
-  const ref = newRef("ACK");
+/** Re-file a returned filing once every defect is fixed. Signatories only. */
+export function refile(task: Task, ctx: Ctx): Task {
+  if (task.kind !== "returned") throw new TransitionError("invalid", "Not a returned filing.");
+  const line = beginComplete(task, ctx, "re-file");
+  if (task.returned?.defects.some((d) => !d.fixed)) {
+    throw new TransitionError("invalid", "Every defect must be marked fixed before re-filing.");
+  }
   return withHistory(
-    {
-      ...task,
-      status: "done",
-      completion: { by: task.assigneeId, at, how: "event", receipt: ref },
-    },
+    { ...task, status: "awaiting-court", statusNote: undefined, draft: undefined },
     ctx,
-    `Accepted by the registry — acknowledgement ${ref}`,
-    undefined
+    line("re-filed with the court — awaiting scrutiny")
   );
 }
 
-/**
- * Registry returned the filing with defects. The submitted task is superseded and a
- * fix-defects task takes its place, carrying the defects and the same deadline shape.
- */
-export function courtReturned(
-  task: Task,
-  ctx: Ctx,
-  defects: string[]
-): { task: Task; created: Task } {
-  assertState(task, ["awaiting-court"], "return");
-  assertAllowed(canView(ctx.actor, ctx.kase), "record a return on");
-  const list = defects.map((d) => d.trim()).filter(Boolean);
-  if (!list.length) throw new TransitionError("invalid", "At least one defect is needed.");
-  const at = nowOf(ctx);
-  const n = list.length;
-  const superseded = withHistory(
-    {
-      ...task,
-      status: "obsolete",
-      statusNote: `Returned by scrutiny with ${n} defect${n === 1 ? "" : "s"} — replaced by a fix-defects task`,
-    },
-    ctx,
-    `Returned by scrutiny with ${n} defect${n === 1 ? "" : "s"}`,
-    undefined
-  );
-  const created: Task = {
-    id: `${task.id}-fix-${at.slice(0, 10).replace(/-/g, "")}`,
-    caseId: task.caseId,
-    kind: "fix-defects",
-    title: `Fix ${n} defect${n === 1 ? "" : "s"} — ${objectOf(task.title)}`,
-    why: { event: `Scrutiny returned “${objectOf(task.title)}” with ${n} defect${n === 1 ? "" : "s"}`, at },
-    whatToDo: "Cure each defect, attach the corrected document where one is needed, and re-submit.",
-    documentsNeeded: task.documentsNeeded,
-    dueAt: task.dueAt,
-    dueKind: task.dueKind,
-    deadlineNote: task.deadlineNote,
-    blocksHearingAt: task.blocksHearingAt,
-    isBlocking: task.isBlocking,
-    createdAt: at,
-    assigneeId: task.assigneeId,
-    requiresSignatory: true,
-    systemObservable: true,
-    status: "open",
-    defects: list.map((text, i): Defect => ({ n: i + 1, text, fixed: false })),
-    files: task.files,
-    history: [{ at, text: `Created — scrutiny returned the filing with ${n} defect${n === 1 ? "" : "s"}` }],
-  };
-  return { task: superseded, created };
-}
-
-/** "File the …" → "the …"; the object of the original verb, for the new title. */
-function objectOf(title: string): string {
-  return title.replace(/^(File|Upload|Submit|Produce|Re-file|Sign|Pay)\s+/i, "");
-}
-
-/** Mark a defect fixed / unfixed, optionally with a replacement upload. */
-export function setDefect(
-  task: Task,
-  ctx: Ctx,
-  n: number,
-  fixed: boolean,
-  replacement?: StoredFileRef
-): Task {
-  assertState(task, ["open", "in-progress", "draft", "sent-back"], "edit defects on");
-  assertAllowed(canView(ctx.actor, ctx.kase), "edit");
-  const defects = (task.defects ?? []).map((d) =>
-    d.n === n ? { ...d, fixed, replacement: replacement ?? d.replacement } : d
-  );
-  return withHistory(
-    {
-      ...task,
-      defects,
-      status:
-        task.status === "open"
-          ? canFinalise(ctx.actor, ctx.kase)
-            ? "in-progress"
-            : "draft"
-          : task.status,
-      assigneeId: task.assigneeId ?? ctx.actor.id,
-    },
-    ctx,
-    `${ctx.actor.name} marked defect ${n} ${fixed ? "fixed" : "not fixed"}`
-  );
-}
-
-/** By hand — only for tasks the system cannot observe. */
+/** By hand — only for hearing tasks the system cannot observe. Anyone on the case. */
 export function markDone(task: Task, ctx: Ctx): Task {
-  assertState(task, ["open", "in-progress"], "mark done");
+  assertState(task, ["open"], "mark done");
   assertAllowed(canMarkDone(ctx.actor, task, ctx.kase), "mark done");
   const at = nowOf(ctx);
   return withHistory(
@@ -533,69 +315,133 @@ export function markDone(task: Task, ctx: Ctx): Task {
   );
 }
 
-/* ─────────────────────────── housekeeping ─────────────────────────── */
+/* ─────────────────────────── the gateway and the court ─────────────────────────── */
 
-/** Anyone with access may reassign to anyone with access, or unassign. */
-export function reassign(task: Task, ctx: Ctx, assigneeId: PersonId | undefined): Task {
-  if (TERMINAL.has(task.status)) {
-    throw new TransitionError("illegal-state", "A closed task cannot be reassigned.");
-  }
-  assertAllowed(canView(ctx.actor, ctx.kase), "reassign");
-  if (assigneeId && !canView(assigneeId, ctx.kase)) {
-    throw new TransitionError("invalid", "That person does not have access to this case.");
-  }
-  if ((task.assigneeId ?? undefined) === (assigneeId ?? undefined)) return task;
+/** The gateway confirms a pending payment. System event; anyone on the case may record it. */
+export function confirmPayment(task: Task, ctx: Ctx): Task {
+  assertState(task, ["payment-confirming"], "confirm payment on");
+  assertAllowed(canView(ctx.actor, ctx.kase), "confirm payment on");
+  const at = nowOf(ctx);
+  const ref = task.lastPayment?.ref ?? newRef("TXN");
+  const payer = [...task.history].reverse().find((h) => h.by && /paid/.test(h.text))?.by;
   return withHistory(
-    { ...task, assigneeId },
+    {
+      ...task,
+      status: "done",
+      statusNote: undefined,
+      lastPayment: { result: "success", ref, at },
+      completion: { by: payer, at, how: "event", receipt: ref },
+    },
     ctx,
-    assigneeId
-      ? `${ctx.actor.name} assigned this to ${nameOf(ctx, assigneeId)}`
-      : `${ctx.actor.name} unassigned this`
-  );
-}
-
-/** The window closed. System event. */
-export function expire(task: Task, ctx: Ctx, reason: string): Task {
-  assertState(task, ["open", "in-progress", "draft", "sent-back"], "expire");
-  return withHistory(
-    { ...task, status: "expired", statusNote: reason },
-    ctx,
-    `Expired — ${reason}`,
+    `Payment confirmed — receipt ${ref}`,
     undefined
   );
 }
 
-/** No longer required — order withdrawn, case disposed. System event or a person. */
+/** Registry accepted the filing. System event. */
+export function courtAccepted(task: Task, ctx: Ctx): Task {
+  assertState(task, ["awaiting-court"], "accept");
+  assertAllowed(canView(ctx.actor, ctx.kase), "record acceptance on");
+  const at = nowOf(ctx);
+  const ref = newRef("ACK");
+  const filer = [...task.history].reverse().find((h) => h.by && /filed/.test(h.text))?.by;
+  return withHistory(
+    {
+      ...task,
+      status: "done",
+      completion: { by: filer, at, how: "event", receipt: ref },
+    },
+    ctx,
+    `Accepted by the registry — acknowledgement ${ref}`,
+    undefined
+  );
+}
+
+/**
+ * Registry returned the filing for compliance. The filed task is superseded and a
+ * `returned` task takes its place, carrying the defects and the same deadline shape.
+ */
+export function courtReturned(task: Task, ctx: Ctx, defects: string[]): { task: Task; created: Task } {
+  assertState(task, ["awaiting-court"], "return");
+  assertAllowed(canView(ctx.actor, ctx.kase), "record a return on");
+  const list = defects.map((d) => d.trim()).filter(Boolean);
+  if (!list.length) throw new TransitionError("invalid", "At least one defect is needed.");
+  const at = nowOf(ctx);
+  const n = list.length;
+  const plural = `${n} defect${n === 1 ? "" : "s"}`;
+  const superseded = withHistory(
+    {
+      ...task,
+      status: "obsolete",
+      statusNote: `Returned by scrutiny with ${plural} — replaced by a re-filing task`,
+    },
+    ctx,
+    `Returned by scrutiny with ${plural}`,
+    undefined
+  );
+  const object = objectOf(task.title);
+  const created: Task = {
+    id: `${task.id}-ret-${at.slice(0, 10).replace(/-/g, "")}`,
+    caseId: task.caseId,
+    kind: "returned",
+    title: `Fix ${plural} and re-file ${object}`,
+    why: { event: `Scrutiny returned ${object} for compliance with ${plural}`, at },
+    whatToDo: "Cure each defect, attach the corrected document where one is needed, and re-file.",
+    documentsNeeded: task.documentsNeeded,
+    dueAt: task.dueAt,
+    dueKind: task.dueKind,
+    deadlineNote: task.deadlineNote,
+    hearingAt: task.hearingAt,
+    isBlocking: task.isBlocking,
+    createdAt: at,
+    systemObservable: true,
+    status: "open",
+    returned: { by: "scrutiny", at, defects: list.map((text, i): Defect => ({ n: i + 1, text, fixed: false })) },
+    files: task.files,
+    history: [{ at, text: `Created — scrutiny returned ${object} with ${plural}` }],
+  };
+  return { task: superseded, created };
+}
+
+/** "File the proof affidavit…" → "the proof affidavit…"; "Continue the draft X" → "the X". */
+function objectOf(title: string): string {
+  const stripped = title
+    .replace(/^(File|Upload|Submit|Produce|Re-file|Sign|Pay|Continue)\s+/i, "")
+    .replace(/^the draft\s+/i, "the ")
+    .replace(/\s+—.*$/, "");
+  return /^the\s/i.test(stripped) ? stripped : `the ${stripped}`;
+}
+
+/* ─────────────────────────── housekeeping ─────────────────────────── */
+
+/** The window closed. System event. */
+export function expire(task: Task, ctx: Ctx, reason: string): Task {
+  assertState(task, PREPARABLE, "expire");
+  return withHistory({ ...task, status: "expired", statusNote: reason }, ctx, `Expired — ${reason}`, undefined);
+}
+
+/** No longer needed — order withdrawn, case disposed. System event or a person. */
 export function obsolete(task: Task, ctx: Ctx, reason: string): Task {
   if (TERMINAL.has(task.status)) {
     throw new TransitionError("illegal-state", "A closed task cannot be made obsolete.");
   }
-  return withHistory(
-    { ...task, status: "obsolete", statusNote: reason },
-    ctx,
-    `No longer required — ${reason}`
-  );
+  return withHistory({ ...task, status: "obsolete", statusNote: reason }, ctx, `No longer needed — ${reason}`);
 }
 
 /** A due date moved (a hearing was adjourned). Keeps the old date for the cue. */
-export function redate(
-  task: Task,
-  ctx: Ctx,
-  newDue: string,
-  reason: string,
-  newHearing?: string
-): Task {
+export function redate(task: Task, ctx: Ctx, newDue: string, reason: string, newHearing?: string): Task {
   if (TERMINAL.has(task.status)) {
     throw new TransitionError("illegal-state", "A closed task cannot be re-dated.");
   }
   const at = nowOf(ctx);
-  const from = task.dueAt ?? task.blocksHearingAt ?? at;
+  const from = task.dueAt ?? task.hearingAt ?? at;
   return withHistory(
     {
       ...task,
       dueAt: newDue,
-      blocksHearingAt: newHearing ?? task.blocksHearingAt,
+      hearingAt: newHearing ?? task.hearingAt,
       redate: { from, to: newDue, reason, at },
+      statusNote: `Moved from ${shortDate(from)} — ${reason}`,
     },
     ctx,
     `Due date moved from ${shortDate(from)} to ${shortDate(newDue)} — ${reason}`,

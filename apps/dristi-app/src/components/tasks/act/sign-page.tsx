@@ -3,15 +3,16 @@
 /**
  * Sign — the document on the left, the signing well on the right. A signatory e-signs
  * with an Aadhaar OTP (sandbox: any 6 digits) and the task closes by event with the
- * stamp on the preview. A member prepares (a note, an optional upload) and sends it for
- * approval; the approver sees what was prepared, then approves and signs — their own
- * signature is applied — or sends it back with a note.
+ * stamp on the preview; if someone else prepared it, their note and upload sit above the
+ * button. Anyone else on the case prepares (a note, an optional upload of the draft) and
+ * marks it ready.
  */
 
 import * as React from "react";
 import { SignatureIcon } from "lucide-react";
 
-import { approveAndSign, sign } from "@/lib/tasks/transitions";
+import { TERMINAL } from "@/lib/tasks/permissions";
+import { sign } from "@/lib/tasks/transitions";
 import type { StoredFileRef } from "@/lib/tasks/types";
 import { Button } from "@/components/ui/button";
 import { useTaskActions } from "@/components/tasks/use-task-actions";
@@ -20,18 +21,15 @@ import {
   ActColumns,
   ActFrame,
   type ActContext,
-  ApproveCard,
-  FileChip,
+  closedTitle,
   FileSlot,
-  finaliserLine,
   OtpDialog,
   PrepareCard,
+  PreparedNote,
   RailCard,
   RecordCard,
-  TakeOverNote,
+  signatoryLine,
   useActContext,
-  ViewOnlyCard,
-  WaitingCard,
 } from "@/components/tasks/act/shared";
 
 /** The signatory's own signing well. */
@@ -40,20 +38,8 @@ function SignCard({ ctx }: { ctx: ActContext }) {
   const { act, busy } = useTaskActions();
   const [otpOpen, setOtpOpen] = React.useState(false);
   return (
-    <RailCard
-      title={ctx.takingOver ? "Take over and sign" : "Add your signature"}
-      description={finaliserLine(ctx, "Signing")}
-    >
-      <TakeOverNote ctx={ctx} />
-      {ctx.takingOver && task.files?.length ? (
-        <ul className="flex flex-col gap-1">
-          {task.files.map((f) => (
-            <li key={f.id}>
-              <FileChip file={f} />
-            </li>
-          ))}
-        </ul>
-      ) : null}
+    <RailCard title="Add your signature" description={signatoryLine(ctx, "Signing")}>
+      <PreparedNote ctx={ctx} />
       <Button size="lg" disabled={!online || !!busy} onClick={() => setOtpOpen(true)}>
         <SignatureIcon data-icon="inline-start" aria-hidden />
         E-Sign with Aadhaar OTP
@@ -75,13 +61,13 @@ function SignCard({ ctx }: { ctx: ActContext }) {
   );
 }
 
-/** A member's preparation: a note, and an optional upload of a draft. */
+/** Preparation by someone who cannot sign: a note, and an optional upload of the draft. */
 function PrepareSign({ ctx }: { ctx: ActContext }) {
   const { task, online } = ctx;
   const [files, setFiles] = React.useState<StoredFileRef[]>(task.files ?? []);
   const draft = files.find((f) => f.slot === "Draft for signature");
   return (
-    <PrepareCard ctx={ctx} what="sign it" files={files}>
+    <PrepareCard ctx={ctx} what="sign" files={files}>
       <ul className="divide-y divide-hairline">
         <FileSlot
           name="Draft for signature"
@@ -96,48 +82,6 @@ function PrepareSign({ ctx }: { ctx: ActContext }) {
   );
 }
 
-/** The approver's well: what was prepared, then approve & sign (OTP) or send back. */
-function ApproveSign({ ctx }: { ctx: ActContext }) {
-  const { task, user, online, finish } = ctx;
-  const { act, busy } = useTaskActions();
-  const [otpOpen, setOtpOpen] = React.useState(false);
-  return (
-    <ApproveCard
-      ctx={ctx}
-      approve={
-        <>
-          <Button size="lg" disabled={!online || !!busy} onClick={() => setOtpOpen(true)}>
-            <SignatureIcon data-icon="inline-start" aria-hidden />
-            Approve &amp; sign
-          </Button>
-          <OtpDialog
-            open={otpOpen}
-            onOpenChange={setOtpOpen}
-            signer={user}
-            title="Approve and e-Sign"
-            confirmLabel="Approve & sign"
-            onSign={async () => {
-              setOtpOpen(false);
-              const t = await act(task.id, approveAndSign);
-              if (t) finish(`Approved and signed — ${t.completion?.receipt ?? ""}`);
-            }}
-          />
-        </>
-      }
-    >
-      {task.files?.length ? (
-        <ul className="flex flex-col gap-1">
-          {task.files.map((f) => (
-            <li key={f.id}>
-              <FileChip file={f} />
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </ApproveCard>
-  );
-}
-
 export function SignPage() {
   const ctx = useActContext();
   return (
@@ -147,15 +91,11 @@ export function SignPage() {
       sandbox="Any 6-digit OTP is accepted and the signature stamp is generated locally. Nothing is sent to a court."
     >
       {(c) => {
-        const { task, kase, people, finaliser, approver, preparer } = c;
-        const closed = ["done", "expired", "obsolete"].includes(task.status);
+        const { task, kase, people, signatory } = c;
         let rail: React.ReactNode;
-        if (task.status === "done") rail = <RecordCard ctx={c} title="Signed" />;
-        else if (closed) rail = <RecordCard ctx={c} title={task.status === "expired" ? "Expired" : "No longer required"} />;
-        else if (task.status === "awaiting-approval") rail = approver ? <ApproveSign ctx={c} /> : <WaitingCard ctx={c} />;
-        else if (finaliser) rail = <SignCard ctx={c} />;
-        else if (preparer) rail = <PrepareSign ctx={c} />;
-        else rail = <ViewOnlyCard ctx={c} why="You can see this case but cannot act on this task." />;
+        if (TERMINAL.has(task.status)) rail = <RecordCard ctx={c} title={closedTitle(task, "Signed")} />;
+        else if (signatory) rail = <SignCard ctx={c} />;
+        else rail = <PrepareSign ctx={c} />;
         return <ActColumns main={<CourtDocument task={task} kase={kase} people={people} />} rail={rail} />;
       }}
     </ActFrame>

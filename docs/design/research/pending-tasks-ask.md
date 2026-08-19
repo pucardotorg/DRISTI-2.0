@@ -90,3 +90,49 @@ memo or brief goes beyond these words, it must say so.
 Everything the memos and the brief mark as *inferred* or *open* — see
 [pending-tasks-domain.md](pending-tasks-domain.md), [pending-tasks-ux.md](pending-tasks-ux.md)
 and the brief at [../proposals/pending-tasks.md](../proposals/pending-tasks.md).
+
+---
+
+## Second ask — 2026-08-19 (verbatim, product)
+
+> Can you do a fundamental UX design pass on this? I feel like this is very badly designed at
+> the moment:
+>
+> * All the information is clapped together instead of having proper columns.
+> * The filters don't have proper labels.
+> * The UX copy is a little all over the place.
+> * There is a global filter for todo as well as blocking a hearing. It's all over the place.
+>
+> Can you just rethink all of this, take a few steps back, and think like a UX designer? Think
+> from first principles and just completely redesign this.
+>
+> Apart from all the applications and uploading of things and pending payments, a few other
+> pending tasks that you need to keep in mind for us are:
+>
+> * Initiated by the court, such as plea and deposition, so I don't know too much about it. I may
+>   need your help to figure that out first.
+>
+> To us, cases that are sent back from scrutiny or with errors to be corrected and sent back will
+> be needed pending tasks.
+>
+> And there is no concept of assigning things to someone. Just show who the main case's main
+> advocate is, or who all are on the case. Mention all the people on a case because we are
+> removing the team access concept entirely. I'll make that edit in the home screen thing also.
+>
+> Essentially, it's just like how you share a file with someone. Someone who has a Vakalthama can
+> take actions on the case, such as completing a filing, completing a sign, completing a payment,
+> etc. Someone who's not on a Vakalth can finish things and leave it in a pending task. For
+> example, I can start an application and leave it in a draft stage. I can start filing a case and
+> leave it in a draft stage, etc., so keep that in mind.
+>
+> I also think some kind of cards will be good here to quickly see what all things are there in
+> an overall view so that they can take actions based on it.
+>
+> Think of this as a command centre to manage all the pending tasks. We should help the MIS, the
+> decision makers, quickly take action, not overwhelm them with too many things like how we have
+> currently designed it. This requires a huge redesign.
+
+**What this changes (product-confirmed, 2026-08-19):** no assignment; show the case's advocates
+instead; team-access concept removed (file-share model); court-initiated tasks (plea, deposition)
+and scrutiny returns are pending tasks; non-signatories may leave work in draft; cards for an
+overview; the view is a command centre. The redesign (v2) is in the brief.

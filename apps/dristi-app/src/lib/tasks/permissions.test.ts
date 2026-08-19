@@ -1,173 +1,163 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { at, junior, kase, makeTask, otherCase, outsider, senior, senior2 } from "./fixtures";
+import { at, junior, kase, makeTask, otherCase, outsider, PEOPLE, senior, senior2 } from "./fixtures";
+import { dueCueOf, permissionLineOf, statusPhraseOf } from "./format";
 import {
-  canApprove,
-  canFinalise,
-  canFinaliseTask,
+  advocatesOf,
+  canComplete,
   canMarkDone,
-  canPrepare,
   canView,
-  effectiveAssignee,
-  isTakeOver,
+  cardKindOf,
   verbFor,
   viewOf,
 } from "./permissions";
+import type { TaskStatus } from "./types";
 
-describe("access", () => {
-  it("signatories finalise; members prepare; outsiders see nothing", () => {
+describe("canView / canComplete", () => {
+  it("signatories and juniors on the case can view; only signatories complete", () => {
     assert.equal(canView(senior, kase), true);
-    assert.equal(canFinalise(senior, kase), true);
-    assert.equal(canPrepare(senior, kase), false);
-
     assert.equal(canView(junior, kase), true);
-    assert.equal(canFinalise(junior, kase), false);
-    assert.equal(canPrepare(junior, kase), true);
-
     assert.equal(canView(outsider, kase), false);
-    assert.equal(canFinalise(outsider, kase), false);
-    assert.equal(canPrepare(outsider, kase), false);
+    assert.equal(canComplete(senior, kase), true);
+    assert.equal(canComplete(senior2, kase), true);
+    assert.equal(canComplete(junior, kase), false);
   });
 
-  it("an assignee without access reads as unassigned", () => {
-    assert.equal(effectiveAssignee(makeTask({ assigneeId: outsider.id }), kase), undefined);
-    assert.equal(effectiveAssignee(makeTask({ assigneeId: junior.id }), kase), junior.id);
+  it("advocatesOf lists the main advocate first, then the rest", () => {
+    assert.deepEqual(
+      advocatesOf(kase, PEOPLE).map((p) => p.id),
+      [senior.id, senior2.id, junior.id]
+    );
   });
 });
 
-describe("approval", () => {
-  const awaiting = makeTask({
-    status: "awaiting-approval",
-    approval: { preparedBy: junior.id, sentAt: at(-1), prepared: {} },
-  });
-
-  it("a signatory who did not prepare it may approve", () => {
-    assert.equal(canApprove(senior, awaiting, kase), true);
-    assert.equal(canApprove(senior2, awaiting, kase), true);
-  });
-
-  it("no self-approval — even for a signatory", () => {
-    const selfPrepared = makeTask({
-      status: "awaiting-approval",
-      approval: { preparedBy: senior.id, sentAt: at(-1), prepared: {} },
+describe("viewOf — the same for every viewer", () => {
+  const cases: [TaskStatus, string][] = [
+    ["open", "open"],
+    ["draft", "open"],
+    ["ready", "open"],
+    ["awaiting-court", "waiting"],
+    ["payment-confirming", "waiting"],
+    ["done", "completed"],
+    ["expired", "completed"],
+    ["obsolete", "completed"],
+  ];
+  for (const [status, view] of cases) {
+    it(`${status} → ${view}`, () => {
+      assert.equal(viewOf(makeTask({ status })), view);
     });
-    assert.equal(canApprove(senior, selfPrepared, kase), false);
-    assert.equal(canApprove(senior2, selfPrepared, kase), true);
-  });
-
-  it("members and outsiders never approve", () => {
-    assert.equal(canApprove(junior, awaiting, kase), false);
-    assert.equal(canApprove(outsider, awaiting, kase), false);
-  });
-
-  it("only while awaiting approval", () => {
-    assert.equal(canApprove(senior, { ...awaiting, status: "open" }, kase), false);
-  });
+  }
 });
 
-describe("viewOf", () => {
-  const awaiting = makeTask({
-    status: "awaiting-approval",
-    approval: { preparedBy: junior.id, sentAt: at(-1), prepared: {} },
+describe("cardKindOf", () => {
+  it("a task in draft status counts under Drafts whatever its kind", () => {
+    assert.equal(cardKindOf(makeTask({ kind: "file", status: "draft" })), "draft");
+    assert.equal(cardKindOf(makeTask({ kind: "draft", status: "draft" })), "draft");
   });
-
-  it("awaiting-approval is the approver's to do and everyone else's wait", () => {
-    assert.equal(viewOf(awaiting, senior, kase), "todo");
-    assert.equal(viewOf(awaiting, junior, kase), "waiting");
-    // A third member with access, neither preparer nor signatory.
-    const withThird = { ...kase, members: [junior.id, "p-third"] };
-    assert.equal(viewOf(awaiting, "p-third", withThird), "waiting");
+  it("a draft-kind task marked ready is a filing from then on", () => {
+    assert.equal(cardKindOf(makeTask({ kind: "draft", status: "ready" })), "file");
+    assert.equal(cardKindOf(makeTask({ kind: "draft", status: "awaiting-court" })), "file");
   });
-
-  it("a signatory who prepared it waits until another signatory decides", () => {
-    const selfPrepared = { ...awaiting, approval: { ...awaiting.approval!, preparedBy: senior.id } };
-    assert.equal(viewOf(selfPrepared, senior, kase), "waiting");
-    assert.equal(viewOf(selfPrepared, senior2, kase), "todo");
-  });
-
-  it("open, in-progress, draft and sent-back are to do; court/payment waits; closed is done", () => {
-    for (const status of ["open", "in-progress", "draft", "sent-back"] as const) {
-      assert.equal(viewOf(makeTask({ status }), junior, kase), "todo", status);
-    }
-    for (const status of ["awaiting-court", "payment-confirming"] as const) {
-      assert.equal(viewOf(makeTask({ status }), senior, kase), "waiting", status);
-    }
-    for (const status of ["done", "expired", "obsolete"] as const) {
-      assert.equal(viewOf(makeTask({ status }), senior, kase), "done", status);
-    }
+  it("otherwise the kind is the card", () => {
+    assert.equal(cardKindOf(makeTask({ kind: "returned" })), "returned");
+    assert.equal(cardKindOf(makeTask({ kind: "hearing" })), "hearing");
   });
 });
 
 describe("verbFor", () => {
-  it("finalising verbs for signatories, Prepare for members", () => {
-    assert.equal(verbFor(senior, makeTask({ kind: "pay" }), kase), "Pay");
+  it("signatory: the completing verb on open and ready items", () => {
     assert.equal(verbFor(senior, makeTask({ kind: "sign" }), kase), "Sign");
-    assert.equal(verbFor(senior, makeTask({ kind: "submit" }), kase), "Submit");
-    assert.equal(verbFor(senior, makeTask({ kind: "fix-defects" }), kase), "Fix defects");
-    assert.equal(verbFor(junior, makeTask({ kind: "pay" }), kase), "Prepare");
-    assert.equal(verbFor(junior, makeTask({ kind: "sign" }), kase), "Prepare");
+    assert.equal(verbFor(senior, makeTask({ kind: "pay", status: "ready" }), kase), "Pay");
+    assert.equal(verbFor(senior2, makeTask({ kind: "file" }), kase), "File");
+    assert.equal(verbFor(senior, makeTask({ kind: "returned" }), kase), "Fix & re-file");
+    assert.equal(verbFor(senior, makeTask({ kind: "draft", status: "ready" }), kase), "File");
   });
 
-  it("Continue for drafts, in-progress and sent-back", () => {
-    assert.equal(verbFor(junior, makeTask({ status: "draft" }), kase), "Continue");
-    assert.equal(verbFor(senior, makeTask({ status: "in-progress" }), kase), "Continue");
-    assert.equal(verbFor(junior, makeTask({ status: "sent-back" }), kase), "Continue");
+  it("on the case but not a signatory: Open on open and ready items", () => {
+    assert.equal(verbFor(junior, makeTask({ kind: "sign" }), kase), "Open");
+    assert.equal(verbFor(junior, makeTask({ kind: "pay", status: "ready" }), kase), "Open");
   });
 
-  it("Take over for a finaliser on someone else's draft; the preparer keeps Continue", () => {
-    const draft = makeTask({ status: "draft", approval: { preparedBy: junior.id, sentAt: "", prepared: {} } });
-    assert.equal(verbFor(senior, draft, kase), "Take over");
-    assert.equal(verbFor(senior2, draft, kase), "Take over");
-    assert.equal(verbFor(junior, draft, kase), "Continue");
-    assert.equal(isTakeOver(senior, draft, kase), true);
-    assert.equal(isTakeOver(junior, draft, kase), false);
-    const sentBack = { ...draft, status: "sent-back" as const };
-    assert.equal(verbFor(senior, sentBack, kase), "Take over");
-    assert.equal(verbFor(junior, sentBack, kase), "Continue");
-    // A signatory who prepared it themselves (member on another case, say) just continues.
-    const own = { ...draft, approval: { ...draft.approval!, preparedBy: senior.id } };
-    assert.equal(verbFor(senior, own, kase), "Continue");
-    // A draft with no recorded preparer is not a take-over.
-    assert.equal(verbFor(senior, makeTask({ status: "draft" }), kase), "Continue");
+  it("anyone on the case: Continue on a draft", () => {
+    assert.equal(verbFor(junior, makeTask({ kind: "file", status: "draft" }), kase), "Continue");
+    assert.equal(verbFor(senior, makeTask({ kind: "file", status: "draft" }), kase), "Continue");
   });
 
-  it("canFinaliseTask: signatories always; anyone with access when no signatory is required", () => {
-    assert.equal(canFinaliseTask(senior, makeTask(), kase), true);
-    assert.equal(canFinaliseTask(junior, makeTask(), kase), false);
-    assert.equal(canFinaliseTask(junior, makeTask({ requiresSignatory: false }), kase), true);
-    assert.equal(canFinaliseTask(outsider, makeTask({ requiresSignatory: false }), kase), false);
+  it("hearing tasks: Mark done for anyone on the case while open", () => {
+    assert.equal(verbFor(junior, makeTask({ kind: "hearing" }), kase), "Mark done");
+    assert.equal(verbFor(senior, makeTask({ kind: "hearing" }), kase), "Mark done");
+    assert.equal(canMarkDone(junior, makeTask({ kind: "hearing" }), kase), true);
+    assert.equal(canMarkDone(junior, makeTask({ kind: "hearing", systemObservable: true }), kase), false);
   });
 
-  it("Approve & sign for the approver, Withdraw for the preparer, View for others", () => {
-    const awaiting = makeTask({
-      status: "awaiting-approval",
-      approval: { preparedBy: junior.id, sentAt: at(-1), prepared: {} },
-    });
-    assert.equal(verbFor(senior, awaiting, kase), "Approve & sign");
-    assert.equal(verbFor(junior, awaiting, kase), "Withdraw");
-    assert.equal(verbFor("p-third", awaiting, { ...kase, members: [junior.id, "p-third"] }), "View");
-  });
-
-  it("Mark done only for tasks the system cannot observe", () => {
-    assert.equal(verbFor(junior, makeTask({ kind: "respond" }), kase), "Mark done");
-    assert.equal(canMarkDone(junior, makeTask({ kind: "respond" }), kase), true);
-    assert.equal(canMarkDone(senior, makeTask({ kind: "pay" }), kase), false);
-    assert.equal(canMarkDone(junior, makeTask({ kind: "respond", status: "done" }), kase), false);
-  });
-
-  it("View when closed, waiting, or outside access", () => {
-    assert.equal(verbFor(senior, makeTask({ status: "done" }), kase), "View");
+  it("not on the case, waiting, or closed: View", () => {
+    assert.equal(verbFor(outsider, makeTask({ kind: "sign" }), kase), "View");
     assert.equal(verbFor(senior, makeTask({ status: "awaiting-court" }), kase), "View");
-    assert.equal(verbFor(senior, makeTask({ caseId: otherCase.id }), otherCase), "View");
+    assert.equal(verbFor(senior, makeTask({ status: "done" }), kase), "View");
+    assert.equal(verbFor(outsider, makeTask({ caseId: otherCase.id }), otherCase), "Pay");
+  });
+});
+
+describe("status phrases — fixed vocabulary", () => {
+  it("open items say who they need: you for a signatory, the main advocate for others", () => {
+    const t = makeTask({ kind: "sign" });
+    assert.equal(statusPhraseOf(t, senior, kase, PEOPLE), "Needs signature · you");
+    assert.equal(statusPhraseOf(t, senior2, kase, PEOPLE), "Needs signature · you");
+    assert.equal(statusPhraseOf(t, junior, kase, PEOPLE), "Needs signature · Anjali Nair");
+    assert.equal(statusPhraseOf(makeTask({ kind: "pay" }), junior, kase, PEOPLE), "Needs payment · Anjali Nair");
+    assert.equal(statusPhraseOf(makeTask({ kind: "file", status: "ready" }), junior, kase, PEOPLE), "Needs filing · Anjali Nair");
   });
 
-  it("switching identity re-derives the verb — nothing is cached", () => {
-    const t = makeTask({ kind: "pay" });
-    assert.equal(verbFor(senior, t, kase), "Pay");
-    assert.equal(verbFor(junior, t, kase), "Prepare");
-    // The same person on a case where they are only a member.
-    const asMember = { ...kase, signatories: [senior2.id], members: [senior.id] };
-    assert.equal(verbFor(senior, t, asMember), "Prepare");
+  it("drafts, returns, waiting and closed states", () => {
+    assert.equal(
+      statusPhraseOf(makeTask({ status: "draft", draft: { by: junior.id, savedAt: at(0) } }), senior, kase, PEOPLE),
+      "Draft · S. Prakash"
+    );
+    assert.equal(
+      statusPhraseOf(makeTask({ status: "draft", draft: { by: junior.id, savedAt: at(0) } }), junior, kase, PEOPLE),
+      "Draft · you"
+    );
+    const returned = makeTask({
+      kind: "returned",
+      returned: { by: "scrutiny", at: at(-1), defects: [{ n: 1, text: "x", fixed: false }, { n: 2, text: "y", fixed: false }] },
+    });
+    assert.equal(statusPhraseOf(returned, senior, kase, PEOPLE), "Returned · 2 defects");
+    assert.equal(statusPhraseOf(makeTask({ status: "awaiting-court" }), senior, kase, PEOPLE), "With the court");
+    assert.equal(statusPhraseOf(makeTask({ status: "payment-confirming" }), senior, kase, PEOPLE), "Payment confirming");
+    assert.equal(
+      statusPhraseOf(makeTask({ status: "expired", statusNote: "cure window lapsed" }), senior, kase, PEOPLE),
+      "Expired — cure window lapsed"
+    );
+    assert.equal(
+      statusPhraseOf(makeTask({ status: "obsolete", statusNote: "order withdrawn" }), senior, kase, PEOPLE),
+      "No longer needed — order withdrawn"
+    );
+    assert.match(statusPhraseOf(makeTask({ status: "done", completion: { at: at(-2), how: "event" } }), senior, kase, PEOPLE), /^Done \d+ \w+$/);
+  });
+
+  it("due phrases", () => {
+    const NOW = "2026-08-18T12:00:00.000Z";
+    assert.deepEqual(dueCueOf(makeTask({ dueAt: at(-3) }), NOW), { text: "3 days overdue", overdue: true });
+    assert.deepEqual(dueCueOf(makeTask({ dueAt: at(0) }), NOW), { text: "Due today", overdue: false });
+    assert.match(dueCueOf(makeTask({ dueAt: at(4) }), NOW).text, /^Due \d+ \w+$/);
+    assert.match(dueCueOf(makeTask({ hearingAt: at(4, 5), dueAt: at(4, 5) }), NOW).text, /^Before hearing /);
+    assert.deepEqual(dueCueOf(makeTask({ dueKind: "none" }), NOW), { text: "No date", overdue: false });
+    assert.equal(dueCueOf(makeTask({ dueAt: at(-3), status: "awaiting-court" }), NOW).overdue, false);
+  });
+
+  it("permission lines", () => {
+    assert.equal(
+      permissionLineOf(makeTask({ kind: "sign" }), senior, kase, PEOPLE),
+      "You are on the vakalatnama — you can sign."
+    );
+    assert.equal(
+      permissionLineOf(makeTask({ kind: "sign" }), junior, kase, PEOPLE),
+      "Anjali Nair or R. Manoj must sign this. You can prepare it and mark it ready."
+    );
+    assert.match(
+      permissionLineOf(makeTask({ kind: "sign", status: "ready", prepared: { by: junior.id, at: at(-1) } }), senior, kase, PEOPLE),
+      /^Prepared by S\. Prakash on \d+ \w+ — review and sign\.$/
+    );
   });
 });

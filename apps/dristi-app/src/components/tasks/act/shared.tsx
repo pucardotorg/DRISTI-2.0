@@ -2,9 +2,9 @@
 
 /**
  * Pieces every act page shares: the frame (breadcrumb, header, sandbox notice), the
- * "prepared by" panel for approvers, the prepare form for non-signatories, the waiting
- * card for preparers, the OTP dialog, file slots, the court sandbox and the finished
- * record. Each page composes these around its own document or fee summary.
+ * "prepared by" note for a signatory, the prepare card for someone who cannot complete
+ * the task, the OTP dialog, file slots, the court sandbox and the finished record. Each
+ * page composes these around its own document, documents or fee summary.
  */
 
 import * as React from "react";
@@ -14,18 +14,11 @@ import { toast } from "sonner";
 import { CheckIcon, FileTextIcon, SignatureIcon, TrashIcon } from "lucide-react";
 
 import { fileUrl, formatBytes, storeUpload } from "@/lib/tasks/data";
-import { dateTime, longDate, shortDate } from "@/lib/tasks/format";
-import { canApprove, canFinaliseTask, canView, isTakeOver } from "@/lib/tasks/permissions";
+import { dateTime, nameOf } from "@/lib/tasks/format";
+import { canComplete, canView, signatoriesOf } from "@/lib/tasks/permissions";
 import { useTasks } from "@/lib/tasks/store";
-import {
-  courtAccepted,
-  courtReturned,
-  saveDraft,
-  sendBack,
-  sendForApproval,
-  withdraw,
-} from "@/lib/tasks/transitions";
-import type { Case, Person, PersonId, StoredFileRef, Task } from "@/lib/tasks/types";
+import { courtAccepted, courtReturned, markReady, saveDraft } from "@/lib/tasks/transitions";
+import type { Case, Person, StoredFileRef, Task } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,14 +58,9 @@ export type ActContext = {
   user: Person;
   people: Person[];
   online: boolean;
-  /** May complete this task's finalising step (signatory, or no signatory needed). */
-  finaliser: boolean;
-  /** Has access but cannot finalise this task — prepares and sends for approval. */
-  preparer: boolean;
-  approver: boolean;
-  /** A finaliser on a draft someone else is preparing — finishing it takes it over. */
-  takingOver: boolean;
-  /** Back to the list with this task open, flashed. */
+  /** On the vakalatnama — may complete this task (sign, pay, file, re-file). */
+  signatory: boolean;
+  /** Back to the list with this task open. */
   finish: (message?: string, taskId?: string) => void;
 };
 
@@ -101,19 +89,7 @@ export function useActContext(): ActContext | { state: "loading" | "missing" | "
   if (state !== "ready") return { state: "loading" };
   if (!task || !kase) return { state: "missing" };
   if (!canView(user, kase)) return { state: "forbidden" };
-  const finaliser = canFinaliseTask(user, task, kase);
-  return {
-    task,
-    kase,
-    user,
-    people,
-    online,
-    finaliser,
-    preparer: !finaliser,
-    approver: canApprove(user, task, kase),
-    takingOver: isTakeOver(user, task, kase),
-    finish,
-  };
+  return { task, kase, user, people, online, signatory: canComplete(user, kase), finish };
 }
 
 /* ───────────────────────────── the frame ───────────────────────────── */
@@ -125,7 +101,7 @@ export function ActFrame({
   children,
 }: {
   ctx: ActContext | { state: "loading" | "missing" | "forbidden" };
-  /** "Pay" · "Sign" · "Submit" · "Fix defects" — the breadcrumb's last crumb. */
+  /** "Pay" · "Sign" · "File" · "Fix & re-file" — the breadcrumb's last crumb. */
   action: string;
   /** The one quiet line that says what is not real here. */
   sandbox: string;
@@ -149,13 +125,11 @@ export function ActFrame({
                   <EmptyMedia variant="icon">
                     <FileTextIcon aria-hidden />
                   </EmptyMedia>
-                  <EmptyTitle>
-                    {ctx.state === "missing" ? "This task is not here" : "Not on your access"}
-                  </EmptyTitle>
+                  <EmptyTitle>{ctx.state === "missing" ? "This task is not here" : "Not on your cases"}</EmptyTitle>
                   <EmptyDescription>
                     {ctx.state === "missing"
                       ? "It may have been reset with the sandbox, or the link is wrong."
-                      : "You are not on this case's vakalatnama or its access list."}
+                      : "You are not one of this case's advocates."}
                   </EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent>
@@ -183,7 +157,7 @@ export function ActFrame({
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 md:px-6 lg:px-8">
         <header className="flex flex-col gap-1">
           <h1 className="text-title font-semibold text-foreground text-balance">{task.title}</h1>
-          <p className="text-body-compact text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             {kase.parties}
             {kase.stNumber ? (
               <>
@@ -233,9 +207,7 @@ export function RailCard({
     <Card className={cn(PANEL_CLASS, "gap-4")}>
       <CardHeader>
         <CardTitle className="text-body font-semibold">{title}</CardTitle>
-        {description ? (
-          <p className="text-body-compact text-muted-foreground">{description}</p>
-        ) : null}
+        {description ? <p className="text-body-compact text-muted-foreground">{description}</p> : null}
       </CardHeader>
       <CardContent className="flex flex-col gap-4">{children}</CardContent>
     </Card>
@@ -243,38 +215,46 @@ export function RailCard({
 }
 
 /**
- * On a finaliser's rail when the task is a draft someone else was preparing: who, and
- * what they left — the note and any upload — so taking over is informed, not blind.
+ * On a signatory's rail when someone else prepared the work — marked it ready or left
+ * it in draft: who, when, their note and what they attached, so completing it is
+ * informed, not blind.
  */
-export function TakeOverNote({ ctx }: { ctx: ActContext }) {
-  const { task, people, takingOver } = ctx;
-  if (!takingOver) return null;
-  const preparer = people.find((p) => p.id === task.approval?.preparedBy);
-  const note = (task.approval?.prepared?.note as string | undefined) || task.approval?.note;
+export function PreparedNote({ ctx }: { ctx: ActContext }) {
+  const { task, people, user } = ctx;
+  const prepared = task.status === "ready" ? task.prepared : null;
+  const draft = task.status === "draft" ? task.draft : null;
+  const by = prepared?.by ?? draft?.by;
+  if (!by || by === user.id) return null;
+  const person = people.find((p) => p.id === by);
+  const note = prepared?.note ?? draft?.note;
+  const at = prepared?.at ?? draft?.savedAt;
+  const files = prepared?.files ?? task.files;
   return (
     <div className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-3">
       <div className="flex items-center gap-2">
-        {preparer ? <PersonAvatar person={preparer} /> : null}
+        {person ? <PersonAvatar person={person} /> : null}
         <p className="text-caption font-semibold text-muted-foreground">
-          {preparer?.name ?? "Someone"} is preparing this
+          {prepared ? "Prepared by" : "Draft by"} {person?.name ?? "someone"}
+          {at ? ` · ${dateTime(at)}` : ""}
         </p>
       </div>
-      <p className="text-body-compact">
-        {note || <span className="text-muted-foreground">No note yet.</span>}
-      </p>
-      <p className="text-caption text-muted-foreground">
-        Finishing it here takes it over — the history will say so.
-      </p>
+      <p className="text-body-compact">{note || <span className="text-muted-foreground">No note.</span>}</p>
+      {files?.length ? (
+        <ul className="flex flex-col gap-1">
+          {files.map((f) => (
+            <li key={f.id}>
+              <FileChip file={f} />
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }
 
-/** "Paying as X — you are on the vakalatnama." or, on a take-over, what that means. */
-export function finaliserLine(ctx: ActContext, verb: string): string {
-  const { user, takingOver, task } = ctx;
-  if (takingOver) return `${verb} as ${user.name} — this takes over the draft.`;
-  if (!task.requiresSignatory) return `${verb} as ${user.name} — no signature is needed for this.`;
-  return `${verb} as ${user.name} — you are on the vakalatnama.`;
+/** "Paying as X — you are on the vakalatnama." */
+export function signatoryLine(ctx: ActContext, verb: string): string {
+  return `${verb} as ${ctx.user.name} — you are on the vakalatnama.`;
 }
 
 /* ───────────────────────────── files ───────────────────────────── */
@@ -409,50 +389,44 @@ export function FileSlot({
   );
 }
 
-/* ───────────────────────────── the prepare / approve / wait cards ───────────────────────────── */
+/* ───────────────────────────── the prepare card ───────────────────────────── */
 
 /**
- * For someone with access but no signature: prepare (a note to the signatory, optional
- * uploads handled by the page), save the draft, send it for approval.
+ * For someone on the case who cannot complete the task: prepare it — a note to the
+ * signatory, whatever the page supplies (uploads, the defect checklist) — then save it
+ * as a draft, or mark it ready so the signatory is asked to complete it.
  */
 export function PrepareCard({
   ctx,
   what,
   files,
+  complete = true,
   children,
 }: {
   ctx: ActContext;
-  /** What the signatory will do — "pay it", "sign it", "submit it". */
+  /** What the signatory will do — "pay", "sign", "file", "re-file". */
   what: string;
   files?: StoredFileRef[];
+  /** Whether the preparation is complete enough to mark ready. */
+  complete?: boolean;
   children?: React.ReactNode;
 }) {
   const { task, people, kase, online, finish } = ctx;
   const { act, busy } = useTaskActions();
-  const [note, setNote] = React.useState<string>(
-    (task.approval?.prepared?.note as string | undefined) ?? task.approval?.note ?? ""
-  );
-  const signatories = kase.signatories
-    .map((id) => people.find((p) => p.id === id)?.name)
-    .filter(Boolean)
-    .join(" or ");
-  const sentBack = task.status === "sent-back" ? task.approval : null;
-  const outcome = task.kind === "pay" ? "they make the payment" : "their signature is the one applied";
+  const [note, setNote] = React.useState<string>(task.draft?.note ?? task.prepared?.note ?? "");
+  const signatories = signatoriesOf(kase, people).map((p) => p.name);
+  const who = signatories.length ? signatories.join(" or ") : "A signatory";
+  const ready = task.status === "ready";
 
   return (
     <RailCard
-      title={task.status === "draft" || task.status === "sent-back" ? "Continue preparing" : "Prepare"}
-      description={`${signatories || "A signatory"} will ${what}. Prepare it here and send it for approval — ${outcome}.`}
+      title={ready ? "Prepared" : task.status === "draft" ? "Continue preparing" : "Prepare"}
+      description={
+        ready
+          ? `Marked ready${task.prepared ? ` by ${nameOf(people, task.prepared.by)}` : ""}. ${who} will ${what} it. Save again to rework it.`
+          : `${who} must ${what} this. Prepare it here, then mark it ready — they will be asked to ${what} it.`
+      }
     >
-      {sentBack?.decisionNote ? (
-        <div className="flex flex-col gap-1 rounded-lg bg-surface-sunken p-3">
-          <p className="text-caption font-semibold text-muted-foreground">
-            Sent back by {people.find((p) => p.id === sentBack.decidedBy)?.name ?? "the signatory"}
-            {sentBack.decidedAt ? ` · ${shortDate(sentBack.decidedAt)}` : ""}
-          </p>
-          <p className="text-body-compact">{sentBack.decisionNote}</p>
-        </div>
-      ) : null}
       {children}
       <Field>
         <FieldLabel htmlFor="prepare-note">Note to the signatory</FieldLabel>
@@ -467,151 +441,35 @@ export function PrepareCard({
         <FieldDescription>Optional. Shown with the task when they open it.</FieldDescription>
       </Field>
       <div className="flex flex-wrap gap-2">
+        {!ready ? (
+          <Button
+            disabled={!online || !!busy || !complete}
+            onClick={async () => {
+              const t = await act(task.id, (x, c) => markReady(x, c, note, files));
+              if (t) finish(`Marked ready — ${who} will be asked to ${what} it`);
+            }}
+          >
+            Mark ready
+          </Button>
+        ) : null}
         <Button
+          variant={ready ? "outline" : "ghost"}
           disabled={!online || !!busy}
-          onClick={async () => {
-            const saved = await act(task.id, (t, c) => saveDraft(t, c, { note }, files));
-            if (!saved) return;
-            const sent = await act(task.id, (t, c) => sendForApproval(t, c, note));
-            if (sent) finish(`Sent to ${signatories || "the signatory"} for approval`);
-          }}
+          onClick={() => void act(task.id, (x, c) => saveDraft(x, c, note, files), "Saved as a draft")}
         >
-          Send for approval
-        </Button>
-        <Button
-          variant="ghost"
-          disabled={!online || !!busy}
-          onClick={() => void act(task.id, (t, c) => saveDraft(t, c, { note }, files), "Draft saved")}
-        >
-          Save draft
+          Save as draft
         </Button>
       </div>
-    </RailCard>
-  );
-}
-
-/** For the preparer while a signatory decides: where it is, and the way back. */
-export function WaitingCard({ ctx }: { ctx: ActContext }) {
-  const { task, people, kase, user, online, finish } = ctx;
-  const { act, busy } = useTaskActions();
-  const approvers = kase.signatories
-    .filter((id) => id !== task.approval?.preparedBy)
-    .map((id) => people.find((p) => p.id === id)?.name)
-    .filter(Boolean)
-    .join(" or ");
-  const mine = task.approval?.preparedBy === user.id;
-  return (
-    <RailCard
-      title="Sent for approval"
-      description={`${people.find((p) => p.id === task.approval?.preparedBy)?.name ?? "Someone"} sent this${task.approval?.sentAt ? ` on ${longDate(task.approval.sentAt)}` : ""}. Waiting on ${approvers || "a signatory"}.`}
-    >
-      {task.approval?.note ? (
-        <div className="rounded-lg bg-surface-sunken p-3 text-body-compact">{task.approval.note}</div>
+      {!complete && !ready ? (
+        <p className="text-caption text-muted-foreground">Finish the preparation to mark it ready.</p>
       ) : null}
-      {mine ? (
-        <Button
-          variant="outline"
-          disabled={!online || !!busy}
-          onClick={async () => {
-            const t = await act(task.id, withdraw);
-            if (t) finish("Withdrawn — back in your drafts");
-          }}
-        >
-          Withdraw
-        </Button>
-      ) : null}
-    </RailCard>
-  );
-}
-
-/**
- * For a signatory looking at someone else's preparation: who, when, the note, then
- * approve (the page supplies the finalising step) or send back with a required note.
- */
-export function ApproveCard({
-  ctx,
-  title = "Approve and sign",
-  description = "Your signature is the one applied — read what was prepared before you approve.",
-  approve,
-  children,
-}: {
-  ctx: ActContext;
-  title?: string;
-  description?: string;
-  /** The approving control(s) — a button that opens the OTP, or the pay sandbox. */
-  approve: React.ReactNode;
-  children?: React.ReactNode;
-}) {
-  const { task, people, online, finish } = ctx;
-  const { act, busy } = useTaskActions();
-  const preparer = people.find((p) => p.id === task.approval?.preparedBy);
-  const [open, setOpen] = React.useState(false);
-  const [note, setNote] = React.useState("");
-
-  return (
-    <RailCard title={title} description={description}>
-      <div className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-3">
-        <div className="flex items-center gap-2">
-          {preparer ? <PersonAvatar person={preparer} /> : null}
-          <p className="text-caption font-semibold text-muted-foreground">
-            Prepared by {preparer?.name ?? "someone"}
-            {task.approval?.sentAt ? ` · ${dateTime(task.approval.sentAt)}` : ""}
-          </p>
-        </div>
-        <p className="text-body-compact">
-          {task.approval?.note || <span className="text-muted-foreground">No note.</span>}
-        </p>
-      </div>
-      {children}
-      {approve}
-      <Button variant="ghost" disabled={!online || !!busy} onClick={() => setOpen(true)} className="self-start">
-        Send back
-      </Button>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Send back to {preparer?.name ?? "the preparer"}</DialogTitle>
-            <DialogDescription>
-              Say what needs to change. The task returns to the top of their list with your note.
-            </DialogDescription>
-          </DialogHeader>
-          <Field>
-            <FieldLabel htmlFor="approve-send-back-note">Note</FieldLabel>
-            <Textarea
-              id="approve-send-back-note"
-              rows={4}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="What needs to change before you will sign"
-              required
-            />
-            <FieldDescription>Required.</FieldDescription>
-          </Field>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={!note.trim() || !!busy}
-              onClick={async () => {
-                const t = await act(task.id, (x, c) => sendBack(x, c, note.trim()));
-                setOpen(false);
-                if (t) finish("Sent back with your note");
-              }}
-            >
-              Send back
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </RailCard>
   );
 }
 
 /* ───────────────────────────── OTP ───────────────────────────── */
 
-/** Aadhaar e-Sign, sandboxed: any 6 digits. The signatory's name is on the button. */
+/** Aadhaar e-Sign, sandboxed: any 6 digits. The signatory's name is on the dialog. */
 export function OtpDialog({
   open,
   onOpenChange,
@@ -631,9 +489,7 @@ export function OtpDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         {/* Mounted per open, so the code always starts empty. */}
-        {open ? (
-          <OtpForm signer={signer} onSign={onSign} title={title} confirmLabel={confirmLabel} />
-        ) : null}
+        {open ? <OtpForm signer={signer} onSign={onSign} title={title} confirmLabel={confirmLabel} /> : null}
       </DialogContent>
     </Dialog>
   );
@@ -692,8 +548,8 @@ function OtpForm({
 /* ───────────────────────────── court sandbox ───────────────────────────── */
 
 /**
- * Stand-in for the registry on a submitted task: accept, or return with 1–3 defects.
- * Returning creates the fix-defects task and takes you to it.
+ * Stand-in for the registry on a filed task: accept, or return with 1–3 defects.
+ * Returning creates the `returned` task and takes you to it.
  */
 export function CourtSandbox({ ctx }: { ctx: ActContext }) {
   const { task, online, finish } = ctx;
@@ -704,8 +560,8 @@ export function CourtSandbox({ ctx }: { ctx: ActContext }) {
 
   return (
     <RailCard
-      title="Awaiting scrutiny"
-      description="Submitted — the registry has it now. These controls stand in for the registry's answer."
+      title="With the court"
+      description="Filed — the registry has it now. These controls stand in for the registry's answer."
     >
       <div className="flex flex-wrap gap-2">
         <Button
@@ -728,7 +584,7 @@ export function CourtSandbox({ ctx }: { ctx: ActContext }) {
           <DialogHeader>
             <DialogTitle>Return with defects</DialogTitle>
             <DialogDescription>
-              Enter one to three scrutiny remarks. A fix-defects task is created with them.
+              Enter one to three scrutiny remarks. A re-filing task is created with them.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
@@ -804,18 +660,8 @@ export function RecordCard({ ctx, title }: { ctx: ActContext; title: string }) {
   );
 }
 
-/** A "who may act" line for the rail when the person can only look. */
-export function ViewOnlyCard({ ctx, why }: { ctx: ActContext; why: string }) {
-  return (
-    <RailCard title="View only">
-      <p className="text-body-compact text-muted-foreground">{why}</p>
-      <Button asChild variant="outline">
-        <Link href={`/tasks?task=${encodeURIComponent(ctx.task.id)}`}>Back to the task</Link>
-      </Button>
-    </RailCard>
-  );
-}
-
-export function nameOfPerson(people: Person[], id?: PersonId): string {
-  return people.find((p) => p.id === id)?.name ?? "someone";
+/** The rail title for a closed task. */
+export function closedTitle(task: Task, done: string): string {
+  if (task.status === "done") return done;
+  return task.status === "expired" ? "Expired" : "No longer needed";
 }
