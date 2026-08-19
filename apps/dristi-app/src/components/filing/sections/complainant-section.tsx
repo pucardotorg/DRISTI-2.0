@@ -13,6 +13,7 @@ import { CheckIcon } from "lucide-react";
 
 import { blankComplainant } from "@/lib/filing/blank";
 import { ENTITY_TYPES } from "@/lib/filing/options";
+import { fetchOnCourtRecord } from "@/lib/filing/registry";
 import { complainantLabel, partySourceSlot } from "@/lib/filing/selectors";
 import { neighbours } from "@/lib/filing/steps";
 import { useFiling } from "@/lib/filing/store";
@@ -48,6 +49,7 @@ import {
 } from "@/components/filing/form-card";
 import { FormField } from "@/components/filing/form-field";
 import { OptionSelect, PrefixInput, TextField } from "@/components/filing/inputs";
+import { InfoWell } from "@/components/filing/notices";
 import { PrefillNotice } from "@/components/filing/prefill-notice";
 import { RichTextEditor } from "@/components/filing/rich-text-editor";
 import { SectionTabs } from "@/components/filing/section-tabs";
@@ -247,11 +249,41 @@ export function ComplainantSection() {
     namePrefilled || agePrefilled || emailPrefilled || entNamePrefilled || resPrefilled;
 
   const mobile10 = c.mobile.replace(/\D/g, "");
-  const mobileMatched = !!c.mobile && c.mobile === c.confirm;
-  /** OTP only makes sense once there is a whole number, and one the person re-typed. */
-  const canVerify =
-    mobile10.length === 10 &&
-    (!c.confirm.trim() || c.confirm.replace(/\D/g, "") === mobile10);
+  /** Appearing in person settles the PoA question — see the note on the control. */
+  const inPerson = c.pip === "yes";
+
+  /** Nothing to verify until there is a whole number to verify. */
+  const canVerify = mobile10.length === 10;
+
+  /**
+   * One step, not two: the OTP is what authorises reading a saved record back onto the
+   * screen, so verifying and fetching cannot sensibly be separate buttons. Nothing found
+   * is the ordinary case, not a failure — the screen says so and the person types on.
+   */
+  React.useEffect(() => {
+    if (inPerson && c.poa === "yes") {
+      update((d) => {
+        d.complainants[active].poa = "no";
+      });
+    }
+  }, [inPerson, c.poa, active, update]);
+
+  const verifyAndFetch = async () => {
+    const record = await fetchOnCourtRecord(c.mobile);
+    update((d) => {
+      const target = d.complainants[active];
+      target.verified = true;
+      target.fetched = !!record;
+      if (!record) return;
+      // Anything already typed is the person's own and is left alone.
+      if (!target.name.trim()) target.name = record.name;
+      if (!target.email.trim()) target.email = record.email;
+      if (!target.age.trim()) target.age = record.age;
+      if (!target.res.line1.trim()) target.res = { ...record.address };
+    });
+    setOtp("");
+    setOtpOpen(false);
+  };
 
   return (
     <>
@@ -314,65 +346,56 @@ export function ComplainantSection() {
               title="Contact"
               description="Use the complainant's own number, not the advocate's."
             >
-              <FormRow>
-                <FormField
-                  label="Mobile number"
-                  required
-                  help={
-                    c.verified ? (
-                      <span className="inline-flex items-center gap-1 font-medium text-success-ink">
-                        <CheckIcon className="size-4" aria-hidden />
-                        Verified in sandbox — no OTP was sent
-                      </span>
-                    ) : undefined
-                  }
-                >
-                  <div className="flex flex-col items-start gap-2">
-                    <PrefixInput
-                      prefix="+91"
-                      value={c.mobile}
-                      onChange={setMobile}
-                      placeholder="10-digit number"
-                      inputMode="numeric"
-                      autoComplete="tel-national"
-                    />
-                    {c.verified ? null : (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setOtp("");
-                          setOtpOpen(true);
-                        }}
-                        disabled={!canVerify}
-                      >
-                        Verify by OTP
-                      </Button>
-                    )}
-                  </div>
-                </FormField>
-                <FormField
-                  label="Confirm number"
-                  required
-                  help={
-                    mobileMatched ? (
-                      <span className="inline-flex items-center gap-1 font-medium text-success-ink">
-                        <CheckIcon className="size-4" aria-hidden />
-                        Numbers match
-                      </span>
-                    ) : undefined
-                  }
-                >
+              <HalfWidth>
+                <FormField label="Mobile number" required>
                   <PrefixInput
                     prefix="+91"
-                    value={c.confirm}
-                    onChange={(v) => set("confirm", v)}
-                    placeholder="Re-enter number"
+                    value={c.mobile}
+                    onChange={setMobile}
+                    placeholder="10-digit number"
                     inputMode="numeric"
-                    autoComplete="off"
+                    autoComplete="tel-national"
                   />
                 </FormField>
-              </FormRow>
+              </HalfWidth>
+
+              {/*
+                Verification used to stand on its own, next to a field that asked for the
+                same number twice — two chores with nothing offered back. Re-typing catches
+                nothing an OTP doesn't catch better, so it is gone, and the OTP now leads
+                with what it is for: the register fills the rest of this screen in.
+              */}
+              {c.verified ? (
+                <InfoWell className="text-foreground">
+                  <CheckIcon
+                    className="size-5 shrink-0 text-success-ink"
+                    aria-hidden
+                  />
+                  <p className="min-w-0 flex-1 text-body-compact">
+                    {c.fetched
+                      ? "Number verified, and the saved details below came from the ON Court register. Edit anything that has changed."
+                      : "Number verified. No saved record is held against it, so the details below are yours to fill in."}
+                  </p>
+                </InfoWell>
+              ) : (
+                <InfoWell>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setOtp("");
+                      setOtpOpen(true);
+                    }}
+                    disabled={!canVerify}
+                  >
+                    Verify &amp; fetch details
+                  </Button>
+                  <p className="min-w-0 flex-1 text-body-compact">
+                    Already registered with ON Court? Verify this number and we will fill
+                    in the name and address held against it.
+                  </p>
+                </InfoWell>
+              )}
             </FormCard>
 
             {/* Basic details */}
@@ -448,15 +471,21 @@ export function ComplainantSection() {
               <FormField
                 asGroup
                 label="Has the complainant authorised any person as their power of attorney in this case?"
+                help={
+                  inPerson
+                    ? "Answered by your appearing in person: conducting the case yourself and authorising someone else to conduct it are alternatives, not both."
+                    : undefined
+                }
               >
                 <YesNoSegmented
-                  value={c.poa}
+                  value={inPerson ? "no" : c.poa}
                   onValueChange={(v) => set("poa", v)}
                   ariaLabel="Has the complainant authorised any person as their power of attorney in this case?"
+                  disabled={inPerson}
                 />
               </FormField>
 
-              {c.poa === "yes" ? (
+              {!inPerson && c.poa === "yes" ? (
                 <>
                   <FormDivider />
                   <FormSubhead>PoA holder details</FormSubhead>
@@ -668,10 +697,11 @@ export function ComplainantSection() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Verify the mobile number</DialogTitle>
+            <DialogTitle>Verify &amp; fetch details</DialogTitle>
             <DialogDescription>
               This confirms the number the court will use to reach{" "}
-              {complainantLabel(c, active)}.
+              {complainantLabel(c, active)} — and, if ON Court already holds a record
+              against it, fills in the name and address it has.
             </DialogDescription>
           </DialogHeader>
 
@@ -706,13 +736,9 @@ export function ComplainantSection() {
             size="lg"
             className="w-full"
             disabled={otp.length < 6}
-            onClick={() => {
-              set("verified", true);
-              setOtp("");
-              setOtpOpen(false);
-            }}
+            onClick={() => void verifyAndFetch()}
           >
-            Verify number
+            Verify &amp; fetch details
           </Button>
         </DialogContent>
       </Dialog>

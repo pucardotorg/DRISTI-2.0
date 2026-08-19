@@ -44,7 +44,6 @@ export type Contact = { mobile: string; email: string };
 export type AddressBlock = {
   addr: Address;
   police: string;
-  geo: string;
 };
 
 /* ─────────────────────────────── Files & extraction ─────────────────────────────── */
@@ -141,6 +140,8 @@ export type Representative = {
   mobile: string;
   name: string;
   age: string;
+  /** "Managing Director", "Partner" — the capacity they answer for the entity in. */
+  designation: string;
   email: string;
   addr: Address;
 };
@@ -153,8 +154,10 @@ export type Complainant = {
   pip: YesNo;
   type: ComplainantType;
   mobile: string;
-  confirm: string;
+  /** Matched against the ON Court register — the sandbox stand-in for a real lookup. */
   verified: boolean;
+  /** The verified number had a saved record, and it filled this screen in. */
+  fetched: boolean;
   name: string;
   age: string;
   email: string;
@@ -188,20 +191,27 @@ export type Advocate = {
 
 /* ─────────────────────────────────── Accused ────────────────────────────────────── */
 
-export type AccusedType =
-  | "individual"
-  | "proprietorship"
-  | "partnership"
-  | "company"
-  | "other";
+/**
+ * What the accused is, not what kind of entity they are — those are two questions, and
+ * folding them into one list meant an institution had to pick its legal form before the
+ * form knew it was dealing with an institution at all.
+ */
+export type AccusedType = "individual" | "institution";
 
 export type Accused = {
   id: string;
   type: AccusedType;
   name: string;
-  age: string;
+  /** Legal form of the entity — asked only when `type` is "institution". */
+  entType: string;
   contacts: Contact[];
   addresses: AddressBlock[];
+  /**
+   * Who is summoned for the entity. Under S-141 every person in charge of the company's
+   * business at the time of the offence is proceeded against alongside it, so an
+   * institution can carry several.
+   */
+  reps: Representative[];
   jurisdiction: YesNo;
 };
 
@@ -216,8 +226,7 @@ export type ChequeField =
   | "bankBranch"
   | "presentDate"
   | "returnDate"
-  | "returnReason"
-  | "receiptDate";
+  | "returnReason";
 
 export type ChequeDetails = {
   id: string;
@@ -231,7 +240,6 @@ export type ChequeDetails = {
   presentDate: ISODate;
   returnDate: ISODate;
   returnReason: string;
-  receiptDate: ISODate;
   prefilled: Partial<Record<ChequeField, boolean>>;
   edited: Partial<Record<ChequeField, boolean>>;
   ifscFetched: boolean;
@@ -358,7 +366,7 @@ export type DismissedNotices = {
 };
 
 export type FilingDraft = {
-  version: 2;
+  version: 3;
   id: string;
   caseType: "s138";
   status: "draft" | "filed";

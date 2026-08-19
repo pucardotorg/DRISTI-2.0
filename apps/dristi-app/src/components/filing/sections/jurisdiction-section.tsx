@@ -5,21 +5,17 @@
  *
  * Everything a section needs is here: page header, cards of fields, segmented yes/no, a
  * live IFSC lookup, repeat rows, dates, a computed read-only value, and the footer wired
- * to the walk order. Police stations are typed — there is no station registry behind them.
+ * to the walk order. Police stations are searched against the station list rather than
+ * typed from memory, and an unlisted one is still accepted.
  */
 
 import { PlusIcon } from "lucide-react";
 
 import { daysBetween } from "@/lib/filing/format";
+import { POLICE_STATIONS } from "@/lib/filing/options";
 import { neighbours } from "@/lib/filing/steps";
 import { useFiling } from "@/lib/filing/store";
 import { Button } from "@/components/ui/button";
-import {
-  DescriptionDetails,
-  DescriptionList,
-  DescriptionRow,
-  DescriptionTerm,
-} from "@/components/ui/description-list";
 import { Textarea } from "@/components/ui/textarea";
 import { DateField } from "@/components/filing/date-field";
 import { FilingFooter } from "@/components/filing/filing-footer";
@@ -28,7 +24,7 @@ import { FilingMain } from "@/components/filing/filing-shell";
 import { FormCard, FormRow, FormSubhead, HalfWidth } from "@/components/filing/form-card";
 import { FormField } from "@/components/filing/form-field";
 import { IfscField } from "@/components/filing/ifsc-field";
-import { TextField } from "@/components/filing/inputs";
+import { ComboField, TextField } from "@/components/filing/inputs";
 import { SectionNotice } from "@/components/filing/notices";
 import { RemoveButton } from "@/components/filing/repeat-lists";
 import { YesNoSegmented } from "@/components/filing/segmented";
@@ -51,12 +47,8 @@ export function JurisdictionSection() {
     });
 
   const delay = daysBetween(j.causeDate, j.filingDate);
-  const durationDisplay =
-    delay === null
-      ? ""
-      : delay <= 30
-        ? "None — within limitation"
-        : `${delay - 30} day${delay - 30 === 1 ? "" : "s"} beyond the one-month limit`;
+  const withinLimit = delay !== null && delay <= 30;
+  const overBy = delay === null ? 0 : delay - 30;
 
   return (
     <>
@@ -125,11 +117,13 @@ export function JurisdictionSection() {
               </FormRow>
               <HalfWidth>
                 <FormField label="Police station of bank branch" required>
-                  <TextField
+                  <ComboField
                     value={j.payeePolice}
-                    onChange={(v) => set("payeePolice", v)}
-                    placeholder="e.g. Kollam East police station"
-                    autoComplete="off"
+                    onChange={(v: string) => set("payeePolice", v)}
+                    items={POLICE_STATIONS}
+                    placeholder="Search stations"
+                    emptyLabel="No station by that name — what you typed is kept."
+                    ariaLabel="Police station of bank branch"
                   />
                 </FormField>
               </HalfWidth>
@@ -137,11 +131,13 @@ export function JurisdictionSection() {
           ) : (
             <HalfWidth>
               <FormField label="Police station of drawer (accused) bank branch" required>
-                <TextField
+                <ComboField
                   value={j.drawerPolice}
-                  onChange={(v) => set("drawerPolice", v)}
-                  placeholder="e.g. Kollam East police station"
-                  autoComplete="off"
+                  onChange={(v: string) => set("drawerPolice", v)}
+                  items={POLICE_STATIONS}
+                  placeholder="Search stations"
+                  emptyLabel="No station by that name — what you typed is kept."
+                  ariaLabel="Police station of drawer (accused) bank branch"
                 />
               </FormField>
             </HalfWidth>
@@ -240,32 +236,42 @@ export function JurisdictionSection() {
               <DateField value={j.filingDate} onChange={(v) => set("filingDate", v)} />
             </FormField>
           </FormRow>
-          {/* Computed, never typed — a key-value row, not a field the person can fill. */}
-          <HalfWidth className="flex flex-col gap-1">
-            <DescriptionList>
-              <DescriptionRow>
-                <DescriptionTerm className="text-body-compact text-muted-foreground">
-                  Duration of delay
-                </DescriptionTerm>
-                <DescriptionDetails className="text-body-compact font-medium tabular-nums">
-                  {durationDisplay || "—"}
-                </DescriptionDetails>
-              </DescriptionRow>
-            </DescriptionList>
-            <p className="text-caption text-muted-foreground">
-              Calculated from the dates above.
-            </p>
-          </HalfWidth>
-          <FormField
-            label="Reason for praying condonation of delay"
-            tip="Required only if the complaint is filed after the limitation period. Explain the reason for the delay."
-          >
-            <Textarea
-              value={j.condonationReason}
-              onChange={(e) => set("condonationReason", e.target.value)}
-              placeholder="Enter"
-            />
-          </FormField>
+          {/*
+            The delay was a key-value row with a caption under it explaining that it was
+            calculated — three lines of furniture around one number. It is a result, so it
+            reports itself, and it reports the only thing that turns on it: whether the
+            court has to be asked to condone anything.
+          */}
+          {delay === null ? null : withinLimit ? (
+            <SectionNotice variant="success" announce="polite">
+              Within the limitation period — filed {delay} day{delay === 1 ? "" : "s"}{" "}
+              after the cause of action arose.
+            </SectionNotice>
+          ) : (
+            <SectionNotice
+              variant="warning"
+              announce="polite"
+              title={`${overBy} day${overBy === 1 ? "" : "s"} beyond the one-month limit`}
+            >
+              The court can still take this complaint on file, but it has to be asked to
+              condone the delay first — give the reason below.
+            </SectionNotice>
+          )}
+
+          {/* Only asked for when there is a delay to condone. */}
+          {withinLimit || delay === null ? null : (
+            <FormField
+              label="Reason for praying condonation of delay"
+              required
+              help="What kept the complaint from being filed inside the one-month limit."
+            >
+              <Textarea
+                value={j.condonationReason}
+                onChange={(e) => set("condonationReason", e.target.value)}
+                placeholder="Enter"
+              />
+            </FormField>
+          )}
         </FormCard>
       </FilingMain>
 

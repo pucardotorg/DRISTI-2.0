@@ -91,7 +91,6 @@ export function applyExtraction(draft: FilingDraft, slotKey: string): void {
       const c = ensure(draft.cheques, loc.index, blankCheque);
       put(c, "presentDate", f("presentDate"));
       put(c, "returnDate", f("returnDate"));
-      put(c, "receiptDate", f("receiptDate"));
       put(c, "returnReason", f("returnReason"));
       // The memo also carries the cheque's own number and amount — only when nothing has them yet.
       if (!c.chequeNumber) put(c, "chequeNumber", f("chequeNumber"));
@@ -179,7 +178,6 @@ export function clearExtraction(draft: FilingDraft, slotKey: string): void {
       if (!c) return;
       take(c, "presentDate", f("presentDate"));
       take(c, "returnDate", f("returnDate"));
-      take(c, "receiptDate", f("receiptDate"));
       take(c, "returnReason", f("returnReason"));
       take(c, "chequeNumber", f("chequeNumber"));
       take(c, "amount", f("amount"));

@@ -3,13 +3,18 @@
 import * as React from "react";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 
-import { blankAddressBlock, blankContact } from "@/lib/filing/blank";
-import type { AddressBlock, Contact } from "@/lib/filing/types";
+import {
+  blankAddressBlock,
+  blankContact,
+  blankRepresentative,
+} from "@/lib/filing/blank";
+import { POLICE_STATIONS } from "@/lib/filing/options";
+import type { AddressBlock, Contact, Representative } from "@/lib/filing/types";
 import { Button } from "@/components/ui/button";
 import { AddressFields } from "@/components/filing/address-fields";
-import { FormRow, FormSubhead } from "@/components/filing/form-card";
+import { FormRow, FormSubhead, HalfWidth } from "@/components/filing/form-card";
 import { FormField } from "@/components/filing/form-field";
-import { PrefixInput, TextField } from "@/components/filing/inputs";
+import { ComboField, PrefixInput, TextField } from "@/components/filing/inputs";
 
 /** Icon-only remove control at the 40px floor. */
 export function RemoveButton({
@@ -100,9 +105,11 @@ export function ContactList({
 }
 
 /**
- * "Address N" blocks: address fields, the police station the address falls under, and
- * optional coordinates. There is no map picker and no station registry behind this — both
- * are typed, so the form promises only what it can keep.
+ * "Address N" blocks: address fields and the police station the address falls under.
+ *
+ * The latitude/longitude field that used to sit beside the station is gone. Nobody knows
+ * their own coordinates, there is no map picker to read them off, and a process server
+ * navigates by the address — it asked for work no one could do (owner, 2026-08-19).
  */
 export function AddressBlockList({
   blocks,
@@ -133,32 +140,25 @@ export function AddressBlockList({
             ) : null}
           </div>
           <AddressFields value={b.addr} onChange={(addr) => setAt(i, { addr })} />
-          <FormRow>
+          <HalfWidth>
+            {/* Item 7: a station list is far too long to scan, so it is searched. It
+                stays open — our copy of the directory is not the last word on which
+                stations exist. */}
             <FormField
               label="Police station"
               required
               help="The station in whose jurisdiction this address falls."
             >
-              <TextField
+              <ComboField
                 value={b.police}
-                onChange={(v) => setAt(i, { police: v })}
-                placeholder="e.g. Kollam East police station"
-                autoComplete="off"
+                onChange={(v: string) => setAt(i, { police: v })}
+                items={POLICE_STATIONS}
+                placeholder="Search stations"
+                emptyLabel="No station by that name — what you typed is kept."
+                ariaLabel="Police station"
               />
             </FormField>
-            <FormField
-              label="Location"
-              optional
-              help="Helps the court's process server find the address."
-            >
-              <TextField
-                value={b.geo}
-                onChange={(v) => setAt(i, { geo: v })}
-                placeholder="latitude, longitude — e.g. 8.8932, 76.6141"
-                autoComplete="off"
-              />
-            </FormField>
-          </FormRow>
+          </HalfWidth>
         </div>
       ))}
       <Button
@@ -166,6 +166,93 @@ export function AddressBlockList({
         variant="outline"
         className="w-fit"
         onClick={() => onChange([...blocks, blankAddressBlock()])}
+      >
+        <PlusIcon data-icon="inline-start" aria-hidden />
+        {addLabel}
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * The people summoned for an accused entity.
+ *
+ * A company cannot be produced before a magistrate, so S-141 reaches the people who were
+ * running it: every one of them is a person the summons has to name and find. Hence a
+ * list with its own name, contact and address per row, rather than a single "representative".
+ */
+export function RepresentativeList({
+  reps,
+  onChange,
+  addLabel = "Add another person",
+}: {
+  reps: Representative[];
+  onChange: (next: Representative[]) => void;
+  addLabel?: string;
+}) {
+  const setAt = (i: number, patch: Partial<Representative>) =>
+    onChange(reps.map((r, k) => (k === i ? { ...r, ...patch } : r)));
+
+  return (
+    <div className="flex flex-col gap-4">
+      {reps.map((r, i) => (
+        <div key={i} className="flex flex-col gap-4 rounded-lg bg-surface-sunken p-4">
+          <div className="flex items-center justify-between gap-3">
+            <FormSubhead>Person {i + 1}</FormSubhead>
+            {reps.length > 1 ? (
+              <RemoveButton
+                label={`Remove person ${i + 1}`}
+                onClick={() => onChange(reps.filter((_, k) => k !== i))}
+              />
+            ) : null}
+          </div>
+          <FormRow>
+            <FormField label="Full name" required>
+              <TextField
+                value={r.name}
+                onChange={(v) => setAt(i, { name: v })}
+                placeholder="As it should appear on the summons"
+                autoComplete="off"
+              />
+            </FormField>
+            <FormField label="Designation" required>
+              <TextField
+                value={r.designation}
+                onChange={(v) => setAt(i, { designation: v })}
+                placeholder="e.g. Managing Director"
+                autoComplete="off"
+              />
+            </FormField>
+          </FormRow>
+          <FormRow>
+            <FormField label="Mobile number" optional>
+              <PrefixInput
+                prefix="+91"
+                value={r.mobile}
+                onChange={(v) => setAt(i, { mobile: v })}
+                placeholder="10-digit number"
+                inputMode="numeric"
+              />
+            </FormField>
+            <FormField label="Email address" optional>
+              <TextField
+                type="email"
+                value={r.email}
+                onChange={(v) => setAt(i, { email: v })}
+                placeholder="optional@example.com"
+                autoComplete="off"
+              />
+            </FormField>
+          </FormRow>
+          <FormSubhead>Address for service</FormSubhead>
+          <AddressFields value={r.addr} onChange={(addr) => setAt(i, { addr })} />
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="outline"
+        className="w-fit"
+        onClick={() => onChange([...reps, blankRepresentative()])}
       >
         <PlusIcon data-icon="inline-start" aria-hidden />
         {addLabel}

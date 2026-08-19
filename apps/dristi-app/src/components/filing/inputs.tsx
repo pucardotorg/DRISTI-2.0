@@ -4,6 +4,14 @@ import * as React from "react";
 
 import type { Option } from "@/lib/filing/options";
 import { cn } from "@/lib/utils";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import {
   InputGroup,
@@ -130,7 +138,12 @@ export function OptionSelect({
       >
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent>
+      {/*
+        The DS default is `item-aligned`, which lays the open list over the trigger — on a
+        form card that reads as the menu having eaten the label and the field below it.
+        Inside a form a menu belongs under the control it belongs to, at its width.
+      */}
+      <SelectContent position="popper" align="start" sideOffset={4} className="w-(--radix-select-trigger-width)">
         {opts.map((o) => (
           <SelectItem key={o.value} value={o.value}>
             {o.label}
@@ -138,5 +151,75 @@ export function OptionSelect({
         ))}
       </SelectContent>
     </Select>
+  );
+}
+
+/**
+ * A field whose list is too long to scan — police stations, a bar register — so it is
+ * typed into and filtered rather than scrolled.
+ *
+ * It stays open: anything typed is kept whether or not the list has it. These registers
+ * are never complete, and a form that refuses an address because its station is missing
+ * from our copy of the directory is worse than one that takes the person's word for it.
+ */
+export function ComboField({
+  value,
+  onChange,
+  items,
+  onSelect,
+  placeholder = "Search or type",
+  emptyLabel = "No match — what you typed is kept.",
+  renderItem,
+  itemKey = (item) => String(item),
+  itemLabel = (item) => String(item),
+  disabled,
+  ariaLabel,
+  id,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  items: readonly unknown[];
+  /** Fired only when a row is picked, so a screen can fill sibling fields from it. */
+  onSelect?: (item: unknown) => void;
+  placeholder?: string;
+  emptyLabel?: string;
+  renderItem?: (item: unknown) => React.ReactNode;
+  itemKey?: (item: unknown) => string;
+  itemLabel?: (item: unknown) => string;
+  disabled?: boolean;
+  ariaLabel?: string;
+  id?: string;
+}) {
+  return (
+    <Combobox
+      items={items as unknown[]}
+      itemToStringLabel={(item) => itemLabel(item)}
+      inputValue={value}
+      onInputValueChange={(text) => onChange(text)}
+      onValueChange={(item) => {
+        if (item == null) return;
+        onChange(itemLabel(item));
+        onSelect?.(item);
+      }}
+      disabled={disabled}
+    >
+      <ComboboxInput
+        id={id}
+        aria-label={ariaLabel}
+        placeholder={placeholder}
+        className="w-full"
+        autoComplete="off"
+      />
+      <ComboboxContent>
+        <ComboboxEmpty>{emptyLabel}</ComboboxEmpty>
+        <ComboboxList>
+          {(item: unknown) => (
+            <ComboboxItem key={itemKey(item)} value={item}>
+              {renderItem ? renderItem(item) : itemLabel(item)}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
   );
 }

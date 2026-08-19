@@ -3,18 +3,25 @@
 /**
  * Advocate details — the advocates on the Vakalatnama, and which complainant each acts for.
  *
- * There is no public bar-council registry to look a name up in, so both the name and the
- * registration number are typed exactly as they appear on the Vakalatnama; an advocate
- * filing for themselves can fill their own row from their profile in one click. The panel
- * beside the form is there to read the uploaded Vakalatnama off, nothing more.
+ * The bar number leads and the name follows from it: typing the registration number
+ * searches the register (`lib/filing/registry.ts` — a stand-in for the real one) and
+ * picking a row fills the name, so the name that reaches the Vakalatnama is the
+ * register's spelling rather than a re-keying of it. A number the register does not hold
+ * is still accepted. An advocate filing for themselves can fill their own row from their
+ * profile in one click, and the panel beside the form reads the uploaded Vakalatnama.
  */
 
 import * as React from "react";
 import Link from "next/link";
-import { ChevronDownIcon, PlusIcon, UserRoundIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, PlusIcon, UserRoundIcon } from "lucide-react";
 
 import { blankAdvocate } from "@/lib/filing/blank";
 import { useProfile } from "@/lib/filing/profile";
+import {
+  findAdvocate,
+  searchAdvocates,
+  type RegisteredAdvocate,
+} from "@/lib/filing/registry";
 import {
   complainantChoices,
   isPartyInPerson,
@@ -35,7 +42,7 @@ import { FilingPageHeader } from "@/components/filing/filing-page-header";
 import { FilingMain } from "@/components/filing/filing-shell";
 import { FormCard, FormRow } from "@/components/filing/form-card";
 import { FormField } from "@/components/filing/form-field";
-import { TextField } from "@/components/filing/inputs";
+import { ComboField, TextField } from "@/components/filing/inputs";
 import { SectionNotice } from "@/components/filing/notices";
 import { RemoveButton } from "@/components/filing/repeat-lists";
 import {
@@ -75,6 +82,22 @@ export function AdvocateSection() {
    * covering the screen on arrival.
    */
   const [sourceOpen, setSourceOpen] = useSourceOpenState();
+
+  /**
+   * The rows the bar-number field offers. `searchAdvocates` is the seam a real registry
+   * call replaces, so it is loaded rather than imported as a constant — the screen
+   * already copes with the list arriving after the first render.
+   */
+  const [register, setRegister] = React.useState<RegisteredAdvocate[]>([]);
+  React.useEffect(() => {
+    let live = true;
+    void searchAdvocates("").then((rows) => {
+      if (live) setRegister(rows);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
 
   // One Vakalatnama is uploaded per complainant; show the one belonging to the complainant
   // the first advocate acts for (clamped, since indices survive a complainant's removal).
@@ -163,8 +186,8 @@ export function AdvocateSection() {
           </SectionNotice>
         ) : null}
 
-        {/* There is no bar registry behind these fields, so the notice states the
-            requirement without implying the app enforces it. */}
+        {/* The register is a stand-in and incomplete, so the notice states the
+            requirement without implying this screen enforces it. */}
         {allInPerson || draft.dismissed.advocateInfo ? null : (
           <SectionNotice
             variant="neutral"
@@ -175,8 +198,9 @@ export function AdvocateSection() {
               })
             }
           >
-            The advocate must be registered on the court portal. Enter the name and bar
-            number exactly as they appear on the Vakalatnama.
+            The advocate must be registered on the court portal. Search by bar number —
+            if it is not on the register, type it and the name as they appear on the
+            Vakalatnama.
           </SectionNotice>
         )}
 
@@ -264,20 +288,60 @@ export function AdvocateSection() {
                 </DropdownMenu>
               </FormField>
 
+              {/*
+                Number first, name second: the registration number is the thing an
+                advocate knows by heart and the thing the register is keyed on, so it
+                leads and the name follows from it. Typing it searches the register;
+                picking a row fills the name. A number the register does not hold is
+                still accepted — the register is not the last word on who is enrolled.
+              */}
               <FormRow>
+                <FormField
+                  label="Bar registration number"
+                  required
+                  help={
+                    findAdvocate(a.barNumber) ? (
+                      <span className="inline-flex items-center gap-1 font-medium text-success-ink">
+                        <CheckIcon className="size-4" aria-hidden />
+                        Found on the bar register
+                      </span>
+                    ) : undefined
+                  }
+                >
+                  <ComboField
+                    value={a.barNumber}
+                    onChange={(v: string) => setField(i, "barNumber", v)}
+                    items={register}
+                    onSelect={(item) => {
+                      const adv = item as RegisteredAdvocate;
+                      update((d) => {
+                        d.advocates[i].barNumber = adv.barNumber;
+                        d.advocates[i].name = adv.name;
+                      });
+                    }}
+                    itemKey={(item) => (item as RegisteredAdvocate).barNumber}
+                    itemLabel={(item) => (item as RegisteredAdvocate).barNumber}
+                    renderItem={(item) => {
+                      const adv = item as RegisteredAdvocate;
+                      return (
+                        <span className="flex min-w-0 flex-col">
+                          <span className="truncate font-medium">{adv.barNumber}</span>
+                          <span className="truncate text-caption text-muted-foreground">
+                            {adv.name} · {adv.bar}
+                          </span>
+                        </span>
+                      );
+                    }}
+                    placeholder="e.g. K/1204/2011"
+                    emptyLabel="Not on the register — the number you typed is kept."
+                    ariaLabel="Bar registration number"
+                  />
+                </FormField>
                 <FormField label="Full name" required>
                   <TextField
                     value={a.name}
                     onChange={(v) => setField(i, "name", v)}
                     placeholder="As signed on the Vakalatnama"
-                    autoComplete="off"
-                  />
-                </FormField>
-                <FormField label="Bar registration number" required>
-                  <TextField
-                    value={a.barNumber}
-                    onChange={(v) => setField(i, "barNumber", v)}
-                    placeholder="e.g. G/60/1992"
                     autoComplete="off"
                   />
                 </FormField>

@@ -22,7 +22,6 @@ export const FIELD_KEYS = {
   "return-memo": [
     "returnDate",
     "presentDate",
-    "receiptDate",
     "returnReason", // option value from RETURN_REASONS
     "chequeNumber",
     "amount",

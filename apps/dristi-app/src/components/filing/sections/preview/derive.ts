@@ -148,7 +148,6 @@ export type AccusedSummary = {
   name: string;
   type: string;
   isEntity: boolean;
-  age: string;
   address: string;
   addressWithPolice: string;
 };
@@ -164,7 +163,6 @@ export function accusedSummaries(draft: FilingDraft): AccusedSummary[] {
       name: orNot(a.name),
       type: optionLabel(ACCUSED_TYPES, a.type) || "Individual",
       isEntity: a.type !== "individual",
-      age: a.age.trim(),
       address: orNot(address),
       addressWithPolice: orNot(joinDot(address, block?.police)),
     };
@@ -186,7 +184,6 @@ export type ChequeSummary = {
   presentDate: string;
   returnDate: string;
   returnReason: string;
-  receiptDate: string;
   returned: string;
 };
 
@@ -207,7 +204,6 @@ export function chequeSummaries(draft: FilingDraft): ChequeSummary[] {
       presentDate: displayDate(c.presentDate),
       returnDate: displayDate(c.returnDate),
       returnReason: orNot(reason),
-      receiptDate: displayDate(c.receiptDate),
       returned: returned || NOT_PROVIDED,
     };
   });

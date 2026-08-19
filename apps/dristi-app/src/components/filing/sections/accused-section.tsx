@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import { InfoIcon } from "lucide-react";
 
 import { blankAccused } from "@/lib/filing/blank";
-import { ACCUSED_TYPES } from "@/lib/filing/options";
+import { ACCUSED_ENTITY_TYPES, ACCUSED_TYPES } from "@/lib/filing/options";
 import {
   accusedComplete,
   accusedHasContact,
@@ -42,7 +42,11 @@ import { FormCard, FormRow, HalfWidth } from "@/components/filing/form-card";
 import { FormField } from "@/components/filing/form-field";
 import { OptionSelect, TextField } from "@/components/filing/inputs";
 import { SectionNotice } from "@/components/filing/notices";
-import { AddressBlockList, ContactList } from "@/components/filing/repeat-lists";
+import {
+  AddressBlockList,
+  ContactList,
+  RepresentativeList,
+} from "@/components/filing/repeat-lists";
 import { SectionTabs } from "@/components/filing/section-tabs";
 import { YesNoSegmented } from "@/components/filing/segmented";
 
@@ -167,9 +171,17 @@ export function AccusedSection() {
           onAdd={addAccused}
         />
 
-        {/* Identity */}
+        {/*
+          Identity. "Is the accused a person or an institution?" and "what kind of
+          institution?" are two questions: the old single list made you answer the second
+          to get past the first, and left "Proprietorship" sitting next to "Individual" as
+          though they were the same kind of answer.
+
+          Age is gone. It was optional, nothing downstream read it, and nobody knows the
+          age of the person they are suing (owner, 2026-08-19).
+        */}
         <FormCard title={isIndividual ? `Accused ${index + 1} details` : "Entity details"}>
-          <HalfWidth>
+          <FormRow>
             <FormField label="Accused type" required>
               <OptionSelect
                 value={a.type}
@@ -177,8 +189,18 @@ export function AccusedSection() {
                 options={ACCUSED_TYPES}
               />
             </FormField>
-          </HalfWidth>
-          <FormRow>
+            {isIndividual ? null : (
+              <FormField label="Type of entity" required>
+                <OptionSelect
+                  value={a.entType}
+                  onValueChange={(v) => setField("entType", v)}
+                  options={ACCUSED_ENTITY_TYPES}
+                  placeholder="Select type"
+                />
+              </FormField>
+            )}
+          </FormRow>
+          <HalfWidth>
             <FormField label={isIndividual ? "Full name" : "Entity name"} required>
               <TextField
                 value={a.name}
@@ -187,18 +209,25 @@ export function AccusedSection() {
                 autoComplete="off"
               />
             </FormField>
-            {isIndividual ? (
-              <FormField label="Age" optional>
-                <TextField
-                  value={a.age}
-                  onChange={(v) => setField("age", v)}
-                  placeholder="e.g. 45"
-                  inputMode="numeric"
-                />
-              </FormField>
-            ) : null}
-          </FormRow>
+          </HalfWidth>
         </FormCard>
+
+        {/*
+          Who answers for the entity. Under S-141 the company is not summoned alone —
+          every person who was in charge of its business when the cheque bounced is
+          proceeded against with it, so this is a list, not a field.
+        */}
+        {isIndividual ? null : (
+          <FormCard
+            title="Who is summoned for the entity"
+            description="The directors, partners or officers in charge of the business when the cheque was dishonoured. Each of them is summoned alongside the entity."
+          >
+            <RepresentativeList
+              reps={a.reps}
+              onChange={(reps) => setField("reps", reps)}
+            />
+          </FormCard>
+        )}
 
         {/* Contact */}
         <FormCard

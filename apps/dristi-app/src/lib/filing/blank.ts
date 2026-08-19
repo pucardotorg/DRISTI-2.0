@@ -28,6 +28,7 @@ import type {
   IntakeSlot,
   Jurisdiction,
   UserProfile,
+  Representative,
   Witness,
 } from "./types";
 
@@ -48,10 +49,19 @@ export const blankAddress = (): Address => ({
 
 export const blankContact = (): Contact => ({ mobile: "", email: "" });
 
+/** A person summoned for an entity — the accused entity's own, or a complainant's. */
+export const blankRepresentative = (): Representative => ({
+  mobile: "",
+  name: "",
+  age: "",
+  designation: "",
+  email: "",
+  addr: blankAddress(),
+});
+
 export const blankAddressBlock = (): AddressBlock => ({
   addr: blankAddress(),
   police: "",
-  geo: "",
 });
 
 export function blankComplainant(): Complainant {
@@ -60,8 +70,8 @@ export function blankComplainant(): Complainant {
     pip: "no",
     type: "individual",
     mobile: "",
-    confirm: "",
     verified: false,
+    fetched: false,
     name: "",
     age: "",
     email: "",
@@ -82,7 +92,7 @@ export function blankComplainant(): Complainant {
     entPhone: "",
     entEmail: "",
     entAddr: blankAddress(),
-    rep: { mobile: "", name: "", age: "", email: "", addr: blankAddress() },
+    rep: blankRepresentative(),
     affidavit: AFFIDAVIT_PIP_TEMPLATE,
     prefilled: {},
     edited: {},
@@ -101,8 +111,9 @@ export const blankAccused = (): Accused => ({
   id: uid("acc"),
   type: "individual",
   name: "",
-  age: "",
+  entType: "",
   contacts: [blankContact()],
+  reps: [blankRepresentative()],
   addresses: [blankAddressBlock()],
   jurisdiction: "yes",
 });
@@ -119,7 +130,6 @@ export const blankCheque = (): ChequeDetails => ({
   presentDate: "",
   returnDate: "",
   returnReason: "",
-  receiptDate: "",
   prefilled: {},
   edited: {},
   ifscFetched: false,
@@ -376,7 +386,7 @@ export function buildDocumentGroups(draft: FilingDraft): DocumentGroup[] {
     ];
     groups.push({
       id,
-      title: `Party ${n} details — complainant`,
+      title: `Complainant ${n} — documents`,
       docs: [
         ...specs.map((s) => docRow(s, findExisting(id, s), resolveSlot(s.intakeKey))),
         ...customOf(id),
@@ -384,21 +394,12 @@ export function buildDocumentGroups(draft: FilingDraft): DocumentGroup[] {
     });
   });
 
-  // One group per accused — nothing is required from them at filing.
-  draft.accused.forEach((_, i) => {
-    const n = draft.complainants.length + i + 1;
-    const id = `accused-${i + 1}`;
-    const specs: DocSpec[] = [
-      { name: "Identity proof — accused", required: false },
-      { name: "Power of attorney", required: false },
-      { name: "Vakalatnama", required: false },
-    ];
-    groups.push({
-      id,
-      title: `Party ${n} details — accused`,
-      docs: [...specs.map((s) => docRow(s, findExisting(id, s))), ...customOf(id)],
-    });
-  });
+  /*
+   * The accused used to get a group of their own, listing an identity proof, a power of
+   * attorney and a Vakalatnama. None of those are the complainant's to file — you do not
+   * hold the ID of the person you are suing, and their advocate is not on record yet. The
+   * group asked for documents nobody could produce, so it is gone (owner, 2026-08-19).
+   */
 
   return groups;
 }
@@ -408,7 +409,7 @@ export function buildDocumentGroups(draft: FilingDraft): DocumentGroup[] {
 export function createBlankDraft(id: string, profile?: UserProfile | null): FilingDraft {
   const now = new Date().toISOString();
   const draft: FilingDraft = {
-    version: 2,
+    version: 3,
     id,
     caseType: "s138",
     status: "draft",
@@ -453,5 +454,42 @@ export function createBlankDraft(id: string, profile?: UserProfile | null): Fili
     filedAt: null,
   };
   draft.documents = buildDocumentGroups(draft);
+  return draft;
+}
+
+/* ───────────────────────────── Migration ───────────────────────────── */
+
+/** Accused kinds that used to be one flat list, mapped onto the pair that replaced it. */
+const LEGACY_ACCUSED_ENTITY: Record<string, string> = {
+  proprietorship: "proprietorship",
+  partnership: "partnership",
+  company: "private-limited",
+  other: "other",
+};
+
+/**
+ * Bring a stored draft up to the current shape.
+ *
+ * Drafts live in the browser, so a person who was mid-filing when the form changed still
+ * has the old one on disk. Fields that were dropped are simply ignored; the accused's
+ * kind is the one value that moved, so it is carried across rather than reset to
+ * "Individual" — silently changing who someone is suing would be worse than any of this.
+ */
+export function migrateDraft(draft: FilingDraft): FilingDraft {
+  for (const a of draft.accused as (Accused & { type: string })[]) {
+    if (a.type === "individual" || a.type === "institution") {
+      a.entType ??= "";
+    } else {
+      a.entType = a.entType || LEGACY_ACCUSED_ENTITY[a.type] || "other";
+      a.type = "institution";
+    }
+    a.reps ??= [blankRepresentative()];
+    for (const r of a.reps) r.designation ??= "";
+  }
+  for (const c of draft.complainants) {
+    c.fetched ??= false;
+    c.rep.designation ??= "";
+  }
+  draft.version = 3;
   return draft;
 }

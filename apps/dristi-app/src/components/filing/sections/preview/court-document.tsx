@@ -165,12 +165,6 @@ export function CourtDocument({ draft }: { draft: FilingDraft }) {
             {firstAccused ? firstAccused.heading : NOT_PROVIDED}
           </p>
           <p className="mt-1 text-caption font-medium leading-relaxed text-muted-foreground">
-            {firstAccused?.age ? (
-              <>
-                Aged {firstAccused.age} years,
-                <br />
-              </>
-            ) : null}
             R/o {firstAccused ? firstAccused.address : NOT_PROVIDED}
           </p>
         </div>
@@ -379,11 +373,6 @@ export function CourtDocument({ draft }: { draft: FilingDraft }) {
                 </DocCell>
                 <DocCell label="Return reason">
                   {orNot(optionLabel(RETURN_REASONS, draft.cheques[i].returnReason))}
-                </DocCell>
-              </tr>
-              <tr>
-                <DocCell label="Date of receipt of information about return" span={3}>
-                  {longDate(draft.cheques[i].receiptDate)}
                 </DocCell>
               </tr>
             </React.Fragment>

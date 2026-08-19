@@ -11,6 +11,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 
 import type { FilingDraft, UserProfile } from "../types";
 import type { FilingRepository, StoredFile } from "./repository";
+import { migrateDraft } from "../blank";
 
 const DB_NAME = "dristi-efiling";
 const DB_VERSION = 1;
@@ -51,11 +52,13 @@ function db(): Promise<IDBPDatabase<FilingDB>> {
 export class IndexedDbFilingRepository implements FilingRepository {
   async listDrafts(): Promise<FilingDraft[]> {
     const all = await (await db()).getAllFromIndex("drafts", "updatedAt");
-    return all.reverse(); // newest first
+    return all.reverse().map(migrateDraft); // newest first
   }
 
   async getDraft(id: string): Promise<FilingDraft | null> {
-    return (await (await db()).get("drafts", id)) ?? null;
+    const draft = await (await db()).get("drafts", id);
+    // Drafts written by an earlier shape of the form are still on this person's disk.
+    return draft ? migrateDraft(draft) : null;
   }
 
   async putDraft(draft: FilingDraft): Promise<void> {

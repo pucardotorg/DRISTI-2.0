@@ -17,12 +17,15 @@ export function Segmented<T extends string>({
   onValueChange,
   options,
   ariaLabel,
+  disabled = false,
   className,
 }: {
   value: T;
   onValueChange: (value: T) => void;
   options: SegmentedOption<T>[];
   ariaLabel?: string;
+  /** The answer is settled by another answer — shown, not hidden, so the person sees why. */
+  disabled?: boolean;
   className?: string;
 }) {
   return (
@@ -34,6 +37,7 @@ export function Segmented<T extends string>({
           if (v) onValueChange(v as T);
         }}
         aria-label={ariaLabel}
+        disabled={disabled}
         className={cn(
           "h-10 w-fit gap-0.5 rounded-lg bg-track p-0.5",
           className,
@@ -69,10 +73,12 @@ export function YesNoSegmented({
   value,
   onValueChange,
   ariaLabel,
+  disabled = false,
 }: {
   value: YesNo;
   onValueChange: (value: YesNo) => void;
   ariaLabel?: string;
+  disabled?: boolean;
 }) {
   return (
     <Segmented
@@ -80,6 +86,7 @@ export function YesNoSegmented({
       onValueChange={onValueChange}
       options={YES_NO}
       ariaLabel={ariaLabel}
+      disabled={disabled}
     />
   );
 }

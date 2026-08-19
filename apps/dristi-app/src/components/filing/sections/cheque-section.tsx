@@ -62,7 +62,6 @@ const FIELD_LABELS: Record<ChequeField, string> = {
   presentDate: "Date of presentation",
   returnDate: "Date of return",
   returnReason: "Return reason",
-  receiptDate: "Date of receipt of information",
 };
 
 const ALL_FIELDS = Object.keys(FIELD_LABELS) as ChequeField[];
@@ -81,7 +80,6 @@ const DATE_FIELDS: ChequeField[] = [
   "dateOnCheque",
   "presentDate",
   "returnDate",
-  "receiptDate",
 ];
 
 /** Fields read off the return memo, in the order the panel prefers to land on them. */
@@ -89,7 +87,6 @@ const MEMO_FIELDS: ChequeField[] = [
   "returnDate",
   "returnReason",
   "presentDate",
-  "receiptDate",
 ];
 
 /** Where a chip lands when reading found nothing on that document at all. */
@@ -477,21 +474,6 @@ export function ChequeSection() {
             </SectionNotice>
           ) : null}
 
-          <HalfWidth>
-            <FormField
-              label="Date of receipt of information about return"
-              optional
-              tip="When you were informed by your bank of the dishonour. Relevant to the limitation clock."
-            >
-              <DateField
-                value={cheque.receiptDate}
-                onChange={(v) => editField("receiptDate", v)}
-                prefilled={isPrefilled("receiptDate")}
-                onViewSource={() => openSource("receiptDate")}
-                ariaLabel="Date of receipt of information about return"
-              />
-            </FormField>
-          </HalfWidth>
         </FormCard>
       </FilingMain>
 

@@ -84,19 +84,19 @@ export const AFFIDAVIT_PIP_TEMPLATE = [
 
 export const ACCUSED_TYPES: Option[] = [
   { value: "individual", label: "Individual" },
-  { value: "proprietorship", label: "Proprietorship" },
-  { value: "partnership", label: "Partnership firm" },
-  { value: "company", label: "Company" },
-  { value: "other", label: "Other entity" },
+  { value: "institution", label: "Institution" },
 ];
 
-export const ACCUSED_TYPE_HEADING: Record<string, string> = {
-  individual: "Accused",
-  proprietorship: "Proprietorship",
-  partnership: "Partnership firm",
-  company: "Company",
-  other: "Entity",
-};
+/** Legal form, asked only once the accused is an institution. */
+export const ACCUSED_ENTITY_TYPES: Option[] = [
+  { value: "proprietorship", label: "Proprietorship" },
+  { value: "partnership", label: "Partnership firm" },
+  { value: "private-limited", label: "Private limited company" },
+  { value: "public-limited", label: "Public limited company" },
+  { value: "society-trust", label: "Society / trust" },
+  { value: "llp", label: "LLP" },
+  { value: "other", label: "Other entity" },
+];
 
 /* ───────────────────────────── Cheque & return memo ────────────────── */
 
@@ -194,3 +194,33 @@ export const COURT_FEE_LINES: { label: string; amount: number }[] = [
   { label: "Process fee (notice to accused)", amount: 60 },
 ];
 
+
+/* ───────────────────────────── Police stations ─────────────────────── */
+
+/**
+ * Stations in the districts this court serves. A real deployment reads these from the
+ * state police directory; the list is here so the field can be searched rather than
+ * typed from memory, and it stays open — an address outside it is still accepted.
+ */
+export const POLICE_STATIONS: string[] = [
+  "Kollam East Police Station",
+  "Kollam West Police Station",
+  "Kollam Beach Police Station",
+  "Kilikolloor Police Station",
+  "Sakthikulangara Police Station",
+  "Chinnakada Police Station",
+  "Eravipuram Police Station",
+  "Karunagappally Police Station",
+  "Chavara Police Station",
+  "Kottarakkara Police Station",
+  "Punalur Police Station",
+  "Pathanapuram Police Station",
+  "Anchal Police Station",
+  "Kunnathur Police Station",
+  "Chathannoor Police Station",
+  "Paravur Police Station",
+  "Oachira Police Station",
+  "Kadakkal Police Station",
+  "Chadayamangalam Police Station",
+  "Pooyappally Police Station",
+];

@@ -233,3 +233,40 @@ control now follows `Tabs` for that reason.
 or simply blessing `background` + `shadow-raised` as the documented recipe), or a `Segmented`
 primitive that owns it — so consumers do not have to discover the conflict by measuring.
 A hover pair for the same ground is needed too: `accent` at 1.15:1 has the same problem.
+
+---
+
+## 12. `Select` opens over its own field by default
+
+`SelectContent` defaults to `position="item-aligned"` (`select.tsx:63`), which pins the
+open list so the selected row sits on top of the trigger. On a menu bar that is the
+familiar macOS behaviour. In a form card it is not: the list covers the field's own label
+and the field below it, and every screenshot of it reads as a rendering bug rather than an
+open menu (owner, 2026-08-19: "the drop downs were glitching in a few places").
+
+Dristi now passes `position="popper" align="start" sideOffset={4}` plus
+`w-(--radix-select-trigger-width)` at its single wrapper (`inputs.tsx`, `OptionSelect`),
+so a form menu opens under its control at the control's width.
+
+**Request:** make `popper` the default for `SelectContent`, or ship the form recipe as a
+documented variant. Every consumer putting a Select in a form will otherwise hit this and
+fix it privately, and the fix is four props they have to know to write.
+
+---
+
+## 13. `Combobox` has no free-text mode
+
+`Combobox` selects from `items`; there is no sanctioned way to keep a typed value that no
+item matches. Several Dristi fields need exactly that — a police station or a bar
+registration number is searched against a directory that is *usefully* incomplete, and
+refusing an address because our copy of the station list is missing one is worse than
+taking the person's word for it.
+
+Dristi drives `inputValue` + `onInputValueChange` back into its own state to get this
+(`inputs.tsx`, `ComboField`). It works, but it means the component is controlled two ways
+at once and the semantics of "what is the value" live in the consumer.
+
+**Request:** a `freeSolo` (or `allowCustomValue`) prop on `Combobox` that makes the typed
+string the value when nothing matches, and lets `ComboboxEmpty` say so. Related: the DS
+guidance for `Combobox` should name this case, since a searchable field over a registry is
+the most common reason to reach for it in a government form.

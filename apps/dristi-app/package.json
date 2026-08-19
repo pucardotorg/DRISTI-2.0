@@ -16,6 +16,7 @@
     "assets:runtime": "node scripts/copy-runtime-assets.mjs"
   },
   "dependencies": {
+    "@base-ui/react": "^1.7.0",
     "@tesseract.js-data/eng": "^1.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
