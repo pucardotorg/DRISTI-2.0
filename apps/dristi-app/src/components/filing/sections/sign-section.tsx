@@ -47,10 +47,10 @@ import {
   PROCESS_TYPES,
 } from "@/lib/filing/options";
 import { useProfile } from "@/lib/filing/profile";
-import { accusedLabel, signatories } from "@/lib/filing/selectors";
+import { accusedLabel, phoneConfirmers, signatories } from "@/lib/filing/selectors";
 import { FILINGS_HOME, neighbours } from "@/lib/filing/steps";
 import { useFiling } from "@/lib/filing/store";
-import type { Signatory, StoredFileRef } from "@/lib/filing/types";
+import type { PhoneConfirmer, Signatory, StoredFileRef } from "@/lib/filing/types";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -76,9 +76,16 @@ import {
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 import { Label } from "@/components/ui/label";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { useSourceDock } from "@/hooks/use-min-width";
@@ -86,12 +93,18 @@ import { TOP_BAR_HEIGHT } from "@/components/filing/chrome";
 import { ConfirmDialog } from "@/components/filing/confirm-dialog";
 import { FilingFooter } from "@/components/filing/filing-footer";
 import { FilingPageHeader } from "@/components/filing/filing-page-header";
-import { FilingMain, useSourceRailSlot } from "@/components/filing/filing-shell";
+import {
+  FilingMain,
+  useSourceRailSlot,
+} from "@/components/filing/filing-shell";
 import { PANEL_CLASS } from "@/components/filing/form-card";
 import { useLeaveGuard } from "@/components/filing/leave-guard";
 import { SectionNotice } from "@/components/filing/notices";
 import { CourtDocument } from "@/components/filing/sections/preview/court-document";
-import { pickErrorMessage, useFilePicker } from "@/components/filing/use-file-picker";
+import {
+  pickErrorMessage,
+  useFilePicker,
+} from "@/components/filing/use-file-picker";
 
 type ModalKey =
   | "choose"
@@ -160,7 +173,9 @@ function SignatureList({ title, rows }: { title: string; rows: Signatory[] }) {
                   </span>
                 ) : null}
               </div>
-              <p className="text-caption font-medium text-muted-foreground">{s.role}</p>
+              <p className="text-caption font-medium text-muted-foreground">
+                {s.role}
+              </p>
             </div>
             {s.status === "signed" ? (
               <Badge variant="success">
@@ -209,6 +224,161 @@ function SignatureSummary({
   );
 }
 
+/* ──────────────────── Phone confirmation (upload path) ─────────────── */
+
+/** The tail of a number, for display — the row never repeats the whole thing back. */
+function mobileTailOf(mobile: string): string {
+  return mobile.replace(/\D/g, "").slice(-4);
+}
+
+/**
+ * One party on the uploaded copy, and the OTP that turns "someone says they all signed"
+ * into that person's own confirmation. The OTP only proves the handset; the sentence
+ * above it is what the person is actually answering, so the two never appear apart.
+ *
+ * There is no link here on purpose — every confirmation happens in this sitting. Upload
+ * is the path we would rather people did not take, so its friction is left in place
+ * (owner, 2026-08-19).
+ */
+function ConfirmRow({
+  person,
+  index,
+  confirmed,
+  open,
+  otp,
+  resent,
+  onOpen,
+  onOtp,
+  onResend,
+  onConfirm,
+  onAddNumber,
+}: {
+  person: PhoneConfirmer;
+  index: number;
+  confirmed: boolean;
+  open: boolean;
+  otp: string;
+  resent: boolean;
+  onOpen: () => void;
+  onOtp: (value: string) => void;
+  onResend: () => void;
+  onConfirm: () => void;
+  onAddNumber: () => void;
+}) {
+  const tail = mobileTailOf(person.mobile);
+  const otpId = `confirm-otp-${person.id}`;
+
+  return (
+    <li className="border-b border-hairline py-3 last:border-b-0">
+      <div className="flex items-center gap-3">
+        <span
+          aria-hidden
+          className="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-caption font-medium text-secondary-foreground tabular-nums"
+        >
+          {index + 1}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-body-compact font-semibold text-foreground">
+            {person.name}
+          </p>
+          <p className="text-caption font-medium text-muted-foreground">
+            {person.role} ·{" "}
+            {tail ? (
+              <span className="tabular-nums">•••• {tail}</span>
+            ) : (
+              "No mobile number"
+            )}
+          </p>
+        </div>
+        {/* One action or one status per row, never both — the action replaces the cue. */}
+        {confirmed ? (
+          <Badge variant="success">
+            <CheckIcon aria-hidden />
+            Confirmed
+          </Badge>
+        ) : !tail ? (
+          <Button
+            type="button"
+            variant="link"
+            className="h-auto p-0 underline"
+            onClick={onAddNumber}
+          >
+            Add number
+          </Button>
+        ) : open ? null : (
+          <Button type="button" variant="outline" size="sm" onClick={onOpen}>
+            Send OTP
+          </Button>
+        )}
+      </div>
+
+      {open && !confirmed && tail ? (
+        <div className="mt-3 flex flex-col gap-3 rounded-lg bg-surface-sunken p-4">
+          <p className="text-body-compact text-muted-foreground">
+            In the live service, a 6-digit OTP goes to{" "}
+            <strong className="font-semibold text-foreground tabular-nums">
+              •••• {tail}
+            </strong>
+            . Entering it confirms that{" "}
+            <strong className="font-semibold text-foreground">
+              {person.name}
+            </strong>{" "}
+            has signed this complaint.
+          </p>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={otpId} className="text-body-compact">
+              Enter OTP
+            </Label>
+            <InputOTP
+              id={otpId}
+              maxLength={6}
+              value={otp}
+              onChange={onOtp}
+              containerClassName="gap-2"
+              // Opening a row reveals the field below the fold; focus follows the action
+              // so it scrolls into view and a keyboard user lands on it.
+              autoFocus
+            >
+              <InputOTPGroup className="gap-2">
+                {[0, 1, 2, 3, 4, 5].map((i) => (
+                  <InputOTPSlot
+                    key={i}
+                    index={i}
+                    className="size-10 rounded-lg border border-input"
+                  />
+                ))}
+              </InputOTPGroup>
+            </InputOTP>
+            <p className="text-caption text-muted-foreground">
+              Sandbox — any 6-digit code is accepted here.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto p-0 underline"
+              onClick={onResend}
+            >
+              {resent ? "Sent again" : "Resend OTP"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={otp.length < 6}
+              onClick={onConfirm}
+            >
+              Confirm
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
 /* ───────────────────────────── Screen ──────────────────────────────── */
 
 export function SignSection() {
@@ -228,17 +398,23 @@ export function SignSection() {
   const [feesOpen, setFeesOpen] = React.useState(true);
   const [copied, setCopied] = React.useState(false);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
+  /** The one confirmation row open for its OTP — one at a time, so the list stays a list. */
+  const [otpFor, setOtpFor] = React.useState<string | null>(null);
+  const [rowOtp, setRowOtp] = React.useState("");
+  const [rowResent, setRowResent] = React.useState<string | null>(null);
 
   const payTimer = React.useRef<number | null>(null);
   const copyTimer = React.useRef<number | null>(null);
   const resendTimer = React.useRef<number | null>(null);
+  const rowResendTimer = React.useRef<number | null>(null);
   React.useEffect(
     () => () => {
       if (payTimer.current) window.clearTimeout(payTimer.current);
       if (copyTimer.current) window.clearTimeout(copyTimer.current);
       if (resendTimer.current) window.clearTimeout(resendTimer.current);
+      if (rowResendTimer.current) window.clearTimeout(rowResendTimer.current);
     },
-    []
+    [],
   );
 
   const filed = draft.status === "filed";
@@ -247,22 +423,47 @@ export function SignSection() {
   // Who signs is derived from the parties, never stored: editing a party changes this list.
   const { complainants, advocates } = React.useMemo(
     () => signatories(draft, profile),
-    [draft, profile]
+    [draft, profile],
   );
   const everyone = React.useMemo(
     () => [...complainants, ...advocates],
-    [complainants, advocates]
+    [complainants, advocates],
   );
   // The same person can be both a complainant and the advocate — one signature covers
   // every capacity they sign in.
   const yous = everyone.filter((s) => s.you);
   const you = yous[0] ?? null;
   const youSigned = yous.length > 0 && yous.every((s) => s.status === "signed");
-  const allSigned = everyone.length > 0 && everyone.every((s) => s.status === "signed");
+  const allSigned =
+    everyone.length > 0 && everyone.every((s) => s.status === "signed");
   const anySigned = everyone.some((s) => s.status === "signed");
   const pending = everyone.filter((s) => s.status === "pending").length;
   /** Everyone the E-Sign path hands a link to, once "you" have signed your own rows. */
   const otherSigners = Math.max(0, everyone.length - yous.length);
+
+  /*
+   * Everyone who has to sign the uploaded copy and has a number of their own: each
+   * complainant, or their PoA holder in their place, or the representative who answers
+   * for an institution. Advocates cannot appear — the Advocate section collects a name
+   * and a bar number and no phone.
+   */
+  const confirmRows = React.useMemo(() => phoneConfirmers(draft), [draft]);
+  /**
+   * A confirmation belongs to the number it was given for. Editing a party's mobile
+   * afterwards voids it rather than carrying the record to a different handset — which
+   * is why this is derived from the draft each render instead of a stored flag.
+   */
+  const isConfirmed = React.useCallback(
+    (person: PhoneConfirmer) => {
+      const record = sign.confirmed[person.id];
+      const tail = person.mobile.replace(/\D/g, "").slice(-4);
+      return !!record && !!tail && record.mobileTail === tail;
+    },
+    [sign.confirmed],
+  );
+  const confirmedCount = confirmRows.filter(isConfirmed).length;
+  const allConfirmed =
+    confirmRows.length > 0 && confirmedCount === confirmRows.length;
 
   /**
    * Every signature on this screen belongs to *this* version of the complaint. Going back
@@ -275,7 +476,7 @@ export function SignSection() {
       setLeaveTo(href);
       return true;
     },
-    [filed, anySigned, setLeaveTo]
+    [filed, anySigned, setLeaveTo],
   );
   useLeaveGuard(guardLeaving);
 
@@ -285,6 +486,9 @@ export function SignSection() {
       d.sign.signed = {};
       d.sign.mode = null;
       d.sign.signedCopy = null;
+      // Each party confirmed they had signed *this* sheet. A sheet that no longer
+      // exists takes its confirmations with it.
+      d.sign.confirmed = {};
     });
     if (copy) {
       forgetFile(copy.id);
@@ -319,9 +523,9 @@ export function SignSection() {
               ? `${accusedLabel(a, ai)} · Address ${i + 1}`
               : accusedLabel(a, ai);
           return [{ key: `${a.id}:${i}`, label, text }];
-        })
+        }),
       ),
-    [draft.accused]
+    [draft.accused],
   );
   // Nothing chosen yet means "everywhere we know of" — the choice persists on first edit.
   const selectedAddresses = sign.processAddresses.length
@@ -347,12 +551,14 @@ export function SignSection() {
 
   /**
    * An uploaded copy is the complaint *after* every party has signed it — that is what
-   * the upload asks for and what the person confirms by submitting it. So it settles the
-   * whole sheet, not the uploader's own row: no one is asked to sign again for a
-   * signature already on the page in front of them.
+   * the upload asks for. So it settles the whole sheet, not the uploader's own row: no
+   * one is asked to sign again for a signature already on the page in front of them.
+   *
+   * What used to be one person's word for all of it is now each complainant's own
+   * confirmation by OTP, collected before this button can be pressed.
    */
   const submitSignedCopy = () => {
-    if (!sign.signedCopy) return;
+    if (!sign.signedCopy || !allConfirmed) return;
     update((d) => {
       for (const s of everyone) d.sign.signed[s.id] = true;
       d.sign.mode = "upload";
@@ -367,7 +573,9 @@ export function SignSection() {
     try {
       ref = await storeUpload(file);
     } catch {
-      setUploadError("We couldn't store that file in this browser. Please try again.");
+      setUploadError(
+        "We couldn't store that file in this browser. Please try again.",
+      );
       return;
     }
     update((d) => {
@@ -390,6 +598,40 @@ export function SignSection() {
     });
   };
 
+  /** Open a row's OTP — in the live service this is where the message would go out. */
+  const sendRowOtp = (id: string) => {
+    setOtpFor(id);
+    setRowOtp("");
+    setRowResent(null);
+  };
+
+  const resendRowOtp = (id: string) => {
+    setRowResent(id);
+    if (rowResendTimer.current) window.clearTimeout(rowResendTimer.current);
+    rowResendTimer.current = window.setTimeout(() => setRowResent(null), 2500);
+  };
+
+  /** Record one party's confirmation against the number it was given for. */
+  const confirmRow = (person: PhoneConfirmer) => {
+    const tail = person.mobile.replace(/\D/g, "").slice(-4);
+    if (rowOtp.length < 6 || !tail) return;
+    update((d) => {
+      d.sign.confirmed[person.id] = {
+        mobileTail: tail,
+        at: new Date().toISOString(),
+      };
+    });
+    setOtpFor(null);
+    setRowOtp("");
+    setRowResent(null);
+  };
+
+  /** No number on file is a gap in the party's own section, so that is where it is fixed. */
+  const addMissingNumber = () => {
+    setModal(null);
+    router.push(hrefFor("complainant"));
+  };
+
   const resendOtp = () => {
     setResent(true);
     if (resendTimer.current) window.clearTimeout(resendTimer.current);
@@ -403,7 +645,7 @@ export function SignSection() {
       else chosen.add(key);
       // Keep the option order, and keep the processes that always issue.
       d.sign.processTypes = PROCESS_TYPES.filter(
-        (p) => chosen.has(p.key) || !p.optional
+        (p) => chosen.has(p.key) || !p.optional,
       ).map((p) => p.key);
     });
 
@@ -441,7 +683,8 @@ export function SignSection() {
         if (!d.sign.processAddresses.length) {
           d.sign.processAddresses = addressOptions.map((o) => o.key);
         }
-        if (!d.sign.deliveryChannel) d.sign.deliveryChannel = DELIVERY_CHANNELS[0];
+        if (!d.sign.deliveryChannel)
+          d.sign.deliveryChannel = DELIVERY_CHANNELS[0];
       });
       setModal("success");
     }, 2600);
@@ -451,7 +694,7 @@ export function SignSection() {
     if (typeof window !== "undefined") {
       try {
         void navigator.clipboard?.writeText(
-          `${window.location.origin}${hrefFor("preview")}`
+          `${window.location.origin}${hrefFor("preview")}`,
         );
       } catch {
         /* clipboard blocked — the case number is on screen either way */
@@ -486,13 +729,17 @@ export function SignSection() {
           </dd>
         </div>
         <div className="flex flex-col gap-0.5">
-          <dt className="text-caption font-medium text-muted-foreground">Filed on</dt>
+          <dt className="text-caption font-medium text-muted-foreground">
+            Filed on
+          </dt>
           <dd className="text-body-compact font-medium tabular-nums">
             {draft.filedAt ? toLongDate(draft.filedAt.slice(0, 10)) : "—"}
           </dd>
         </div>
         <div className="flex flex-col gap-0.5">
-          <dt className="text-caption font-medium text-muted-foreground">Amount paid</dt>
+          <dt className="text-caption font-medium text-muted-foreground">
+            Amount paid
+          </dt>
           <dd className="text-body-compact font-medium tabular-nums">
             {rupees(FEE_TOTAL)}
           </dd>
@@ -558,8 +805,13 @@ export function SignSection() {
           ) : null}
         </>
       ) : youSigned ? (
-        <SectionNotice variant="success" announce="polite" title="You have signed">
-          {pending === 1 ? "One more party" : `${pending} more parties`} still to sign.
+        <SectionNotice
+          variant="success"
+          announce="polite"
+          title="You have signed"
+        >
+          {pending === 1 ? "One more party" : `${pending} more parties`} still
+          to sign.
         </SectionNotice>
       ) : (
         /*
@@ -599,7 +851,11 @@ export function SignSection() {
     </div>
   );
 
-  const backHref = filed ? hrefFor("preview") : prev ? hrefFor(prev) : hrefFor("preview");
+  const backHref = filed
+    ? hrefFor("preview")
+    : prev
+      ? hrefFor(prev)
+      : hrefFor("preview");
 
   return (
     <>
@@ -637,12 +893,15 @@ export function SignSection() {
         ? createPortal(
             <aside
               aria-label={filed ? "Filing record" : "Signatures"}
-              style={{ top: TOP_BAR_HEIGHT, height: `calc(100svh - ${TOP_BAR_HEIGHT})` }}
+              style={{
+                top: TOP_BAR_HEIGHT,
+                height: `calc(100svh - ${TOP_BAR_HEIGHT})`,
+              }}
               className="sticky flex w-80 shrink-0 flex-col self-start overflow-y-auto border-l border-hairline bg-card p-6"
             >
               {railBody}
             </aside>,
-            slot
+            slot,
           )
         : null}
 
@@ -653,7 +912,12 @@ export function SignSection() {
           continueLabel="Back to dashboard"
           showSaveState={false}
           extra={
-            <Button type="button" variant="outline" size="lg" onClick={printFile}>
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              onClick={printFile}
+            >
               <PrinterIcon data-icon="inline-start" aria-hidden />
               Print or save as PDF
             </Button>
@@ -671,7 +935,12 @@ export function SignSection() {
           showSaveState={false}
           onContinue={() => setModal("payment")}
           extra={
-            <Button type="button" variant="outline" size="lg" onClick={printFile}>
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              onClick={printFile}
+            >
               <PrinterIcon data-icon="inline-start" aria-hidden />
               Print or save as PDF
             </Button>
@@ -686,7 +955,10 @@ export function SignSection() {
         accepted once it already carries every signature — so both options say who else
         it reaches before either one is clickable, not after (owner, 2026-08-19).
       */}
-      <Dialog open={modal === "choose"} onOpenChange={(open) => !open && closeModal()}>
+      <Dialog
+        open={modal === "choose"}
+        onOpenChange={(open) => !open && closeModal()}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>How will this complaint be signed?</DialogTitle>
@@ -747,8 +1019,11 @@ export function SignSection() {
                 </span>
                 <span className="text-body-compact text-muted-foreground">
                   One file that already carries{" "}
-                  {everyone.length > 1 ? `all ${everyone.length} signatures` : "the signature"}
-                  , on paper or by DSC.
+                  {everyone.length > 1
+                    ? `all ${everyone.length} signatures`
+                    : "the signature"}
+                  , on paper or by DSC. Everyone on the complaint then confirms by
+                  OTP.
                 </span>
               </span>
               <ChevronRightIcon
@@ -773,15 +1048,18 @@ export function SignSection() {
       </Dialog>
 
       {/* ── E-Sign with Aadhaar ── */}
-      <Dialog open={modal === "esign"} onOpenChange={(open) => !open && closeModal()}>
+      <Dialog
+        open={modal === "esign"}
+        onOpenChange={(open) => !open && closeModal()}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>E-Sign with Aadhaar</DialogTitle>
             <DialogDescription>
               {mobileTail ? (
                 <>
-                  In the live service, a 6-digit OTP goes to your Aadhaar-linked mobile
-                  ending{" "}
+                  In the live service, a 6-digit OTP goes to your Aadhaar-linked
+                  mobile ending{" "}
                   <strong className="font-semibold text-foreground tabular-nums">
                     •••• {mobileTail}
                   </strong>
@@ -859,11 +1137,17 @@ export function SignSection() {
         onOpenChange={(open) => {
           if (!open) {
             setUploadError(null);
+            setOtpFor(null);
+            setRowOtp("");
             closeModal();
           }
         }}
       >
-        <DialogContent className="sm:max-w-xl">
+        {/*
+          The roster grows with the parties, so the body scrolls and the two fixed points
+          stay on screen: the title, and the button the whole list gates.
+        */}
+        <DialogContent className="grid-rows-[auto_minmax(0,1fr)_auto] max-h-[calc(100svh-2rem)] sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Upload signed complaint</DialogTitle>
             <DialogDescription>
@@ -871,76 +1155,130 @@ export function SignSection() {
             </DialogDescription>
           </DialogHeader>
 
-          <SectionNotice variant="warning" title="This settles every signature">
-            Submitting this copy records{" "}
-            <strong className="font-semibold">all {everyone.length} signatures</strong> as
-            collected, so upload it only once every party has signed — each complainant,
-            and one advocate for each complainant. The file may be signed on paper or with
-            a <strong className="font-semibold">Digital Signature Certificate (DSC)</strong>
-            .
-          </SectionNotice>
-
-          {sign.signedCopy ? (
-            <div className="flex flex-wrap items-center gap-3 rounded-lg bg-surface-sunken p-4">
-              <FileTextIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-body-compact font-medium">
-                  {sign.signedCopy.name}
-                </p>
-                <p className="text-caption text-muted-foreground tabular-nums">
-                  {sign.signedCopy.ext}
-                  {formatBytes(sign.signedCopy.size)
-                    ? ` · ${formatBytes(sign.signedCopy.size)}`
-                    : ""}
-                </p>
-              </div>
-              <Button type="button" variant="ghost" onClick={chooseSignedCopy}>
-                Replace
-              </Button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={chooseSignedCopy}
-              className="flex w-full flex-col items-center gap-3 rounded-xl border border-dashed border-input p-6 text-center outline-none transition-colors hover:bg-accent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            >
-              <UploadIcon className="size-8 text-muted-foreground" aria-hidden />
-              <span className="text-body-compact text-muted-foreground">
-                Choose the signed file from{" "}
-                <span className="font-medium text-primary underline underline-offset-2">
-                  my files
-                </span>
-              </span>
-            </button>
-          )}
-
-          {uploadError ? (
-            <SectionNotice
-              variant="destructive"
-              announce="assertive"
-              title="That file wasn’t added"
-            >
-              {uploadError}
+          {/* `pe-2` keeps the row's status badge clear of the scrollbar, which overlays
+              the content edge rather than reserving space for itself. */}
+          <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pe-2">
+            <SectionNotice variant="warning" title="Ensure all parties have signed">
+              Each complainant, and one advocate for each complainant, must sign
+              this document. The file may be signed on paper or with a{" "}
+              <strong className="font-semibold">
+                Digital Signature Certificate (DSC)
+              </strong>
+              .
             </SectionNotice>
-          ) : null}
 
-          <p className="text-body-compact text-muted-foreground">
-            Upload .jpg, .png, .jpeg, .webp or .pdf. Maximum upload size of 15 MB.
-          </p>
-          <p className="flex flex-wrap items-center gap-1 text-body-compact">
-            Need the unsigned document to sign on paper?
-            <Button
-              type="button"
-              variant="link"
-              className="h-auto p-0 underline"
-              onClick={printFile}
-            >
-              Print or save as PDF
-            </Button>
-          </p>
+            {sign.signedCopy ? (
+              <div className="flex flex-wrap items-center gap-3 rounded-lg bg-surface-sunken p-4">
+                <FileTextIcon
+                  className="size-5 shrink-0 text-muted-foreground"
+                  aria-hidden
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-body-compact font-medium">
+                    {sign.signedCopy.name}
+                  </p>
+                  <p className="text-caption text-muted-foreground tabular-nums">
+                    {sign.signedCopy.ext}
+                    {formatBytes(sign.signedCopy.size)
+                      ? ` · ${formatBytes(sign.signedCopy.size)}`
+                      : ""}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={chooseSignedCopy}
+                >
+                  Replace
+                </Button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={chooseSignedCopy}
+                className="flex w-full flex-col items-center gap-3 rounded-xl border border-dashed border-input p-6 text-center outline-none transition-colors hover:bg-accent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <UploadIcon
+                  className="size-8 text-muted-foreground"
+                  aria-hidden
+                />
+                <span className="text-body-compact text-muted-foreground">
+                  Choose the signed file from{" "}
+                  <span className="font-medium text-primary underline underline-offset-2">
+                    my files
+                  </span>
+                </span>
+              </button>
+            )}
+
+            {uploadError ? (
+              <SectionNotice
+                variant="destructive"
+                announce="assertive"
+                title="That file wasn’t added"
+              >
+                {uploadError}
+              </SectionNotice>
+            ) : null}
+
+            <p className="text-body-compact text-muted-foreground">
+              Upload .jpg, .png, .jpeg, .webp or .pdf. Maximum upload size of 15
+              MB.
+            </p>
+
+            {/*
+            Who signed, in their own words. The list is the gate on the button below it:
+            one OTP per complainant, taken here and now, because this path has no link
+            and is not meant to be the comfortable one.
+          */}
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-body font-semibold">Verify phone numbers</h3>
+                <span className="text-caption font-medium text-muted-foreground tabular-nums">
+                  {confirmedCount} of {confirmRows.length} confirmed
+                </span>
+              </div>
+              <p className="text-body-compact text-muted-foreground">
+                This ensures the litigant has access to their case file.
+              </p>
+              <ul>
+                {confirmRows.map((person, i) => (
+                  <ConfirmRow
+                    key={person.id}
+                    person={person}
+                    index={i}
+                    confirmed={isConfirmed(person)}
+                    open={otpFor === person.id}
+                    otp={otpFor === person.id ? rowOtp : ""}
+                    resent={rowResent === person.id}
+                    onOpen={() => sendRowOtp(person.id)}
+                    onOtp={setRowOtp}
+                    onResend={() => resendRowOtp(person.id)}
+                    onConfirm={() => confirmRow(person)}
+                    onAddNumber={addMissingNumber}
+                  />
+                ))}
+              </ul>
+            </div>
+            <p className="flex flex-wrap items-center gap-1 text-body-compact">
+              Need the unsigned document to sign on paper?
+              <Button
+                type="button"
+                variant="link"
+                className="h-auto p-0 underline"
+                onClick={printFile}
+              >
+                Print or save as PDF
+              </Button>
+            </p>
+          </div>
 
           <DialogFooter>
-            <Button type="button" disabled={!sign.signedCopy} onClick={submitSignedCopy}>
+            <Button
+              type="button"
+              disabled={!sign.signedCopy || !allConfirmed}
+              onClick={submitSignedCopy}
+            >
               Submit as fully signed
             </Button>
           </DialogFooter>
@@ -948,12 +1286,16 @@ export function SignSection() {
       </Dialog>
 
       {/* ── Pay court fees ── */}
-      <Dialog open={modal === "payment"} onOpenChange={(open) => !open && closeModal()}>
+      <Dialog
+        open={modal === "payment"}
+        onOpenChange={(open) => !open && closeModal()}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Pay court fees</DialogTitle>
             <DialogDescription>
-              These fees are payable to the court before the complaint is registered.
+              These fees are payable to the court before the complaint is
+              registered.
             </DialogDescription>
           </DialogHeader>
 
@@ -966,9 +1308,15 @@ export function SignSection() {
               >
                 <span className="text-body font-semibold">Court fees</span>
                 {feesOpen ? (
-                  <ChevronUpIcon className="text-muted-foreground" aria-hidden />
+                  <ChevronUpIcon
+                    className="text-muted-foreground"
+                    aria-hidden
+                  />
                 ) : (
-                  <ChevronDownIcon className="text-muted-foreground" aria-hidden />
+                  <ChevronDownIcon
+                    className="text-muted-foreground"
+                    aria-hidden
+                  />
                 )}
                 <Badge variant="warning">Pending</Badge>
                 <span className="ml-auto text-title-s font-semibold tabular-nums">
@@ -1015,12 +1363,16 @@ export function SignSection() {
       </Dialog>
 
       {/* ── Select process & address ── */}
-      <Dialog open={modal === "procaddr"} onOpenChange={(open) => !open && closeModal()}>
+      <Dialog
+        open={modal === "procaddr"}
+        onOpenChange={(open) => !open && closeModal()}
+      >
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Select process &amp; address</DialogTitle>
             <DialogDescription>
-              Choose what the court issues, how it is delivered, and where it goes.
+              Choose what the court issues, how it is delivered, and where it
+              goes.
             </DialogDescription>
           </DialogHeader>
 
@@ -1032,7 +1384,8 @@ export function SignSection() {
               </FieldLegend>
               {PROCESS_TYPES.map((p) => {
                 const id = `process-${p.key}`;
-                const checked = sign.processTypes.includes(p.key) || !p.optional;
+                const checked =
+                  sign.processTypes.includes(p.key) || !p.optional;
                 return (
                   <Field key={p.key} orientation="horizontal">
                     <Checkbox
@@ -1042,7 +1395,10 @@ export function SignSection() {
                       onCheckedChange={() => toggleProcess(p.key)}
                     />
                     <FieldContent>
-                      <Label htmlFor={id} className="text-body-compact font-medium">
+                      <Label
+                        htmlFor={id}
+                        className="text-body-compact font-medium"
+                      >
                         {p.label}
                       </Label>
                       <FieldDescription className="text-caption">
@@ -1058,7 +1414,10 @@ export function SignSection() {
 
             {/* Delivery channel */}
             <div className="flex flex-col gap-2">
-              <Label htmlFor="delivery-channel" className="text-body font-semibold">
+              <Label
+                htmlFor="delivery-channel"
+                className="text-body font-semibold"
+              >
                 Delivery channel
               </Label>
               <NativeSelect
@@ -1092,7 +1451,10 @@ export function SignSection() {
                           onCheckedChange={() => toggleAddress(option.key)}
                         />
                         <FieldContent>
-                          <Label htmlFor={id} className="text-body-compact font-medium">
+                          <Label
+                            htmlFor={id}
+                            className="text-body-compact font-medium"
+                          >
                             {option.label}
                           </Label>
                           <FieldDescription className="text-caption">
@@ -1143,7 +1505,8 @@ export function SignSection() {
               Processing payment…
             </DialogTitle>
             <DialogDescription className="text-body-compact">
-              Please don’t close or refresh this window while we confirm your payment.
+              Please don’t close or refresh this window while we confirm your
+              payment.
             </DialogDescription>
             <p className="text-caption text-muted-foreground">
               Sandbox payment — no money moves.
@@ -1153,7 +1516,10 @@ export function SignSection() {
       </Dialog>
 
       {/* ── Payment successful ── */}
-      <Dialog open={modal === "success"} onOpenChange={(open) => !open && closeModal()}>
+      <Dialog
+        open={modal === "success"}
+        onOpenChange={(open) => !open && closeModal()}
+      >
         <DialogContent
           showCloseButton={false}
           className="gap-0 overflow-hidden p-0 sm:max-w-lg"
@@ -1166,8 +1532,8 @@ export function SignSection() {
               Payment successful
             </DialogTitle>
             <DialogDescription className="text-body-compact text-success-foreground">
-              Your case file is complete. This is a sandbox — nothing has been sent to a
-              real court.
+              Your case file is complete. This is a sandbox — nothing has been
+              sent to a real court.
             </DialogDescription>
           </div>
 
@@ -1195,7 +1561,9 @@ export function SignSection() {
             </div>
             <div className="flex items-center justify-between gap-4 text-body-compact">
               <span className="text-muted-foreground">Payment reference</span>
-              <span className="font-mono text-foreground">{sign.paymentRef ?? "—"}</span>
+              <span className="font-mono text-foreground">
+                {sign.paymentRef ?? "—"}
+              </span>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">

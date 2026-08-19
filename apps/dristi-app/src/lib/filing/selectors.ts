@@ -11,6 +11,7 @@ import type {
   FilingDraft,
   Intake,
   IntakeSlot,
+  PhoneConfirmer,
   Signatory,
   StepId,
   UserProfile,
@@ -230,6 +231,55 @@ export function signatories(
     else if (complainants[0]) complainants[0].you = true;
   }
   return { complainants, advocates };
+}
+
+/**
+ * Everyone who confirms by phone that they signed an uploaded copy.
+ *
+ * Deliberately not `signatories()`, which folds the advocate slots in and carries signing
+ * status. This one is the phone list: one row per person who must sign and has a number
+ * of their own.
+ *
+ * Only people who have to sign are listed. Where a PoA holder has been appointed, the
+ * holder signs for the complainant and verifies for them, and the complainant does not
+ * appear at all (owner, 2026-08-19).
+ *
+ * Each row names the person who receives the code: the complainant, their PoA holder, or
+ * the authorised representative who answers for an institution.
+ */
+export function phoneConfirmers(draft: FilingDraft): PhoneConfirmer[] {
+  const rows: PhoneConfirmer[] = [];
+  draft.complainants.forEach((c, i) => {
+    const n = i + 1;
+    const who = c.type === "institution" ? c.entName.trim() : c.name.trim();
+    const label = who || `Complainant ${n}`;
+
+    if (c.poa === "yes") {
+      // The holder signs in the complainant's place, so the complainant is not asked.
+      rows.push({
+        id: `poa-${c.id}`,
+        name: c.poaHolder.name.trim() || `PoA holder for ${label}`,
+        role: `PoA holder for ${label}`,
+        mobile: c.poaHolder.mobile.trim(),
+      });
+    } else if (c.type === "institution") {
+      // An entity cannot hold a phone; the person who answers for it does.
+      rows.push({
+        id: `sig-c-${c.id}`,
+        name: c.rep.name.trim() || "Authorised representative",
+        role: `Complainant ${n} · for ${label}`,
+        mobile: c.rep.mobile.trim() || c.entPhone.trim(),
+      });
+    } else {
+      rows.push({
+        id: `sig-c-${c.id}`,
+        name: label,
+        role: `Complainant ${n} · Individual`,
+        mobile: c.mobile.trim(),
+      });
+    }
+  });
+  return rows;
 }
 
 /* ───────────────────────────── Whole-draft reads ───────────────────── */

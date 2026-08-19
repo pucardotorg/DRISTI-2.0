@@ -101,6 +101,51 @@ Preview; sign by e-sign OTP or upload; fees → process & address → processing
 Sign and pay stay a **labelled sandbox** (any OTP; simulated payment; generated case-file
 number) — the owner's call: the end of the flow is shown, not integrated.
 
+### Phone confirmation on the upload path (2026-08-19)
+
+The upload path used to settle every signature on one person's word: "Submitting this
+copy records all N signatures as collected." The document may well carry all of them —
+nothing in the product could tell. Each complainant now confirms, on their own number,
+that they signed the copy being uploaded.
+
+- **OTP only, no verification link.** A link was proposed for parties who are not in the
+  room and dropped by the owner: upload is the path we would rather people did not take,
+  so the friction is left in place rather than engineered away. This removes the bulk
+  send, the public `/verify/<token>` route, expiry/decline states, and the DPDP question
+  of what a stranger who holds a link can open.
+- **Why it is there, in the owner's words:** "this ensures the litigant has access to
+  their case file" — the number is the litigant's own reach into their case, not a
+  security checkbox. That sentence is on the screen, under the list.
+- **The OTP authenticates a sentence, not a number.** An OTP proves control of a handset,
+  never that a person signed paper. The row therefore reads "Entering it confirms that
+  <name> has signed this complaint" — the declaration is the attestation; the code only
+  authenticates it. Copy must not be tightened into "verify your number".
+- **In the dialog, not a new step.** With links gone, the whole task completes in one
+  sitting, so the existing "Upload signed complaint" dialog is the right container. It
+  scrolls its body between a pinned title and the button the list gates.
+- **The roster is not the signature list.** `signatories()` answers "whose signature does
+  the sheet need", and a complainant represented by a PoA holder needs only the holder's —
+  so that list shows the holder *instead of* the complainant. The confirmation roster
+  answers a different question: who has to sign this copy *and* has a number of their own
+  (`phoneConfirmers()`). Where a PoA holder has been appointed the holder signs and
+  verifies in the complainant's place, so **the complainant is not listed at all** — the
+  list carries nobody who is not being asked for something. An institution's row names the
+  authorised representative, since an entity holds no phone. Advocates cannot appear at
+  all: the Advocate section collects a name and a bar number and **no phone**.
+- **Attach any time, submit gated.** The file can be chosen while confirmations are still
+  coming in; `Submit as fully signed` stays dead until every row is confirmed.
+- **A confirmation belongs to the number it was given for.** It is derived from the draft,
+  not stored as a flag, so editing a party's mobile afterwards voids it and the row
+  returns to pending. Same reasoning as `REF-03`'s transitive unlocking in the handover.
+- **Going back voids everything.** Discarding signatures to edit the case also clears the
+  confirmations: each party confirmed they had signed *that* sheet.
+- **No number on file** is a gap in the party's own section, so the row links there rather
+  than dead-ending — which is also what blocks submission until it is filled.
+
+Not built, because the sandbox accepts any six digits and the states would be unreachable
+dead code: wrong-code errors, attempt limits, lockout, and OTP expiry. All four are
+requirements for the real service.
+
 ## 6. What I cut (and why)
 
 - Bulk filing (client batches) — out of scope by the ask; stubbed at `/filings/bulk`.
@@ -135,6 +180,10 @@ Per screen: empty · partially filled · prefilled-unverified · edited · savin
 processing (upload) · poor scan · required-remaining vs all-set · removed (confirm) ·
 signed/pending · paid. All draft state reloads from storage.
 
+Confirmation row (upload path): pending · OTP open (code entering) · resent · confirmed ·
+no number on file · voided by an edit to the party's number. Wrong code, attempts left,
+lockout and expiry belong to the real service, not the sandbox.
+
 ## 11. Risks accepted
 
 - Mock data everywhere (registries, OCR, fees, case number) — shapes mirror services.
@@ -151,6 +200,17 @@ signed/pending · paid. All draft state reloads from storage.
 - Where the "Affidavit" section lives (own screen vs Preview only).
 - The exact order of fees vs process & address (demo left it unwired; wired here as
   Payment → Process & address → Processing → Success).
+- **Should the signature rail list the principal as well as the PoA holder?** Still one
+  row there — the holder, who signs *for* the principal. Adding the principal would mean
+  the sheet needs their signature too, which is a legal question about PoA filings, not a
+  display one. Unanswered, and now consistent with the roster's OTP rule below.
+- **Do advocates confirm?** They sign the complaint, but the Advocate section collects no
+  phone number, so they cannot today. Adding one is a change to that section.
+- **Two parties on one handset** — common in family and small-business filings, and also
+  the obvious way to defeat this. Built as allowed, each row confirmed separately. Block,
+  allow, or allow-and-flag is a policy decision.
+- **A party who cannot be reached** blocks the upload path entirely, by design: the next
+  action is E-Sign. Confirm that is acceptable rather than a dead end needing an override.
 
 ## 13. Gaps in the DS
 
@@ -290,3 +350,32 @@ Card title scale vs demo (16/600); select trigger truncation on half-width field
 DatePicker display format vs dd/mm/yyyy; DocumentSlot progress + actions row; the
 docked source panel width; type/spacing tightening per ui-craft; the sidebar rail vs the
 DS `Sidebar` primitive.
+
+- 2026-08-19 — Owner: on the upload path, every litigant and PoA holder is listed with
+  their number and confirms by OTP before the signed copy can be submitted. Verification
+  links were proposed for parties who are not present and **rejected** — "we don't want to
+  encourage uploading a signed copy, so it's okay to have it as a slightly higher friction
+  instead of building a flow for a fallback". Built and verified in the browser.
+- 2026-08-19 — Owner: the E-Sign path should offer to share a link with the other
+  signatories — **parked**, owner is still thinking it through. Nothing built. Note that
+  the E-Sign dialog already promises a link ("The other party will get a link to sign too")
+  with no way to send, see or copy one; and with a single signatory its copy reads "The
+  other 0 parties get a link". Both are for that round.
+- 2026-08-19 — Owner: "all of the complainants and all of the POA holders should be
+  listed". They were not: a complainant with a PoA holder produced one row showing the
+  holder, and the complainant appeared nowhere. Split the two questions — `signatories()`
+  (who signs) is unchanged; a new `phoneConfirmers()` (who confirms by phone) lists every
+  complainant and every PoA holder. Roster copy follows: "Confirm each person", and the
+  notice now says everyone listed below confirms, not "each complainant".
+- 2026-08-19 — Owner: "if a PoA-holder is added, no need to get OTP for the complainant".
+  The complainant stays on the list (they asked for everyone to be listed) but carries
+  `confirmsThrough` — no code, no gate, a muted "PoA holder confirms" in the action slot.
+  The counter and the submit gate gained a distinction between rows that are *listed* and
+  rows that are *asked*.
+- 2026-08-19 — Owner, copy and scope on the upload dialog: notice title becomes "Ensure
+  all parties have signed" and its body drops the "records all N signatures as collected"
+  framing for a plain statement of who must sign; the roster heading becomes "Verify phone
+  numbers" with the note "This ensures the litigant has access to their case file"; and
+  people who do not have to sign are not listed — so a complainant represented by a PoA
+  holder disappears from the list rather than sitting in it un-actioned. Reverses the
+  "listed but not asked" row from earlier the same day.

@@ -341,12 +341,53 @@ export type Signatory = {
   you?: boolean;
 };
 
+/**
+ * One person who verifies, by OTP on their own number, that they signed a copy being
+ * uploaded — the point being that the litigant themselves has reach into their own case
+ * file, not only whoever is at the keyboard.
+ *
+ * Only people who have to sign appear: a complainant acting through a PoA holder signs
+ * through the holder, so the holder is listed and the complainant is not (owner,
+ * 2026-08-19). Advocates cannot appear — the Advocate section collects no phone.
+ */
+export type PhoneConfirmer = {
+  id: string;
+  /** The person who receives the code. */
+  name: string;
+  /** The capacity they answer in — "Complainant 1 · Individual", "PoA holder for …". */
+  role: string;
+  mobile: string;
+};
+
+/**
+ * One party's confirmation that they signed the copy being uploaded, authenticated by an
+ * OTP to their own number. The OTP proves control of the handset; the declaration the
+ * person answers is what makes it an attestation, so the two are shown together.
+ *
+ * Only the upload path collects these. Links were considered and dropped: the friction is
+ * the point on a path we do not want to encourage (owner, 2026-08-19).
+ */
+export type PhoneConfirmation = {
+  /**
+   * The last four digits that were confirmed. Editing the party's number after the fact
+   * voids the record rather than silently carrying it to a different handset.
+   */
+  mobileTail: string;
+  /** When it was confirmed — IST in the live service. */
+  at: string;
+};
+
 export type SignState = {
   mode: "esign" | "upload" | null;
   /** Signatory id → signed. Signatories themselves are derived, not stored. */
   signed: Record<string, boolean>;
   /** The signed copy, when signing by upload. */
   signedCopy: StoredFileRef | null;
+  /**
+   * Signatory id → phone confirmation, for the upload path only. Every complainant row
+   * has to be confirmed before an uploaded copy can be submitted.
+   */
+  confirmed: Record<string, PhoneConfirmation>;
   deliveryChannel: string;
   processTypes: string[];
   /** `${accusedId}:${addressIndex}` for each address process goes to. */
@@ -366,7 +407,7 @@ export type DismissedNotices = {
 };
 
 export type FilingDraft = {
-  version: 3;
+  version: 4;
   id: string;
   caseType: "s138";
   status: "draft" | "filed";
