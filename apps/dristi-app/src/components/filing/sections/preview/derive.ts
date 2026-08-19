@@ -8,7 +8,6 @@
 
 import {
   addressToString,
-  daysBetween,
   formatINR,
   joinDot,
   plural,
@@ -28,6 +27,7 @@ import {
 import {
   advocateName,
   documentsProgress,
+  limitationView,
   totalChequeAmount,
 } from "@/lib/filing/selectors";
 import type {
@@ -314,7 +314,8 @@ export function noticeAffidavit(n: DemandNotice | undefined) {
 export function jurisdictionSummary(draft: FilingDraft) {
   const j = draft.jurisdiction;
   const bank = commaJoin(j.payeeBankName, j.payeeBankBranch);
-  const delay = daysBetween(j.causeDate, j.filingDate);
+  const lim = limitationView(draft);
+  const delay = lim.elapsed;
   const beyond = delay === null ? 0 : delay - 30;
   return {
     depositedByPayee: j.deposited === "yes",
@@ -329,9 +330,10 @@ export function jurisdictionSummary(draft: FilingDraft) {
     bankName: orNot(j.payeeBankName),
     bankBranch: orNot(j.payeeBankBranch),
     bank: orNot(bank),
-    causeDate: displayDate(j.causeDate),
-    filingDate: displayDate(j.filingDate),
-    filingDateIso: j.filingDate,
+    causeDate: displayDate(lim.causeDate),
+    causeDateIso: lim.causeDate,
+    filingDate: displayDate(lim.filingDate),
+    filingDateIso: lim.filingDate,
     otherPending: j.otherPending === "yes" ? "Yes" : "No",
     otherCases: j.otherCases.filter((c) => c.court.trim() || c.caseNumber.trim()),
     inTime: delay === null || delay <= 30,

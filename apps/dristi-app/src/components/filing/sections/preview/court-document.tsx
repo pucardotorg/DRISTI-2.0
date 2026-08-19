@@ -240,7 +240,7 @@ export function CourtDocument({ draft }: { draft: FilingDraft }) {
           <DocGroupRow>Cause of action</DocGroupRow>
           <tr>
             <DocCell label="Date of cause of action">
-              {longDate(draft.jurisdiction.causeDate)}
+              {longDate(jurisdiction.causeDateIso)}
             </DocCell>
             <DocCell label="Jurisdiction invoked under Section 142(2)">
               {jurisdiction.depositedByPayee
@@ -470,10 +470,10 @@ export function CourtDocument({ draft }: { draft: FilingDraft }) {
         <tbody>
           <tr>
             <DocCell label="Date of cause of action">
-              {longDate(draft.jurisdiction.causeDate)}
+              {longDate(jurisdiction.causeDateIso)}
             </DocCell>
             <DocCell label="Date of complaint filing">
-              {longDate(draft.jurisdiction.filingDate)}
+              {longDate(jurisdiction.filingDateIso)}
             </DocCell>
             <DocCell label="Duration of delay">{jurisdiction.delayText}</DocCell>
           </tr>

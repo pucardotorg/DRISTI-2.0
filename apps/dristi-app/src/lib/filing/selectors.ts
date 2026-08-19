@@ -1,6 +1,6 @@
 /** Derived reads over the draft — pure functions so screens and the shell agree. */
 
-import { daysBetween } from "./format";
+import { addDays, daysBetween, todayIso } from "./format";
 import {
   CHANNEL_FEE,
   CONDONATION_FEE,
@@ -15,6 +15,7 @@ import type {
   ChequeDetails,
   Complainant,
   DemandNotice,
+  ISODate,
   DocumentGroup,
   FilingDraft,
   Intake,
@@ -435,5 +436,84 @@ export function feeBill(draft: FilingDraft): FeeBill {
     processTotal: sum(process),
     addresses,
     delayed,
+  };
+}
+
+/* ───────────────────────────── Limitation ──────────────────────────── */
+
+/** Days the drawer has to pay after the demand notice reaches them. */
+export const PAYMENT_WINDOW_DAYS = 15;
+/** Days from the cause of action within which the complaint must be filed. */
+export const LIMITATION_DAYS = 30;
+
+/**
+ * The date the notice started the clock — when it reached the accused, or when it came
+ * back unserved. Service is deemed complete on a notice returned unclaimed, so a return
+ * date counts exactly as a delivery date does.
+ */
+export function noticeServiceDate(n: DemandNotice): ISODate {
+  return n.delivered === "no" ? n.returnDate : n.deliveryDate;
+}
+
+/**
+ * When the cause of action arose on one notice: fifteen days after it was served.
+ *
+ * The drawer has that window to pay; the offence is complete when it closes without
+ * payment. Empty until the notice records a service date, because a limitation date
+ * guessed from nothing is worse than no date at all.
+ */
+export function noticeCauseDate(n: DemandNotice): ISODate {
+  return addDays(noticeServiceDate(n), PAYMENT_WINDOW_DAYS);
+}
+
+/**
+ * The cause of action for the whole filing — the **earliest** across the notices.
+ *
+ * With more than one notice there is more than one cause of action, and the complaint has
+ * to be in time for the first of them; running the clock from a later one would show the
+ * filing as comfortably in time while the earliest cheque was already barred.
+ */
+export function derivedCauseDate(draft: FilingDraft): ISODate {
+  const dates = draft.notices.map(noticeCauseDate).filter(Boolean).sort();
+  return dates[0] ?? "";
+}
+
+/** What the form shows and the sheet prints: the filer's own date, else the derived one. */
+export function causeOfActionDate(draft: FilingDraft): ISODate {
+  return draft.jurisdiction.causeDate || derivedCauseDate(draft);
+}
+
+/**
+ * The filing date. Until the complaint is actually filed this is today — a draft left for
+ * a month really is a month later, and freezing the date would hide a growing delay.
+ */
+export function complaintFilingDate(draft: FilingDraft): ISODate {
+  if (draft.jurisdiction.filingDate) return draft.jurisdiction.filingDate;
+  return draft.filedAt ? draft.filedAt.slice(0, 10) : todayIso();
+}
+
+export type LimitationView = {
+  causeDate: ISODate;
+  filingDate: ISODate;
+  /** Whole days between the two, or null while either is unknown. */
+  elapsed: number | null;
+  withinLimit: boolean;
+  /** Days past the one-month limit; 0 when in time. */
+  overBy: number;
+  /** True when the dates came from the notices rather than being typed. */
+  causeDerived: boolean;
+};
+
+export function limitationView(draft: FilingDraft): LimitationView {
+  const causeDate = causeOfActionDate(draft);
+  const filingDate = complaintFilingDate(draft);
+  const elapsed = daysBetween(causeDate, filingDate);
+  return {
+    causeDate,
+    filingDate,
+    elapsed,
+    withinLimit: elapsed !== null && elapsed <= LIMITATION_DAYS,
+    overBy: elapsed === null ? 0 : Math.max(0, elapsed - LIMITATION_DAYS),
+    causeDerived: !draft.jurisdiction.causeDate && !!causeDate,
   };
 }

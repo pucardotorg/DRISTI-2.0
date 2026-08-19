@@ -9,10 +9,12 @@
  * typed from memory, and an unlisted one is still accepted.
  */
 
+import Link from "next/link";
 import { PlusIcon } from "lucide-react";
 
-import { daysBetween } from "@/lib/filing/format";
+import { toLongDate } from "@/lib/filing/format";
 import { POLICE_STATIONS } from "@/lib/filing/options";
+import { limitationView, noticeServiceDate } from "@/lib/filing/selectors";
 import { neighbours } from "@/lib/filing/steps";
 import { useFiling } from "@/lib/filing/store";
 import { Button } from "@/components/ui/button";
@@ -46,9 +48,13 @@ export function JurisdictionSection() {
       d.jurisdiction.payeeFetched = false;
     });
 
-  const delay = daysBetween(j.causeDate, j.filingDate);
-  const withinLimit = delay !== null && delay <= 30;
-  const overBy = delay === null ? 0 : delay - 30;
+  const limitation = limitationView(draft);
+  const { elapsed: delay, withinLimit, overBy } = limitation;
+  // Shown in the derivation line, so the date it counts from is checkable.
+  const serviceDate = draft.notices
+    .map(noticeServiceDate)
+    .filter(Boolean)
+    .sort()[0] ?? "";
 
   return (
     <>
@@ -224,18 +230,53 @@ export function JurisdictionSection() {
           title="Limitation period"
           description="The complaint must be filed within one month of the cause of action arising."
         >
+          {/*
+            Neither of these is really a question. The cause of action is fifteen days
+            after the demand notice was served, and the filing date is today — both follow
+            from what the form already knows, so they are filled in and the working is
+            shown. They stay editable because the derivation cannot cover every case, and
+            an edit sticks: once typed, the date is the filer's and stops following.
+          */}
           <FormRow>
             <FormField
               label="Date of cause of action"
               required
-              tip="The day after the 15-day payment window from the demand notice expires."
+              help={
+                limitation.causeDerived
+                  ? `15 days after the demand notice was served on ${toLongDate(serviceDate)}.`
+                  : undefined
+              }
             >
-              <DateField value={j.causeDate} onChange={(v) => set("causeDate", v)} />
+              <DateField
+                value={limitation.causeDate}
+                onChange={(v) => set("causeDate", v)}
+              />
             </FormField>
-            <FormField label="Date of complaint filing">
-              <DateField value={j.filingDate} onChange={(v) => set("filingDate", v)} />
+            <FormField
+              label="Date of complaint filing"
+              help={j.filingDate ? undefined : "Today."}
+            >
+              <DateField
+                value={limitation.filingDate}
+                onChange={(v) => set("filingDate", v)}
+              />
             </FormField>
           </FormRow>
+
+          {/* Nothing to derive from yet — said once, where the empty field is. */}
+          {limitation.causeDate ? null : (
+            <SectionNotice variant="neutral">
+              The cause of action is worked out from the demand notice. Record when it was
+              delivered — or returned unserved — under{" "}
+              <Link
+                href={hrefFor("demand-notice")}
+                className="font-medium text-current underline underline-offset-2"
+              >
+                Demand notice &amp; debt
+              </Link>
+              .
+            </SectionNotice>
+          )}
           {/*
             The delay was a key-value row with a caption under it explaining that it was
             calculated — three lines of furniture around one number. It is a result, so it
