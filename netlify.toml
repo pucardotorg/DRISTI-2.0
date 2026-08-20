@@ -1,0 +1,25 @@
+# Netlify build for the Dristi app.
+#
+# Next.js 16 (app router) inside an npm-workspaces monorepo. The base directory
+# stays at the repo root on purpose: `npm install` there runs the postinstall
+# step (scripts/ensure-ds.mjs), which clones pucar-design-system into vendor/.
+# Building from apps/dristi-app alone would skip that and fail.
+#
+# Most routes are server-rendered on demand, so this is not a static export —
+# the Next.js runtime plugin below is required.
+
+[build]
+  command = "npm run build"
+  publish = "apps/dristi-app/.next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # Public project ID for the FasterFixes feedback widget — inlined into the
+  # client bundle by design, so it is not a secret. Kept here so the deploy
+  # works without a manual dashboard step; override in Netlify's env settings
+  # to point a given site at a different project, or set it to an empty value
+  # to ship a build with no widget at all. See docs/feedback-widget.md.
+  NEXT_PUBLIC_FASTERFIXES_PROJECT_ID = "proj_34da4857dae6d8831cbd098f"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
