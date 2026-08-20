@@ -1,7 +1,6 @@
-import { redirect } from "next/navigation";
+import { TaskActPage } from "@/components/tasks/act/act-page";
 
-/** v2 route — fixing a return now happens in a modal on the list. Old links still land. */
-export default async function Page({ params }: { params: Promise<{ taskId: string }> }) {
-  const { taskId } = await params;
-  redirect(`/tasks?task=${encodeURIComponent(taskId)}`);
+/** Fix a scrutiny return and re-file — interim page for the scrutiny flow (v2.2). */
+export default function Page() {
+  return <TaskActPage action="fix" />;
 }

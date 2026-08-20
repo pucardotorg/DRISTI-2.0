@@ -136,3 +136,50 @@ and the brief at [../proposals/pending-tasks.md](../proposals/pending-tasks.md).
 instead; team-access concept removed (file-share model); court-initiated tasks (plea, deposition)
 and scrutiny returns are pending tasks; non-signatories may leave work in draft; cards for an
 overview; the view is a command centre. The redesign (v2) is in the brief.
+
+---
+
+## Third ask — 2026-08-20 (verbatim, product)
+
+> I think the card filters should be a local filter inside the tabs logic wise - I am not sure how
+> it will translate in the UI - so I want your UI craft and ux design expertise here.
+>
+> On a larger note - I am slightly concerned that we are complicating the task management inside.
+> As much as I understand, there are a few simple types of activities, such as making sure there is
+> a payment that is done, then making sure there is a file to be uploaded, which is again like a
+> single drag and drop, etc. Those are okay to do within, like, a modal situation. But workflows
+> that involve, for example, fixing a scrutiny that came back, or filing an application from
+> scratch that needs to be done, etc. — I think apart from uploading files and making payments,
+> nothing should be done in the modal. It should redirect them to that specific flow. So it'll
+> essentially just give a notice saying, you are being redirected to the relevant screen to
+> complete this task.
+>
+> I have also attached one screenshot that is about showing the attributes that are associated
+> with the pending tasks. That is just a work in progress. I just want to use it as a sanity check
+> on are we accounting for everything that has at least been thought about.
+>
+> I'm also attaching an Excel file that has the version 1 product's pending tasks — what all
+> pending tasks were there. I think that would be useful for us to ground this a little bit more
+> in reality. […] If something is drastically going against the direction that we were working
+> on, just flag it to me before you start building it. But everything else, if it's in alignment
+> and it's just, like, a minor tweak that improves the product, go ahead and make it.
+
+**Attachments (2026-08-20):**
+- *Attributes of a Pending Task* (WIP screenshot): Task Name · Due Date · Creation Trigger ·
+  Closure Trigger (incl. auto-closure rules) · Archive Logic (auto-archival to prevent clutter) ·
+  Users (who can act) · Category (payment / signing / submissions) · Associated Workflow ·
+  Status (Open, Overdue, Archived, Completed) · Case · Visibility (only actors / all users on the
+  same side of the case / all courtroom employees).
+- *Pending Task Expiry.xlsx* (DRISTI 1.0 inventory): per task — actor, creation trigger, closure
+  trigger (action + automatic), due days, per-screen visibility, filter text. Advocate-side facts
+  used: Correct File Errors cures in **3 days**; process-fee payments due 0–1 day and auto-close
+  when the hearing passes; Pay Vakalatnama Fees closes when any vakalatnama-fee task is paid;
+  response tasks auto-close when the application is decided; application SLAs (bail 2 d,
+  settlement 4 d, rescheduling 2 d, DCA 0 d, …).
+
+**What this changes (v2.2):** cards move inside the tab (tab = population, cards = its
+breakdown); only pay and file-upload act in a modal — sign, re-file and drafts show a
+"continuing in the {signing/scrutiny/filing} flow" notice and navigate to a full page; the model
+gains `closesWhen` (declared closure rule, incl. auto-closure) and `visibility` ("case" default,
+"actors" supported; courtroom out of scope); seeds grounded in the 1.0 inventory. Overdue stays
+derived, never a stored status.

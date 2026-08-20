@@ -270,6 +270,9 @@ function TaskDetail({
                 </>
               )}
             </Fact>
+            {task.closesWhen && !closed && task.status !== "archived" ? (
+              <Fact label="Closes">{task.closesWhen}</Fact>
+            ) : null}
             {task.completion ? (
               <Fact label={task.completion.how === "manual" ? "Marked done" : "Closed"}>
                 <span className="tabular-nums">{dateTime(task.completion.at)}</span>

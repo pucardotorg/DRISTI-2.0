@@ -164,6 +164,18 @@ export type Task = {
   createdAt: string;
   /** Closed by the event (payment, signature, acceptance) — never by hand. */
   systemObservable: boolean;
+  /**
+   * The closure rule in the service's own words, auto-closure included — "Closes on
+   * payment, or when the hearing passes". Declares when it will close; `completion.how`
+   * records how it did.
+   */
+  closesWhen?: string;
+  /**
+   * Who on the case sees the task. `"case"` (the default) — everyone on the case's
+   * side; `"actors"` — only the people who can act on it. The 1.0 attributes doc names
+   * a third audience, courtroom staff, which is out of scope for this advocate-side app.
+   */
+  visibility?: "case" | "actors";
   status: TaskStatus;
   draft?: Draft;
   prepared?: Prepared;

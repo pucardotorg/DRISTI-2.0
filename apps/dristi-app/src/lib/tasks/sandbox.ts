@@ -1,16 +1,18 @@
 /**
  * SANDBOX DATA — the seed the front end runs on until a tasks service exists.
  *
- * Five advocates and their cases, and ~38 tasks that between them touch every kind,
+ * Five advocates and their cases, and ~40 tasks that between them touch every kind,
  * every status, every view and every permission edge the screens must handle. Dates are
- * relative to *today*, so the seed never goes stale. Nothing here has been sent to a
- * real court.
+ * relative to *today*, so the seed never goes stale. Windows and closure rules follow
+ * DRISTI 1.0's pending-task inventory: scrutiny returns cure in 3 days, payment tasks
+ * auto-close when the hearing they serve passes, response tasks close when the court
+ * decides the application. Nothing here has been sent to a real court.
  */
 
 import type { Case, Person, Task } from "./types";
 
 /** Bump when the seed's shape changes; a browser holding an older seed is re-seeded. */
-export const SEED_VERSION = 3;
+export const SEED_VERSION = 4;
 
 /* ───────────────────────────── people ───────────────────────────── */
 
@@ -128,7 +130,7 @@ export function buildTasks(): Task[] {
       kind: "sign",
       title: "Sign the proof affidavit of the complainant",
       why: created(-5, `Affidavit prepared for the plea posting on ${shortDate(hearing(1))}`),
-      whatToDo: "Read the affidavit and e-sign it. It is filed as soon as it is signed.",
+      whatToDo: "Read the affidavit and e-sign it. The signed copy attaches to the task and the case file.",
       documentsNeeded: ["Proof affidavit of the complainant"],
       dueAt: at(1, 9),
       dueKind: "before-hearing",
@@ -207,6 +209,7 @@ export function buildTasks(): Task[] {
       dueKind: "court-set",
       deadlineNote: `${order(-43)}: process fee to be paid within 2 days`,
       hearingAt: hearing(2),
+      closesWhen: "Closes on payment, or when the hearing passes",
       status: "open",
     }),
     task({
@@ -222,6 +225,7 @@ export function buildTasks(): Task[] {
       dueKind: "court-set",
       deadlineNote: "Registry: pay within 3 days of the order",
       hearingAt: hearing(3),
+      closesWhen: "Closes on payment, or when the hearing passes",
       status: "open",
       statusNote: "Payment failed — try again",
       lastPayment: { result: "failed", ref: "TXN-9F2KQ7HM3X", at: at(-1, 15) },
@@ -242,6 +246,7 @@ export function buildTasks(): Task[] {
       dueAt: at(3),
       dueKind: "court-set",
       deadlineNote: "Registry: before the application is listed",
+      closesWhen: "Closes when the fee is paid",
       status: "open",
     }),
     task({
@@ -256,6 +261,7 @@ export function buildTasks(): Task[] {
       dueAt: at(6),
       dueKind: "court-set",
       deadlineNote: "Copy section: within 7 days of the copy application",
+      closesWhen: "Closes when the fee is paid",
       status: "open",
     }),
     task({
@@ -270,6 +276,7 @@ export function buildTasks(): Task[] {
       dueAt: at(2),
       dueKind: "court-set",
       hearingAt: hearing(7),
+      closesWhen: "Closes on payment, or when the hearing passes",
       status: "open",
     }),
     task({
@@ -284,6 +291,7 @@ export function buildTasks(): Task[] {
       dueAt: at(1),
       dueKind: "court-set",
       hearingAt: hearing(3),
+      closesWhen: "Closes on payment, or when the hearing passes",
       status: "payment-confirming",
       statusNote: "Gateway ref TXN-4HW8NQ2TZC",
       lastPayment: { result: "pending", ref: "TXN-4HW8NQ2TZC", at: at(0, 9, 40) },
@@ -291,6 +299,21 @@ export function buildTasks(): Task[] {
         { at: at(-6, 11), text: "Created — summons ordered to PW-3" },
         { at: at(0, 9, 40), by: "p-dv", text: "Deepa Varghese paid — gateway is confirming (ref TXN-4HW8NQ2TZC)" },
       ],
+    }),
+    task({
+      id: "t-vakfee509",
+      caseId: "c-509",
+      kind: "pay",
+      title: "Pay the vakalatnama fee",
+      why: created(-1, "S. Prakash joined the case; the vakalatnama fee was not paid at joining"),
+      whatToDo: "Pay the vakalatnama fee so the joining is complete on the record.",
+      amountPaise: 25 * RUPEE,
+      feeHead: "Vakalatnama fee",
+      dueAt: at(0),
+      dueKind: "court-set",
+      deadlineNote: "Payable at joining — due immediately",
+      closesWhen: "Closes when this or any other vakalatnama fee on the case is paid",
+      status: "open",
     }),
     task({
       id: "t-paydone509",
@@ -383,6 +406,7 @@ export function buildTasks(): Task[] {
       dueKind: "court-set",
       deadlineNote: `Reply before the posting on ${shortDate(hearing(1))}`,
       hearingAt: hearing(1),
+      closesWhen: "Closes when the court decides the application",
       status: "open",
     }),
     task({
@@ -508,9 +532,9 @@ export function buildTasks(): Task[] {
       why: created(-9, "Scrutiny returned the complaint for compliance with 3 defects"),
       whatToDo: "Cure each defect, attach the corrected document where one is needed, and re-file.",
       documentsNeeded: ["Complaint", "Affidavit in support", "Index of documents"],
-      dueAt: at(-2),
+      dueAt: at(-6),
       dueKind: "court-set",
-      deadlineNote: "Registry: cure within 7 days of return",
+      deadlineNote: "Registry allows 3 days to cure defects",
       status: "open",
       returned: {
         by: "scrutiny",
@@ -530,9 +554,9 @@ export function buildTasks(): Task[] {
       why: created(-3, "Scrutiny returned the application to condone the delay with 2 defects"),
       whatToDo: "Cure each defect, attach the corrected document where one is needed, and re-file.",
       documentsNeeded: ["Affidavit in support (attested)", "Postal acknowledgement"],
-      dueAt: at(1),
+      dueAt: at(0),
       dueKind: "court-set",
-      deadlineNote: "Registry: cure within 2 days of return",
+      deadlineNote: "Registry allows 3 days to cure defects",
       hearingAt: hearing(9),
       status: "open",
       returned: {
@@ -552,9 +576,9 @@ export function buildTasks(): Task[] {
       why: created(-4, "Scrutiny returned the chief affidavit with 1 defect"),
       whatToDo: "Cure the defect, attach the corrected affidavit, and re-file.",
       documentsNeeded: ["Chief affidavit (sworn)"],
-      dueAt: at(2),
+      dueAt: at(-1),
       dueKind: "court-set",
-      deadlineNote: "Registry: cure within 7 days of return",
+      deadlineNote: "Registry allows 3 days to cure defects",
       status: "ready",
       statusNote: "Prepared by S. Prakash",
       returned: {
@@ -583,9 +607,9 @@ export function buildTasks(): Task[] {
       title: "Fix 2 defects and re-file the application to condone the delay",
       why: created(-20, "Scrutiny returned the application with 2 defects"),
       whatToDo: "Cure each defect, attach the corrected document where one is needed, and re-file.",
-      dueAt: at(-13),
+      dueAt: at(-17),
       dueKind: "court-set",
-      deadlineNote: "Registry: cure within 7 days of return",
+      deadlineNote: "Registry allows 3 days to cure defects",
       status: "expired",
       statusNote: "cure window lapsed",
       returned: {
@@ -687,6 +711,19 @@ export function buildTasks(): Task[] {
       dueAt: hearing(-6),
       dueKind: "before-hearing",
       hearingAt: hearing(-6),
+      status: "open",
+    }),
+    task({
+      id: "t-dates941",
+      caseId: "c-941",
+      kind: "hearing",
+      title: "Choose your dates for the rescheduled hearing",
+      why: created(0, `The accused asked to reschedule the evidence posting of ${shortDate(hearing(9))}`),
+      whatToDo: "Give the dates your side can attend; the court fixes the new posting from the preferences.",
+      dueAt: at(2),
+      dueKind: "court-set",
+      deadlineNote: "Registry allows 2 days to give date preferences",
+      closesWhen: "Closes when you choose dates, or when the court decides the rescheduling request",
       status: "open",
     }),
     task({

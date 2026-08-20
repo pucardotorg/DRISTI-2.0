@@ -51,6 +51,14 @@ describe("visibility and views — per viewer", () => {
     });
   });
 
+  it("an actors-only task is hidden from viewers who cannot act on it", () => {
+    const actorsOnly = makeTask({ id: "actors-sign", kind: "sign", visibility: "actors", dueAt: at(1) });
+    const w = (user = senior): World => ({ ...world(user), tasks: [...tasks, actorsOnly] });
+    // The signatory sees one more Needs-action item; the junior's counts do not move.
+    assert.equal(viewCounts(w(senior))["needs-action"], 8);
+    assert.deepEqual(viewCounts(w(junior)), viewCounts(world(junior)));
+  });
+
   it("only tasks on the person's cases are counted", () => {
     assert.deepEqual(viewCounts(world(outsider)), {
       "needs-action": 1,

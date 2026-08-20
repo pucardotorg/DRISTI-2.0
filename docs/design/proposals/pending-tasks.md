@@ -1,6 +1,6 @@
 # Pending tasks
 
-Status: building (v2.1 — owner's correction round on the render)
+Status: building (v2.2 — cards inside the tab, modal policy, 1.0 grounding)
 Updated: 2026-08-20
 Source: docs/design/research/pending-tasks-ask.md (the owner's words, 18 Aug + 19 Aug) ·
 docs/design/research/pending-tasks-ux.md (research memo) · docs/product/product-foundation.md ·
@@ -77,7 +77,9 @@ case that need to be done to move the case forward".
 **D1 · Kinds of action are the primary lens — as cards, and the cards are the filter.** Six
 cards: **To sign · To pay · To file · Returned by scrutiny · For a hearing · Drafts.** Each shows
 count, overdue count and next due date; clicking one filters the table (one at a time; click
-again to clear). Replaces every chip from v1. *Why kinds:* a decision maker clears work in
+again to clear). Replaces every chip from v1. **v2.2: the cards live inside the tab** (header →
+tabs → cards → filters → table): the tab is the population, the cards are its breakdown — which
+is what their per-tab counts always said. The kind filter stays sticky across tabs. *Why kinds:* a decision maker clears work in
 batches by the action it takes (all signatures, then all payments); it is also how the registry
 and the court address the advocate. Judgment; owner asked for cards.
 
@@ -159,11 +161,11 @@ hearing in {n} days* · *No date* — with the absolute date as a caption under 
 carries today's date (the owner: "overdue from when… is missing"), replacing the big *Pending
 tasks* title, which was redundant with the nav.
 
-**D14 · Act flows run in place** (v2.1). Pay, Sign and File open as modals over the table
-(full-screen sheet on a phone) and close back to the updated row — no navigation for a task you
-can finish in a minute. Fix & re-file and Continue (draft filings) belong to the scrutiny /
-e-filing flows, which are not designed yet: their CTA opens a dialog saying the work continues in
-that flow, with the current sandbox experience behind *Continue anyway* as interim behaviour.
+**D14 · Only payments and file uploads act in a modal** (v2.2; owner: "apart from uploading
+files and making payments, nothing should be done in the modal"). Pay and File act in place and
+close back to the updated row. Sign, Re-file and Continue (drafts) are real workflows: their CTA
+shows a one-sentence notice ("Continuing in the signing / scrutiny / filing flow") and navigates
+to a full page — interim sandbox pages until those flows are designed.
 
 **D15 · The detail panel is context-to-act, nothing more** (v2.1). Title · case line · one
 why-plus-what block · amount · due · advocates (vakalat holders marked; one quiet sentence when
@@ -281,6 +283,15 @@ Ladder only. Page `p-6 md:p-8`; regions `gap-6`; cards grid `gap-3`, card `p-4`;
 - No avatar-stack primitive; composed from `Avatar` with negative space.
 - No docked/push panel primitive; composed as in the home peek.
 
+**D16 · The model declares its lifecycle, grounded in 1.0** (v2.2). `closesWhen` states each
+task's closure rule in words — including auto-closure ("Closes on payment, or when the hearing
+passes"; "Closes when the court decides the application") — shown in the panel; `visibility`
+("case" default / "actors") covers the attributes doc's audiences, with courtroom staff out of
+scope for this advocate-side app. Seeds take the 1.0 inventory's numbers: 3-day cure window on
+scrutiny returns, 0–1-day payment SLAs, the vakalatnama-fee task and its dedup closure, response
+tasks that die with their application. Overdue stays derived from the date — 1.0 stored it as a
+status, which can go stale; ours cannot.
+
 ## 14. Decision log
 
 | Date | Change | Confirmed by |
@@ -293,3 +304,6 @@ Ladder only. Page `p-6 md:p-8`; regions `gap-6`; cards grid `gap-3`, card `p-4`;
 | 2026-08-19 | v2 built and committed (`042419a`); "blocking and coming up first" tier restored in the comparator | Session |
 | 2026-08-20 | Owner's correction round on the render: card filter must echo as a pill; search out of the filter row (top bar); panel too redundant — context to act only; pay/sign/file in modals, fix & drafts hand off to the (undesigned) scrutiny/filing flows via a dialog; checkbox on every row with Mark as done + Archive (+ Archived tab); card eyebrows at 12px are a violation; CTAs one width; due format consistent with today's date visible; view-only nuance for juniors; tabs renamed by ability; Status column and the page title dropped as redundant | Product (owner) |
 | 2026-08-20 | v2.1 decisions D2–D4, D6, D10, D13–D15 updated/added accordingly | Session |
+| 2026-08-20 | v2.1 built, verified on the render, committed `db9a513` | Session |
+| 2026-08-20 | Owner: cards should be a local filter inside the tabs; only uploads + payments in a modal, everything else redirects with a notice; supplied the WIP attributes doc and the 1.0 "Pending Task Expiry" inventory as grounding — minor aligned changes pre-approved | Product (owner) |
+| 2026-08-20 | v2.2: D1 (cards inside the tab), D14 (modal policy), D16 (closesWhen + visibility + 1.0-grounded seeds) | Session |

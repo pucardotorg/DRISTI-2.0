@@ -1,11 +1,12 @@
 "use client";
 
 /**
- * The act modal: pay, sign and file complete right here — a `Dialog` over the table
- * from `md` (a full-height `Sheet` below it), reusing the act bodies. On completion the
- * toast fires, the modal closes and the row updates in place; nothing navigates. `fix`
- * is the same container, reached only through the scrutiny-flow notice (interim
- * behaviour until the scrutiny screens exist).
+ * The act modal: pay and file complete right here — a `Dialog` over the table from `md`
+ * (a full-height `Sheet` below it), reusing the act bodies. On completion the toast
+ * fires, the modal closes and the row updates in place; nothing navigates. Signing,
+ * fixing a scrutiny return and filing-flow drafts do NOT act here — those continue in
+ * their own full pages (`/tasks/[id]/sign` · `/fix` · `/continue`) behind a dialog that
+ * says so.
  */
 
 import * as React from "react";
@@ -26,36 +27,26 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/
 import { type ActContext } from "@/components/tasks/act/shared";
 import { type ActMode } from "@/components/tasks/use-task-actions";
 import { FileBody } from "@/components/tasks/act/file-page";
-import { FixBody } from "@/components/tasks/act/fix-page";
 import { PayBody } from "@/components/tasks/act/pay-page";
-import { SignBody } from "@/components/tasks/act/sign-page";
 
 /** The one quiet line per flow that says what is not real here. */
 const SANDBOX: Record<ActMode, string> = {
   pay: "Sandbox — no money moves; the gateway's answer is whatever you pick and the receipt is generated locally.",
-  sign: "Sandbox — any 6-digit OTP is accepted and the signature stamp is generated locally.",
   file: "Sandbox — uploads stay in this browser and the registry's answer is whatever you pick.",
-  fix: "Sandbox — replacements stay in this browser and the registry's answer is whatever you pick.",
 };
 
-/** The document/fee column reads better with room; pay is a summary and stays narrow. */
+/** The document column reads better with room; pay is a summary and stays narrow. */
 const WIDTH: Record<ActMode, string> = {
   pay: "sm:max-w-xl",
-  sign: "sm:max-w-2xl",
   file: "sm:max-w-2xl",
-  fix: "sm:max-w-2xl",
 };
 
 function Body({ ctx, mode }: { ctx: ActContext; mode: ActMode }) {
   switch (mode) {
     case "pay":
       return <PayBody ctx={ctx} />;
-    case "sign":
-      return <SignBody ctx={ctx} />;
     case "file":
       return <FileBody ctx={ctx} />;
-    case "fix":
-      return <FixBody ctx={ctx} />;
   }
 }
 

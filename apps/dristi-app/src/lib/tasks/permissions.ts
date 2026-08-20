@@ -26,6 +26,20 @@ export function canComplete(user: Person | PersonId, kase: Case): boolean {
   return kase.signatories.includes(idOf(user));
 }
 
+/**
+ * Whether this person sees this task. `visibility` defaults to `"case"` — everyone on
+ * the case's side. `"actors"` narrows it to the people who can act on it: the
+ * vakalatnama holders for completing kinds, anyone on the case for the kinds everyone
+ * acts on (hearing tasks, drafts). A seam for the 1.0 attributes doc's Visibility —
+ * every seeded task stays `"case"`.
+ */
+export function canViewTask(user: Person | PersonId, task: Task, kase: Case): boolean {
+  if (!canView(user, kase)) return false;
+  if ((task.visibility ?? "case") === "case") return true;
+  if (task.kind === "hearing" || task.status === "draft") return true;
+  return canComplete(user, kase);
+}
+
 /** The main advocate: first on the vakalatnama. */
 export function mainAdvocateOf(kase: Case): PersonId | undefined {
   return kase.signatories[0];

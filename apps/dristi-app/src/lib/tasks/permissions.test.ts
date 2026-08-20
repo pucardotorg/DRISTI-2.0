@@ -9,6 +9,7 @@ import {
   canComplete,
   canMarkDone,
   canView,
+  canViewTask,
   cardKindOf,
   verbFor,
   viewOf,
@@ -23,6 +24,26 @@ describe("canView / canComplete", () => {
     assert.equal(canComplete(senior, kase), true);
     assert.equal(canComplete(senior2, kase), true);
     assert.equal(canComplete(junior, kase), false);
+  });
+
+  it("visibility 'actors' hides completing kinds from non-actors; 'case' is the default", () => {
+    const signTask = makeTask({ kind: "sign", visibility: "actors" });
+    assert.equal(canViewTask(senior, signTask, kase), true);
+    assert.equal(canViewTask(junior, signTask, kase), false);
+    assert.equal(canViewTask(outsider, signTask, kase), false);
+    // Default and explicit "case": everyone on the case's side sees it.
+    assert.equal(canViewTask(junior, makeTask({ kind: "sign" }), kase), true);
+    assert.equal(canViewTask(junior, makeTask({ kind: "sign", visibility: "case" }), kase), true);
+    // Kinds everyone acts on stay visible to everyone on the case.
+    assert.equal(canViewTask(junior, makeTask({ kind: "hearing", visibility: "actors" }), kase), true);
+    assert.equal(
+      canViewTask(
+        junior,
+        makeTask({ kind: "file", status: "draft", visibility: "actors", draft: { by: junior.id, savedAt: at(-1) } }),
+        kase
+      ),
+      true
+    );
   });
 
   it("advocatesOf lists the main advocate first, then the rest", () => {

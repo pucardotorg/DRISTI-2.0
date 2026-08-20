@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import {
@@ -34,7 +35,7 @@ import { useFilters } from "@/components/tasks/filters";
 import { OverviewCards } from "@/components/tasks/overview-cards";
 import { TaskDetailPanel } from "@/components/tasks/task-detail-panel";
 import { TasksTable, TasksTableSkeleton } from "@/components/tasks/tasks-table";
-import { type ActMode, actModeOf, useTaskActions } from "@/components/tasks/use-task-actions";
+import { type ActMode, actModeOf, actPathOf, useTaskActions } from "@/components/tasks/use-task-actions";
 
 const VIEWS: TaskView[] = ["needs-action", "waiting", "completed", "archived"];
 
@@ -56,24 +57,60 @@ function useNow(): Date {
   return now;
 }
 
-/** Which flows are placeholders for screens that are not designed yet. */
-function flowNoticeOf(task: Task): "scrutiny" | "filing" | null {
+/**
+ * The flows that leave this screen for their own page, each behind a dialog that says
+ * so. Signing is designed but lives in its own flow; scrutiny (fix & re-file) and
+ * e-filing (drafts) are not built yet, so their pages are interim.
+ */
+type Flow = "sign" | "scrutiny" | "filing";
+
+const FLOW_DIALOG: Record<Flow, { title: string; description: string }> = {
+  sign: {
+    title: "Continuing in the signing flow",
+    description: "Signing happens in its own flow. We'll bring you back here when it's done.",
+  },
+  scrutiny: {
+    title: "Continuing in the scrutiny flow",
+    description:
+      "Fixing defects and re-filing happens in the scrutiny flow, which is not built yet — this is an interim screen. We'll bring you back here when it's done.",
+  },
+  filing: {
+    title: "Continuing in the filing flow",
+    description:
+      "Drafting and filing happens in the e-filing flow, which is not built yet — this is an interim screen. We'll bring you back here when it's done.",
+  },
+};
+
+/** Where each flow's page lives for a task. */
+function flowPathOf(flow: Flow, task: Task): string {
+  const id = encodeURIComponent(task.id);
+  if (flow === "sign") return `/tasks/${id}/sign`;
+  if (flow === "scrutiny") return `/tasks/${id}/fix`;
+  return `/tasks/${id}/continue`;
+}
+
+/** The flow a Continue verb hands its draft to — by the kind the draft will become. */
+function draftFlowOf(task: Task): Flow | null {
+  if (task.kind === "sign") return "sign";
   if (task.kind === "returned") return "scrutiny";
-  if (task.kind === "file" || task.kind === "draft") return "filing";
-  return null;
+  if (task.kind === "pay") return null; // paying acts in place — the modal
+  return "filing";
 }
 
 /**
- * Pending tasks — the command centre. A dated header, six kind cards (the overview and
- * the filter), four ability-based tabs, a labelled filter row, then ONE lifted table;
- * the detail pushes in from the right on `lg`+ (a sheet below). Pay, sign and file open
- * as modals over the table; search lives in the top bar. Everything the cards, tabs and
- * filters hold lives in the URL.
+ * Pending tasks — the command centre. A dated header, four ability-based tabs, then the
+ * tab's own breakdown: six kind cards (the overview and the filter), a labelled filter
+ * row, and ONE lifted table; the detail pushes in from the right on `lg`+ (a sheet
+ * below). Pay and file act in a modal over the table; sign, fix & re-file and drafts
+ * continue in their own pages behind a dialog. Search lives in the top bar. Everything
+ * the cards, tabs and filters hold lives in the URL — the kind stays put across tab
+ * switches, so a batch being cleared survives a change of view.
  */
 export function TasksScreen() {
   const store = useTasks();
   const { state, error, people, cases, tasks, user, online, reload, requestHighlight } = store;
   const { act, busy } = useTaskActions();
+  const router = useRouter();
   const { filters, setFilters, taskId, setTaskId } = useFilters();
   const now = useNow();
   const { navOpen, foldNav, unfoldNav } = useChrome();
@@ -97,9 +134,9 @@ export function TasksScreen() {
   const [selected, setSelected] = React.useState<Set<TaskId>>(() => new Set());
   /** Tasks awaiting the mark-as-done confirmation — one from a row, several from the bar. */
   const [confirmDone, setConfirmDone] = React.useState<Task[] | null>(null);
-  /** The fix/continue warning: those flows belong to screens that are not built yet. */
-  const [flowNotice, setFlowNotice] = React.useState<{ task: Task; flow: "scrutiny" | "filing" } | null>(null);
-  /** The act modal: pay, sign, file — and fix as the interim fallback. */
+  /** The leaving-this-screen dialog: sign, fix and continue open their own pages. */
+  const [flowNotice, setFlowNotice] = React.useState<{ task: Task; flow: Flow } | null>(null);
+  /** The act modal — pay and file only (the owner's rule). */
   const [acting, setActing] = React.useState<{ taskId: TaskId; mode: ActMode } | null>(null);
   const actingTask = React.useMemo(
     () => (acting ? (tasks.find((t) => t.id === acting.taskId) ?? null) : null),
@@ -112,8 +149,14 @@ export function TasksScreen() {
       const el = document.querySelector<HTMLButtonElement>(
         `[data-task-row][data-task-id="${CSS.escape(id)}"] [data-task-title]`
       );
-      el?.focus();
-      el?.scrollIntoView({ block: "nearest" });
+      if (el) {
+        el.focus();
+        el.scrollIntoView({ block: "nearest" });
+        return;
+      }
+      // The row may have left this tab — a task completed on its act page comes back
+      // under Completed. Its panel is open (`?task=`), so focus lands on its title.
+      document.querySelector<HTMLElement>("[data-task-detail-title]")?.focus();
     });
   }, []);
 
@@ -185,16 +228,19 @@ export function TasksScreen() {
     (task: Task, verb: Verb) => {
       switch (verb) {
         case "Pay":
-        case "Sign":
         case "File":
           openAct(task, actModeOf(task));
+          return;
+        case "Sign":
+          setFlowNotice({ task, flow: "sign" });
           return;
         case "Re-file":
           setFlowNotice({ task, flow: "scrutiny" });
           return;
         case "Continue": {
-          // Drafts of the filing flows warn first; a pay or sign draft is its own flow.
-          const flow = flowNoticeOf(task);
+          // A draft continues in its own flow, behind the dialog; a pay draft is a
+          // payment and acts in place.
+          const flow = draftFlowOf(task);
           if (flow) setFlowNotice({ task, flow });
           else openAct(task, actModeOf(task));
           return;
@@ -279,14 +325,6 @@ export function TasksScreen() {
           </p>
         </header>
 
-        <OverviewCards
-          counts={state === "ready" ? counts : null}
-          view={filters.view}
-          active={filters.kind}
-          loading={state !== "ready"}
-          onToggle={toggleKind}
-        />
-
         {/* Views. The active underline sits on the band's own rule rather than floating
             above it — one horizontal line, not two. */}
         <Tabs value={filters.view} onValueChange={(v) => setView(v as TaskView)} className="gap-0">
@@ -305,6 +343,16 @@ export function TasksScreen() {
             ))}
           </TabsList>
         </Tabs>
+
+        {/* The tab is the population; the cards are its breakdown — they sit inside the
+            tab, above the filters that narrow it further. `cardCounts` counts per view. */}
+        <OverviewCards
+          counts={state === "ready" ? counts : null}
+          view={filters.view}
+          active={filters.kind}
+          loading={state !== "ready"}
+          onToggle={toggleKind}
+        />
 
         <FilterRow
           filters={filters}
@@ -405,7 +453,14 @@ export function TasksScreen() {
         offline={!online}
         busy={!!busy}
         onVerb={(verb) => openTask && handleVerb(openTask, verb)}
-        onOpenFlow={() => openTask && openAct(openTask, actModeOf(openTask))}
+        onOpenFlow={() => {
+          if (!openTask) return;
+          // Waiting and closed items open their flow to look, not to act: pay and file
+          // live in the modal; sign and returned tasks live on their own pages.
+          const path = actPathOf(openTask);
+          if (path) router.push(path);
+          else openAct(openTask, actModeOf(openTask));
+        }}
         onMarkDone={() => openTask && setConfirmDone([openTask])}
         onArchive={() => openTask && void act(openTask.id, archive, "Archived — find it under the Archived tab")}
       />
@@ -424,27 +479,19 @@ export function TasksScreen() {
         }}
       />
 
-      {/* Fix & re-file and draft filings belong to the scrutiny / e-filing screens,
-          which are not designed yet — say so before the interim fallback opens. */}
+      {/* Signing, fixing a return and continuing a draft leave this screen for their
+          own pages — the dialog says so before anything moves. */}
       <ConfirmDialog
         open={!!flowNotice}
         onOpenChange={(open) => !open && setFlowNotice(null)}
-        title={
-          flowNotice?.flow === "scrutiny"
-            ? "This continues in the scrutiny flow"
-            : "This continues in the filing flow"
-        }
-        description={
-          flowNotice?.flow === "scrutiny"
-            ? "Fixing defects and re-filing happens in the scrutiny screens, which are not built yet. Continue anyway to use the interim version here."
-            : "Drafting and filing happens in the e-filing screens, which are not built yet. Continue anyway to use the interim version here."
-        }
-        confirmLabel="Continue anyway"
+        title={flowNotice ? FLOW_DIALOG[flowNotice.flow].title : ""}
+        description={flowNotice ? FLOW_DIALOG[flowNotice.flow].description : undefined}
+        confirmLabel="Continue"
         destructive={false}
         onConfirm={() => {
-          const t = flowNotice?.task;
+          const notice = flowNotice;
           setFlowNotice(null);
-          if (t) openAct(t, actModeOf(t));
+          if (notice) router.push(flowPathOf(notice.flow, notice.task));
         }}
       />
 

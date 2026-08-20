@@ -6,7 +6,7 @@
  * other filters apply, so the cards always describe the view.
  */
 
-import { canView, cardKindOf, TERMINAL, viewOf, WAITING } from "./permissions";
+import { canView, canViewTask, cardKindOf, TERMINAL, viewOf, WAITING } from "./permissions";
 import { compareUrgency, consequenceAt, daysUntil, isOverdue } from "./urgency";
 import type { Case, CardKind, Person, PersonId, Task, TaskView } from "./types";
 
@@ -78,11 +78,11 @@ export function personOf(world: Pick<World, "people">, id?: PersonId): Person | 
   return id ? world.people.find((p) => p.id === id) : undefined;
 }
 
-/** Tasks on cases the person is on. Everything else starts here. */
+/** Tasks this person sees: on the case, minus actors-only tasks they cannot act on. */
 export function visibleTasks(world: World): Task[] {
   return world.tasks.filter((t) => {
     const kase = caseOf(world, t);
-    return !!kase && canView(world.user, kase);
+    return !!kase && canViewTask(world.user, t, kase);
   });
 }
 
@@ -90,7 +90,7 @@ export function visibleTasks(world: World): Task[] {
 export function tasksInView(world: World, view: TaskView): Task[] {
   return world.tasks.filter((t) => {
     const kase = caseOf(world, t);
-    return !!kase && canView(world.user, kase) && viewOf(t, world.user, kase) === view;
+    return !!kase && canViewTask(world.user, t, kase) && viewOf(t, world.user, kase) === view;
   });
 }
 
@@ -217,7 +217,7 @@ export function viewCounts(world: World, query = ""): Record<TaskView, number> {
   const views: Record<TaskView, number> = { "needs-action": 0, waiting: 0, completed: 0, archived: 0 };
   for (const t of world.tasks) {
     const kase = caseOf(world, t);
-    if (!kase || !canView(world.user, kase)) continue;
+    if (!kase || !canViewTask(world.user, t, kase)) continue;
     if (!matchesSearch(t, kase, query)) continue;
     views[viewOf(t, world.user, kase)] += 1;
   }

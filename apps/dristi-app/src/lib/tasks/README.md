@@ -95,11 +95,43 @@ else prepared it. `verbFor` derives the one verb a row shows at render time:
 **Sign · Pay · File · Re-file** (signatory, open/ready) · **Continue** (anyone, on a
 draft) · **Mark done** (hearing tasks — done in court) · **Unarchive** (archived tasks)
 · **View** (waiting, closed, or an open/ready item whose completion belongs to a
-vakalatnama holder the viewer is not — a quiet ghost, never a disabled verb). Pay, sign
-and file act in a **modal** over the table (`components/tasks/act/act-modal.tsx`);
-Re-file and filing-flow drafts first warn that the scrutiny / e-filing screens are not
-built yet, then open the interim modal. The old `/tasks/[id]/pay|sign|file|fix` routes
-redirect to `/tasks?task=<id>`.
+vakalatnama holder the viewer is not — a quiet ghost, never a disabled verb).
+
+**Modal vs page (the owner's rule): apart from uploading files and making payments,
+nothing acts in a modal.** Pay and File act in a **modal** over the table
+(`components/tasks/act/act-modal.tsx`). Sign, Re-file and filing-flow drafts continue in
+their own **full pages** — `/tasks/[id]/sign` · `/tasks/[id]/fix` · `/tasks/[id]/continue`
+(`act/act-page.tsx`) — behind a dialog that says the work continues in that flow (the
+scrutiny and e-filing pages are interim until those flows are built; a sign-kind draft
+continues on the sign page, everything else on the file page). On completion the page
+returns to `/tasks?task=<id>` with the row focused. The `/tasks/[id]/pay|file|submit`
+routes stay redirects to `/tasks?task=<id>` — those act in place.
+
+`canViewTask` adds the task's `visibility` on top of `canView`: `"case"` (default) —
+everyone on the case's side; `"actors"` — only the people who can act on it (vakalatnama
+holders for completing kinds; anyone on the case for hearing tasks and drafts). The 1.0
+attributes doc's third audience — courtroom staff — is out of scope for this
+advocate-side app and is not modelled. Every seeded task stays `"case"`; the field is a
+backend seam, not invented behaviour.
+
+## The 1.0 attributes doc → this model
+
+The owner's WIP "Attributes of a Pending Task" (DRISTI 1.0), mapped to where each
+attribute lives here:
+
+| 1.0 attribute | Here |
+| --- | --- |
+| Task Name | `title` (verb-first, fixed vocabulary) |
+| Due Date | `dueAt` + `dueKind` + `deadlineNote` (provenance). 1.0 windows honoured in the seed: scrutiny cure 3 days · process fees ~1 day · post-e-sign payments immediate · application-response SLAs (bail 2 · rescheduling 2 · settlement / transfer / withdrawal / production / extension / generic 4 · delay condonation 0) |
+| Creation Trigger | `why` (`event` + `at`) |
+| Closure Trigger | event transitions (`transitions.ts`) close it; `closesWhen` declares the rule — auto-closure included ("Closes on payment, or when the hearing passes"; "Closes when the court decides the application"; "Closes when this or any other vakalatnama fee on the case is paid") — and `completion.how` records how it actually closed |
+| Archive Logic | `archive` / `unarchive` (manual, restorable) today; auto-archive rules are a backend seam — open |
+| Users | `Case.signatories` / `Case.advocates` + `verbFor` (per-viewer verb) |
+| Category | `kind` — the six overview cards |
+| Associated Workflow | verb → surface: Pay / File → the act modal; Sign / Re-file / Continue → the flow pages |
+| Status | ours is richer: open · draft · ready · awaiting-court · payment-confirming · done · expired · obsolete · archived. **Overdue stays derived from the date, never a stored status — it cannot go stale** |
+| Case | `caseId` |
+| Visibility | `visibility` (`"case"` / `"actors"`); courtroom staff out of scope |
 
 ## Urgency (`urgency.ts`)
 
