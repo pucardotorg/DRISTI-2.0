@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { type ElementType, type ReactNode } from "react";
-import { ChevronDownIcon, FileTextIcon, XIcon } from "lucide-react";
+import { ChevronDownIcon, ExternalLinkIcon, FileTextIcon, XIcon } from "lucide-react";
 
 import {
   dateTime,
@@ -12,6 +12,7 @@ import {
   outcomeOf,
   rupees,
   secondLineOf,
+  shortDate,
   viewOnlyLineOf,
   waitingOnOf,
 } from "@/lib/tasks/format";
@@ -26,41 +27,60 @@ import {
   WAITING,
 } from "@/lib/tasks/permissions";
 import { formatBytes } from "@/lib/tasks/data";
+import { consequenceAt } from "@/lib/tasks/urgency";
 import type { Case, Person, Task, Verb } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
 import { useIsDesktop } from "@/hooks/use-min-width";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import {
-  DescriptionDetails,
-  DescriptionList,
-  DescriptionRow,
-  DescriptionTerm,
-} from "@/components/ui/description-list";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { Timeline, TimelineItem } from "@/components/ui/timeline";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { PersonAvatar } from "@/components/tasks/person-avatar";
 
-function Fact({ label, children, mono }: { label: string; children: ReactNode; mono?: boolean }) {
+function Block({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
   return (
-    // The primitive's row rule is border-border; inside a panel these are internal
-    // dividers, so they drop to the hairline role.
-    <DescriptionRow className="grid-cols-[minmax(6rem,8rem)_1fr] border-hairline py-2">
-      <DescriptionTerm className="text-body-compact">{label}</DescriptionTerm>
-      <DescriptionDetails className={cn("text-body-compact", mono && "font-mono tabular-nums")}>
-        {children}
-      </DescriptionDetails>
-    </DescriptionRow>
+    <section className="flex flex-col gap-3">
+      <h3 className="flex items-center gap-2 text-caption font-semibold text-muted-foreground">
+        {title}
+        {count !== undefined ? (
+          <Badge variant="secondary" className="tabular-nums">
+            {count}
+          </Badge>
+        ) : null}
+      </h3>
+      {children}
+    </section>
   );
 }
 
-function Block({ title, children }: { title: string; children: ReactNode }) {
+/**
+ * The panel's one focal mark: the consequence date as a day-over-month chip. A task
+ * the court left undated gets a quiet sunken dash instead — no date is not a brand
+ * moment.
+ */
+function DateChip({ iso }: { iso?: string }) {
+  if (!iso) {
+    return (
+      <span
+        aria-hidden
+        className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-body font-semibold text-muted-foreground"
+      >
+        —
+      </span>
+    );
+  }
+  const [day, mon] = shortDate(iso).split(" ");
   return (
-    <section className="flex flex-col gap-2">
-      <h3 className="text-caption font-semibold text-muted-foreground">{title}</h3>
-      {children}
-    </section>
+    <span
+      aria-hidden
+      className="flex size-12 shrink-0 flex-col items-center justify-center rounded-lg bg-brand-muted text-brand-muted-foreground"
+    >
+      <span className="text-body font-semibold tabular-nums">{day}</span>
+      <span className="text-caption">{mon}</span>
+    </span>
   );
 }
 
@@ -151,7 +171,8 @@ function TaskDetail({
     secondary = { label: "View record", run: onOpenFlow };
   }
 
-  // The one caption under the title: what the row's fifth column would say here.
+  // The one status caption of the panel — what the row's fifth column would say. It
+  // rides in the Deadline card, under the relative cue it qualifies.
   const statusLine =
     task.status === "archived" || closed
       ? outcomeOf(task)
@@ -167,127 +188,188 @@ function TaskDetail({
     (d) => !task.whatToDo.toLowerCase().includes(d.toLowerCase())
   );
 
+  // The Deadline card's anchor: the earlier of due date and hearing — the same date the
+  // due cue counts from. The next hearing is repeated only when it is a different day.
+  const consequence = consequenceAt(task);
+  const active = !closed && task.status !== "archived";
+  const deadlineContext = statusLine ?? (active && task.closesWhen ? task.closesWhen : undefined);
+  const showNextHearing = !!kase.nextHearingAt && kase.nextHearingAt !== task.hearingAt;
+  const blocking = active && task.isBlocking && !!task.hearingAt;
+  const unfixed = task.returned?.defects.filter((d) => !d.fixed).length ?? 0;
+
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-col gap-3 border-b border-hairline px-4 pt-4 pb-4 md:px-6">
+      <div className="flex flex-col gap-4 border-b border-hairline px-4 pt-4 pb-4 md:px-6">
         <div className="flex items-center justify-between gap-2">
           <p className="text-caption font-semibold text-muted-foreground">Task</p>
           {close}
         </div>
-        <div className="flex flex-col gap-1">
-          {/* Focus lands here when a row opens the panel; Escape returns it to the row. */}
-          <Title
-            tabIndex={-1}
-            data-task-detail-title
-            className="rounded-sm text-title-s font-semibold text-balance outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {task.title}
-          </Title>
-          <Description className="text-caption text-muted-foreground">
-            {kase.parties}
-            {kase.stNumber ? (
-              <>
-                {" · "}
-                <span className="font-mono tabular-nums">{kase.stNumber}</span>
-              </>
-            ) : (
-              " · Not yet numbered"
-            )}
-            {" · "}
-            {kase.court}
-          </Description>
-          <p className="text-caption text-muted-foreground">
-            {kase.nextHearingAt ? (
-              <>
-                Next hearing <span className="tabular-nums">{dateTime(kase.nextHearingAt)}</span>
-              </>
-            ) : (
-              "No hearing listed"
-            )}
-            {statusLine ? (
-              <>
-                <span aria-hidden> · </span>
-                {statusLine}
-              </>
-            ) : null}
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex min-w-0 flex-col gap-1">
+            {/* Focus lands here when a row opens the panel; Escape returns it to the row. */}
+            <Title
+              tabIndex={-1}
+              data-task-detail-title
+              className="rounded-sm text-title-s font-semibold text-balance outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {task.title}
+            </Title>
+            <Description className="text-caption text-muted-foreground">
+              {kase.parties}
+              {kase.stNumber ? (
+                <>
+                  {" · "}
+                  <span className="font-mono tabular-nums">{kase.stNumber}</span>
+                </>
+              ) : (
+                " · Not yet numbered"
+              )}
+              {" · "}
+              {kase.court}
+            </Description>
+          </div>
+          <Button variant="outline" size="sm" className="shrink-0">
+            <ExternalLinkIcon aria-hidden />
+            Open case file
+          </Button>
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-4 py-6 md:px-6">
-        {/* The creating event, dated, then the instruction — one block, no repeats. */}
-        <Block title="Why and what to do">
-          <p className="text-body-compact text-muted-foreground">
-            {task.why.event}
-            {/dated|on \d/.test(task.why.event) ? null : <> · {longDate(task.why.at)}</>}
-          </p>
-          <p className="text-body-compact">{task.whatToDo}</p>
-        </Block>
-
-        {task.returned?.defects.length ? (
-          <Block title="Defects from scrutiny">
-            <ol className="flex flex-col gap-2">
-              {task.returned.defects.map((d) => (
-                <li key={d.n} className="flex gap-2 text-body-compact">
-                  <span className="font-medium tabular-nums text-muted-foreground">{d.n}.</span>
-                  <span className={cn(d.fixed && "text-muted-foreground line-through")}>{d.text}</span>
-                </li>
-              ))}
-            </ol>
-          </Block>
-        ) : null}
-
-        <Block title="Details">
-          <DescriptionList>
-            {task.amountPaise !== undefined ? (
-              <Fact label="Amount">
-                <span className="font-medium tabular-nums">{rupees(task.amountPaise)}</span>
-                {task.feeHead ? <span className="text-muted-foreground"> · {task.feeHead}</span> : null}
-              </Fact>
-            ) : null}
-            <Fact label="Due">
-              {due.primary === "No date" ? (
-                <span className="text-muted-foreground">No date set — the court did not fix one</span>
-              ) : (
-                <>
-                  <span className={cn("tabular-nums", due.overdue && "font-medium text-destructive-ink")}>
-                    {due.primary}
-                  </span>
-                  {due.date ? <span className="tabular-nums text-muted-foreground"> · {due.date}</span> : null}
-                  {task.deadlineNote ? (
-                    <span className="block text-caption text-muted-foreground">{task.deadlineNote}</span>
-                  ) : null}
-                  {task.redate ? (
-                    <span className="block text-caption text-muted-foreground">
-                      Moved from {longDate(task.redate.from)} — {task.redate.reason}
-                    </span>
-                  ) : null}
-                  {task.isBlocking && task.hearingAt ? (
-                    <span className="block text-caption text-muted-foreground">
-                      The hearing cannot proceed without this
-                    </span>
-                  ) : null}
-                </>
-              )}
-            </Fact>
-            {task.closesWhen && !closed && task.status !== "archived" ? (
-              <Fact label="Closes">{task.closesWhen}</Fact>
-            ) : null}
-            {task.completion ? (
-              <Fact label={task.completion.how === "manual" ? "Marked done" : "Closed"}>
+      {/* `*:shrink-0`: the Cards' own overflow-hidden zeroes their automatic minimum
+          height, so as flex children of this scroller they would be crushed to fit
+          instead of letting the panel scroll. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-4 py-6 md:px-6 *:shrink-0">
+        {/* The deadline leads — the one card with the brand-tinted date chip. */}
+        <Card size="sm" className="gap-3">
+          <div className="flex items-center gap-3 px-4">
+            <DateChip iso={consequence} />
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <p
+                className={cn(
+                  "text-body-compact font-semibold tabular-nums",
+                  due.overdue && "text-destructive-ink"
+                )}
+              >
+                {due.primary === "No date" ? "No date set" : due.primary}
+              </p>
+              {task.amountPaise !== undefined ? (
+                <p className="text-body-compact">
+                  <span className="font-semibold tabular-nums">{rupees(task.amountPaise)}</span>
+                  {task.feeHead ? <span className="text-muted-foreground"> · {task.feeHead}</span> : null}
+                </p>
+              ) : null}
+              <p className="text-caption text-muted-foreground">
+                <span className="tabular-nums">
+                  {consequence ? longDate(consequence) : "The court did not fix one"}
+                </span>
+                {deadlineContext ? <> · {deadlineContext}</> : null}
+              </p>
+              {showNextHearing ? (
+                <p className="text-caption text-muted-foreground">
+                  Next hearing <span className="tabular-nums">{dateTime(kase.nextHearingAt!)}</span>
+                </p>
+              ) : null}
+            </div>
+          </div>
+          {task.completion ? (
+            <div className="mx-4 flex flex-col gap-1 rounded-lg bg-surface-sunken p-3">
+              <p className="text-caption font-semibold text-muted-foreground">
+                {task.completion.how === "manual" ? "Marked done" : "Closed"}
+              </p>
+              <p className="text-body-compact">
                 <span className="tabular-nums">{dateTime(task.completion.at)}</span>
                 {task.completion.by ? (
                   <span className="text-muted-foreground"> · {nameOf(people, task.completion.by)}</span>
                 ) : null}
-                {task.completion.receipt ? (
-                  <span className="block font-mono text-caption tabular-nums text-muted-foreground">
-                    Receipt {task.completion.receipt}
-                  </span>
-                ) : null}
-              </Fact>
-            ) : null}
-          </DescriptionList>
+              </p>
+              {task.completion.receipt ? (
+                <p className="font-mono text-caption tabular-nums text-muted-foreground">
+                  Receipt {task.completion.receipt}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {blocking ? (
+            <div className="mx-4 flex flex-col gap-1 rounded-lg bg-warning-muted p-3">
+              <p className="text-caption font-semibold text-warning-ink">
+                The hearing cannot proceed without this
+              </p>
+              {task.deadlineNote ? (
+                <p className="text-body-compact leading-relaxed text-pretty">{task.deadlineNote}</p>
+              ) : null}
+              {task.redate ? (
+                <p className="text-caption text-warning-muted-foreground">
+                  Moved from <span className="tabular-nums">{longDate(task.redate.from)}</span> —{" "}
+                  {task.redate.reason}
+                </p>
+              ) : null}
+            </div>
+          ) : task.deadlineNote || task.redate ? (
+            <div className="mx-4 flex flex-col gap-1 rounded-lg bg-surface-sunken p-3">
+              {task.deadlineNote ? (
+                <p className="text-body-compact leading-relaxed text-pretty">{task.deadlineNote}</p>
+              ) : null}
+              {task.redate ? (
+                <p className="text-caption text-muted-foreground">
+                  Moved from <span className="tabular-nums">{longDate(task.redate.from)}</span> —{" "}
+                  {task.redate.reason}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </Card>
+
+        {/* The creating event, dated, then the instruction in its well — no repeats. */}
+        <Block title="What to do">
+          <Card size="sm" className="gap-3">
+            <div className="flex flex-col gap-0.5 px-4">
+              <p className="text-body-compact font-semibold text-pretty">{task.why.event}</p>
+              {/dated|on \d/.test(task.why.event) ? null : (
+                <p className="text-caption tabular-nums text-muted-foreground">{longDate(task.why.at)}</p>
+              )}
+            </div>
+            <div className="mx-4 rounded-lg bg-surface-sunken p-3">
+              <p className="text-body-compact leading-relaxed text-pretty">{task.whatToDo}</p>
+            </div>
+          </Card>
         </Block>
+
+        {task.returned?.defects.length ? (
+          <Block title="Defects from scrutiny">
+            <Card size="sm" className="gap-3">
+              <div className="flex flex-col gap-0.5 px-4">
+                <p className="text-body-compact font-semibold">Returned for correction</p>
+                <p className="text-caption tabular-nums text-muted-foreground">
+                  {longDate(task.returned.at)}
+                </p>
+              </div>
+              <div className="mx-4 flex flex-col gap-2 rounded-lg bg-warning-muted p-3">
+                <p className="text-caption font-semibold text-warning-ink">
+                  {unfixed === 0
+                    ? "All defects addressed"
+                    : `${unfixed} ${unfixed === 1 ? "defect" : "defects"} to fix`}
+                </p>
+                <ol className="flex flex-col gap-2">
+                  {task.returned.defects.map((d) => (
+                    <li key={d.n} className="flex gap-2">
+                      <span className="text-caption font-semibold tabular-nums text-warning-ink">
+                        {d.n}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-body-compact leading-relaxed",
+                          d.fixed && "text-warning-muted-foreground line-through"
+                        )}
+                      >
+                        {d.text}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </Card>
+          </Block>
+        ) : null}
 
         {extraDocs.length ? (
           <Block title="Documents needed">
@@ -302,7 +384,69 @@ function TaskDetail({
           </Block>
         ) : null}
 
-        <Block title="Advocates on this case">
+        {preparedBy ? (
+          <Block title="Prepared by">
+            <Card size="sm" className="gap-3">
+              <div className="flex items-center gap-3 px-4">
+                {(() => {
+                  const p = people.find((x) => x.id === preparedBy.by);
+                  return p ? <PersonAvatar person={p} you={p.id === user.id} /> : null;
+                })()}
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <p className="text-body-compact font-semibold">{nameOf(people, preparedBy.by)}</p>
+                  <p className="text-caption tabular-nums text-muted-foreground">
+                    {dateTime(preparedBy.at)}
+                  </p>
+                </div>
+              </div>
+              <p className="px-4 text-body-compact leading-relaxed text-pretty">
+                {preparedBy.note || <span className="text-muted-foreground">No note.</span>}
+              </p>
+              {(preparedBy.files ?? task.files)?.length ? (
+                <div className="mx-4">
+                  <FileList files={preparedBy.files ?? task.files} />
+                </div>
+              ) : null}
+            </Card>
+          </Block>
+        ) : null}
+
+        {draftBy ? (
+          <Block title="Draft">
+            <Card size="sm" className="gap-3">
+              <div className="flex items-center gap-3 px-4">
+                {(() => {
+                  const p = people.find((x) => x.id === draftBy.by);
+                  return p ? <PersonAvatar person={p} you={p.id === user.id} /> : null;
+                })()}
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <p className="text-body-compact font-semibold">
+                    {draftBy.by === user.id ? "You" : nameOf(people, draftBy.by)}
+                  </p>
+                  <p className="text-caption text-muted-foreground">
+                    Saved · <span className="tabular-nums">{dateTime(draftBy.savedAt)}</span>
+                  </p>
+                </div>
+              </div>
+              {draftBy.note ? (
+                <p className="px-4 text-body-compact leading-relaxed text-pretty">{draftBy.note}</p>
+              ) : null}
+              {task.files?.length ? (
+                <div className="mx-4">
+                  <FileList files={task.files} />
+                </div>
+              ) : null}
+            </Card>
+          </Block>
+        ) : null}
+
+        {!preparedBy && !draftBy && task.files?.length ? (
+          <Block title="Files">
+            <FileList files={task.files} />
+          </Block>
+        ) : null}
+
+        <Block title="Advocates on this case" count={advocates.length}>
           <ul className="flex flex-col gap-2">
             {advocates.map((p, i) => {
               const signatory = i < kase.signatories.length;
@@ -325,50 +469,6 @@ function TaskDetail({
           ) : null}
         </Block>
 
-        {preparedBy ? (
-          <Block title="Prepared by">
-            <div className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-4">
-              <div className="flex items-center gap-2">
-                {(() => {
-                  const p = people.find((x) => x.id === preparedBy.by);
-                  return p ? <PersonAvatar person={p} you={p.id === user.id} /> : null;
-                })()}
-                <p className="text-caption font-semibold text-muted-foreground">
-                  {nameOf(people, preparedBy.by)} · {dateTime(preparedBy.at)}
-                </p>
-              </div>
-              <p className="text-body-compact">
-                {preparedBy.note || <span className="text-muted-foreground">No note.</span>}
-              </p>
-              <FileList files={preparedBy.files ?? task.files} />
-            </div>
-          </Block>
-        ) : null}
-
-        {draftBy ? (
-          <Block title="Draft">
-            <div className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-4">
-              <div className="flex items-center gap-2">
-                {(() => {
-                  const p = people.find((x) => x.id === draftBy.by);
-                  return p ? <PersonAvatar person={p} you={p.id === user.id} /> : null;
-                })()}
-                <p className="text-caption font-semibold text-muted-foreground">
-                  {draftBy.by === user.id ? "You" : nameOf(people, draftBy.by)} saved it · {dateTime(draftBy.savedAt)}
-                </p>
-              </div>
-              {draftBy.note ? <p className="text-body-compact">{draftBy.note}</p> : null}
-              <FileList files={task.files} />
-            </div>
-          </Block>
-        ) : null}
-
-        {!preparedBy && !draftBy && task.files?.length ? (
-          <Block title="Files">
-            <FileList files={task.files} />
-          </Block>
-        ) : null}
-
         {/* The audit trail matters when questioned, not on every glance — folded away. */}
         <Collapsible className="flex flex-col gap-2">
           <CollapsibleTrigger className="group flex h-10 w-full items-center justify-between gap-2 rounded-lg text-left text-caption font-semibold text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
@@ -381,22 +481,27 @@ function TaskDetail({
           <CollapsibleContent>
             <Timeline>
               {history.map((h, i) => (
-                // The primitive's `title` slot is 500; the panel already spends its two
-                // weights on 600 eyebrows and 400 body, so the line is rendered as body.
-                <TimelineItem key={`${h.at}-${i}`} status={i === 0 ? "current" : "past"}>
-                  <p className="text-body-compact text-foreground">{h.text}</p>
-                  <p className="mt-0.5 flex items-center gap-1.5 text-caption text-muted-foreground">
-                    <span className="tabular-nums">{dateTime(h.at)}</span>
-                    {h.by ? (
-                      <>
-                        <span aria-hidden>·</span>
-                        {(() => {
-                          const p = people.find((x) => x.id === h.by);
-                          return p ? <PersonAvatar person={p} you={p.id === user.id} className="size-5" /> : null;
-                        })()}
-                      </>
-                    ) : null}
+                <TimelineItem
+                  key={`${h.at}-${i}`}
+                  status={i === 0 ? "current" : "past"}
+                  // The primitive's title slot takes a string; the date sits alone on
+                  // its line, so the missing tabular-nums cannot misalign anything.
+                  title={dateTime(h.at)}
+                >
+                  <p className="mt-0.5 text-body-compact leading-relaxed text-pretty text-muted-foreground">
+                    {h.text}
                   </p>
+                  {h.by
+                    ? (() => {
+                        const p = people.find((x) => x.id === h.by);
+                        return p ? (
+                          <p className="mt-1.5 flex items-center gap-1.5 text-caption text-muted-foreground">
+                            <PersonAvatar person={p} you={p.id === user.id} className="size-5" />
+                            {p.id === user.id ? "You" : p.name}
+                          </p>
+                        ) : null;
+                      })()
+                    : null}
                 </TimelineItem>
               ))}
             </Timeline>
