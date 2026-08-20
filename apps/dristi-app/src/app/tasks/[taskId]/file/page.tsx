@@ -1,6 +1,7 @@
-import { FilePage } from "@/components/tasks/act/file-page";
+import { redirect } from "next/navigation";
 
-/** File documents on a task — real uploads, sandbox registry. */
-export default function Page() {
-  return <FilePage />;
+/** v2 route — filing now happens in a modal on the list. Old links still land. */
+export default async function Page({ params }: { params: Promise<{ taskId: string }> }) {
+  const { taskId } = await params;
+  redirect(`/tasks?task=${encodeURIComponent(taskId)}`);
 }

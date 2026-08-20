@@ -1,6 +1,7 @@
-import { FixPage } from "@/components/tasks/act/fix-page";
+import { redirect } from "next/navigation";
 
-/** Fix scrutiny defects on a returned filing and re-file. */
-export default function Page() {
-  return <FixPage />;
+/** v2 route — fixing a return now happens in a modal on the list. Old links still land. */
+export default async function Page({ params }: { params: Promise<{ taskId: string }> }) {
+  const { taskId } = await params;
+  redirect(`/tasks?task=${encodeURIComponent(taskId)}`);
 }

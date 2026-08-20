@@ -6,7 +6,7 @@
  * other filters apply, so the cards always describe the view.
  */
 
-import { canView, cardKindOf, TERMINAL, viewOf } from "./permissions";
+import { canView, cardKindOf, TERMINAL, viewOf, WAITING } from "./permissions";
 import { compareUrgency, consequenceAt, daysUntil, isOverdue } from "./urgency";
 import type { Case, CardKind, Person, PersonId, Task, TaskView } from "./types";
 
@@ -27,7 +27,7 @@ export type Filters = {
 };
 
 export const DEFAULT_FILTERS: Filters = {
-  view: "open",
+  view: "needs-action",
   kind: null,
   due: "any",
   court: "",
@@ -48,9 +48,10 @@ export const CARD_LABELS: Record<CardKind, string> = {
 };
 
 export const VIEW_LABELS: Record<TaskView, string> = {
-  open: "Open",
+  "needs-action": "Needs action",
   waiting: "Waiting on others",
   completed: "Completed",
+  archived: "Archived",
 };
 
 export const DUE_LABELS: Record<DueFilter, string> = {
@@ -85,9 +86,12 @@ export function visibleTasks(world: World): Task[] {
   });
 }
 
-/** The visible tasks that belong to a tab. */
+/** The visible tasks that belong to a tab — from the current person's chair. */
 export function tasksInView(world: World, view: TaskView): Task[] {
-  return visibleTasks(world).filter((t) => viewOf(t) === view);
+  return world.tasks.filter((t) => {
+    const kase = caseOf(world, t);
+    return !!kase && canView(world.user, kase) && viewOf(t, world.user, kase) === view;
+  });
 }
 
 function matchesSearch(task: Task, kase: Case, q: string): boolean {
@@ -123,13 +127,18 @@ export function closedAt(task: Task): number {
   return new Date(at).getTime();
 }
 
+/** Closed or put away — no urgency left to sort by. */
+function settled(task: Task): boolean {
+  return TERMINAL.has(task.status) || task.status === "archived";
+}
+
 export function sortBy(world: World, tasks: Task[], sort: SortKey): Task[] {
   const now = world.now;
   const list = [...tasks];
-  // Closed tasks have no urgency; the most recently closed comes first.
+  // Settled tasks have no urgency; the most recently closed or archived comes first.
   const urgency = (a: Task, b: Task) => {
-    const ta = TERMINAL.has(a.status);
-    const tb = TERMINAL.has(b.status);
+    const ta = settled(a);
+    const tb = settled(b);
     if (ta && tb) return closedAt(b) - closedAt(a) || compareUrgency(a, b, now);
     if (ta !== tb) return ta ? 1 : -1;
     return compareUrgency(a, b, now);
@@ -177,8 +186,8 @@ export function cardCounts(world: World, view: TaskView): Record<CardKind, CardC
   for (const t of tasksInView(world, view)) {
     const c = out[cardKindOf(t)];
     c.count += 1;
-    // Only open work is overdue or due next; waiting and completed tasks just count.
-    if (view !== "open") continue;
+    // Only actionable work is overdue or due next; other tabs just count.
+    if (view !== "needs-action") continue;
     if (isOverdue(t, world.now)) {
       c.overdue += 1;
       continue;
@@ -189,18 +198,29 @@ export function cardCounts(world: World, view: TaskView): Record<CardKind, CardC
   return out;
 }
 
-/** "26 open · 2 waiting on others · 5 overdue" — the header line. */
-export function summaryOf(world: World): { open: number; waiting: number; overdue: number } {
-  const open = tasksInView(world, "open");
+/** "26 need action · 4 waiting on others · 5 overdue" — the header line. */
+export function summaryOf(world: World): { action: number; waiting: number; overdue: number } {
+  const action = tasksInView(world, "needs-action");
   const waiting = tasksInView(world, "waiting");
-  const overdue = open.filter((t) => isOverdue(t, world.now)).length;
-  return { open: open.length, waiting: waiting.length, overdue };
+  // Overdue counts every open-state task past its date, whoever's move it is.
+  const overdue = [...action, ...waiting].filter(
+    (t) => !WAITING.has(t.status) && isOverdue(t, world.now)
+  ).length;
+  return { action: action.length, waiting: waiting.length, overdue };
 }
 
-/** Counts for the three tabs, over everything visible. */
-export function viewCounts(world: World): Record<TaskView, number> {
-  const views: Record<TaskView, number> = { open: 0, waiting: 0, completed: 0 };
-  for (const t of visibleTasks(world)) views[viewOf(t)] += 1;
+/**
+ * Counts for the four tabs. When a search query is set the counts follow it, so typing
+ * shows where the matches live even on the tabs not being looked at.
+ */
+export function viewCounts(world: World, query = ""): Record<TaskView, number> {
+  const views: Record<TaskView, number> = { "needs-action": 0, waiting: 0, completed: 0, archived: 0 };
+  for (const t of world.tasks) {
+    const kase = caseOf(world, t);
+    if (!kase || !canView(world.user, kase)) continue;
+    if (!matchesSearch(t, kase, query)) continue;
+    views[viewOf(t, world.user, kase)] += 1;
+  }
   return views;
 }
 

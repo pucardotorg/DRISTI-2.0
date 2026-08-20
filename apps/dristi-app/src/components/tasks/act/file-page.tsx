@@ -2,21 +2,21 @@
 
 /**
  * File — the documents the court asked for, one slot each with a real file picker (PDF
- * or images, stored in the browser). A signatory files with the court (confirmed first)
- * and the task waits on scrutiny; anyone else on the case fills the slots and marks it
- * ready. On an awaiting-court task the rail carries the registry sandbox: accept, or
- * return with defects — which creates the `returned` task. Draft complaints and
- * applications (`draft` kind) use this page too: finishing one is filing it.
+ * or images, stored in the browser), as an act-modal body. A signatory files with the
+ * court (confirmed first) and the task waits on scrutiny; anyone else on the case fills
+ * the slots and marks it ready. On an awaiting-court task the action region carries the
+ * registry sandbox: accept, or return with defects — which creates the `returned` task.
+ * Draft complaints and applications (`draft` kind) use this body too: finishing one is
+ * filing it.
  */
 
 import * as React from "react";
 import { SendIcon } from "lucide-react";
 
-import { longDate } from "@/lib/tasks/format";
+import { dueCueOf } from "@/lib/tasks/format";
 import { TERMINAL } from "@/lib/tasks/permissions";
 import { file, saveDraft } from "@/lib/tasks/transitions";
 import type { StoredFileRef } from "@/lib/tasks/types";
-import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,12 +28,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PANEL_CLASS } from "@/components/shell/panel";
 import { useTaskActions } from "@/components/tasks/use-task-actions";
 import {
-  ActColumns,
-  ActFrame,
   type ActContext,
   closedTitle,
   CourtSandbox,
@@ -44,7 +40,6 @@ import {
   RailCard,
   RecordCard,
   signatoryLine,
-  useActContext,
 } from "@/components/tasks/act/shared";
 
 /** The slots, editable while the task is open to this person. */
@@ -65,42 +60,44 @@ function Documents({
   const filled = slots.filter((s) => files.some((f) => f.slot === s)).length;
 
   return (
-    <Card className={cn(PANEL_CLASS, "gap-4")}>
-      <CardHeader>
-        <CardTitle className="text-body font-semibold">Documents needed</CardTitle>
+    <section className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1">
+        <h3 className="text-body font-semibold">Documents needed</h3>
         <p className="text-body-compact text-muted-foreground tabular-nums">
           {filled} of {slots.length} attached
-          {task.deadlineNote ? ` · ${task.deadlineNote}` : task.dueAt ? ` · due ${longDate(task.dueAt)}` : ""}
+          {task.deadlineNote
+            ? ` · ${task.deadlineNote}`
+            : task.dueAt
+              ? ` · ${dueCueOf(task).primary.toLowerCase()}`
+              : ""}
         </p>
-      </CardHeader>
-      <CardContent>
-        <ul className="divide-y divide-hairline">
-          {slots.map((slot) => {
-            const f = files.find((x) => x.slot === slot);
-            return editable ? (
-              <FileSlot
-                key={slot}
-                name={slot}
-                file={f}
-                disabled={!online}
-                onFile={(ref) => onChange([...files.filter((x) => x.slot !== slot), ref])}
-                onRemove={() => onChange(files.filter((x) => x !== f))}
-              />
-            ) : (
-              <li key={slot} className="flex flex-col gap-2 py-3">
-                <p className="text-body-compact font-medium">{slot}</p>
-                {f ? <FileChip file={f} /> : <p className="text-caption text-muted-foreground">Not attached</p>}
-              </li>
-            );
-          })}
-          {loose.map((f) => (
-            <li key={f.id} className="py-3">
-              <FileChip file={f} />
+      </div>
+      <ul className="divide-y divide-hairline">
+        {slots.map((slot) => {
+          const f = files.find((x) => x.slot === slot);
+          return editable ? (
+            <FileSlot
+              key={slot}
+              name={slot}
+              file={f}
+              disabled={!online}
+              onFile={(ref) => onChange([...files.filter((x) => x.slot !== slot), ref])}
+              onRemove={() => onChange(files.filter((x) => x !== f))}
+            />
+          ) : (
+            <li key={slot} className="flex flex-col gap-2 py-3">
+              <p className="text-body-compact font-medium">{slot}</p>
+              {f ? <FileChip file={f} /> : <p className="text-caption text-muted-foreground">Not attached</p>}
             </li>
-          ))}
-        </ul>
-      </CardContent>
-    </Card>
+          );
+        })}
+        {loose.map((f) => (
+          <li key={f.id} className="py-3">
+            <FileChip file={f} />
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -157,20 +154,8 @@ function FileCard({ ctx, files, complete }: { ctx: ActContext; files: StoredFile
   );
 }
 
-export function FilePage() {
-  const ctx = useActContext();
-  return (
-    <ActFrame
-      ctx={ctx}
-      action="File"
-      sandbox="Uploads stay in this browser and the registry's answer is whatever you pick. Nothing is sent to a court."
-    >
-      {(c) => <FileBody ctx={c} />}
-    </ActFrame>
-  );
-}
-
-function FileBody({ ctx }: { ctx: ActContext }) {
+/** The file flow inside the act modal: the document slots, then the action. */
+export function FileBody({ ctx }: { ctx: ActContext }) {
   const { task, signatory } = ctx;
   const [files, setFiles] = React.useState<StoredFileRef[]>(task.files ?? []);
   const slots = task.documentsNeeded?.length ? task.documentsNeeded : ["Document"];
@@ -185,9 +170,9 @@ function FileBody({ ctx }: { ctx: ActContext }) {
   else rail = <PrepareCard ctx={ctx} what="file" files={files} complete={complete} />;
 
   return (
-    <ActColumns
-      main={<Documents ctx={ctx} files={files} editable={editable} onChange={setFiles} />}
-      rail={rail}
-    />
+    <div className="flex min-w-0 flex-col gap-6">
+      <Documents ctx={ctx} files={files} editable={editable} onChange={setFiles} />
+      {rail}
+    </div>
   );
 }

@@ -59,15 +59,15 @@ const NAV: NavItem[] = [
 
 const UNBUILT_NOTE = "not part of this build";
 
-/** The Open count beside the Tasks item — plain muted text, the same as every other count. */
+/** The Needs-action count beside the Tasks item — plain muted text, like every count. */
 function TasksCount() {
   const { state, people, cases, tasks, user } = useTasks();
   if (state !== "ready") return null;
-  const { open } = summaryOf({ people, cases, tasks, user, now: new Date() });
-  if (!open) return null;
+  const { action } = summaryOf({ people, cases, tasks, user, now: new Date() });
+  if (!action) return null;
   return (
     <span className="ml-auto text-caption tabular-nums text-muted-foreground group-data-[collapsible=icon]:hidden">
-      {open}
+      {action}
     </span>
   );
 }

@@ -60,7 +60,8 @@ export type DueKind = "statutory" | "court-set" | "before-hearing" | "none";
  * open — nobody has started it · draft — someone on the case started work and saved
  * it · ready — the work is complete and needs a signatory to complete it ·
  * awaiting-court — filed, with the registry · payment-confirming — paid, the gateway
- * has not confirmed · done · expired (the window closed) · obsolete (no longer needed).
+ * has not confirmed · done · expired (the window closed) · obsolete (no longer needed)
+ * · archived — put away by someone on the case; restorable to the state it left.
  */
 export type TaskStatus =
   | "open"
@@ -70,7 +71,8 @@ export type TaskStatus =
   | "payment-confirming"
   | "done"
   | "expired"
-  | "obsolete";
+  | "obsolete"
+  | "archived";
 
 /** An uploaded file, by reference; the bytes live in the repository's file store. */
 export type StoredFileRef = {
@@ -113,6 +115,14 @@ export type Returned = {
   by: "scrutiny";
   at: string;
   defects: Defect[];
+};
+
+/** Set while a task is archived: who put it away, when, and the state to restore. */
+export type Archived = {
+  by?: PersonId;
+  at: string;
+  /** The status the task held before archiving — unarchive returns it there. */
+  from: TaskStatus;
 };
 
 export type Completion = {
@@ -159,6 +169,8 @@ export type Task = {
   prepared?: Prepared;
   /** Set on a `returned` task: the scrutiny return that created it. */
   returned?: Returned;
+  /** Set while status is `archived`. */
+  archived?: Archived;
   completion?: Completion;
   /** One line explaining the current state when the status alone does not. */
   statusNote?: string;
@@ -170,20 +182,24 @@ export type Task = {
   files?: StoredFileRef[];
 };
 
-/** Which tab a task belongs to — the same for every viewer. */
-export type TaskView = "open" | "waiting" | "completed";
+/**
+ * Which tab a task belongs to — for a given viewer. A task is "needs action" only when
+ * this viewer holds its acting verb; a ready item that needs a vakalatnama holder waits
+ * on that person from everyone else's chair.
+ */
+export type TaskView = "needs-action" | "waiting" | "completed" | "archived";
 
 /** The verbs a row or panel may show. */
 export type Verb =
   | "Sign"
   | "Pay"
   | "File"
-  | "Fix & re-file"
+  | "Re-file"
   /** Any viewer, on a draft. */
   | "Continue"
-  /** A viewer who cannot complete an open or ready item — they can still prepare it. */
-  | "Open"
-  /** Hearing tasks the system cannot observe. */
+  /** Any open-state task, by anyone on the case — records completion outside DRISTI. */
   | "Mark done"
+  /** An archived task, by anyone on the case — back to the state it left. */
+  | "Unarchive"
   /** Nothing to do here: waiting on others, or closed. */
   | "View";

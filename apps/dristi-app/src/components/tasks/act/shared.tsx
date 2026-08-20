@@ -1,27 +1,22 @@
 "use client";
 
 /**
- * Pieces every act page shares: the frame (breadcrumb, header, sandbox notice), the
- * "prepared by" note for a signatory, the prepare card for someone who cannot complete
- * the task, the OTP dialog, file slots, the court sandbox and the finished record. Each
- * page composes these around its own document, documents or fee summary.
+ * Pieces every act flow shares: the "prepared by" note for a signatory, the prepare
+ * card for someone who cannot complete the task, the OTP dialog, file slots, the court
+ * sandbox and the finished record. Each flow composes these around its own document,
+ * documents or fee summary, inside the act modal (`act-modal.tsx`).
  */
 
 import * as React from "react";
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { CheckIcon, FileTextIcon, SignatureIcon, TrashIcon } from "lucide-react";
 
 import { fileUrl, formatBytes, storeUpload } from "@/lib/tasks/data";
 import { dateTime, nameOf } from "@/lib/tasks/format";
-import { canComplete, canView, signatoriesOf } from "@/lib/tasks/permissions";
-import { useTasks } from "@/lib/tasks/store";
+import { signatoriesOf } from "@/lib/tasks/permissions";
 import { courtAccepted, courtReturned, markReady, saveDraft } from "@/lib/tasks/transitions";
 import type { Case, Person, StoredFileRef, Task } from "@/lib/tasks/types";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -30,28 +25,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { Breadcrumbs } from "@/components/shell/chrome";
-import { SectionNotice } from "@/components/shell/notices";
-import { PANEL_CLASS } from "@/components/shell/panel";
 import { PersonAvatar } from "@/components/tasks/person-avatar";
 import { useTaskActions } from "@/components/tasks/use-task-actions";
 
-/* ───────────────────────────── loading the task ───────────────────────────── */
-
+/** Everything an act body needs, built by the act modal. */
 export type ActContext = {
   task: Task;
   kase: Case;
@@ -60,140 +42,14 @@ export type ActContext = {
   online: boolean;
   /** On the vakalatnama — may complete this task (sign, pay, file, re-file). */
   signatory: boolean;
-  /** Back to the list with this task open. */
+  /** The step is done: toast, close the modal — the row updates in place. */
   finish: (message?: string, taskId?: string) => void;
 };
 
 /**
- * Resolves the task in the URL and hands the page everything it needs. Renders the
- * loading and not-found states itself so pages only write the happy shape.
+ * The action region of an act modal: a sunken well inside the modal panel — depth by
+ * fill, no shadow inside the modal's shadow.
  */
-export function useActContext(): ActContext | { state: "loading" | "missing" | "forbidden" } {
-  const params = useParams<{ taskId: string }>();
-  const router = useRouter();
-  const { state, tasks, cases, people, user, online, requestHighlight } = useTasks();
-  const id = decodeURIComponent(params.taskId);
-  const task = tasks.find((t) => t.id === id) ?? null;
-  const kase = task ? (cases.find((c) => c.id === task.caseId) ?? null) : null;
-
-  const finish = React.useCallback(
-    (message?: string, taskId?: string) => {
-      const target = taskId ?? id;
-      requestHighlight(target);
-      if (message) toast.success(message);
-      router.push(`/tasks?task=${encodeURIComponent(target)}`);
-    },
-    [id, requestHighlight, router]
-  );
-
-  if (state !== "ready") return { state: "loading" };
-  if (!task || !kase) return { state: "missing" };
-  if (!canView(user, kase)) return { state: "forbidden" };
-  return { task, kase, user, people, online, signatory: canComplete(user, kase), finish };
-}
-
-/* ───────────────────────────── the frame ───────────────────────────── */
-
-export function ActFrame({
-  ctx,
-  action,
-  sandbox,
-  children,
-}: {
-  ctx: ActContext | { state: "loading" | "missing" | "forbidden" };
-  /** "Pay" · "Sign" · "File" · "Fix & re-file" — the breadcrumb's last crumb. */
-  action: string;
-  /** The one quiet line that says what is not real here. */
-  sandbox: string;
-  children: (ctx: ActContext) => React.ReactNode;
-}) {
-  if ("state" in ctx) {
-    return (
-      <main className="flex min-w-0 flex-1 flex-col">
-        <Breadcrumbs crumbs={[{ label: action }]} />
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 md:px-6 lg:px-8">
-          {ctx.state === "loading" ? (
-            <>
-              <Skeleton className="h-8 w-96" />
-              <Skeleton className="h-4 w-64" />
-              <Skeleton className="h-64 w-full rounded-xl" />
-            </>
-          ) : (
-            <Card className={cn(PANEL_CLASS, "py-0")}>
-              <Empty className="py-12">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <FileTextIcon aria-hidden />
-                  </EmptyMedia>
-                  <EmptyTitle>{ctx.state === "missing" ? "This task is not here" : "Not on your cases"}</EmptyTitle>
-                  <EmptyDescription>
-                    {ctx.state === "missing"
-                      ? "It may have been reset with the sandbox, or the link is wrong."
-                      : "You are not one of this case's advocates."}
-                  </EmptyDescription>
-                </EmptyHeader>
-                <EmptyContent>
-                  <Button asChild variant="outline">
-                    <Link href="/tasks">Back to tasks</Link>
-                  </Button>
-                </EmptyContent>
-              </Empty>
-            </Card>
-          )}
-        </div>
-      </main>
-    );
-  }
-
-  const { task, kase } = ctx;
-  return (
-    <main className="flex min-w-0 flex-1 flex-col">
-      <Breadcrumbs
-        crumbs={[
-          { label: task.title, href: `/tasks?task=${encodeURIComponent(task.id)}` },
-          { label: action },
-        ]}
-      />
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 md:px-6 lg:px-8">
-        <header className="flex flex-col gap-1">
-          <h1 className="text-title font-semibold text-foreground text-balance">{task.title}</h1>
-          <p className="text-body text-muted-foreground">
-            {kase.parties}
-            {kase.stNumber ? (
-              <>
-                {" · "}
-                <span className="font-mono tabular-nums">{kase.stNumber}</span>
-              </>
-            ) : (
-              " · Not yet numbered"
-            )}
-            {" · "}
-            {kase.court}
-          </p>
-        </header>
-
-        {/* Quiet notice: white panel, icon in ink, words carry the status. */}
-        <SectionNotice variant="neutral" title="Sandbox">
-          {sandbox}
-        </SectionNotice>
-
-        {children(ctx)}
-      </div>
-    </main>
-  );
-}
-
-/** Two columns from `lg`: the thing (document, fee) and the action rail. */
-export function ActColumns({ main, rail }: { main: React.ReactNode; rail: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <div className="flex min-w-0 flex-col gap-6">{main}</div>
-      {/* The rail sticks under the top bar so the action stays in reach on a long document. */}
-      <div className="flex flex-col gap-4 lg:sticky lg:top-20">{rail}</div>
-    </div>
-  );
-}
-
 export function RailCard({
   title,
   description,
@@ -204,13 +60,13 @@ export function RailCard({
   children: React.ReactNode;
 }) {
   return (
-    <Card className={cn(PANEL_CLASS, "gap-4")}>
-      <CardHeader>
-        <CardTitle className="text-body font-semibold">{title}</CardTitle>
+    <section className="flex flex-col gap-4 rounded-xl bg-surface-sunken p-4">
+      <div className="flex flex-col gap-1">
+        <h3 className="text-body font-semibold">{title}</h3>
         {description ? <p className="text-body-compact text-muted-foreground">{description}</p> : null}
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">{children}</CardContent>
-    </Card>
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -230,7 +86,8 @@ export function PreparedNote({ ctx }: { ctx: ActContext }) {
   const at = prepared?.at ?? draft?.savedAt;
   const files = prepared?.files ?? task.files;
   return (
-    <div className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-3">
+    // A flat card fill: this note sits inside the sunken action well.
+    <div className="flex flex-col gap-2 rounded-lg bg-card p-3">
       <div className="flex items-center gap-2">
         {person ? <PersonAvatar person={person} /> : null}
         <p className="text-caption font-semibold text-muted-foreground">

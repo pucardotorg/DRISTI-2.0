@@ -1,6 +1,7 @@
-import { SignPage } from "@/components/tasks/act/sign-page";
+import { redirect } from "next/navigation";
 
-/** Sign a document on a task — the sandbox e-sign. */
-export default function Page() {
-  return <SignPage />;
+/** v2 route — signing now happens in a modal on the list. Old links still land. */
+export default async function Page({ params }: { params: Promise<{ taskId: string }> }) {
+  const { taskId } = await params;
+  redirect(`/tasks?task=${encodeURIComponent(taskId)}`);
 }

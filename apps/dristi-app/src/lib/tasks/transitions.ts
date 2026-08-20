@@ -16,14 +16,16 @@
  *   payment-confirming ──confirmPayment──▶ done          (event)
  *   awaiting-court ──courtAccepted──▶ done               (event)
  *   awaiting-court ──courtReturned(defects)──▶ obsolete + a new open `returned` task
- *   open ──markDone──▶ done                              (hearing tasks; !systemObservable)
+ *   open · draft · ready ──markDone──▶ done              (anyone on the case; manual)
+ *   any non-closed state ──archive──▶ archived           (anyone on the case)
+ *   archived ──unarchive──▶ the state it left            (anyone on the case)
  *   any open state ──redate · expire · obsolete──▶ …
  *
  * When a signatory completes work someone else prepared, the history says so:
  * "Completed by X — prepared by Y".
  */
 
-import { canComplete, canMarkDone, canView, TERMINAL } from "./permissions";
+import { canArchive, canComplete, canMarkDone, canView, TERMINAL } from "./permissions";
 import type {
   Case,
   Defect,
@@ -298,9 +300,12 @@ export function refile(task: Task, ctx: Ctx): Task {
   );
 }
 
-/** By hand — only for hearing tasks the system cannot observe. Anyone on the case. */
+/**
+ * By hand — the escape hatch for work completed outside DRISTI: at the counter, in
+ * court, on paper. Anyone on the case, from any open state; the record says how.
+ */
 export function markDone(task: Task, ctx: Ctx): Task {
-  assertState(task, ["open"], "mark done");
+  assertState(task, PREPARABLE, "mark done");
   assertAllowed(canMarkDone(ctx.actor, task, ctx.kase), "mark done");
   const at = nowOf(ctx);
   return withHistory(
@@ -308,10 +313,45 @@ export function markDone(task: Task, ctx: Ctx): Task {
       ...task,
       status: "done",
       statusNote: undefined,
+      draft: undefined,
       completion: { by: ctx.actor.id, at, how: "manual" },
     },
     ctx,
-    `${ctx.actor.name} marked this done`
+    `${ctx.actor.name} marked this done — completed outside DRISTI`
+  );
+}
+
+/* ─────────────────────────── archiving ─────────────────────────── */
+
+/**
+ * Put a task away without closing it. Anyone on the case, from any state that is not
+ * already closed; the state it left is kept so unarchive can restore it.
+ */
+export function archive(task: Task, ctx: Ctx): Task {
+  if (TERMINAL.has(task.status) || task.status === "archived") {
+    throw new TransitionError("illegal-state", "Only a task that is not closed can be archived.");
+  }
+  assertAllowed(canArchive(ctx.actor, task, ctx.kase), "archive");
+  return withHistory(
+    {
+      ...task,
+      status: "archived",
+      archived: { by: ctx.actor.id, at: nowOf(ctx), from: task.status },
+    },
+    ctx,
+    `${ctx.actor.name} archived this`
+  );
+}
+
+/** Bring an archived task back to the state it left. Anyone on the case. */
+export function unarchive(task: Task, ctx: Ctx): Task {
+  assertState(task, ["archived"], "restore");
+  assertAllowed(canView(ctx.actor, ctx.kase), "restore");
+  const from = task.archived?.from ?? "open";
+  return withHistory(
+    { ...task, status: from, archived: undefined },
+    ctx,
+    `${ctx.actor.name} restored this from the archive`
   );
 }
 

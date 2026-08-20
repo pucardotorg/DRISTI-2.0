@@ -48,32 +48,50 @@ export const TERMINAL: ReadonlySet<TaskStatus> = new Set(["done", "expired", "ob
 export const WAITING: ReadonlySet<TaskStatus> = new Set(["awaiting-court", "payment-confirming"]);
 /** States someone on the case can still act on. */
 export const ACTIONABLE: ReadonlySet<TaskStatus> = new Set(["open", "draft", "ready"]);
+/** Verbs that make a task this viewer's move — the Needs-action test. */
+const ACTING: ReadonlySet<Verb> = new Set(["Sign", "Pay", "File", "Re-file", "Continue", "Mark done"]);
 
-/** Which tab a task belongs to. The same for every viewer. */
-export function viewOf(task: Task): TaskView {
+/**
+ * Which tab a task belongs to — viewer-dependent. Needs action means this viewer holds
+ * an acting verb: a signatory on open/ready items of kinds they can complete, anyone on
+ * the case on a draft or a hearing task. A ready or open item that needs a vakalatnama
+ * holder is Waiting from everyone else's chair (they can only view it). Closed tasks are
+ * Completed; archived tasks have their own tab.
+ */
+export function viewOf(task: Task, user: Person | PersonId, kase: Case): TaskView {
+  if (task.status === "archived") return "archived";
   if (TERMINAL.has(task.status)) return "completed";
   if (WAITING.has(task.status)) return "waiting";
-  return "open";
+  return ACTING.has(verbFor(user, task, kase)) ? "needs-action" : "waiting";
 }
 
 /**
  * Which overview card a task counts under. Anything someone saved as a draft is a
  * draft, whatever it will become; a `draft`-kind task that has been marked ready (or
- * filed) is a filing from then on.
+ * filed) is a filing from then on. An archived task counts by the state it left.
  */
 export function cardKindOf(task: Task): CardKind {
-  if (task.status === "draft") return "draft";
+  const status = task.status === "archived" ? (task.archived?.from ?? "open") : task.status;
+  if (status === "draft") return "draft";
   if (task.kind === "draft") return "file";
   return task.kind;
 }
 
-/** Kinds that have their own act page. Hearing tasks are done in court. */
+/** Kinds that have their own act flow. Hearing tasks are done in court. */
 export const PAGED_KINDS: ReadonlySet<Task["kind"]> = new Set(["sign", "pay", "file", "returned", "draft"]);
 
-/** Only hearing tasks the system cannot observe may be closed by hand, and only while open. */
+/**
+ * Any open-state task may be marked done by hand by anyone on the case — work gets
+ * completed at the counter or in court, outside DRISTI, and the record should say so.
+ */
 export function canMarkDone(user: Person | PersonId, task: Task, kase: Case): boolean {
-  if (!canView(user, kase)) return false;
-  return task.kind === "hearing" && !task.systemObservable && task.status === "open";
+  return ACTIONABLE.has(task.status) && canView(user, kase);
+}
+
+/** Anything not yet closed can be put away; unarchive brings it back. */
+export function canArchive(user: Person | PersonId, task: Task, kase: Case): boolean {
+  if (TERMINAL.has(task.status) || task.status === "archived") return false;
+  return canView(user, kase);
 }
 
 /** The completing verb for a paged kind. */
@@ -84,7 +102,7 @@ export function completeVerbOf(kind: Task["kind"]): Verb {
     case "pay":
       return "Pay";
     case "returned":
-      return "Fix & re-file";
+      return "Re-file";
     default:
       return "File";
   }
@@ -99,16 +117,16 @@ export function needOf(kind: Task["kind"]): "signature" | "payment" | "filing" {
 
 /**
  * The one verb a row shows this person. "View" means there is nothing for them to do
- * — the task is waiting on others, closed, or outside their access.
+ * — the task is waiting on others (including a ready item that needs a vakalatnama
+ * holder they are not), closed, or outside their access.
  */
 export function verbFor(user: Person | PersonId, task: Task, kase: Case): Verb {
   const id = idOf(user);
   if (!canView(id, kase)) return "View";
+  if (task.status === "archived") return "Unarchive";
   if (!ACTIONABLE.has(task.status)) return "View";
 
-  if (task.kind === "hearing") {
-    return canMarkDone(id, task, kase) ? "Mark done" : "View";
-  }
+  if (task.kind === "hearing") return "Mark done";
   if (task.status === "draft") return "Continue";
-  return canComplete(id, kase) ? completeVerbOf(task.kind) : "Open";
+  return canComplete(id, kase) ? completeVerbOf(task.kind) : "View";
 }

@@ -1,7 +1,7 @@
 # Pending tasks
 
-Status: building (v2 — command-centre redesign)
-Updated: 2026-08-19
+Status: building (v2.1 — owner's correction round on the render)
+Updated: 2026-08-20
 Source: docs/design/research/pending-tasks-ask.md (the owner's words, 18 Aug + 19 Aug) ·
 docs/design/research/pending-tasks-ux.md (research memo) · docs/product/product-foundation.md ·
 docs/product/domain/journey.md · docs/product/open-questions.md · docs/design/proposals/cases.md
@@ -81,19 +81,27 @@ again to clear). Replaces every chip from v1. *Why kinds:* a decision maker clea
 batches by the action it takes (all signatures, then all payments); it is also how the registry
 and the court address the advocate. Judgment; owner asked for cards.
 
-**D2 · Three state tabs — Open · Waiting on others · Completed.** *Open* = anything someone on
-the case can act on now (incl. drafts and items ready for a signatory). *Waiting on others* =
-with the court (filed, awaiting scrutiny/orders), payment confirming. *Completed* = done,
-expired, obsolete (where expiry is explained). The owner's "To do" tab was fine; the chips beside
-it were not.
+**D2 · Four ability-based tabs — Needs action · Waiting on others · Completed · Archived**
+(v2.1). Tabs answer "can *I* move this?", per viewer: *Needs action* = the viewer has an acting
+verb (a signatory's sign/pay/file, anyone's continue-draft or mark-done). *Waiting on others* =
+open but not this viewer's move — with the court, payment confirming, or it needs a vakalat
+holder and the viewer is not one (a junior sees those as view-only). *Completed* = done, expired,
+obsolete. *Archived* = archived by someone on the case. The owner: the earlier Open/Waiting split
+"needs more clarity on what that ability and that filtering means".
 
-**D3 · A real table with fixed columns.** Task · Case · Due · Advocates · Status · action.
-Sortable by Due (default, urgency), Case, Kind; no band headers, no group-by. Below `md` the same
-columns render as labelled stacked rows.
+**D3 · A real table with fixed columns.** Task · Case · Due · Advocates · action — the Status
+column was cut in v2.1 as redundant with the CTA (owner). In *Waiting on others* the slot becomes
+**Waiting on** ("R. Manoj — signature" / "The court — scrutiny" / "Payment confirming"); in
+Completed/Archived it carries the outcome. Row CTAs share one fixed width (owner: untidy
+otherwise); view-only rows get a quiet ghost *View*, never a disabled verb. Every row has a
+selection checkbox (see D10). Sortable by Due (default, urgency) and Case; stacked labelled rows
+below `md`.
 
-**D4 · Labelled filter row, nothing hidden in a sheet.** *Due* (Any time · Overdue · Today · This
-week · Before next hearing) · *Court* · *Advocate on the case* · search "Find a case or task".
-Applied filters are visible in their own controls — no echo chips. State in the URL.
+**D4 · Labelled filter row; search lives in the top bar** (v2.1). Filter row: *Due* (Any time ·
+Overdue · Today · This week · Before next hearing) · *Court* · *Advocate on the case*. A pressed
+kind-card echoes as a removable pill leading this row — the owner wanted "very clear signalling"
+that a card filter is applied. Search moved to the shell top bar and is global: it searches
+across all tabs and the tab counts follow the query. State in the URL.
 
 **D5 · Urgency = sort order + the Due cell, not a chrome layer.** Comparator (kept from v1):
 overdue first, then the upcoming date that will hurt (a hearing the task is tied to while it is
@@ -103,8 +111,10 @@ and the **To sign / To pay /…** cards carry "n overdue" as plain text.
 
 **D6 · People = the case's advocates, not assignees.** Column *Advocates*: avatar stack, main
 advocate (first on the vakalatnama) first, then the others on the case; tooltip names. No
-assign/reassign anywhere. *Status* says who a task needs ("Needs signature · R. Manoj") or who
-left a draft ("Draft · S. Prakash").
+assign/reassign anywhere. Who a task needs lives in *Waiting on* (for viewers who cannot act)
+and in the Task second line on ready items ("Prepared by S. Prakash"); vakalat holders are
+marked in the panel. A junior not on the vakalat can watch a task move and nudge the senior —
+view is a real, passive relationship (owner).
 
 **D7 · Court-initiated and scrutiny-initiated tasks are first-class kinds.** From the §138 spine
 (`journey.md`): at cognizance the complainant's sworn statement/affidavit; at issue of process the
@@ -126,8 +136,12 @@ model is plain file-sharing). A signatory may also complete an item someone else
 **D9 · Drafts are tasks.** A filing or application started and left in draft by anyone on the
 case appears in *Open* under *Drafts* ("Continue the draft complaint — Sreekumar v. Vismaya").
 
-**D10 · Mark done only for what the system cannot observe** (be present at the plea,
-produce a witness); pay / sign / file / fix close on the event. Unchanged from v1.
+**D10 · Any task can be marked done by hand; anything can be archived** (v2.1). The owner:
+actions may be completed physically outside the system, so manual *Mark as done* is available on
+every task (with a confirm noting it was completed outside DRISTI; `completion.how = "manual"`).
+Pay / sign / file / fix still close themselves on the event. Every row's checkbox enables the
+selection bar: *Mark as done* · *Archive*; archived tasks live in the Archived tab and can be
+unarchived (they return to their prior status).
 
 **D11 · Overdue ≠ expired ≠ obsolete; adjournment re-dates.** Unchanged from v1.
 
@@ -139,8 +153,23 @@ and reset in the account menu, sandbox outcome controls on the pay/sign/file pag
 cross-examination", "Fix 2 defects and re-file the complaint", "Continue the draft application").
 Status phrases: *Needs signature · {name}* · *Needs payment · {name}* · *Draft · {name}* ·
 *Returned · {n} defects* · *With the court* · *Payment confirming* · *Done {date}* · *Expired —
-{why}* · *No longer needed — {why}*. Due phrases: *{n} days overdue* · *Due today* · *Due {date}*
-· *Before hearing {date}* · *No date*.
+{why}* · *No longer needed — {why}* · *Archived {date}*. Due format (v2.1, one rule everywhere):
+primary line relative to today — *{n} days overdue* · *Due today* · *Due in {n} days* · *Before
+hearing in {n} days* · *No date* — with the absolute date as a caption under it. The page header
+carries today's date (the owner: "overdue from when… is missing"), replacing the big *Pending
+tasks* title, which was redundant with the nav.
+
+**D14 · Act flows run in place** (v2.1). Pay, Sign and File open as modals over the table
+(full-screen sheet on a phone) and close back to the updated row — no navigation for a task you
+can finish in a minute. Fix & re-file and Continue (draft filings) belong to the scrutiny /
+e-filing flows, which are not designed yet: their CTA opens a dialog saying the work continues in
+that flow, with the current sandbox experience behind *Continue anyway* as interim behaviour.
+
+**D15 · The detail panel is context-to-act, nothing more** (v2.1). Title · case line · one
+why-plus-what block · amount · due · advocates (vakalat holders marked; one quiet sentence when
+the viewer can only watch) · prepared-by when ready · history collapsed behind a disclosure ·
+one primary CTA. The separate "Who can act" block and duplicated status lines were cut as
+redundant (owner).
 
 ## 6. What I cut (and why)
 
@@ -261,3 +290,6 @@ Ladder only. Page `p-6 md:p-8`; regions `gap-6`; cards grid `gap-3`, card `p-4`;
 | 2026-08-18 | v1 built (lens-heavy list), reviewed, fixed, committed `11f6c3d` | Session |
 | 2026-08-19 | Owner rejects v1: no columns, unlabelled filters, copy drift, overlapping lenses; no assignment; team access removed; file-share permissions; court-initiated + scrutiny-return tasks; wants cards / command centre | Product (owner) |
 | 2026-08-19 | v2 proposed (D1–D13) and confirmed: 6 kind-cards as the filter, real table, labelled filter row, 3 state tabs, advocates-on-case column, drafts + ready instead of approval routing | Product (owner) |
+| 2026-08-19 | v2 built and committed (`042419a`); "blocking and coming up first" tier restored in the comparator | Session |
+| 2026-08-20 | Owner's correction round on the render: card filter must echo as a pill; search out of the filter row (top bar); panel too redundant — context to act only; pay/sign/file in modals, fix & drafts hand off to the (undesigned) scrutiny/filing flows via a dialog; checkbox on every row with Mark as done + Archive (+ Archived tab); card eyebrows at 12px are a violation; CTAs one width; due format consistent with today's date visible; view-only nuance for juniors; tabs renamed by ability; Status column and the page title dropped as redundant | Product (owner) |
+| 2026-08-20 | v2.1 decisions D2–D4, D6, D10, D13–D15 updated/added accordingly | Session |

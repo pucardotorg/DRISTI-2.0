@@ -1,0 +1,149 @@
+"use client";
+
+/**
+ * The act modal: pay, sign and file complete right here — a `Dialog` over the table
+ * from `md` (a full-height `Sheet` below it), reusing the act bodies. On completion the
+ * toast fires, the modal closes and the row updates in place; nothing navigates. `fix`
+ * is the same container, reached only through the scrutiny-flow notice (interim
+ * behaviour until the scrutiny screens exist).
+ */
+
+import * as React from "react";
+import { toast } from "sonner";
+
+import { canComplete } from "@/lib/tasks/permissions";
+import { useTasks } from "@/lib/tasks/store";
+import type { Case, Task, TaskId } from "@/lib/tasks/types";
+import { useMinWidth } from "@/hooks/use-min-width";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
+import { type ActContext } from "@/components/tasks/act/shared";
+import { type ActMode } from "@/components/tasks/use-task-actions";
+import { FileBody } from "@/components/tasks/act/file-page";
+import { FixBody } from "@/components/tasks/act/fix-page";
+import { PayBody } from "@/components/tasks/act/pay-page";
+import { SignBody } from "@/components/tasks/act/sign-page";
+
+/** The one quiet line per flow that says what is not real here. */
+const SANDBOX: Record<ActMode, string> = {
+  pay: "Sandbox — no money moves; the gateway's answer is whatever you pick and the receipt is generated locally.",
+  sign: "Sandbox — any 6-digit OTP is accepted and the signature stamp is generated locally.",
+  file: "Sandbox — uploads stay in this browser and the registry's answer is whatever you pick.",
+  fix: "Sandbox — replacements stay in this browser and the registry's answer is whatever you pick.",
+};
+
+/** The document/fee column reads better with room; pay is a summary and stays narrow. */
+const WIDTH: Record<ActMode, string> = {
+  pay: "sm:max-w-xl",
+  sign: "sm:max-w-2xl",
+  file: "sm:max-w-2xl",
+  fix: "sm:max-w-2xl",
+};
+
+function Body({ ctx, mode }: { ctx: ActContext; mode: ActMode }) {
+  switch (mode) {
+    case "pay":
+      return <PayBody ctx={ctx} />;
+    case "sign":
+      return <SignBody ctx={ctx} />;
+    case "file":
+      return <FileBody ctx={ctx} />;
+    case "fix":
+      return <FixBody ctx={ctx} />;
+  }
+}
+
+export function TaskActModal({
+  task,
+  kase,
+  mode,
+  open,
+  onOpenChange,
+  onFinished,
+}: {
+  task: Task | null;
+  kase: Case | null;
+  mode: ActMode | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Called with the task to flash once a step lands — the created re-filing task, or this one. */
+  onFinished?: (taskId: TaskId) => void;
+}) {
+  const { user, people, online } = useTasks();
+  const overlay = useMinWidth(768);
+
+  const finish = React.useCallback(
+    (message?: string, taskId?: string) => {
+      if (message) toast.success(message);
+      onOpenChange(false);
+      if (task) onFinished?.(taskId ?? task.id);
+    },
+    [onOpenChange, onFinished, task]
+  );
+
+  if (!task || !kase || !mode) return null;
+
+  const ctx: ActContext = {
+    task,
+    kase,
+    user,
+    people,
+    online,
+    signatory: canComplete(user, kase),
+    finish,
+  };
+
+  const caseLine = (
+    <>
+      {kase.parties}
+      {kase.stNumber ? (
+        <>
+          {" · "}
+          <span className="font-mono tabular-nums">{kase.stNumber}</span>
+        </>
+      ) : (
+        " · Not yet numbered"
+      )}
+      {" · "}
+      {kase.court}
+    </>
+  );
+
+  if (overlay) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className={`max-h-[85svh] w-full overflow-y-auto ${WIDTH[mode]}`}>
+          <DialogHeader className="pr-8">
+            <DialogTitle className="text-title-s font-semibold text-balance">{task.title}</DialogTitle>
+            <DialogDescription className="text-caption text-muted-foreground">{caseLine}</DialogDescription>
+          </DialogHeader>
+          <p className="text-caption text-muted-foreground">{SANDBOX[mode]}</p>
+          <Body ctx={ctx} mode={mode} />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // A phone has no room for a floating panel: the same content as a full sheet.
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="bottom"
+        className="gap-4 overflow-y-auto p-6 data-[side=bottom]:h-svh"
+      >
+        <div className="flex flex-col gap-2 pr-8">
+          <SheetTitle className="text-title-s font-semibold text-balance">{task.title}</SheetTitle>
+          <SheetDescription className="text-caption text-muted-foreground">{caseLine}</SheetDescription>
+        </div>
+        <p className="text-caption text-muted-foreground">{SANDBOX[mode]}</p>
+        <Body ctx={ctx} mode={mode} />
+      </SheetContent>
+    </Sheet>
+  );
+}

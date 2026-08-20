@@ -1,6 +1,7 @@
-import { PayPage } from "@/components/tasks/act/pay-page";
+import { redirect } from "next/navigation";
 
-/** Pay a fee on a task — the sandbox gateway. */
-export default function Page() {
-  return <PayPage />;
+/** v2 route — paying now happens in a modal on the list. Old links still land. */
+export default async function Page({ params }: { params: Promise<{ taskId: string }> }) {
+  const { taskId } = await params;
+  redirect(`/tasks?task=${encodeURIComponent(taskId)}`);
 }

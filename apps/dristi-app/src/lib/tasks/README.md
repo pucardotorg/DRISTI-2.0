@@ -34,11 +34,17 @@ it closed; `history` is the audit trail — every transition appends one line.
 whatever its kind; a `draft`-kind task that has been marked ready or filed counts under
 **To file** from then on.
 
-### Statuses → views
+### Statuses → views (`viewOf` — per viewer)
 
-`open` · `draft` · `ready` → **Open** · `awaiting-court` · `payment-confirming` →
-**Waiting on others** · `done` · `expired` · `obsolete` → **Completed**. The same for
-every viewer (`viewOf`).
+The tab a task lands in depends on who is looking. `viewOf(task, user, case)` puts a
+task under **Needs action** when this viewer holds its acting verb (`verbFor` returns
+Pay / Sign / File / Re-file / Continue / Mark done): a vakalatnama signatory on
+open/ready items of kinds they can complete; anyone on the case on a draft or a hearing
+task. The same open or ready item is **Waiting on others** from a junior's chair — it
+waits on the signatory, and the row says so ("R. Manoj — signature") with a quiet View
+verb. `awaiting-court` and `payment-confirming` wait for everyone. `done` · `expired` ·
+`obsolete` → **Completed**; `archived` → **Archived** (restorable, `archived.from`
+remembers the state it left).
 
 ## Seams (swap these; keep the signatures)
 
@@ -64,9 +70,16 @@ open · draft · ready ──refile──▶ awaiting-court                 (sig
 payment-confirming ──confirmPayment──▶ done                     (event)
 awaiting-court ──courtAccepted──▶ done                          (event)
 awaiting-court ──courtReturned(defects)──▶ obsolete + a new open `returned` task
-open ──markDone──▶ done                                         (hearing tasks; !systemObservable)
+open · draft · ready ──markDone──▶ done                         (anyone on the case; manual)
+any non-closed state ──archive──▶ archived                      (anyone on the case)
+archived ──unarchive──▶ the state it left                       (anyone on the case)
 any open state ──redate · expire · obsolete──▶ …
 ```
+
+`markDone` is the escape hatch for work completed outside DRISTI — at the counter, in
+court, on paper. Any kind, any open state, anyone on the case; the screens confirm it
+first ("this records that it was completed outside DRISTI") and `completion.how` says
+`"manual"`.
 
 When a signatory completes work someone else prepared, the history line reads
 "Completed by X — prepared by Y · …". Every transition validates the from-state and the
@@ -79,9 +92,14 @@ actor's permission and throws a `TransitionError` (`illegal-state` · `forbidden
 Nobody is assigned anything; nobody approves anything. A non-signatory prepares (draft,
 ready); a signatory completes (sign, pay, file, re-file) — directly, or after someone
 else prepared it. `verbFor` derives the one verb a row shows at render time:
-**Sign · Pay · File · Fix & re-file** (signatory, open/ready) · **Continue** (anyone, on
-a draft) · **Open** (on the case but cannot complete) · **Mark done** (hearing tasks the
-system cannot observe) · **View** (waiting, closed, not on the case).
+**Sign · Pay · File · Re-file** (signatory, open/ready) · **Continue** (anyone, on a
+draft) · **Mark done** (hearing tasks — done in court) · **Unarchive** (archived tasks)
+· **View** (waiting, closed, or an open/ready item whose completion belongs to a
+vakalatnama holder the viewer is not — a quiet ghost, never a disabled verb). Pay, sign
+and file act in a **modal** over the table (`components/tasks/act/act-modal.tsx`);
+Re-file and filing-flow drafts first warn that the scrutiny / e-filing screens are not
+built yet, then open the interim modal. The old `/tasks/[id]/pay|sign|file|fix` routes
+redirect to `/tasks?task=<id>`.
 
 ## Urgency (`urgency.ts`)
 
@@ -98,12 +116,17 @@ sort with it.
 overdue count and next date for the view — before the other filters apply, so the cards
 always describe the tab; `summaryOf` feeds the header; `courtsOf` the Court filter.
 
-## Vocabulary (`format.ts`, brief D13 — fixed)
+## Vocabulary (`format.ts`, brief D13 v2.1 — fixed)
 
 Titles are verb-first ("Pay the process fee for the summons", "Fix 2 defects and re-file
-the complaint", "Be present for the plea", "Continue the draft complaint"). Status
-phrases: *Needs signature · X* · *Needs payment · X* · *Needs filing · X* · *Draft · X* ·
-*Returned · n defects* · *With the court* · *Payment confirming* · *Done {date}* ·
-*Expired — {why}* · *No longer needed — {why}*; hearing tasks read *Anyone on the case*.
-X is "you" for a signatory, else the main advocate. Due phrases: *{n} days overdue* ·
-*Due today* · *Due {date}* · *Before hearing {date}* · *No date*.
+the complaint", "Be present for the plea", "Continue the draft complaint"). There is no
+Status column — the verb carries the action. Due cells are one format everywhere: a
+relative primary from today — *{n} days overdue* (ink) · *Due today* · *Due in {n}
+days* · *Before hearing in {n} days* · *No date* — over the absolute date ("18 Aug",
+muted, tabular). Settled tasks recall the absolute date only, no ink. Waiting rows carry
+one *Waiting on* phrase: *{main advocate} — signature/payment/filing* · *The court —
+scrutiny* · *Payment confirming*. Completed and Archived rows carry the outcome: *Done
+{date}* · *Expired — {why}* · *No longer needed — {why}* · *Archived {date}*. A row's
+second line is the status note ("Payment failed — try again", "Prepared by S. Prakash")
+or *Draft · X* (X is "you" for the draft's holder). The page header is today's date —
+the anchor every relative phrase counts from.

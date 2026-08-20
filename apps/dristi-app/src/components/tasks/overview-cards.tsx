@@ -57,9 +57,11 @@ export function OverviewCards({
               disabled={loading}
               className="flex h-full min-h-24 w-full flex-col gap-1 rounded-xl p-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:cursor-default"
             >
+              {/* The kind is the card's heading, so it reads at heading scale — 14/500,
+                  not a 12px caption doing a heading's job. */}
               <span
                 className={cn(
-                  "text-caption font-semibold transition-colors",
+                  "text-body-compact font-medium transition-colors",
                   pressed ? "text-brand-muted-foreground" : "text-muted-foreground"
                 )}
               >
@@ -70,7 +72,7 @@ export function OverviewCards({
               <span className="mt-auto text-title font-semibold tabular-nums text-foreground">
                 {loading || !c ? "–" : c.count}
               </span>
-              {view === "open" ? (
+              {view === "needs-action" ? (
                 <span className="text-caption tabular-nums text-muted-foreground">
                   <Caption count={c} loading={loading} />
                 </span>

@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import {
@@ -17,9 +16,10 @@ import {
   viewCounts,
   type World,
 } from "@/lib/tasks/selectors";
-import { canMarkDone } from "@/lib/tasks/permissions";
+import { headerDate } from "@/lib/tasks/format";
+import { ACTIONABLE, canArchive } from "@/lib/tasks/permissions";
 import { useTasks } from "@/lib/tasks/store";
-import { markDone } from "@/lib/tasks/transitions";
+import { archive, markDone, unarchive } from "@/lib/tasks/transitions";
 import type { CardKind, Task, TaskId, TaskView, Verb } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
 import { useIsDesktop, useMinWidth } from "@/hooks/use-min-width";
@@ -28,14 +28,15 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Breadcrumbs, useChrome } from "@/components/shell/chrome";
 import { ConfirmDialog } from "@/components/shell/confirm-dialog";
+import { TaskActModal } from "@/components/tasks/act/act-modal";
 import { FilterRow } from "@/components/tasks/filter-row";
 import { useFilters } from "@/components/tasks/filters";
 import { OverviewCards } from "@/components/tasks/overview-cards";
 import { TaskDetailPanel } from "@/components/tasks/task-detail-panel";
 import { TasksTable, TasksTableSkeleton } from "@/components/tasks/tasks-table";
-import { actHref, useTaskActions, verbTarget } from "@/components/tasks/use-task-actions";
+import { type ActMode, actModeOf, useTaskActions } from "@/components/tasks/use-task-actions";
 
-const VIEWS: TaskView[] = ["open", "waiting", "completed"];
+const VIEWS: TaskView[] = ["needs-action", "waiting", "completed", "archived"];
 
 /**
  * A tab: label + count as muted tabular text — the same presentation as every count.
@@ -55,14 +56,21 @@ function useNow(): Date {
   return now;
 }
 
+/** Which flows are placeholders for screens that are not designed yet. */
+function flowNoticeOf(task: Task): "scrutiny" | "filing" | null {
+  if (task.kind === "returned") return "scrutiny";
+  if (task.kind === "file" || task.kind === "draft") return "filing";
+  return null;
+}
+
 /**
- * Pending tasks — the command centre. Header, six kind cards (the overview and the
- * filter), three state tabs, a labelled filter row, then ONE lifted table; the detail
- * pushes in from the right on `lg`+ (a sheet below). Everything the cards, tabs and
+ * Pending tasks — the command centre. A dated header, six kind cards (the overview and
+ * the filter), four ability-based tabs, a labelled filter row, then ONE lifted table;
+ * the detail pushes in from the right on `lg`+ (a sheet below). Pay, sign and file open
+ * as modals over the table; search lives in the top bar. Everything the cards, tabs and
  * filters hold lives in the URL.
  */
 export function TasksScreen() {
-  const router = useRouter();
   const store = useTasks();
   const { state, error, people, cases, tasks, user, online, reload, requestHighlight } = store;
   const { act, busy } = useTaskActions();
@@ -79,7 +87,7 @@ export function TasksScreen() {
 
   const rows = React.useMemo(() => applyFilters(world, filters), [world, filters]);
   const counts = React.useMemo(() => cardCounts(world, filters.view), [world, filters.view]);
-  const tabCounts = React.useMemo(() => viewCounts(world), [world]);
+  const tabCounts = React.useMemo(() => viewCounts(world, filters.query), [world, filters.query]);
   const summary = React.useMemo(() => summaryOf(world), [world]);
   const courts = React.useMemo(() => courtsOf(world), [world]);
 
@@ -87,7 +95,17 @@ export function TasksScreen() {
   const openCase = openTask ? (caseOf(world, openTask) ?? null) : null;
 
   const [selected, setSelected] = React.useState<Set<TaskId>>(() => new Set());
-  const [confirm, setConfirm] = React.useState<{ task: Task } | null>(null);
+  /** Tasks awaiting the mark-as-done confirmation — one from a row, several from the bar. */
+  const [confirmDone, setConfirmDone] = React.useState<Task[] | null>(null);
+  /** The fix/continue warning: those flows belong to screens that are not built yet. */
+  const [flowNotice, setFlowNotice] = React.useState<{ task: Task; flow: "scrutiny" | "filing" } | null>(null);
+  /** The act modal: pay, sign, file — and fix as the interim fallback. */
+  const [acting, setActing] = React.useState<{ taskId: TaskId; mode: ActMode } | null>(null);
+  const actingTask = React.useMemo(
+    () => (acting ? (tasks.find((t) => t.id === acting.taskId) ?? null) : null),
+    [acting, tasks]
+  );
+  const actingCase = actingTask ? (caseOf(world, actingTask) ?? null) : null;
 
   const focusRow = React.useCallback((id: TaskId) => {
     window.requestAnimationFrame(() => {
@@ -106,8 +124,8 @@ export function TasksScreen() {
   }, [taskId, setTaskId, focusRow]);
 
   // Opening a row moves focus to the panel's heading once it has rendered (Escape
-  // brings it back to the row). Arriving with `?task=` already in the URL — back from
-  // an act page, a shared link — focuses the row instead, once.
+  // brings it back to the row). Arriving with `?task=` already in the URL — an old act
+  // route's redirect, a shared link — focuses the row instead, once.
   const pendingPanelFocus = React.useRef<TaskId | null>(null);
   const openDetail = React.useCallback(
     (id: TaskId) => {
@@ -156,21 +174,42 @@ export function TasksScreen() {
     }
   }, [panelPushing, roomy, foldNav, unfoldNav]);
 
+  const openAct = React.useCallback(
+    (task: Task, mode: ActMode | null) => {
+      if (mode) setActing({ taskId: task.id, mode });
+    },
+    []
+  );
+
   const handleVerb = React.useCallback(
     (task: Task, verb: Verb) => {
-      if (verbTarget(task, verb) === "page") {
-        const href = actHref(task);
-        if (href) router.push(href);
-        return;
+      switch (verb) {
+        case "Pay":
+        case "Sign":
+        case "File":
+          openAct(task, actModeOf(task));
+          return;
+        case "Re-file":
+          setFlowNotice({ task, flow: "scrutiny" });
+          return;
+        case "Continue": {
+          // Drafts of the filing flows warn first; a pay or sign draft is its own flow.
+          const flow = flowNoticeOf(task);
+          if (flow) setFlowNotice({ task, flow });
+          else openAct(task, actModeOf(task));
+          return;
+        }
+        case "Mark done":
+          setConfirmDone([task]);
+          return;
+        case "Unarchive":
+          void act(task.id, unarchive, "Restored from the archive");
+          return;
+        default:
+          openDetail(task.id);
       }
-      if (verb === "Mark done") {
-        if (task.isBlocking) setConfirm({ task });
-        else void act(task.id, markDone, "Marked done");
-        return;
-      }
-      openDetail(task.id);
     },
-    [act, router, openDetail]
+    [act, openAct, openDetail]
   );
 
   const setView = React.useCallback(
@@ -197,16 +236,28 @@ export function TasksScreen() {
     () =>
       rows.filter((r) => {
         const k = caseOf(world, r);
-        return selected.has(r.id) && k && canMarkDone(user, r, k);
+        return selected.has(r.id) && k && canArchive(user, r, k);
       }),
     [rows, selected, world, user]
   );
   const visibleSelected = React.useMemo(() => new Set(selectedTasks.map((t) => t.id)), [selectedTasks]);
+  // Mark as done needs an open-state task; a filed one waiting on the court does not.
+  const doableSelected = React.useMemo(
+    () => selectedTasks.filter((t) => ACTIONABLE.has(t.status)),
+    [selectedTasks]
+  );
 
-  const markAllDone = async () => {
+  const markAllDone = async (batch: Task[]) => {
     let ok = 0;
-    for (const t of selectedTasks) if (await act(t.id, markDone)) ok += 1;
+    for (const t of batch) if (await act(t.id, markDone)) ok += 1;
     if (ok) toast.success(`Marked done ${ok} task${ok === 1 ? "" : "s"}`);
+    setSelected(new Set());
+  };
+
+  const archiveAll = async () => {
+    let ok = 0;
+    for (const t of selectedTasks) if (await act(t.id, archive)) ok += 1;
+    if (ok) toast.success(`Archived ${ok} task${ok === 1 ? "" : "s"}`);
     setSelected(new Set());
   };
 
@@ -218,11 +269,12 @@ export function TasksScreen() {
       <Breadcrumbs crumbs={openTask ? [{ label: openTask.title }] : []} />
 
       <div className="flex min-w-0 flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:px-8">
+        {/* Today anchors every relative date below it — "2 days overdue" from when. */}
         <header className="flex flex-col gap-1">
-          <h1 className="text-title font-semibold text-foreground">Pending tasks</h1>
+          <h1 className="text-title-s font-semibold text-foreground">{headerDate(now)}</h1>
           <p className="text-body text-muted-foreground tabular-nums">
             {state === "ready"
-              ? `${summary.open} open · ${summary.waiting} waiting on others · ${summary.overdue} overdue`
+              ? `${summary.action} need action · ${summary.waiting} waiting on others · ${summary.overdue} overdue`
               : "Loading…"}
           </p>
         </header>
@@ -241,7 +293,7 @@ export function TasksScreen() {
           <TabsList
             variant="line"
             aria-label="Task views"
-            className="w-full justify-start gap-6 border-b border-hairline p-0 pb-0 group-data-horizontal/tabs:h-auto"
+            className="w-full justify-start gap-6 overflow-x-auto border-b border-hairline p-0 pb-0 group-data-horizontal/tabs:h-auto"
           >
             {VIEWS.map((v) => (
               <TabsTrigger key={v} value={v} className={TAB_CLASS}>
@@ -292,8 +344,15 @@ export function TasksScreen() {
             <span className="tabular-nums">
               {selectedTasks.length} selected
             </span>
-            <Button variant="outline" disabled={!online || !!busy} onClick={() => void markAllDone()}>
-              Mark done
+            <Button
+              variant="outline"
+              disabled={!online || !!busy || !doableSelected.length}
+              onClick={() => setConfirmDone(doableSelected)}
+            >
+              Mark as done
+            </Button>
+            <Button variant="outline" disabled={!online || !!busy} onClick={() => void archiveAll()}>
+              Archive
             </Button>
             <Button variant="ghost" onClick={() => setSelected(new Set())}>
               Clear
@@ -346,24 +405,68 @@ export function TasksScreen() {
         offline={!online}
         busy={!!busy}
         onVerb={(verb) => openTask && handleVerb(openTask, verb)}
-        onMarkDone={() => openTask && void act(openTask.id, markDone, "Marked done")}
+        onOpenFlow={() => openTask && openAct(openTask, actModeOf(openTask))}
+        onMarkDone={() => openTask && setConfirmDone([openTask])}
+        onArchive={() => openTask && void act(openTask.id, archive, "Archived — find it under the Archived tab")}
+      />
+
+      <TaskActModal
+        task={actingTask}
+        kase={actingCase}
+        mode={acting?.mode ?? null}
+        open={!!acting && !!actingTask && !!actingCase}
+        onOpenChange={(open) => {
+          if (!open) setActing(null);
+        }}
+        onFinished={(id) => {
+          requestHighlight(id);
+          focusRow(id);
+        }}
+      />
+
+      {/* Fix & re-file and draft filings belong to the scrutiny / e-filing screens,
+          which are not designed yet — say so before the interim fallback opens. */}
+      <ConfirmDialog
+        open={!!flowNotice}
+        onOpenChange={(open) => !open && setFlowNotice(null)}
+        title={
+          flowNotice?.flow === "scrutiny"
+            ? "This continues in the scrutiny flow"
+            : "This continues in the filing flow"
+        }
+        description={
+          flowNotice?.flow === "scrutiny"
+            ? "Fixing defects and re-filing happens in the scrutiny screens, which are not built yet. Continue anyway to use the interim version here."
+            : "Drafting and filing happens in the e-filing screens, which are not built yet. Continue anyway to use the interim version here."
+        }
+        confirmLabel="Continue anyway"
+        destructive={false}
+        onConfirm={() => {
+          const t = flowNotice?.task;
+          setFlowNotice(null);
+          if (t) openAct(t, actModeOf(t));
+        }}
       />
 
       <ConfirmDialog
-        open={!!confirm}
-        onOpenChange={(open) => !open && setConfirm(null)}
-        title="Mark this done?"
+        open={!!confirmDone}
+        onOpenChange={(open) => !open && setConfirmDone(null)}
+        title="Mark as done?"
         description={
-          confirm
-            ? `“${confirm.task.title}” is for a hearing. Marking it done says it has happened; nothing is sent to the court.`
+          confirmDone
+            ? `${
+                confirmDone.length === 1
+                  ? `“${confirmDone[0].title}”`
+                  : `${confirmDone.length} tasks`
+              } — this records that it was completed outside DRISTI. Nothing is sent to the court.`
             : undefined
         }
-        confirmLabel="Mark done"
+        confirmLabel="Mark as done"
         destructive={false}
         onConfirm={() => {
-          const t = confirm?.task;
-          setConfirm(null);
-          if (t) void act(t.id, markDone, "Marked done");
+          const batch = confirmDone;
+          setConfirmDone(null);
+          if (batch) void markAllDone(batch);
         }}
       />
     </main>
@@ -375,7 +478,7 @@ export function TasksScreenFallback() {
     <main className="flex min-w-0 flex-1">
       <div className={cn("flex min-w-0 flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:px-8")}>
         <header className="flex flex-col gap-1">
-          <h1 className="text-title font-semibold text-foreground">Pending tasks</h1>
+          <h1 className="text-title-s font-semibold text-foreground">{headerDate(new Date())}</h1>
           <p className="text-body text-muted-foreground">Loading…</p>
         </header>
         <TasksTableSkeleton />

@@ -3,8 +3,8 @@
 import * as React from "react";
 import { ArrowDownIcon, CircleCheckIcon, SearchXIcon } from "lucide-react";
 
-import { dueCueOf, noteOf, statusPhraseOf } from "@/lib/tasks/format";
-import { canMarkDone, verbFor } from "@/lib/tasks/permissions";
+import { dueCueOf, outcomeOf, secondLineOf, waitingOnOf } from "@/lib/tasks/format";
+import { canArchive, verbFor } from "@/lib/tasks/permissions";
 import type { SortKey } from "@/lib/tasks/selectors";
 import type { Case, Person, Task, TaskId, TaskView, Verb } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
@@ -57,21 +57,33 @@ function CaseCell({ kase }: { kase: Case }) {
   );
 }
 
+/** Relative primary ("2 days overdue", "Due in 3 days") over the absolute date. */
 function DueCell({ task, now }: { task: Task; now: Date }) {
   const due = dueCueOf(task, now);
   return (
-    <span
-      className={cn(
-        "text-body-compact tabular-nums",
-        due.overdue ? "font-medium text-destructive-ink" : due.text === "No date" ? "text-muted-foreground" : "text-foreground"
-      )}
-    >
-      {due.text}
-    </span>
+    <div className="flex flex-col gap-0.5">
+      <span
+        className={cn(
+          "text-body-compact tabular-nums",
+          due.overdue
+            ? "font-medium text-destructive-ink"
+            : due.date
+              ? "text-foreground"
+              : "text-muted-foreground"
+        )}
+      >
+        {due.primary}
+      </span>
+      {due.date ? <span className="text-caption tabular-nums text-muted-foreground">{due.date}</span> : null}
+    </div>
   );
 }
 
-/** The verb: 32px of visible button, expanded to the 40px DS touch floor. Always visible. */
+/**
+ * The verb: 32px of visible button widened to one shared width (`w-24`) so a column of
+ * verbs reads as one rail, expanded to the 40px DS touch floor. "View" — nothing to do
+ * but look — is a quiet ghost, never a disabled finalising verb.
+ */
 function VerbButton({
   verb,
   disabled,
@@ -85,11 +97,14 @@ function VerbButton({
 }) {
   const button = (
     <Button
-      variant="outline"
+      variant={verb === "View" ? "ghost" : "outline"}
       size={size}
       disabled={disabled}
       onClick={onClick}
-      className={cn("whitespace-nowrap", size === "xs" && "relative after:absolute after:-inset-1")}
+      className={cn(
+        "w-24 justify-center whitespace-nowrap",
+        size === "xs" && "relative after:absolute after:-inset-1"
+      )}
     >
       {verb}
     </Button>
@@ -107,6 +122,20 @@ function VerbButton({
     </Tooltip>
   );
 }
+
+/** The fifth column: nothing on Needs action, who it waits on, or how it ended. */
+function fifthCellOf(view: TaskView, task: Task, kase: Case, people: Person[]): string | null {
+  if (view === "needs-action") return null;
+  if (view === "waiting") return waitingOnOf(task, kase, people);
+  return outcomeOf(task);
+}
+
+const FIFTH_HEAD: Record<TaskView, string | null> = {
+  "needs-action": null,
+  waiting: "Waiting on",
+  completed: "Outcome",
+  archived: "Outcome",
+};
 
 /* ───────────────────────────── the table ───────────────────────────── */
 
@@ -131,10 +160,11 @@ export type TasksTableProps = {
 };
 
 /**
- * One lifted panel: a DS `Table` from `md`, stacked labelled rows below it. Every cell is
- * one fact in one column; the Status cell is one phrase from the fixed vocabulary; the
- * verb is always visible — a command centre acts from the row. Clicking a row (not its
- * controls) opens the detail; ↑/↓ move between rows, Enter opens.
+ * One lifted panel: a DS `Table` from `md`, stacked labelled rows below it. Every cell
+ * is one fact in one column; the verb — one shared width — carries the status a Needs-
+ * action row would otherwise repeat; Waiting rows say who they wait on, Completed and
+ * Archived rows how they ended. Clicking a row (not its controls) opens the detail;
+ * ↑/↓ move between rows, Enter opens.
  */
 export function TasksTable(props: TasksTableProps) {
   const { rows, emptyKind, query, view, onClearFilters } = props;
@@ -200,14 +230,22 @@ export function TasksTable(props: TasksTableProps) {
                 <CircleCheckIcon aria-hidden />
               </EmptyMedia>
               <EmptyTitle>
-                {view === "open" ? "Nothing pending" : view === "waiting" ? "Nothing waiting on anyone" : "Nothing completed yet"}
+                {view === "needs-action"
+                  ? "Nothing needs you"
+                  : view === "waiting"
+                    ? "Nothing waiting on anyone"
+                    : view === "completed"
+                      ? "Nothing completed yet"
+                      : "Nothing archived"}
               </EmptyTitle>
               <EmptyDescription>
-                {view === "open"
+                {view === "needs-action"
                   ? "Every case you are on is up to date."
                   : view === "waiting"
-                    ? "Filings with the court and payments the gateway is confirming will wait here."
-                    : "Done, expired and no-longer-needed tasks are kept here with why they closed."}
+                    ? "Filings with the court, payments confirming, and items that need a vakalatnama holder will wait here."
+                    : view === "completed"
+                      ? "Done, expired and no-longer-needed tasks are kept here with why they closed."
+                      : "Tasks put away with Archive are kept here and can be restored."}
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
@@ -265,6 +303,7 @@ function WideTable({
   people,
   user,
   now,
+  view,
   sort,
   openId,
   selected,
@@ -275,19 +314,20 @@ function WideTable({
   onToggleSelect,
 }: TasksTableProps) {
   const caseById = React.useMemo(() => new Map(cases.map((c) => [c.id, c])), [cases]);
-  // The multi-select column exists only when something in the list can be marked done
-  // by hand — hearing tasks the system cannot observe.
-  const anyMarkable = rows.some((t) => {
+  // The select column exists wherever a listed task can still be acted on outside the
+  // system — marked done by hand or archived. Closed and archived rows have neither.
+  const anySelectable = rows.some((t) => {
     const k = caseById.get(t.caseId);
-    return k && canMarkDone(user, t, k);
+    return k && canArchive(user, t, k);
   });
+  const fifthHead = FIFTH_HEAD[view];
   const headClass = "h-10 px-4 text-caption font-semibold text-muted-foreground";
 
   return (
     <Table className="text-body-compact">
       <TableHeader className="bg-surface-sunken [&_tr]:border-hairline">
         <TableRow className="hover:bg-surface-sunken">
-          {anyMarkable ? (
+          {anySelectable ? (
             <TableHead className={cn(headClass, "w-10 pr-0")}>
               <span className="sr-only">Select</span>
             </TableHead>
@@ -296,10 +336,10 @@ function WideTable({
           <SortHead label="Case" active={sort === "case"} onClick={() => onSort("case")} />
           <SortHead label="Due" active={sort === "due"} onClick={() => onSort("due")} />
           {/* The panel names the advocates itself; when it narrows the table past
-              the six-column width, this column stands down rather than wrapping
-              every other cell to three lines. */}
+              the full width, this column stands down rather than wrapping every
+              other cell to three lines. */}
           <TableHead className={cn(headClass, "hidden @4xl:table-cell")}>Advocates</TableHead>
-          <TableHead className={headClass}>Status</TableHead>
+          {fifthHead ? <TableHead className={headClass}>{fifthHead}</TableHead> : null}
           <TableHead className={cn(headClass, "text-right")}>
             <span className="sr-only">Action</span>
           </TableHead>
@@ -310,9 +350,11 @@ function WideTable({
           const kase = caseById.get(task.caseId);
           if (!kase) return null;
           const verb = verbFor(user, task, kase);
-          const markable = canMarkDone(user, task, kase);
+          const selectable = canArchive(user, task, kase);
           const open = openId === task.id;
           const isSelected = selected.has(task.id);
+          const fifth = fifthCellOf(view, task, kase, people);
+          const note = secondLineOf(task, user, people);
           return (
             <TableRow
               key={task.id}
@@ -328,9 +370,9 @@ function WideTable({
                 onOpen(task);
               }}
             >
-              {anyMarkable ? (
+              {anySelectable ? (
                 <TableCell className="w-10 py-3 pl-4 pr-0 align-middle">
-                  {markable ? (
+                  {selectable ? (
                     <Checkbox
                       checked={isSelected}
                       onCheckedChange={() => onToggleSelect(task)}
@@ -349,9 +391,7 @@ function WideTable({
                   >
                     {task.title}
                   </button>
-                  {noteOf(task) ? (
-                    <span className="text-caption text-muted-foreground">{noteOf(task)}</span>
-                  ) : null}
+                  {note ? <span className="text-caption text-muted-foreground">{note}</span> : null}
                 </div>
               </TableCell>
               <TableCell className="min-w-32 max-w-xs whitespace-normal px-4 py-3 align-middle">
@@ -363,9 +403,11 @@ function WideTable({
               <TableCell className="hidden px-4 py-3 align-middle @4xl:table-cell">
                 <AdvocateStack kase={kase} people={people} user={user} />
               </TableCell>
-              <TableCell className="min-w-28 max-w-56 whitespace-normal px-4 py-3 align-middle text-body-compact text-foreground">
-                {statusPhraseOf(task, user, kase, people)}
-              </TableCell>
+              {fifthHead ? (
+                <TableCell className="min-w-28 max-w-56 whitespace-normal px-4 py-3 align-middle text-body-compact text-foreground">
+                  {fifth}
+                </TableCell>
+              ) : null}
               <TableCell className="px-4 py-3 text-right align-middle">
                 <VerbButton verb={verb} disabled={offline} onClick={() => onVerb(task, verb)} />
               </TableCell>
@@ -384,6 +426,7 @@ function StackedRows({
   people,
   user,
   now,
+  view,
   openId,
   selected,
   offline,
@@ -392,15 +435,18 @@ function StackedRows({
   onToggleSelect,
 }: TasksTableProps) {
   const caseById = React.useMemo(() => new Map(cases.map((c) => [c.id, c])), [cases]);
+  const fifthHead = FIFTH_HEAD[view];
   return (
     <ul className="divide-y divide-hairline">
       {rows.map((task, index) => {
         const kase = caseById.get(task.caseId);
         if (!kase) return null;
         const verb = verbFor(user, task, kase);
-        const markable = canMarkDone(user, task, kase);
+        const selectable = canArchive(user, task, kase);
         const open = openId === task.id;
         const isSelected = selected.has(task.id);
+        const fifth = fifthCellOf(view, task, kase, people);
+        const note = secondLineOf(task, user, people);
         return (
           <li
             key={task.id}
@@ -419,7 +465,7 @@ function StackedRows({
             }}
           >
             <div className="flex items-start gap-3">
-              {markable ? (
+              {selectable ? (
                 <span className="flex size-10 shrink-0 items-center justify-center -my-2.5 -ml-2.5">
                   <Checkbox
                     checked={isSelected}
@@ -437,9 +483,7 @@ function StackedRows({
                 >
                   {task.title}
                 </button>
-                {task.statusNote ? (
-                  <span className="text-caption text-muted-foreground">{task.statusNote}</span>
-                ) : null}
+                {note ? <span className="text-caption text-muted-foreground">{note}</span> : null}
               </div>
             </div>
             <dl className="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2">
@@ -455,8 +499,12 @@ function StackedRows({
               <dd>
                 <AdvocateStack kase={kase} people={people} user={user} />
               </dd>
-              <dt className="text-caption text-muted-foreground">Status</dt>
-              <dd className="text-body-compact text-foreground">{statusPhraseOf(task, user, kase, people)}</dd>
+              {fifthHead && fifth ? (
+                <>
+                  <dt className="text-caption text-muted-foreground">{fifthHead}</dt>
+                  <dd className="text-body-compact text-foreground">{fifth}</dd>
+                </>
+              ) : null}
             </dl>
             <div className="flex justify-end">
               <VerbButton verb={verb} size="default" disabled={offline} onClick={() => onVerb(task, verb)} />

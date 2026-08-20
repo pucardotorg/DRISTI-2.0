@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { at, junior, kase, makeTask, otherCase, outsider, PEOPLE, senior, senior2 } from "./fixtures";
-import { dueCueOf, permissionLineOf, statusPhraseOf } from "./format";
+import { dueCueOf, outcomeOf, secondLineOf, viewOnlyLineOf, waitingOnOf } from "./format";
 import {
   advocatesOf,
+  canArchive,
   canComplete,
   canMarkDone,
   canView,
@@ -12,7 +13,7 @@ import {
   verbFor,
   viewOf,
 } from "./permissions";
-import type { TaskStatus } from "./types";
+import type { TaskStatus, TaskView } from "./types";
 
 describe("canView / canComplete", () => {
   it("signatories and juniors on the case can view; only signatories complete", () => {
@@ -32,22 +33,41 @@ describe("canView / canComplete", () => {
   });
 });
 
-describe("viewOf — the same for every viewer", () => {
-  const cases: [TaskStatus, string][] = [
-    ["open", "open"],
-    ["draft", "open"],
-    ["ready", "open"],
-    ["awaiting-court", "waiting"],
-    ["payment-confirming", "waiting"],
-    ["done", "completed"],
-    ["expired", "completed"],
-    ["obsolete", "completed"],
-  ];
-  for (const [status, view] of cases) {
-    it(`${status} → ${view}`, () => {
-      assert.equal(viewOf(makeTask({ status })), view);
-    });
-  }
+describe("viewOf — viewer-dependent tabs", () => {
+  it("statuses that read the same from every chair", () => {
+    const cases: [TaskStatus, TaskView][] = [
+      ["awaiting-court", "waiting"],
+      ["payment-confirming", "waiting"],
+      ["done", "completed"],
+      ["expired", "completed"],
+      ["obsolete", "completed"],
+      ["archived", "archived"],
+    ];
+    for (const [status, view] of cases) {
+      assert.equal(viewOf(makeTask({ status }), senior, kase), view);
+      assert.equal(viewOf(makeTask({ status }), junior, kase), view);
+    }
+  });
+
+  it("open and ready items of completing kinds: Needs action for a signatory, Waiting for a junior", () => {
+    for (const status of ["open", "ready"] as TaskStatus[]) {
+      for (const kind of ["sign", "pay", "file", "returned"] as const) {
+        const t = makeTask({ kind, status });
+        assert.equal(viewOf(t, senior, kase), "needs-action");
+        assert.equal(viewOf(t, senior2, kase), "needs-action");
+        assert.equal(viewOf(t, junior, kase), "waiting");
+      }
+    }
+  });
+
+  it("drafts and hearing tasks: Needs action for anyone on the case", () => {
+    const draft = makeTask({ kind: "file", status: "draft", draft: { by: junior.id, savedAt: at(-1) } });
+    assert.equal(viewOf(draft, junior, kase), "needs-action");
+    assert.equal(viewOf(draft, senior, kase), "needs-action");
+    const hearing = makeTask({ kind: "hearing" });
+    assert.equal(viewOf(hearing, junior, kase), "needs-action");
+    assert.equal(viewOf(hearing, senior, kase), "needs-action");
+  });
 });
 
 describe("cardKindOf", () => {
@@ -58,6 +78,16 @@ describe("cardKindOf", () => {
   it("a draft-kind task marked ready is a filing from then on", () => {
     assert.equal(cardKindOf(makeTask({ kind: "draft", status: "ready" })), "file");
     assert.equal(cardKindOf(makeTask({ kind: "draft", status: "awaiting-court" })), "file");
+  });
+  it("an archived task counts by the state it left", () => {
+    assert.equal(
+      cardKindOf(makeTask({ kind: "file", status: "archived", archived: { at: at(0), from: "draft" } })),
+      "draft"
+    );
+    assert.equal(
+      cardKindOf(makeTask({ kind: "sign", status: "archived", archived: { at: at(0), from: "open" } })),
+      "sign"
+    );
   });
   it("otherwise the kind is the card", () => {
     assert.equal(cardKindOf(makeTask({ kind: "returned" })), "returned");
@@ -70,13 +100,13 @@ describe("verbFor", () => {
     assert.equal(verbFor(senior, makeTask({ kind: "sign" }), kase), "Sign");
     assert.equal(verbFor(senior, makeTask({ kind: "pay", status: "ready" }), kase), "Pay");
     assert.equal(verbFor(senior2, makeTask({ kind: "file" }), kase), "File");
-    assert.equal(verbFor(senior, makeTask({ kind: "returned" }), kase), "Fix & re-file");
+    assert.equal(verbFor(senior, makeTask({ kind: "returned" }), kase), "Re-file");
     assert.equal(verbFor(senior, makeTask({ kind: "draft", status: "ready" }), kase), "File");
   });
 
-  it("on the case but not a signatory: Open on open and ready items", () => {
-    assert.equal(verbFor(junior, makeTask({ kind: "sign" }), kase), "Open");
-    assert.equal(verbFor(junior, makeTask({ kind: "pay", status: "ready" }), kase), "Open");
+  it("on the case but not a signatory: a quiet View on open and ready items", () => {
+    assert.equal(verbFor(junior, makeTask({ kind: "sign" }), kase), "View");
+    assert.equal(verbFor(junior, makeTask({ kind: "pay", status: "ready" }), kase), "View");
   });
 
   it("anyone on the case: Continue on a draft", () => {
@@ -87,8 +117,12 @@ describe("verbFor", () => {
   it("hearing tasks: Mark done for anyone on the case while open", () => {
     assert.equal(verbFor(junior, makeTask({ kind: "hearing" }), kase), "Mark done");
     assert.equal(verbFor(senior, makeTask({ kind: "hearing" }), kase), "Mark done");
-    assert.equal(canMarkDone(junior, makeTask({ kind: "hearing" }), kase), true);
-    assert.equal(canMarkDone(junior, makeTask({ kind: "hearing", systemObservable: true }), kase), false);
+  });
+
+  it("archived tasks: Unarchive for anyone on the case", () => {
+    const t = makeTask({ status: "archived", archived: { at: at(0), from: "open" } });
+    assert.equal(verbFor(junior, t, kase), "Unarchive");
+    assert.equal(verbFor(outsider, t, kase), "View");
   });
 
   it("not on the case, waiting, or closed: View", () => {
@@ -99,65 +133,108 @@ describe("verbFor", () => {
   });
 });
 
-describe("status phrases — fixed vocabulary", () => {
-  it("open items say who they need: you for a signatory, the main advocate for others", () => {
-    const t = makeTask({ kind: "sign" });
-    assert.equal(statusPhraseOf(t, senior, kase, PEOPLE), "Needs signature · you");
-    assert.equal(statusPhraseOf(t, senior2, kase, PEOPLE), "Needs signature · you");
-    assert.equal(statusPhraseOf(t, junior, kase, PEOPLE), "Needs signature · Anjali Nair");
-    assert.equal(statusPhraseOf(makeTask({ kind: "pay" }), junior, kase, PEOPLE), "Needs payment · Anjali Nair");
-    assert.equal(statusPhraseOf(makeTask({ kind: "file", status: "ready" }), junior, kase, PEOPLE), "Needs filing · Anjali Nair");
+describe("canMarkDone / canArchive — outside-the-system completion", () => {
+  it("anyone on the case may mark any open-state task done by hand", () => {
+    assert.equal(canMarkDone(junior, makeTask({ kind: "pay" }), kase), true);
+    assert.equal(canMarkDone(junior, makeTask({ kind: "sign", status: "ready" }), kase), true);
+    assert.equal(canMarkDone(senior, makeTask({ kind: "hearing", systemObservable: true }), kase), true);
+    assert.equal(canMarkDone(outsider, makeTask({ kind: "pay" }), kase), false);
+    assert.equal(canMarkDone(senior, makeTask({ status: "awaiting-court" }), kase), false);
+    assert.equal(canMarkDone(senior, makeTask({ status: "done" }), kase), false);
   });
 
-  it("drafts, returns, waiting and closed states", () => {
+  it("anything not closed can be archived by anyone on the case", () => {
+    assert.equal(canArchive(junior, makeTask({ kind: "pay" }), kase), true);
+    assert.equal(canArchive(junior, makeTask({ status: "awaiting-court" }), kase), true);
+    assert.equal(canArchive(senior, makeTask({ status: "done" }), kase), false);
     assert.equal(
-      statusPhraseOf(makeTask({ status: "draft", draft: { by: junior.id, savedAt: at(0) } }), senior, kase, PEOPLE),
-      "Draft · S. Prakash"
+      canArchive(senior, makeTask({ status: "archived", archived: { at: at(0), from: "open" } }), kase),
+      false
     );
-    assert.equal(
-      statusPhraseOf(makeTask({ status: "draft", draft: { by: junior.id, savedAt: at(0) } }), junior, kase, PEOPLE),
-      "Draft · you"
-    );
-    const returned = makeTask({
-      kind: "returned",
-      returned: { by: "scrutiny", at: at(-1), defects: [{ n: 1, text: "x", fixed: false }, { n: 2, text: "y", fixed: false }] },
+    assert.equal(canArchive(outsider, makeTask({ kind: "pay" }), kase), false);
+  });
+});
+
+describe("format — fixed vocabulary", () => {
+  const NOW = "2026-08-18T12:00:00.000Z";
+
+  it("due cues: relative primary + absolute caption while the deadline binds", () => {
+    assert.deepEqual(dueCueOf(makeTask({ dueAt: at(-3) }), NOW), {
+      primary: "3 days overdue",
+      date: "15 Aug",
+      overdue: true,
     });
-    assert.equal(statusPhraseOf(returned, senior, kase, PEOPLE), "Returned · 2 defects");
-    assert.equal(statusPhraseOf(makeTask({ status: "awaiting-court" }), senior, kase, PEOPLE), "With the court");
-    assert.equal(statusPhraseOf(makeTask({ status: "payment-confirming" }), senior, kase, PEOPLE), "Payment confirming");
+    assert.deepEqual(dueCueOf(makeTask({ dueAt: at(0) }), NOW), {
+      primary: "Due today",
+      date: "18 Aug",
+      overdue: false,
+    });
+    assert.deepEqual(dueCueOf(makeTask({ dueAt: at(4) }), NOW), {
+      primary: "Due in 4 days",
+      date: "22 Aug",
+      overdue: false,
+    });
+    assert.deepEqual(dueCueOf(makeTask({ hearingAt: at(2, 5), dueAt: at(2, 5) }), NOW), {
+      primary: "Before hearing in 2 days",
+      date: "20 Aug",
+      overdue: false,
+    });
+    assert.deepEqual(dueCueOf(makeTask({ dueKind: "none" }), NOW), { primary: "No date", overdue: false });
+  });
+
+  it("settled tasks recall the absolute date, never ink", () => {
+    const waiting = dueCueOf(makeTask({ dueAt: at(-3), status: "awaiting-court" }), NOW);
+    assert.equal(waiting.overdue, false);
+    assert.equal(waiting.primary, "Due 15 Aug");
+    assert.equal(waiting.date, undefined);
+    const archived = dueCueOf(
+      makeTask({ dueAt: at(-3), status: "archived", archived: { at: at(0), from: "open" } }),
+      NOW
+    );
+    assert.equal(archived.overdue, false);
+  });
+
+  it("waiting-on: one phrase naming the wait", () => {
+    assert.equal(waitingOnOf(makeTask({ status: "awaiting-court" }), kase, PEOPLE), "The court — scrutiny");
+    assert.equal(waitingOnOf(makeTask({ status: "payment-confirming" }), kase, PEOPLE), "Payment confirming");
+    assert.equal(waitingOnOf(makeTask({ kind: "sign" }), kase, PEOPLE), "Anjali Nair — signature");
+    assert.equal(waitingOnOf(makeTask({ kind: "pay", status: "ready" }), kase, PEOPLE), "Anjali Nair — payment");
+  });
+
+  it("outcomes on Completed and Archived rows", () => {
+    assert.match(outcomeOf(makeTask({ status: "done", completion: { at: at(-2), how: "event" } })), /^Done \d+ \w+$/);
     assert.equal(
-      statusPhraseOf(makeTask({ status: "expired", statusNote: "cure window lapsed" }), senior, kase, PEOPLE),
+      outcomeOf(makeTask({ status: "expired", statusNote: "cure window lapsed" })),
       "Expired — cure window lapsed"
     );
     assert.equal(
-      statusPhraseOf(makeTask({ status: "obsolete", statusNote: "order withdrawn" }), senior, kase, PEOPLE),
+      outcomeOf(makeTask({ status: "obsolete", statusNote: "order withdrawn" })),
       "No longer needed — order withdrawn"
     );
-    assert.match(statusPhraseOf(makeTask({ status: "done", completion: { at: at(-2), how: "event" } }), senior, kase, PEOPLE), /^Done \d+ \w+$/);
-  });
-
-  it("due phrases", () => {
-    const NOW = "2026-08-18T12:00:00.000Z";
-    assert.deepEqual(dueCueOf(makeTask({ dueAt: at(-3) }), NOW), { text: "3 days overdue", overdue: true });
-    assert.deepEqual(dueCueOf(makeTask({ dueAt: at(0) }), NOW), { text: "Due today", overdue: false });
-    assert.match(dueCueOf(makeTask({ dueAt: at(4) }), NOW).text, /^Due \d+ \w+$/);
-    assert.match(dueCueOf(makeTask({ hearingAt: at(4, 5), dueAt: at(4, 5) }), NOW).text, /^Before hearing /);
-    assert.deepEqual(dueCueOf(makeTask({ dueKind: "none" }), NOW), { text: "No date", overdue: false });
-    assert.equal(dueCueOf(makeTask({ dueAt: at(-3), status: "awaiting-court" }), NOW).overdue, false);
-  });
-
-  it("permission lines", () => {
-    assert.equal(
-      permissionLineOf(makeTask({ kind: "sign" }), senior, kase, PEOPLE),
-      "You are on the vakalatnama — you can sign."
-    );
-    assert.equal(
-      permissionLineOf(makeTask({ kind: "sign" }), junior, kase, PEOPLE),
-      "Anjali Nair or R. Manoj must sign this. You can prepare it and mark it ready."
-    );
     assert.match(
-      permissionLineOf(makeTask({ kind: "sign", status: "ready", prepared: { by: junior.id, at: at(-1) } }), senior, kase, PEOPLE),
-      /^Prepared by S\. Prakash on \d+ \w+ — review and sign\.$/
+      outcomeOf(makeTask({ status: "archived", archived: { at: at(-1), from: "open" } })),
+      /^Archived \d+ \w+$/
     );
+  });
+
+  it("second lines: the status note, or who holds the draft", () => {
+    assert.equal(
+      secondLineOf(makeTask({ status: "draft", draft: { by: junior.id, savedAt: at(0) } }), senior, PEOPLE),
+      "Draft · S. Prakash"
+    );
+    assert.equal(
+      secondLineOf(makeTask({ status: "draft", draft: { by: junior.id, savedAt: at(0) } }), junior, PEOPLE),
+      "Draft · you"
+    );
+    assert.equal(
+      secondLineOf(makeTask({ statusNote: "Payment failed — try again" }), senior, PEOPLE),
+      "Payment failed — try again"
+    );
+    assert.equal(secondLineOf(makeTask({}), senior, PEOPLE), undefined);
+  });
+
+  it("the view-only line names every vakalatnama holder", () => {
+    assert.equal(viewOnlyLineOf(kase, PEOPLE), "You can view this task. Anjali Nair and R. Manoj hold the vakalatnama.");
+    assert.equal(viewOnlyLineOf(otherCase, PEOPLE), "You can view this task. Deepa Varghese holds the vakalatnama.");
   });
 });

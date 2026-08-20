@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import { at, junior, kase, makeTask, NOW, outsider, PEOPLE, senior, senior2 } from "./fixtures";
 import { verbFor, viewOf } from "./permissions";
 import {
+  archive,
   confirmPayment,
   courtAccepted,
   courtReturned,
@@ -20,12 +21,13 @@ import {
   saveDraft,
   sign,
   TransitionError,
+  unarchive,
 } from "./transitions";
 import type { Task, TaskStatus } from "./types";
 
 const ctx = (actor = senior): Ctx => ({ actor, kase, now: NOW, people: PEOPLE });
 
-const ALL: TaskStatus[] = ["open", "draft", "ready", "awaiting-court", "payment-confirming", "done", "expired", "obsolete"];
+const ALL: TaskStatus[] = ["open", "draft", "ready", "awaiting-court", "payment-confirming", "done", "expired", "obsolete", "archived"];
 
 function throwsCode(fn: () => unknown, code: TransitionError["code"]) {
   assert.throws(fn, (e: unknown) => e instanceof TransitionError && e.code === code);
@@ -37,7 +39,7 @@ describe("drafts and ready (anyone on the case)", () => {
     assert.equal(t.status, "draft");
     assert.equal(t.draft?.by, junior.id);
     assert.equal(t.draft?.note, "Paras 1–4 done");
-    assert.equal(viewOf(t), "open");
+    assert.equal(viewOf(t, junior, kase), "needs-action");
     assert.equal(verbFor(senior, t, kase), "Continue");
     assert.match(t.history.at(-1)!.text, /saved a draft/);
   });
@@ -49,7 +51,7 @@ describe("drafts and ready (anyone on the case)", () => {
     assert.equal(ready.prepared?.by, junior.id);
     assert.equal(ready.statusNote, "Prepared by S. Prakash");
     assert.equal(verbFor(senior, ready, kase), "Sign");
-    assert.equal(verbFor(junior, ready, kase), "Open");
+    assert.equal(verbFor(junior, ready, kase), "View");
   });
 
   it("ready → saveDraft goes back to draft (rework)", () => {
@@ -107,7 +109,7 @@ describe("completing (signatories only)", () => {
     assert.equal(recordPayment(base, ctx(), "success").status, "done");
     const pending = recordPayment(base, ctx(), "pending");
     assert.equal(pending.status, "payment-confirming");
-    assert.equal(viewOf(pending), "waiting");
+    assert.equal(viewOf(pending, senior, kase), "waiting");
     const failed = recordPayment(base, ctx(), "failed");
     assert.equal(failed.status, "open");
     assert.equal(failed.statusNote, "Payment failed — try again");
@@ -133,12 +135,17 @@ describe("completing (signatories only)", () => {
     assert.match(filed.history.at(-1)!.text, /prepared by S\. Prakash/);
   });
 
-  it("markDone: hearing tasks only, by anyone on the case, only while open", () => {
+  it("markDone: any open-state task, any kind, by anyone on the case — records the manual close", () => {
     const t = markDone(makeTask({ kind: "hearing" }), ctx(junior));
     assert.equal(t.status, "done");
     assert.equal(t.completion?.how, "manual");
-    throwsCode(() => markDone(makeTask({ kind: "pay" }), ctx()), "forbidden");
+    assert.match(t.history.at(-1)!.text, /completed outside DRISTI/);
+    // A junior closes a payment made at the counter; a ready item closes too.
+    assert.equal(markDone(makeTask({ kind: "pay" }), ctx(junior)).status, "done");
+    assert.equal(markDone(makeTask({ kind: "sign", status: "ready" }), ctx()).status, "done");
+    throwsCode(() => markDone(makeTask({ kind: "pay" }), ctx(outsider)), "forbidden");
     throwsCode(() => markDone(makeTask({ kind: "hearing", status: "done" }), ctx()), "illegal-state");
+    throwsCode(() => markDone(makeTask({ status: "awaiting-court" }), ctx()), "illegal-state");
   });
 });
 
@@ -155,14 +162,14 @@ describe("the court", () => {
     const filed = file(makeTask({ kind: "file", title: "File the proof affidavit of the complainant", dueAt: at(2) }), ctx());
     const { task, created } = courtReturned(filed, ctx(junior), ["Not attested", "", "Annexure missing"]);
     assert.equal(task.status, "obsolete");
-    assert.equal(viewOf(task), "completed");
+    assert.equal(viewOf(task, senior, kase), "completed");
     assert.equal(created.kind, "returned");
     assert.equal(created.status, "open");
     assert.equal(created.title, "Fix 2 defects and re-file the proof affidavit of the complainant");
     assert.deepEqual(created.returned?.defects.map((d) => d.text), ["Not attested", "Annexure missing"]);
     assert.equal(created.dueAt, filed.dueAt);
-    assert.equal(verbFor(senior, created, kase), "Fix & re-file");
-    assert.equal(verbFor(junior, created, kase), "Open");
+    assert.equal(verbFor(senior, created, kase), "Re-file");
+    assert.equal(verbFor(junior, created, kase), "View");
   });
 
   it("a returned draft complaint names the complaint", () => {
@@ -175,6 +182,35 @@ describe("the court", () => {
     const filed = file(makeTask({ kind: "file" }), ctx());
     throwsCode(() => courtReturned(filed, ctx(), ["", " "]), "invalid");
     throwsCode(() => courtReturned(makeTask({ kind: "file" }), ctx(), ["x"]), "illegal-state");
+  });
+});
+
+describe("archiving", () => {
+  it("archive keeps the state it left; unarchive restores it", () => {
+    const t = archive(makeTask({ kind: "sign", status: "ready" }), ctx(junior));
+    assert.equal(t.status, "archived");
+    assert.equal(t.archived?.from, "ready");
+    assert.equal(t.archived?.by, junior.id);
+    assert.equal(viewOf(t, senior, kase), "archived");
+    assert.equal(verbFor(senior, t, kase), "Unarchive");
+    assert.match(t.history.at(-1)!.text, /archived this/);
+    const back = unarchive(t, ctx(senior));
+    assert.equal(back.status, "ready");
+    assert.equal(back.archived, undefined);
+    assert.match(back.history.at(-1)!.text, /restored this from the archive/);
+  });
+
+  it("any non-closed state can be archived — a filed task too", () => {
+    assert.equal(archive(makeTask({ status: "awaiting-court" }), ctx()).archived?.from, "awaiting-court");
+    assert.equal(archive(makeTask({ status: "draft", draft: { by: junior.id, savedAt: at(-1) } }), ctx()).status, "archived");
+  });
+
+  it("closed and already-archived tasks refuse; outsiders refuse", () => {
+    throwsCode(() => archive(makeTask({ status: "done" }), ctx()), "illegal-state");
+    throwsCode(() => archive(archive(makeTask(), ctx()), ctx()), "illegal-state");
+    throwsCode(() => archive(makeTask(), ctx(outsider)), "forbidden");
+    throwsCode(() => unarchive(makeTask(), ctx()), "illegal-state");
+    throwsCode(() => unarchive(archive(makeTask(), ctx()), ctx(outsider)), "forbidden");
   });
 });
 

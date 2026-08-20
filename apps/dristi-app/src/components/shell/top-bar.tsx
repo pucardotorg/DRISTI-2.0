@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { RotateCcwIcon } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { RotateCcwIcon, SearchIcon } from "lucide-react";
 
 import { useTasks } from "@/lib/tasks/store";
 import {
@@ -14,6 +15,8 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { Kbd } from "@/components/ui/kbd";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,6 +100,122 @@ function NavTrigger() {
 }
 
 /**
+ * The global search — one box that searches every tab of the task list at once: the
+ * query narrows the table and the tab counts follow it, so the person sees where the
+ * matches live. Lives in the chrome, not the filter row, because it is not a filter of
+ * the current tab. `/` focuses it. On a phone the box has no room in the bar, so an
+ * icon button expands it to a full-width row under the bar.
+ */
+function GlobalSearch() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const params = useSearchParams();
+  const searchRef = React.useRef<HTMLInputElement>(null);
+
+  const onList = pathname === TASKS_HOME;
+  const urlQuery = onList ? (params.get("q") ?? "") : "";
+
+  // Local echo of the query so typing is instant; the URL follows after a short pause.
+  const [query, setQuery] = React.useState(urlQuery);
+  // When the URL changes underneath (Clear filters, back/forward), follow it.
+  const [seen, setSeen] = React.useState(urlQuery);
+  if (seen !== urlQuery) {
+    setSeen(urlQuery);
+    setQuery(urlQuery);
+  }
+
+  const write = React.useCallback(
+    (value: string) => {
+      const p = new URLSearchParams(params);
+      if (value.trim()) p.set("q", value.trim());
+      else p.delete("q");
+      const qs = p.toString();
+      router.replace(qs ? `${TASKS_HOME}?${qs}` : TASKS_HOME, { scroll: false });
+    },
+    [params, router]
+  );
+
+  React.useEffect(() => {
+    if (!onList || query === urlQuery) return;
+    const t = window.setTimeout(() => write(query), 200);
+    return () => window.clearTimeout(t);
+  }, [onList, query, urlQuery, write]);
+
+  React.useEffect(() => {
+    if (!onList) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable=true], [role=dialog]")) return;
+      event.preventDefault();
+      searchRef.current?.focus();
+      searchRef.current?.select();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onList]);
+
+  if (!onList) return null;
+
+  return (
+    <InputGroup className="w-full sm:w-56 lg:w-72">
+      <InputGroupAddon>
+        <SearchIcon aria-hidden />
+      </InputGroupAddon>
+      <InputGroupInput
+        ref={searchRef}
+        type="search"
+        aria-label="Find a case or task"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Find a case or task"
+        autoComplete="off"
+        enterKeyHint="search"
+      />
+      <InputGroupAddon align="inline-end" className={query ? "hidden" : "max-sm:hidden"}>
+        <Kbd aria-hidden>/</Kbd>
+      </InputGroupAddon>
+    </InputGroup>
+  );
+}
+
+/**
+ * The phone presentation: a toggle in the bar, the box as a row under it. Kept mounted
+ * (hidden) so the desktop box and the row never fight over the query state.
+ */
+function SearchArea() {
+  const pathname = usePathname();
+  const [expanded, setExpanded] = React.useState(false);
+  if (pathname !== TASKS_HOME) return null;
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label={expanded ? "Hide search" : "Search"}
+        aria-expanded={expanded}
+        onClick={() => setExpanded((x) => !x)}
+        className="text-muted-foreground sm:hidden"
+      >
+        <SearchIcon aria-hidden />
+      </Button>
+      <div className="hidden sm:block">
+        <React.Suspense fallback={null}>
+          <GlobalSearch />
+        </React.Suspense>
+      </div>
+      {expanded ? (
+        <div className="absolute inset-x-0 top-full border-b border-hairline bg-card px-4 py-2 sm:hidden">
+          <React.Suspense fallback={null}>
+            <GlobalSearch />
+          </React.Suspense>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+/**
  * The account menu, and — until a session exists — the sandbox identity switcher. Picking
  * a teammate re-derives every verb, tab and count on the screen from their vakalatnamas,
  * which is how the permission model is seen working. Reset wipes this browser's data and
@@ -175,11 +294,13 @@ function AccountMenu() {
  */
 export function TopBar() {
   return (
+    // `sticky` is positioned, so the phone search row can hang under it, full width.
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-hairline bg-card px-4 sm:px-6">
       {/* The DS ships this at 36px; 40 is the accessibility floor. */}
       <NavTrigger />
       <ChromeBreadcrumb />
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        <SearchArea />
         <AccountMenu />
       </div>
     </header>

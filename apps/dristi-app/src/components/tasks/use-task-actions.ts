@@ -6,9 +6,13 @@ import { toast } from "sonner";
 import { PAGED_KINDS } from "@/lib/tasks/permissions";
 import { useTasks } from "@/lib/tasks/store";
 import { type Transition, TransitionError } from "@/lib/tasks/transitions";
-import type { Task, TaskId, Verb } from "@/lib/tasks/types";
+import type { Task, TaskId } from "@/lib/tasks/types";
 
-const PAGE_OF: Partial<Record<Task["kind"], string>> = {
+/** The act-modal flavours. Pay, sign and file complete in place; fix is the interim
+ * fallback behind the scrutiny-flow notice. */
+export type ActMode = "pay" | "sign" | "file" | "fix";
+
+const MODE_OF: Partial<Record<Task["kind"], ActMode>> = {
   sign: "sign",
   pay: "pay",
   file: "file",
@@ -16,16 +20,10 @@ const PAGE_OF: Partial<Record<Task["kind"], string>> = {
   returned: "fix",
 };
 
-/** The act page for a task, if its kind has one. Hearing tasks are done in court. */
-export function actHref(task: Task): string | null {
+/** The act modal for a task, if its kind has one. Hearing tasks are done in court. */
+export function actModeOf(task: Task): ActMode | null {
   if (!PAGED_KINDS.has(task.kind)) return null;
-  return `/tasks/${encodeURIComponent(task.id)}/${PAGE_OF[task.kind] ?? task.kind}`;
-}
-
-/** Where a row's verb goes: the act page for paged kinds, otherwise the detail panel. */
-export function verbTarget(task: Task, verb: Verb): "page" | "panel" {
-  if (verb === "Mark done") return "panel";
-  return actHref(task) ? "page" : "panel";
+  return MODE_OF[task.kind] ?? null;
 }
 
 /**

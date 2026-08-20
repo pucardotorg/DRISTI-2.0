@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CARD_ORDER, DEFAULT_FILTERS, type DueFilter, type Filters, type SortKey } from "@/lib/tasks/selectors";
 import type { CardKind, TaskView } from "@/lib/tasks/types";
 
-const VIEWS: TaskView[] = ["open", "waiting", "completed"];
+const VIEWS: TaskView[] = ["needs-action", "waiting", "completed", "archived"];
 const DUES: DueFilter[] = ["any", "overdue", "today", "week", "before-hearing"];
 const SORTS: SortKey[] = ["due", "case", "kind"];
 

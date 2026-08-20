@@ -1,17 +1,17 @@
 "use client";
 
 /**
- * Pay — the fee, why it is owed, who may pay it, and a sandbox gateway. A signatory pays
- * (with a confirmation before money would move); anyone else on the case prepares the
- * payment and marks it ready. Success closes the task by event with a receipt; a pending
- * gateway parks it in Waiting; a failure keeps the task where it was, with the cue, and
- * the person stays on the page with the notice focused.
+ * Pay — the fee, why it is owed, who may pay it, and a sandbox gateway, as an act-modal
+ * body. A signatory pays (with a confirmation before money would move); anyone else on
+ * the case prepares the payment and marks it ready. Success closes the task by event
+ * with a receipt; a pending gateway parks it in Waiting; a failure keeps the task where
+ * it was, with the cue, and the person stays in the modal with the notice focused.
  */
 
 import * as React from "react";
 import { CircleCheckIcon } from "lucide-react";
 
-import { dateTime, longDate, rupees } from "@/lib/tasks/format";
+import { dateTime, dueCueOf, longDate, rupees } from "@/lib/tasks/format";
 import { signatoriesOf, TERMINAL } from "@/lib/tasks/permissions";
 import { confirmPayment, recordPayment } from "@/lib/tasks/transitions";
 import type { PaymentResult } from "@/lib/tasks/types";
@@ -27,7 +27,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   DescriptionDetails,
   DescriptionList,
@@ -37,11 +36,8 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SectionNotice } from "@/components/shell/notices";
-import { PANEL_CLASS } from "@/components/shell/panel";
 import { useTaskActions } from "@/components/tasks/use-task-actions";
 import {
-  ActColumns,
-  ActFrame,
   type ActContext,
   closedTitle,
   PrepareCard,
@@ -49,7 +45,6 @@ import {
   RailCard,
   RecordCard,
   signatoryLine,
-  useActContext,
 } from "@/components/tasks/act/shared";
 
 function Row({ label, children, mono }: { label: string; children: React.ReactNode; mono?: boolean }) {
@@ -122,7 +117,7 @@ function PayCard({ ctx }: { ctx: ActContext }) {
           {OUTCOMES.map((o) => (
             <label
               key={o.value}
-              className="flex cursor-pointer items-start gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-accent has-data-checked:bg-surface-sunken"
+              className="flex cursor-pointer items-start gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-accent has-data-checked:bg-card"
             >
               <RadioGroupItem value={o.value} id={`outcome-${o.value}`} className="mt-0.5" />
               <span className="flex flex-col">
@@ -191,75 +186,66 @@ function ConfirmingCard({ ctx }: { ctx: ActContext }) {
   );
 }
 
-export function PayPage() {
-  const ctx = useActContext();
+/** The pay flow inside the act modal: the fee summary, then the one action region. */
+export function PayBody({ ctx }: { ctx: ActContext }) {
+  const { task, kase, people, signatory } = ctx;
+  const payers = signatoriesOf(kase, people);
+  const due = dueCueOf(task);
+
+  let rail: React.ReactNode;
+  if (TERMINAL.has(task.status)) rail = <RecordCard ctx={ctx} title={closedTitle(task, "Paid")} />;
+  else if (task.status === "payment-confirming") rail = <ConfirmingCard ctx={ctx} />;
+  else if (signatory) rail = <PayCard ctx={ctx} />;
+  else rail = <PrepareCard ctx={ctx} what="pay" />;
+
   return (
-    <ActFrame ctx={ctx} action="Pay" sandbox="No money moves here. The gateway's answer is whatever you pick below, and the receipt is generated locally.">
-      {(c) => {
-        const { task, kase, people, signatory } = c;
-        const payers = signatoriesOf(kase, people);
-
-        let rail: React.ReactNode;
-        if (TERMINAL.has(task.status)) rail = <RecordCard ctx={c} title={closedTitle(task, "Paid")} />;
-        else if (task.status === "payment-confirming") rail = <ConfirmingCard ctx={c} />;
-        else if (signatory) rail = <PayCard ctx={c} />;
-        else rail = <PrepareCard ctx={c} what="pay" />;
-
-        return (
-          <ActColumns
-            main={
-              <Card className={cn(PANEL_CLASS, "gap-4")}>
-                <CardHeader>
-                  <CardTitle className="text-body font-semibold">What is owed</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <DescriptionList>
-                    <Row label="Amount">
-                      <span className="text-title-s font-semibold tabular-nums">
-                        {task.amountPaise !== undefined ? rupees(task.amountPaise) : "To be fetched"}
-                      </span>
-                    </Row>
-                    <Row label="Fee head">{task.feeHead ?? "—"}</Row>
-                    <Row label="For">{task.whatToDo}</Row>
-                    <Row label="Why">
-                      {task.why.event}
-                      {/dated|on \d/.test(task.why.event) ? null : (
-                        <span className="text-muted-foreground"> · {longDate(task.why.at)}</span>
-                      )}
-                    </Row>
-                    <Row label="Deadline">
-                      {task.dueAt ? longDate(task.dueAt) : "No date set"}
-                      {task.deadlineNote ? (
-                        <span className="block text-caption text-muted-foreground">{task.deadlineNote}</span>
-                      ) : null}
-                    </Row>
-                    <Row label="Payer">
-                      {payers.map((p) => p.name).join(" or ") || "A signatory"}
-                      {signatory ? <span className="text-muted-foreground"> · you</span> : null}
-                    </Row>
-                    <Row label="Case">
-                      {kase.parties}
-                      <span className="block text-caption text-muted-foreground">
-                        {kase.stNumber || "Not yet numbered"}
-                        {kase.cnr ? ` · ${kase.cnr}` : ""} · {kase.court}
-                      </span>
-                    </Row>
-                    {task.completion?.receipt ? (
-                      <Row label="Receipt" mono>
-                        <span className="inline-flex items-center gap-1.5">
-                          <CircleCheckIcon aria-hidden className="size-4 text-success-ink" />
-                          {task.completion.receipt}
-                        </span>
-                      </Row>
-                    ) : null}
-                  </DescriptionList>
-                </CardContent>
-              </Card>
-            }
-            rail={rail}
-          />
-        );
-      }}
-    </ActFrame>
+    <div className="flex min-w-0 flex-col gap-6">
+      <section className="flex flex-col gap-2">
+        <h3 className="text-body font-semibold">What is owed</h3>
+        <DescriptionList>
+          <Row label="Amount">
+            <span className="text-title-s font-semibold tabular-nums">
+              {task.amountPaise !== undefined ? rupees(task.amountPaise) : "To be fetched"}
+            </span>
+          </Row>
+          <Row label="Fee head">{task.feeHead ?? "—"}</Row>
+          <Row label="For">{task.whatToDo}</Row>
+          <Row label="Why">
+            {task.why.event}
+            {/dated|on \d/.test(task.why.event) ? null : (
+              <span className="text-muted-foreground"> · {longDate(task.why.at)}</span>
+            )}
+          </Row>
+          <Row label="Due">
+            {due.primary === "No date" ? (
+              <span className="text-muted-foreground">No date set</span>
+            ) : (
+              <>
+                <span className={cn("tabular-nums", due.overdue && "font-medium text-destructive-ink")}>
+                  {due.primary}
+                </span>
+                {due.date ? <span className="tabular-nums text-muted-foreground"> · {due.date}</span> : null}
+              </>
+            )}
+            {task.deadlineNote ? (
+              <span className="block text-caption text-muted-foreground">{task.deadlineNote}</span>
+            ) : null}
+          </Row>
+          <Row label="Payer">
+            {payers.map((p) => p.name).join(" or ") || "A signatory"}
+            {signatory ? <span className="text-muted-foreground"> · you</span> : null}
+          </Row>
+          {task.completion?.receipt ? (
+            <Row label="Receipt" mono>
+              <span className="inline-flex items-center gap-1.5">
+                <CircleCheckIcon aria-hidden className="size-4 text-success-ink" />
+                {task.completion.receipt}
+              </span>
+            </Row>
+          ) : null}
+        </DescriptionList>
+      </section>
+      {rail}
+    </div>
   );
 }

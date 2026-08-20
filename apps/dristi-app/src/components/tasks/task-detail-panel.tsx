@@ -2,15 +2,35 @@
 
 import * as React from "react";
 import { type ElementType, type ReactNode } from "react";
-import { FileTextIcon, XIcon } from "lucide-react";
+import { ChevronDownIcon, FileTextIcon, XIcon } from "lucide-react";
 
-import { dateTime, dueCueOf, longDate, nameOf, noteOf, permissionLineOf, rupees, shortDate, statusPhraseOf } from "@/lib/tasks/format";
-import { advocatesOf, canMarkDone, PAGED_KINDS, TERMINAL, verbFor, WAITING } from "@/lib/tasks/permissions";
+import {
+  dateTime,
+  dueCueOf,
+  longDate,
+  nameOf,
+  outcomeOf,
+  rupees,
+  secondLineOf,
+  viewOnlyLineOf,
+  waitingOnOf,
+} from "@/lib/tasks/format";
+import {
+  ACTIONABLE,
+  advocatesOf,
+  canArchive,
+  canMarkDone,
+  PAGED_KINDS,
+  TERMINAL,
+  verbFor,
+  WAITING,
+} from "@/lib/tasks/permissions";
 import { formatBytes } from "@/lib/tasks/data";
 import type { Case, Person, Task, Verb } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
 import { useIsDesktop } from "@/hooks/use-min-width";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   DescriptionDetails,
   DescriptionList,
@@ -20,7 +40,6 @@ import {
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { Timeline, TimelineItem } from "@/components/ui/timeline";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { ConfirmDialog } from "@/components/shell/confirm-dialog";
 import { PersonAvatar } from "@/components/tasks/person-avatar";
 
 function Fact({ label, children, mono }: { label: string; children: ReactNode; mono?: boolean }) {
@@ -71,11 +90,17 @@ export type TaskDetailProps = {
   offline: boolean;
   busy: boolean;
   onVerb: (verb: Verb) => void;
+  /** Open the task's act modal for a look — waiting and closed paged tasks. */
+  onOpenFlow: () => void;
+  /** Both confirmed and executed by the screen. */
   onMarkDone: () => void;
+  onArchive: () => void;
 };
 
 /**
- * The detail itself, minus its container. `Title` / `Description` are element types
+ * The detail itself, minus its container — enough context to act, nothing more: the
+ * case line, why + what to do, the money and the deadline, who is on the case, what was
+ * prepared, and the history folded away. `Title` / `Description` are element types
  * because the Sheet presentation must render Radix's own title and description nodes
  * for its ARIA wiring, while the push panel is plain markup with no dialog semantics.
  */
@@ -89,7 +114,9 @@ function TaskDetail({
   busy,
   close,
   onVerb,
+  onOpenFlow,
   onMarkDone,
+  onArchive,
   Title = "h2",
   Description = "p",
 }: TaskDetailProps & {
@@ -101,30 +128,44 @@ function TaskDetail({
   const due = dueCueOf(task, now);
   const closed = TERMINAL.has(task.status);
   const waiting = WAITING.has(task.status);
-  const markDone = canMarkDone(user, task, kase);
+  const actionable = ACTIONABLE.has(task.status);
+  const markable = canMarkDone(user, task, kase);
+  const archivable = canArchive(user, task, kase);
   const paged = PAGED_KINDS.has(task.kind);
   const advocates = advocatesOf(kase, people);
-
-  const [confirmDone, setConfirmDone] = React.useState(false);
+  // On the case but the move is a vakalatnama holder's — the quiet sentence says so.
+  const viewOnly = actionable && verb === "View";
 
   // The one primary action of the view. Waiting and closed tasks of a paged kind still
-  // open their page — that is where the sandbox court/gateway controls and the record
+  // open their flow — that is where the sandbox court/gateway controls and the record
   // live — but as a quiet secondary, not the teal verb.
   let primary: { label: string; run: () => void } | null = null;
   let secondary: { label: string; run: () => void } | null = null;
   if (verb === "Mark done") {
-    primary = { label: "Mark done", run: () => (task.isBlocking ? setConfirmDone(true) : onMarkDone()) };
+    primary = { label: "Mark as done", run: onMarkDone };
   } else if (verb !== "View") {
     primary = { label: verb, run: () => onVerb(verb) };
-  } else if (paged && waiting) {
-    secondary = { label: "Open", run: () => onVerb("View") };
+  } else if (paged && (waiting || viewOnly)) {
+    secondary = { label: "Open", run: onOpenFlow };
   } else if (paged && closed) {
-    secondary = { label: "View record", run: () => onVerb("View") };
+    secondary = { label: "View record", run: onOpenFlow };
   }
+
+  // The one caption under the title: what the row's fifth column would say here.
+  const statusLine =
+    task.status === "archived" || closed
+      ? outcomeOf(task)
+      : waiting || viewOnly
+        ? waitingOnOf(task, kase, people)
+        : secondLineOf(task, user, people);
 
   const history = [...task.history].reverse();
   const preparedBy = task.status === "ready" ? task.prepared : null;
   const draftBy = task.status === "draft" ? task.draft : null;
+  // The instruction often already names the documents; list only what it does not.
+  const extraDocs = (task.documentsNeeded ?? []).filter(
+    (d) => !task.whatToDo.toLowerCase().includes(d.toLowerCase())
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -152,20 +193,133 @@ function TaskDetail({
             ) : (
               " · Not yet numbered"
             )}
+            {" · "}
+            {kase.court}
           </Description>
+          <p className="text-caption text-muted-foreground">
+            {kase.nextHearingAt ? (
+              <>
+                Next hearing <span className="tabular-nums">{dateTime(kase.nextHearingAt)}</span>
+              </>
+            ) : (
+              "No hearing listed"
+            )}
+            {statusLine ? (
+              <>
+                <span aria-hidden> · </span>
+                {statusLine}
+              </>
+            ) : null}
+          </p>
         </div>
-        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption">
-          <span className={cn("tabular-nums", due.overdue ? "font-medium text-destructive-ink" : "text-muted-foreground")}>
-            {due.text}
-          </span>
-          <span className="text-muted-foreground">{statusPhraseOf(task, user, kase, people)}</span>
-          {noteOf(task) ? <span className="text-muted-foreground">{noteOf(task)}</span> : null}
-        </p>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-4 py-6 md:px-6">
-        <Block title="Who can act">
-          <p className="text-body-compact">{permissionLineOf(task, user, kase, people)}</p>
+        {/* The creating event, dated, then the instruction — one block, no repeats. */}
+        <Block title="Why and what to do">
+          <p className="text-body-compact text-muted-foreground">
+            {task.why.event}
+            {/dated|on \d/.test(task.why.event) ? null : <> · {longDate(task.why.at)}</>}
+          </p>
+          <p className="text-body-compact">{task.whatToDo}</p>
+        </Block>
+
+        {task.returned?.defects.length ? (
+          <Block title="Defects from scrutiny">
+            <ol className="flex flex-col gap-2">
+              {task.returned.defects.map((d) => (
+                <li key={d.n} className="flex gap-2 text-body-compact">
+                  <span className="font-medium tabular-nums text-muted-foreground">{d.n}.</span>
+                  <span className={cn(d.fixed && "text-muted-foreground line-through")}>{d.text}</span>
+                </li>
+              ))}
+            </ol>
+          </Block>
+        ) : null}
+
+        <Block title="Details">
+          <DescriptionList>
+            {task.amountPaise !== undefined ? (
+              <Fact label="Amount">
+                <span className="font-medium tabular-nums">{rupees(task.amountPaise)}</span>
+                {task.feeHead ? <span className="text-muted-foreground"> · {task.feeHead}</span> : null}
+              </Fact>
+            ) : null}
+            <Fact label="Due">
+              {due.primary === "No date" ? (
+                <span className="text-muted-foreground">No date set — the court did not fix one</span>
+              ) : (
+                <>
+                  <span className={cn("tabular-nums", due.overdue && "font-medium text-destructive-ink")}>
+                    {due.primary}
+                  </span>
+                  {due.date ? <span className="tabular-nums text-muted-foreground"> · {due.date}</span> : null}
+                  {task.deadlineNote ? (
+                    <span className="block text-caption text-muted-foreground">{task.deadlineNote}</span>
+                  ) : null}
+                  {task.redate ? (
+                    <span className="block text-caption text-muted-foreground">
+                      Moved from {longDate(task.redate.from)} — {task.redate.reason}
+                    </span>
+                  ) : null}
+                  {task.isBlocking && task.hearingAt ? (
+                    <span className="block text-caption text-muted-foreground">
+                      The hearing cannot proceed without this
+                    </span>
+                  ) : null}
+                </>
+              )}
+            </Fact>
+            {task.completion ? (
+              <Fact label={task.completion.how === "manual" ? "Marked done" : "Closed"}>
+                <span className="tabular-nums">{dateTime(task.completion.at)}</span>
+                {task.completion.by ? (
+                  <span className="text-muted-foreground"> · {nameOf(people, task.completion.by)}</span>
+                ) : null}
+                {task.completion.receipt ? (
+                  <span className="block font-mono text-caption tabular-nums text-muted-foreground">
+                    Receipt {task.completion.receipt}
+                  </span>
+                ) : null}
+              </Fact>
+            ) : null}
+          </DescriptionList>
+        </Block>
+
+        {extraDocs.length ? (
+          <Block title="Documents needed">
+            <ul className="flex flex-col gap-1 text-body-compact">
+              {extraDocs.map((d) => (
+                <li key={d} className="flex items-start gap-2">
+                  <FileTextIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                  <span>{d}</span>
+                </li>
+              ))}
+            </ul>
+          </Block>
+        ) : null}
+
+        <Block title="Advocates on this case">
+          <ul className="flex flex-col gap-2">
+            {advocates.map((p, i) => {
+              const signatory = i < kase.signatories.length;
+              return (
+                <li key={p.id} className="flex items-center gap-3 text-body-compact">
+                  <PersonAvatar person={p} you={p.id === user.id} />
+                  <span className="min-w-0 flex-1">
+                    {p.name}
+                    {p.id === user.id ? <span className="text-muted-foreground"> (you)</span> : null}
+                  </span>
+                  <span className="text-caption text-muted-foreground">
+                    {signatory ? "Vakalatnama" : "On the case"}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          {viewOnly ? (
+            <p className="text-body-compact text-muted-foreground">{viewOnlyLineOf(kase, people)}</p>
+          ) : null}
         </Block>
 
         {preparedBy ? (
@@ -206,164 +360,49 @@ function TaskDetail({
           </Block>
         ) : null}
 
-        <Block title="Why">
-          <p className="text-body-compact">
-            {task.why.event}
-            {/dated|on \d/.test(task.why.event) ? null : (
-              <span className="text-muted-foreground"> · {longDate(task.why.at)}</span>
-            )}
-          </p>
-        </Block>
-
-        <Block title="What to do">
-          <p className="text-body-compact">{task.whatToDo}</p>
-        </Block>
-
-        {task.documentsNeeded?.length ? (
-          <Block title="Documents needed">
-            <ul className="flex flex-col gap-1 text-body-compact">
-              {task.documentsNeeded.map((d) => (
-                <li key={d} className="flex items-start gap-2">
-                  <FileTextIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                  <span>{d}</span>
-                </li>
-              ))}
-            </ul>
-          </Block>
-        ) : null}
-
-        {task.returned?.defects.length ? (
-          <Block title="Defects from scrutiny">
-            <ol className="flex flex-col gap-2">
-              {task.returned.defects.map((d) => (
-                <li key={d.n} className="flex gap-2 text-body-compact">
-                  <span className="font-medium tabular-nums text-muted-foreground">{d.n}.</span>
-                  <span className={cn(d.fixed && "text-muted-foreground line-through")}>{d.text}</span>
-                </li>
-              ))}
-            </ol>
-          </Block>
-        ) : null}
-
-        <Block title="Details">
-          <DescriptionList>
-            {task.amountPaise !== undefined ? (
-              <Fact label="Amount">
-                <span className="font-medium tabular-nums">{rupees(task.amountPaise)}</span>
-                {task.feeHead ? <span className="text-muted-foreground"> · {task.feeHead}</span> : null}
-              </Fact>
-            ) : null}
-            <Fact label="Deadline">
-              {task.dueAt ? (
-                <>
-                  <span className="tabular-nums">{longDate(task.dueAt)}</span>
-                  {task.deadlineNote ? (
-                    <span className="block text-caption text-muted-foreground">{task.deadlineNote}</span>
-                  ) : null}
-                  {task.redate ? (
-                    <span className="block text-caption text-muted-foreground">
-                      Moved from {longDate(task.redate.from)} — {task.redate.reason}
-                    </span>
-                  ) : null}
-                </>
-              ) : (
-                <span className="text-muted-foreground">No date set — the court did not fix one</span>
-              )}
-            </Fact>
-            {task.hearingAt ? (
-              <Fact label="Hearing">
-                <span className="tabular-nums">{dateTime(task.hearingAt)}</span>
-                {task.isBlocking ? (
-                  <span className="block text-caption text-muted-foreground">The hearing cannot proceed without this</span>
-                ) : null}
-              </Fact>
-            ) : null}
-            {task.completion ? (
-              <Fact label={task.completion.how === "manual" ? "Marked done" : "Closed"}>
-                <span className="tabular-nums">{dateTime(task.completion.at)}</span>
-                {task.completion.by ? <span className="text-muted-foreground"> · {nameOf(people, task.completion.by)}</span> : null}
-                {task.completion.receipt ? (
-                  <span className="block font-mono text-caption tabular-nums text-muted-foreground">
-                    Receipt {task.completion.receipt}
-                  </span>
-                ) : null}
-              </Fact>
-            ) : null}
-          </DescriptionList>
-        </Block>
-
-        <Block title="Case">
-          <DescriptionList>
-            <Fact label="Parties">{kase.parties}</Fact>
-            <Fact label="Number" mono>
-              {kase.stNumber || "Not yet numbered"}
-              {kase.cnr ? <span className="block text-caption text-muted-foreground">{kase.cnr}</span> : null}
-            </Fact>
-            <Fact label="Court">{kase.court}</Fact>
-            <Fact label="Stage">{kase.stage}</Fact>
-            <Fact label="Next hearing">
-              {kase.nextHearingAt ? (
-                <span className="tabular-nums">{dateTime(kase.nextHearingAt)}</span>
-              ) : (
-                <span className="text-muted-foreground">Not listed</span>
-              )}
-            </Fact>
-          </DescriptionList>
-        </Block>
-
-        <Block title="Advocates on the case">
-          <ul className="flex flex-col gap-2">
-            {advocates.map((p, i) => {
-              const signatory = i < kase.signatories.length;
-              return (
-                <li key={p.id} className="flex items-center gap-3 text-body-compact">
-                  <PersonAvatar person={p} you={p.id === user.id} />
-                  <span className="min-w-0 flex-1">
-                    {p.name}
-                    {p.id === user.id ? <span className="text-muted-foreground"> (you)</span> : null}
-                  </span>
-                  <span className="text-caption text-muted-foreground">
-                    {i === 0 ? "Main advocate · on the vakalatnama" : signatory ? "On the vakalatnama" : "On the case"}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </Block>
-
         {!preparedBy && !draftBy && task.files?.length ? (
           <Block title="Files">
             <FileList files={task.files} />
           </Block>
         ) : null}
 
-        <Block title="History">
-          <Timeline>
-            {history.map((h, i) => (
-              // The primitive's `title` slot is 500; the panel already spends its two
-              // weights on 600 eyebrows and 400 body, so the line is rendered as body.
-              <TimelineItem key={`${h.at}-${i}`} status={i === 0 ? "current" : "past"}>
-                <p className="text-body-compact text-foreground">{h.text}</p>
-                <p className="mt-0.5 flex items-center gap-1.5 text-caption text-muted-foreground">
-                  <span className="tabular-nums">{dateTime(h.at)}</span>
-                  {h.by ? (
-                    <>
-                      <span aria-hidden>·</span>
-                      {(() => {
-                        const p = people.find((x) => x.id === h.by);
-                        return p ? <PersonAvatar person={p} you={p.id === user.id} className="size-5" /> : null;
-                      })()}
-                    </>
-                  ) : null}
-                </p>
-              </TimelineItem>
-            ))}
-          </Timeline>
-        </Block>
+        {/* The audit trail matters when questioned, not on every glance — folded away. */}
+        <Collapsible className="flex flex-col gap-2">
+          <CollapsibleTrigger className="group flex h-10 w-full items-center justify-between gap-2 rounded-lg text-left text-caption font-semibold text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+            <span className="tabular-nums">History · {history.length}</span>
+            <ChevronDownIcon
+              aria-hidden
+              className="size-4 transition-transform group-data-[state=open]:rotate-180"
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <Timeline>
+              {history.map((h, i) => (
+                // The primitive's `title` slot is 500; the panel already spends its two
+                // weights on 600 eyebrows and 400 body, so the line is rendered as body.
+                <TimelineItem key={`${h.at}-${i}`} status={i === 0 ? "current" : "past"}>
+                  <p className="text-body-compact text-foreground">{h.text}</p>
+                  <p className="mt-0.5 flex items-center gap-1.5 text-caption text-muted-foreground">
+                    <span className="tabular-nums">{dateTime(h.at)}</span>
+                    {h.by ? (
+                      <>
+                        <span aria-hidden>·</span>
+                        {(() => {
+                          const p = people.find((x) => x.id === h.by);
+                          return p ? <PersonAvatar person={p} you={p.id === user.id} className="size-5" /> : null;
+                        })()}
+                      </>
+                    ) : null}
+                  </p>
+                </TimelineItem>
+              ))}
+            </Timeline>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
 
       {/* Actions: the ONE teal action of the view is here; the table's row verbs are outline. */}
-      {primary || secondary || (markDone && verb !== "Mark done") ? (
+      {primary || secondary || markable || archivable ? (
         <div className="flex flex-wrap items-center gap-2 border-t border-hairline px-4 py-3 md:px-6">
           {primary ? (
             offline ? (
@@ -386,30 +425,18 @@ function TaskDetail({
               {secondary.label}
             </Button>
           ) : null}
-          {markDone && verb !== "Mark done" ? (
-            <Button
-              variant="ghost"
-              disabled={offline || busy}
-              onClick={() => (task.isBlocking ? setConfirmDone(true) : onMarkDone())}
-            >
-              Mark done
+          {markable && verb !== "Mark done" ? (
+            <Button variant="ghost" disabled={offline || busy} onClick={onMarkDone}>
+              Mark as done
+            </Button>
+          ) : null}
+          {archivable ? (
+            <Button variant="ghost" disabled={offline || busy} onClick={onArchive}>
+              Archive
             </Button>
           ) : null}
         </div>
       ) : null}
-
-      <ConfirmDialog
-        open={confirmDone}
-        onOpenChange={setConfirmDone}
-        title="Mark this done?"
-        description={`This task is for the hearing on ${task.hearingAt ? shortDate(task.hearingAt) : "the next posting"}. Marking it done says it has happened; nothing is sent to the court.`}
-        confirmLabel="Mark done"
-        destructive={false}
-        onConfirm={() => {
-          setConfirmDone(false);
-          onMarkDone();
-        }}
-      />
     </div>
   );
 }

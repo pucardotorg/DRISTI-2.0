@@ -1,14 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { SearchIcon, XIcon } from "lucide-react";
+import { XIcon } from "lucide-react";
 
-import { DUE_LABELS, type DueFilter, type Filters } from "@/lib/tasks/selectors";
+import { CARD_LABELS, DUE_LABELS, type DueFilter, type Filters } from "@/lib/tasks/selectors";
 import type { Person } from "@/lib/tasks/types";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
-import { Kbd } from "@/components/ui/kbd";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -39,9 +36,10 @@ function Filter({ id, label, children }: { id: string; label: string; children: 
 }
 
 /**
- * The labelled filter row: Due · Court · Advocate · search. Nothing is hidden in a
- * sheet; an applied filter is visible in its own control, so there are no echo chips.
- * "Clear filters" appears only when something narrows the view. `/` focuses the search.
+ * The labelled filter row: the pressed card echoed as a removable pill, then Due ·
+ * Court · Advocate. Nothing is hidden in a sheet; an applied filter is visible in its
+ * own control. Search lives in the top bar, over every tab. "Clear filters" appears
+ * only when something narrows the view.
  */
 export function FilterRow({
   filters,
@@ -54,43 +52,32 @@ export function FilterRow({
   filters: Filters;
   courts: string[];
   people: Person[];
-  /** Whether anything (including a pressed card) narrows the view. */
+  /** Whether anything (including a pressed card or the search) narrows the view. */
   narrowed: boolean;
   onChange: (patch: Partial<Filters>) => void;
   onClear: () => void;
 }) {
-  const searchRef = React.useRef<HTMLInputElement>(null);
-  // Local echo of the query so typing is instant; the URL follows after a short pause.
-  const [query, setQuery] = React.useState(filters.query);
-  // When the URL changes underneath (Clear filters, back/forward), follow it.
-  const [seen, setSeen] = React.useState(filters.query);
-  if (seen !== filters.query) {
-    setSeen(filters.query);
-    setQuery(filters.query);
-  }
-  React.useEffect(() => {
-    if (query === filters.query) return;
-    const t = window.setTimeout(() => onChange({ query }), 200);
-    return () => window.clearTimeout(t);
-  }, [query, filters.query, onChange]);
-
-  React.useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target as HTMLElement | null;
-      if (target?.closest("input, textarea, select, [contenteditable=true], [role=dialog]")) return;
-      event.preventDefault();
-      searchRef.current?.focus();
-      searchRef.current?.select();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
-
   const triggerClass = "w-full md:w-auto md:min-w-40";
 
   return (
     <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
+      {filters.kind ? (
+        // The pressed card, echoed where the other narrowing values live — with its
+        // own clear affordance (32px visible, expanded to the 40px touch floor).
+        <span className="inline-flex h-10 items-center gap-1 self-start rounded-full border border-hairline bg-surface-sunken pl-4 pr-1 text-body-compact font-medium md:self-auto">
+          {CARD_LABELS[filters.kind]}
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Clear the ${CARD_LABELS[filters.kind]} filter`}
+            onClick={() => onChange({ kind: null })}
+            className="relative rounded-full after:absolute after:-inset-1"
+          >
+            <XIcon aria-hidden />
+          </Button>
+        </span>
+      ) : null}
+
       <Filter id="filter-due" label="Due">
         <Select value={filters.due} onValueChange={(v) => onChange({ due: v as DueFilter })}>
           <SelectTrigger id="filter-due" className={triggerClass} aria-label="Due">
@@ -136,27 +123,6 @@ export function FilterRow({
             ))}
           </SelectContent>
         </Select>
-      </Filter>
-
-      <Filter id="filter-search" label="Search">
-        <InputGroup className="md:w-72 lg:w-80">
-          <InputGroupAddon>
-            <SearchIcon aria-hidden />
-          </InputGroupAddon>
-          <InputGroupInput
-            ref={searchRef}
-            id="filter-search"
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Find a case or task"
-            autoComplete="off"
-            enterKeyHint="search"
-          />
-          <InputGroupAddon align="inline-end" className={cn(query && "hidden")}>
-            <Kbd aria-hidden>/</Kbd>
-          </InputGroupAddon>
-        </InputGroup>
       </Filter>
 
       {narrowed ? (

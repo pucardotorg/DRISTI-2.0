@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * Sign — the document on the left, the signing well on the right. A signatory e-signs
- * with an Aadhaar OTP (sandbox: any 6 digits) and the task closes by event with the
- * stamp on the preview; if someone else prepared it, their note and upload sit above the
- * button. Anyone else on the case prepares (a note, an optional upload of the draft) and
- * marks it ready.
+ * Sign — the document preview above the signing well, as an act-modal body. A signatory
+ * e-signs with an Aadhaar OTP (sandbox: any 6 digits) and the task closes by event with
+ * the stamp on the preview; if someone else prepared it, their note and upload sit above
+ * the button. Anyone else on the case prepares (a note, an optional upload of the
+ * draft) and marks it ready.
  */
 
 import * as React from "react";
@@ -18,8 +18,6 @@ import { Button } from "@/components/ui/button";
 import { useTaskActions } from "@/components/tasks/use-task-actions";
 import { CourtDocument } from "@/components/tasks/act/court-document";
 import {
-  ActColumns,
-  ActFrame,
   type ActContext,
   closedTitle,
   FileSlot,
@@ -29,7 +27,6 @@ import {
   RailCard,
   RecordCard,
   signatoryLine,
-  useActContext,
 } from "@/components/tasks/act/shared";
 
 /** The signatory's own signing well. */
@@ -82,22 +79,18 @@ function PrepareSign({ ctx }: { ctx: ActContext }) {
   );
 }
 
-export function SignPage() {
-  const ctx = useActContext();
+/** The sign flow inside the act modal: the document to be signed, then the action. */
+export function SignBody({ ctx }: { ctx: ActContext }) {
+  const { task, kase, people, signatory } = ctx;
+  let rail: React.ReactNode;
+  if (TERMINAL.has(task.status)) rail = <RecordCard ctx={ctx} title={closedTitle(task, "Signed")} />;
+  else if (signatory) rail = <SignCard ctx={ctx} />;
+  else rail = <PrepareSign ctx={ctx} />;
   return (
-    <ActFrame
-      ctx={ctx}
-      action="Sign"
-      sandbox="Any 6-digit OTP is accepted and the signature stamp is generated locally. Nothing is sent to a court."
-    >
-      {(c) => {
-        const { task, kase, people, signatory } = c;
-        let rail: React.ReactNode;
-        if (TERMINAL.has(task.status)) rail = <RecordCard ctx={c} title={closedTitle(task, "Signed")} />;
-        else if (signatory) rail = <SignCard ctx={c} />;
-        else rail = <PrepareSign ctx={c} />;
-        return <ActColumns main={<CourtDocument task={task} kase={kase} people={people} />} rail={rail} />;
-      }}
-    </ActFrame>
+    <div className="flex min-w-0 flex-col gap-6">
+      {/* Inside the modal the document is framed, not lifted — no shadow in a shadow. */}
+      <CourtDocument task={task} kase={kase} people={people} className="border-border shadow-none" />
+      {rail}
+    </div>
   );
 }
