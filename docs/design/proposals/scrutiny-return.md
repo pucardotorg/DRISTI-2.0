@@ -1,6 +1,6 @@
 # Scrutiny return — advocate defect resolution
 
-Status: built (feature/scrutiny-back-adv)
+Status: v1 built (feature/scrutiny-back-adv) · **v2.1 approved by the owner, not yet built** (§15)
 Updated: 2026-08-21
 Source: docs/product/product-foundation.md (§3 Kerala operational spine, step 2 — "Scrutiny
 & defect check (Registry; before numbering / cognizance)"), docs/product/domain/practice-notes.md
@@ -9,10 +9,11 @@ role), docs/product/terminology.md, docs/product/open-questions.md
 DS read: `vendor/pucar-design-system/AGENTS.md`, `RESPONSIVE.md`, `ACCESSIBILITY.md`,
 `foundations/laws`, `foundations/colors`, `foundations/elevation`, `foundations/accessibility`,
 glob of `src/components/ui/` (68 components), `src/components/ui/attachment.tsx`,
-`src/components/ui/marker.tsx`
+`src/components/ui/marker.tsx`, `src/components/ui/accordion.tsx`
 Code read: `apps/dristi-app/src/lib/filing/types.ts`, `.../filing/steps.ts`,
 `.../lib/tasks/types.ts`, `.../components/tasks/act/fix-page.tsx`,
-`.../components/filing/{sections-rail,form-field,source-panel}.tsx`
+`.../components/filing/{sections-rail,form-field,source-panel}.tsx`,
+`.../components/filing/upload/slot-row.tsx`, `.../components/scrutiny/defect-frame.tsx`
 
 ---
 
@@ -466,6 +467,7 @@ horizontally (`ACCESSIBILITY.md`, `RESPONSIVE.md` rule 9).
   unresolved defect simply bounce again? D7's value to the advocate depends on the answer.
 
 O5 and O7 were answered by the owner on 2026-08-21 (recorded above); the rest stand open.
+**v2.1 adds O9–O11 — see §15.15.**
 
 ---
 
@@ -507,4 +509,371 @@ Both go to `docs/design/ds-requests.md`. Neither licenses inventing inside Drist
 | 2026-08-21 | **The record is written per act, not per keystroke.** Derivation stays live off the draft; the task is written on blur, on a pause, on an explicit accept/undo, and inside `refile`'s own dispatch on submit. Verified on the render: eight acts, eight history lines. | ui-designer |
 | 2026-08-21 | **`FieldTarget` narrowed to the steps the form can render** (`cheque`, `complainant`, `demand-notice`, `jurisdiction` — the last newly wired). `accused`, `witnesses`, `advocate` and `adr-prayer` need `name=` and `CorrectionInstance` before they can hold a defect; until then a target there rendered no frame and blocked submit forever. `lib/filing/targets.test.ts` enforces it. **Open for the owner:** whether to finish that wiring now or wait for a real officer flag outside the four. | ui-designer |
 | 2026-08-21 | **Deviation retired — pane widths in pixels.** The px pinning stopped the h-scroll but truncated section names and the submit label at 200% text zoom (`ACCESSIBILITY.md` §10). The D11 ladder now folds on *measured* room (viewport ÷ root font size) rather than on a viewport-pixel breakpoint, labels wrap, and both conditions hold together at 1280 × 200%. | ui-designer (a11y) |
-| 2026-08-21 | **Craft — the active defect gets no third cue.** D5 has the queue card expand and the frame take focus. The frame briefly also carried a focus ring, which stacked border + strip + ring; `ui-craft`'s loudness ladder says pick one, so the frame's border says *state*, the queue card's lift says *current*, and the ring belongs to whatever actually has focus. | ui-designer (ui-craft) |
+| 2026-08-21 | **Craft — the active defect gets no third cue.** D5 has the queue card expand and the frame take focus. The frame briefly also carried a focus ring, which stacked border + strip + ring; `ui-craft`'s loudness ladder says pick one, so the frame's border says *state*, the queue card's lift says *current*, and the ring belongs to whatever actually has focus. | ui-designer |
+| 2026-08-21 | **v2.1 approved.** The owner signed off the rendered v2.1 mockup: the centre is the e-filing form verbatim, scrutiny layers on as a 2px accent on the flagged field group plus an inset nested under that one field, locked fields recede on `disabled-fill`, and the queue is a compact Open/Resolved index whose header carries the return deadline and the count. Direction and full spec in §15. | Owner (mockup sign-off) |
+| 2026-08-21 | **Superseded by v2.1 (§15.13): in-field editing, and the always-rendered justification textarea.** The flagged control is now read-only; a defect is answered by accepting scrutiny's correction or by entering your own value inside the inset's third accordion, and the reason is one field inside that accordion. D6 (resolution is derived, never certified), D7's *rule*, D12 and D14 stand unchanged; D2, D4, D5 and D9's rendering are revised where §15 says so. | Owner (presentation feedback), ux-designer |
+
+---
+
+## 15. Redesign direction (v2.1, approved)
+
+Status: **approved.** The owner signed off the rendered v2.1 mockup on 2026-08-21, then gave
+presentation feedback that replaced the interaction inside the flagged field (§15.4). This
+section is now the build spec; where it disagrees with §5's decisions, §15.13 names the
+supersession and §14 logs it.
+
+Read for this pass: the approved v2.1 mockup, `components/scrutiny/defect-frame.tsx`,
+`components/filing/upload/slot-row.tsx` (the thumbnail pattern), `components/filing/{posture,
+form-field,source-panel}.tsx`, `lib/tasks/types.ts` (the `Resolution` union), DS
+`foundations/{laws,colors,elevation}`, `ui/accordion.tsx`, `AGENTS.md`.
+
+**What this is.** v2 was a hierarchy and redundancy correction that still owned the field's
+container — it wrapped the flagged field in a bordered frame with its own header strip. v2.1
+gives that ownership back to the filing. The centre column is the e-filing form **verbatim**,
+and scrutiny is a *layer* over it. That single change is what makes the screen read as "your
+filing, with remarks on it" rather than "a defect tool that happens to contain fields", and it
+is what the owner approved.
+
+### 15.1 What the owner approved (fixed; not reopened)
+
+1. **The centre is the e-filing form, verbatim.** Exact labels, exact rows, exact section
+   cards. Nothing renamed, nothing relaid, no field promoted out of its row.
+2. **Scrutiny is a thin layer:** a **2px accent** on the flagged field group, and an **inset
+   container nested under that one field** — sunken, not edge-to-edge, so it reads as an
+   action *within* the field rather than a banner across the section.
+3. **Locked fields recede** on `disabled-fill`.
+4. **The queue is a compact index**, grouped **Open / Resolved**, with the return-level
+   deadline and progress together in its header: *"Due in 3 days · 3 of 8"*.
+5. **The lock rule is a single quiet caption line** above the form.
+6. **Resolved fields** show a green accent, a **collapsed** inset, and a *"was &lt;old value&gt;"*
+   caption.
+7. **Two open defects in one section: both stay accented.** (Owner ruling — this settles R6,
+   which had left "de-accent all but the active one" as a reversible option. It is closed.)
+
+### 15.2 The interaction inside the inset (owner's presentation feedback, 2026-08-21)
+
+This supersedes v2's model of editing the flagged field directly with an always-visible
+justification textarea beneath it. The new model has one governing rule:
+
+> **The flagged form field is never directly edited.** A defect is answered by *accepting
+> scrutiny's correction* or by *entering your own value* in the inset. Nothing else.
+
+That sanctity is the point: the value the Registry saw stays legible and unaltered on the form
+while the exchange about it happens in the layer beneath it. It also makes the record
+unambiguous — every changed value in a correction round has a named author.
+
+The inset holds three tiers, in this order:
+
+**Tier 1 — primary, always visible: the correction, and two verbs.**
+
+- The officer's correction as **old → new**: the filed value struck
+  (`line-through decoration-muted-foreground tabular-nums`), the new value
+  `font-medium text-foreground tabular-nums`. Two `DescriptionRow`s on the inset's own fill —
+  *not* the inner `bg-card` box v2 put around the suggestion. `foundations/elevation`: "depth is
+  fill, not borders … the box-in-box ban". One box, not two.
+- **Two actions, side by side:** **Accept** (`variant="secondary"`) and **Ignore**
+  (`variant="ghost"`). Both `h-10`. Neither is teal — the one primary teal on the screen is
+  still the submit (D14, unchanged).
+- **The associated document as a small thumbnail**, using the *existing* e-filing upload
+  thumbnail pattern from `filing/upload/slot-row.tsx` — `SlotThumbnail`: a real `<button>`
+  (a PDF with no image preview must still be openable by keyboard and by voice), page-shaped
+  media well at `h-12 w-16` / `sm:h-14 sm:w-20`, `useFilePreview` image or an extension badge
+  fallback, and the `bg-scrim` + `Maximize2Icon` chip revealed on hover **and** on keyboard
+  focus **and** always on coarse pointers (`ACCESSIBILITY.md` §7 — "you can enlarge this"
+  cannot live on hover alone). `aria-label="Preview <file name>"`.
+  Clicking opens the **existing** full view — `filing/source-panel` + `Lightbox` with
+  `regionFromBox()`, so the officer's annotation box is drawn exactly as the OCR highlight is
+  (D8). The inset never renders an annotated page inline.
+  *Reuse, not a new component:* the DS's border exception for thumbnails
+  (`foundations/elevation`) is what lets this one carry an edge inside a sunken well.
+
+**Tier 2 — secondary, a collapsed accordion: "What scrutiny said".**
+
+The officer's text note, the composed voice row (D10) and its transcript, together, behind one
+`AccordionTrigger`. Collapsed by default: when tier 1 already shows old → new, the note is
+commentary, and rendering eight notes at rest is exactly the redundancy v2 set out to remove.
+Progressive disclosure, per the owner.
+
+WCAG 1.2.1 is unaffected — the text note and the audio live in the *same* disclosure, so the
+text alternative is never absent when the audio is present (D10 stands).
+
+**Tier 3 — a second accordion, opened by Ignore: "Your corrected value".**
+
+- Contains **one** control of the same type the flagged field uses (`Input`, `DatePicker`,
+  `NativeSelect` — `filing/form-field` decides), labelled *"Your corrected value"*, prefilled
+  with the value currently in the filing. Prefilling is deliberate: tier 3 is only ever reached
+  by an explicit Ignore, so the advocate has already chosen their own path, and the prefill is
+  what makes *"my value stands"* a stated position rather than a retyping exercise.
+- **This accordion is also the dispute path.** Entering the same value that is already filed is
+  a valid, complete resolution — `Resolution.how = "kept"`, which the contract already carries
+  from the 2026-08-21 fix pass.
+- **One reason field**, per §15.3. Not an essay.
+- Opens programmatically on Ignore (`Accordion type="multiple"`, controlled), and expanding it
+  by hand is also allowed — an advocate who knows their own value need not click Ignore first.
+
+**Ignore is a route, not a resolution.** Clicking Ignore and then entering nothing leaves the
+defect **open**; the submit gate does not move. D6 — resolution is derived from the filing, never
+self-certified — is untouched, and this is the trap most likely to be built wrong, so it is
+stated here rather than left to inference.
+
+### 15.3 Where D7's justification survives — one field, inside tier 3
+
+D7's *rule* survives; its *rendering* does not. There is no justification textarea on the form
+at rest. The reason is one field at the bottom of tier 3, a `Textarea rows={2}` inside a
+`Field`, with exactly one `FieldDescription` line — *"Your reason goes back to the Registry with
+the correction."* Three rules decide whether it is required:
+
+| Situation | Reason | Resolution recorded |
+|---|---|---|
+| Tier 3 reached by **Ignore on an explicit suggestion**, value differs from the suggestion | **Required** — this is D7's original ruling, unchanged | `edited` |
+| **Bare-note defect** (no suggestion), a new value entered | **Optional** — "a bare 'the IFSC is wrong' answered by a corrected IFSC needs no essay" (D7) | `edited` |
+| Entered value **equals the filed value** — "my value stands" — any defect shape | **Required** | `kept` |
+| **Accept** clicked in tier 1 | Not offered — there is nothing to explain | `accepted` |
+
+Gate copy unchanged: `FieldError` reads *"This defect is not resolved until you say why."*
+Label follows what is happening, never the word "dispute" (D7).
+
+Recommendation recorded as such: I kept the requirement narrow deliberately. Requiring a reason
+on every correction would tax the honest path — the advocate who simply mistyped an IFSC — at
+the same rate as the contested one, which is the asymmetry D7 already decided.
+
+### 15.4 The three defect shapes, mapped to the model
+
+The single rule that generates the table: **tier 2 collapses only what tier 1 has made
+redundant.** Where there is no correction to compare against, the note *is* the instruction and
+it is never hidden.
+
+| Shape | Tier 1 (always visible) | Tier 2 | Tier 3 |
+|---|---|---|---|
+| **Field, with a suggestion** | old → new, **Accept** + **Ignore**, thumbnail if evidence exists | collapsed "What scrutiny said" | collapsed; opens on Ignore |
+| **Field, bare note** (no suggestion) | the officer's **note in full** + thumbnail if any. **No Accept, no Ignore** — there is nothing to accept | *absent* (its content was promoted to tier 1); the voice row and transcript ride with the note | **expanded by default** — it is the only action, so it is the primary one |
+| **Document defect** | filed document thumbnail; **Accept / Ignore only if the officer supplied a replacement file**; otherwise the note in full | as per the two rows above | *"Your replacement document"* — the existing `Replace` control from `slot-row.tsx` (`variant="outline"`, `data-defect-focus`), expanded when there is no replacement to accept |
+
+**Document defects, in the same vocabulary.** The sanctity rule extends: the flagged document
+row is display-only, and replacement happens **inside the inset**, not on the row. (This moves
+the `Replace` button that `slot-row.tsx` currently renders on the row itself — a build change,
+logged.) "Ignore" on a document means *the filed scan is legible and it stands*: that is a
+`kept` resolution and it takes a required reason, by the third rule in §15.3. Uploading a
+replacement is `replaced` and needs no reason — the new scan speaks for itself.
+D9's extraction half remains where the 2026-08-21 deviation left it: no re-extraction, and the
+inset says so. **Judgment**, and the reason is consistency — one accept/ignore vocabulary across
+both target kinds is worth more than a document-shaped special case.
+
+### 15.5 The scrutiny layer on the form (deliverable 1)
+
+**Locked fields (the inert baseline).** `disabled` control on `disabled-fill` with
+`border-input`, label `text-body-compact text-muted-foreground`. No frame, no marker. They are
+the quiet canvas the accent reads against — wayfinding is a contrast, so the recession is half
+the design.
+
+**Flagged fields.**
+
+- **The accent:** `border-l-2 border-l-warning-ink` running the height of the field group
+  (label + control), with `pl-3` so the text does not crowd the stroke. 2px, per the approved
+  mockup. `warning-ink` as a *stroke* is not the "ink as a fill" violation — it is exactly how
+  the DS already draws the officer's annotation box (`scrutiny/annotation.tsx`).
+  Resolved flips it to `border-l-success-ink`.
+- **The control is read-only, not disabled.** `readOnly` (or rendered as text where the control
+  type cannot be read-only) with normal `border-input` and its normal fill — never
+  `disabled-fill`, which would make the field under discussion look like the fields that are out
+  of this round. `ACCESSIBILITY.md`: a disabled control is not focusable, and this value must
+  stay reachable by keyboard and by screen reader because it is the subject of the exchange.
+  *Locked = disabled. Flagged = read-only.* Two states, two mechanisms, both honest.
+- **Status is never colour alone** (`foundations/laws`): the inset's first line carries the icon
+  and the word — `TriangleAlertIcon` + "Open" in `text-warning-ink`, or `CircleCheckIcon` + the
+  resolution label in `text-success-ink` — and the queue row repeats both.
+
+**The inset.** `mt-2 rounded-md bg-surface-sunken p-3`, **no border** —
+`foundations/elevation`: "nested wells use `surface-sunken` with no border — the box-in-box
+ban". It sits under the flagged field's row, inside the section card's own `p-6`, which is what
+keeps it off the card edge: **sunken and inset, never edge-to-edge**.
+
+*One layout call worth stating.* In a two-up `FormRow` the field group is half a column, and an
+inset confined to it would hold old → new, two buttons and a thumbnail in ~300px. v1 solved that
+by making the frame `col-span-full`, which relaid the row — forbidden now. So: the **accent**
+stays on the flagged field group only (that is what disambiguates which of the two fields is
+flagged), and the **inset spans the row beneath it**, repeating the field's own name on its
+first line ("IFSC code") so the tie is stated in words as well as in position. The form's rows
+are untouched; the layer lands below them.
+
+### 15.6 The queue as a compact index (deliverable 2)
+
+- **Header, one line, `tabular-nums`:** *"Due in 3 days · 3 of 8"* over the `Progress` bar
+  (`h-1.5`). The deadline and the count now sit **together, here** — which retires v2's header
+  clock and finishes §6's cut properly: the queue is the only place work is counted **and** the
+  only place the clock is shown. The page header keeps the case line and "Returned 12 Aug" only.
+  The relative phrasing carries an absolute `<time dateTime>` so the underlying date is
+  inspectable (see R11 — the 5-day window is still an assumption, O7).
+  The clock is `text-warning-ink` + `ClockIcon`, and it is the **one** amber in the chrome —
+  the §138 clock is the only genuinely urgent thing on this screen (`product-foundation.md` §3).
+- **Grouped Open / Resolved**, each under a plain `text-caption text-muted-foreground` group
+  label. The labels carry **no counts** — the header owns the one counter.
+- **One row = one button**, `w-full min-h-10 rounded-lg px-3 py-2 text-left`: a `StateMark` icon
+  + the location (`"Cheque 1 › IFSC code"`, `text-body-compact font-medium`, **wraps, never
+  truncates** — problem 2, and Malayalam/Gujarati run longer), and beneath it the status word in
+  `text-caption`, coloured by state. No officer prose anywhere in the queue (decision A, kept
+  from v2). No `Accordion`, no per-card "Go to the field" button — the row is the affordance.
+- **The jump moves focus to the inset's primary action** — Accept where one exists, otherwise
+  the tier-3 value control or the Replace button (`data-defect-focus`) — and scrolls the field
+  and its inset into view together. It no longer focuses the flagged control, because that
+  control is read-only now. D5's *rule* (move focus, do not merely scroll — a scroll-only jump
+  is a mouse-only affordance) is unchanged; only its target moves.
+- **Active row:** `bg-accent-strong` (the DS's named selected fill, `AGENTS.md` rule 10) +
+  `aria-current`. Not a ring, not a border, not a brand fill.
+- **Footer, unchanged:** the one primary teal *"Submit corrections to scrutiny"*, with its gate
+  stated in words below it.
+
+### 15.7 The lock rule, once (deliverable 3)
+
+One quiet caption line above the form: `text-caption text-muted-foreground`, a `size-4
+LockIcon`, one sentence — *"Only the fields scrutiny flagged can be changed here."* No fill, no
+border, no `Alert`. The full-width correction-round banner v1 shipped is deleted.
+Placement is the argument: the confusion a lock creates happens next to a dead control, so the
+explanation belongs in the centre column, not in the rail and not in a page-top banner. It
+wraps to two lines rather than truncating in a long language.
+
+### 15.8 The correction-registered moment (deliverable 4)
+
+Three things fire together on resolve; all of it derives live off the draft, and only the
+*history write* is debounced (correct, and invisible):
+
+1. **The field's accent flips** amber → green, and its icon and word change to the resolution
+   label — *"Suggestion accepted" / "Edited" / "Kept, with a reason" / "Document replaced"*.
+2. **The inset collapses** to a single row: the check icon, the resolution label, and a
+   `text-caption text-muted-foreground` caption *"was KLGB0040231"*. The word "was" does the
+   work — no strike-through on top of it. The collapsed row is a `Collapsible` trigger:
+   expanding it returns the officer's material, what was sent back, and a ghost **Undo**.
+   As the advocate works down a return the centre column visibly *clears*, which is the whole
+   answer to "did that register?" — and it costs no new component.
+3. **The queue row moves** from the Open group to the Resolved group and the counter ticks.
+
+A brief transient `bg-success-muted` wash on the inset, fading over ~1s, marks "just changed" —
+the one loudness-ladder slot nothing else uses. **Cut, still:** a per-defect toast. Eight
+`Sonner` toasts across a return is the alarm fatigue the ration rule warns about. The submit
+`AlertDialog` + single return toast (D12) are unchanged.
+
+### 15.9 The v2.1 loudness ladder
+
+One job, one cue. The single most important constraint for keeping the build from re-stacking:
+
+| Job | The one cue | Not |
+|---|---|---|
+| **State** (open / needs-reason / resolved) | the field's 2px **accent** colour + the inset's icon-and-word first line; the queue row's `StateMark` + word | never a filled strip, never a tinted field, never a frame around the row |
+| **In play vs done** | the inset **open vs collapsed** | not elevation — v2's `shadow-raised` lift is dropped; the filing's own section cards own the elevation now |
+| **Current** (the defect the queue is on) | queue row `bg-accent-strong` + the **focus ring** on whatever holds focus | not a brand fill (brand = now/live), not a second ring on the field |
+| **Just changed** | the transient `bg-success-muted` fade | not a toast, not a persistent tint |
+| **Deadline** | the queue header **clock** in `text-warning-ink` — the one amber in the chrome | not repeated per section, not in the page header |
+
+Squint test (`ui-craft` pre-flight): the centre column should read as an ordinary e-filing
+section — its own labels, its own rows — with one or two **amber hairlines down the left of a
+field** and a quiet sunken block under each. If anything reads as a *defect card*, the layer has
+grown back into a frame.
+
+### 15.10 Components and spacing delta
+
+Additions and changes to §8 and §9; everything not listed is unchanged.
+
+| Region | DS / existing composition |
+|---|---|
+| Flagged field accent | none — `border-l-2` utility on the existing `filing/form-field` group |
+| Inset | plain `div` on `bg-surface-sunken`, `rounded-md`, no border |
+| Tier 1 old → new | `DescriptionList` / `DescriptionRow` with `border-hairline`, on the inset fill (no inner card) |
+| Tier 1 thumbnail | the existing `SlotThumbnail` composition from `filing/upload/slot-row.tsx`, lifted to a shared module so it has one implementation |
+| Tier 1 actions | `Button variant="secondary"` (Accept) + `variant="ghost"` (Ignore) |
+| Tiers 2 and 3 | DS `Accordion` (`type="multiple"`, controlled), `AccordionItem` divider overridden to `border-hairline` |
+| Tier 3 control | `filing/form-field` — same control type as the flagged field |
+| Reason | `Textarea rows={2}` in a `Field` with one `FieldDescription` |
+| Resolved (collapsed) inset | `Collapsible` — trigger row is icon + label + "was …" caption |
+| Queue | flat `Button` rows in two labelled groups; `Progress`; `ScrollArea`. **No `Accordion`.** |
+
+Spacing: inset `p-3` with `gap-2` between its rows, `mt-2` under the field row; accordion
+triggers `min-h-10`; thumbnail `h-12 w-16` / `sm:h-14 sm:w-20`; buttons `h-10`; accent gutter
+`pl-3`. Ladder only.
+
+### 15.11 States specific to v2.1
+
+- **Ignore, then collapse tier 3 with nothing entered** → the defect is **open**; the accent
+  stays amber, the queue row stays in Open, the gate does not move (§15.2).
+- **Accept, then Undo** → back to open; the inset re-expands to tier 1 and the queue row returns
+  to the Open group.
+- **Needs a reason** is visually an *open* defect (amber accent) whose word reads "Needs a
+  reason", with tier 3 expanded and its reason field `required` and `aria-invalid`. No third
+  colour — warning already means "your attention is required here".
+- **Two open defects in one section:** both accented, both insets open (owner ruling, §15.1.7).
+  Legible because the locked majority recedes on `disabled-fill`.
+- **Thumbnail preview cannot render** → the extension badge fallback already in `SlotThumbnail`;
+  the button still opens the full view.
+- **No evidence and no suggestion** → tier 1 is the note alone; no empty thumbnail well.
+- **Long labels / Malayalam / Gujarati:** old → new rows stack vertically at narrow widths;
+  accordion trigger labels wrap; the queue location wraps to two lines; the "was …" caption
+  truncates with a `title` only when the value itself is a long free-text field, never when it
+  is an identifier.
+- Loading, error, offline, empty and partial are unchanged from §10.
+
+### 15.12 What v2.1 supersedes
+
+| Superseded | By | Where |
+|---|---|---|
+| **In-field editing** of the flagged control (D2/D4's "field enabled and focusable"; v2 §15.3's "the control unchanged") | read-only control; correction happens in the inset only | §15.2, §15.5 |
+| **The always-rendered justification** `Textarea` + `FieldDescription` on every field defect (D7's v1 rendering; v2's per-frame collapsed disclosure) | one reason field inside tier 3, which exists only after Ignore or on a bare-note defect. D7's *rule* survives intact | §15.3 |
+| The defect **frame** with its `bg-warning-muted` header strip (D4), and v2's 4px rail + `shadow-raised` lift | a 2px field accent, no lift; the filing's own section cards own the elevation | §15.5, §15.9 |
+| The officer's note **always visible** in the feedback well | tier 2 accordion — except on a bare-note defect, where the note is tier 1 | §15.2, §15.4 |
+| The inline `AnnotationView` inside the well | a small thumbnail on the e-filing upload pattern; the annotated page opens in the existing full view | §15.2 |
+| The suggestion's inner `bg-card` box inside the sunken well | rows directly on the inset fill (box-in-box ban) | §15.2 |
+| v2's page-header deadline clock, and the queue's ungrouped flat list | deadline + count together in the queue header; rows grouped Open / Resolved | §15.6 |
+| **R6** left "de-accent all but the active defect" open as a reversible option | closed by owner ruling: both stay accented | §15.1.7 |
+| `slot-row.tsx` rendering `Replace` **on the flagged row** | Replace moves inside the inset (tier 3) | §15.4 |
+
+Unchanged and not reopened: D1, D3, D6, D8, D10, D11, D12, D13, D14, and every §14 deviation
+except the two named above.
+
+### 15.13 Risks accepted (v2.1)
+
+- **R9 — Accept is now the most prominent thing in the inset**, which sharpens R1: the officer's
+  value reaches a legal filing on one click, with the reasoning one collapse away. Accepted.
+  Mitigated by showing old → new literally *above* the button, keeping Accept at `secondary`
+  (never teal), and per-defect Undo until submission. Not mitigated further, for R1's reason.
+- **R10 — Collapsing the note means an advocate can accept without reading why.** Accepted:
+  where there is a suggestion, old → new *is* the reasoning in its most compressed form; where
+  there is none, the note is never collapsed (§15.4). Watch on the render whether the trigger
+  label reads as skippable.
+- **R11 — "Due in 3 days" phrases an unconfirmed window as fact.** The 5-day assumption is O7's,
+  not the statute's. Accepted for the demo; the absolute date rides in the `<time>` element so
+  the assumption is inspectable, and the wording changes the day product confirms the rule.
+- **R12 — A read-only flagged control may read as broken** to someone who tries to type in it.
+  Mitigated by the inset sitting immediately beneath with the actions in it, and by the lock
+  caption line. This is the one thing to test first on the render; if it fails, the fix is copy
+  on the field ("answer this below"), not re-opening the control.
+- **R13 — Three tiers is three clicks deep for a defect whose answer is "type the right value".**
+  Accepted for the constrained case (§4): the depth exists to protect the filed value, and the
+  common case — Accept — is still one click at the top. Revisit if O3 says bulk filers exist.
+
+### 15.14 Open questions raised by v2.1
+
+- **O9** — Can the officer attach a **suggested replacement document** on a document defect, or
+  only a note? Decides whether tier 1's Accept / Ignore ever appears for document targets
+  (§15.4). Needed before build; the fixture currently assumes note-only.
+- **O10** — Does a "kept" answer — Ignore, my value stands, with a reason — reach a human at the
+  Registry, or does it simply bounce as unresolved? This is O8 restated with teeth: v2.1 makes
+  the dispute path *structural*, so the answer now changes what the screen promises.
+- **O11** — Is "Ignore" the right word on the button? It is the owner's own term for the
+  mechanism and it is honest and short, so it ships as-is. If copy review objects, the fallback
+  is *"Use a different value"* on the same control — noted so nobody re-designs the interaction
+  to solve a label.
+
+### 15.15 v2 / v2.1 decision log
+
+| Date | Change | Who |
+|---|---|---|
+| 2026-08-21 | **v2 direction opened** against the owner's measured diagnosis (five problems) and fixed decisions A–D. Interaction model of D1–D14 confirmed sound; v2 corrected hierarchy, redundancy and feedback only. | ux-designer |
+| 2026-08-21 | v2: superseded D4's filled `bg-warning-muted` header strip with a rail + lift + inline marker; superseded D5's accordion queue card with flat compact rows; relocated the lock rule to one caption line; de-repeated the justification instruction; defined the correction-registered moment. | ux-designer |
+| 2026-08-21 | **v2.1 approved on the rendered mockup.** Centre = the e-filing form **verbatim**; scrutiny layers on as a 2px accent on the flagged field group + a sunken inset nested under that field; locked fields recede on `disabled-fill`; queue is a compact Open/Resolved index with *"Due in 3 days · N of 8"* in its header; lock rule is one quiet caption line; resolved = green accent + collapsed inset + *"was &lt;old value&gt;"*. | Owner (mockup sign-off) |
+| 2026-08-21 | **Owner ruling — two open defects in one section both stay accented.** Closes R6, which had left the alternative open. | Owner |
+| 2026-08-21 | **New interaction model inside the inset (presentation feedback).** Tier 1 always visible: old → new with **Accept** / **Ignore**, plus the document as a **small thumbnail on the e-filing upload pattern** (`slot-row.tsx` `SlotThumbnail`), not an inline annotated preview — click opens the existing full view. Tier 2 collapsed accordion: the officer's note, voice note and transcript. Tier 3 accordion, opened by Ignore: *"Your corrected value"*. **The flagged field is never directly edited.** | Owner (presentation feedback) |
+| 2026-08-21 | **Supersedes: in-field editing, and the always-rendered justification textarea.** Both were v1/v2 renderings; the flagged control is now read-only and the reason is one field inside tier 3. D7's *rule*, D6's derived resolution, and D14's single teal action all stand. Full list in §15.12. | Owner (presentation feedback), ux-designer |
+| 2026-08-21 | **Bare-note defects mapped:** no Accept and no Ignore (nothing to accept); the note is promoted to tier 1 and never collapsed; tier 3 is expanded by default as the only action. Rule behind it: *tier 2 collapses only what tier 1 has made redundant.* | ux-designer (judgment) |
+| 2026-08-21 | **D7 survives as a reason field inside tier 3**, required when the entered value contradicts an explicit suggestion, and required whenever the entered value equals the filed value (`kept`); optional on a bare-note correction. One `Textarea rows={2}`, one description line, no essay. | ux-designer (judgment, per D7) |
+| 2026-08-21 | **Document defects take the same accept/ignore vocabulary.** Accept / Ignore appear only when the officer supplied a replacement file (O9); otherwise the note is tier 1 and tier 3 holds the `Replace` control, expanded. The `Replace` button moves off the flagged row into the inset, extending the sanctity rule to documents. "Ignore" on a document = `kept` and takes a required reason. | ux-designer (judgment) |
+| 2026-08-21 | **Ignore is a route, not a resolution** — Ignore with nothing entered leaves the defect open and the submit gate closed. Stated explicitly because it is the likeliest thing to build wrong, and because D6 forbids any self-certified resolution. | ux-designer (per D6) |
+| 2026-08-21 | **Deadline moves into the queue header** beside the count (*"Due in 3 days · 3 of 8"*), retiring v2's page-header clock. One place for the clock, one place for the counter. | Owner (mockup), ux-designer |
+| 2026-08-21 | **Elevation drops out of the state ladder.** v2 used `shadow-raised` for "in play"; v2.1 has no lift, because the filing's own section cards own the elevation and the form must render verbatim. "In play vs done" is now carried by the inset being open vs collapsed. | ux-designer (`foundations/elevation`) |
