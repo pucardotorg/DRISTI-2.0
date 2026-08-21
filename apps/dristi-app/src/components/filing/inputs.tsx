@@ -26,7 +26,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useLockedDisabled } from "@/components/filing/posture";
+import { useFieldReadOnly, useLockedDisabled } from "@/components/filing/posture";
+
+/**
+ * A flagged field's value, shown but not editable — for the controls that have no
+ * read-only state of their own (a Select, a date picker, a segmented answer). The DS
+ * `Input` does have one, so this is the primitive in its read-only mode rather than a
+ * box built to look like it, and it stays focusable, selectable and announced.
+ */
+export function ReadOnlyValue({
+  value,
+  id,
+  ariaLabel,
+  className,
+}: {
+  value: string;
+  id?: string;
+  ariaLabel?: string;
+  className?: string;
+}) {
+  return (
+    <Input
+      id={id}
+      readOnly
+      value={value}
+      aria-label={ariaLabel}
+      className={cn("w-full", className)}
+    />
+  );
+}
 
 /**
  * Text input that may carry a machine-read value. When `prefilled`, the DS amber fill
@@ -46,14 +74,18 @@ export function TextField({
   onViewSource?: () => void;
 }) {
   const disabled = useLockedDisabled(props.disabled);
+  /* Flagged by scrutiny: the value stays legible and focusable, and is corrected in the
+     inset beneath the field rather than typed over here (brief §15.2). */
+  const readOnly = useFieldReadOnly();
   return (
     <Input
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      prefilled={prefilled}
-      onClick={prefilled && onViewSource ? onViewSource : undefined}
-      className={cn(prefilled && onViewSource && "cursor-pointer", className)}
+      prefilled={prefilled && !readOnly}
+      onClick={prefilled && onViewSource && !readOnly ? onViewSource : undefined}
+      className={cn(prefilled && onViewSource && !readOnly && "cursor-pointer", className)}
       {...props}
+      readOnly={readOnly || props.readOnly}
       disabled={disabled}
     />
   );
@@ -76,12 +108,15 @@ export function PrefixInput({
   onViewSource?: () => void;
 }) {
   const disabled = useLockedDisabled(props.disabled);
+  const readOnly = useFieldReadOnly();
+  const amber = prefilled && !readOnly;
   return (
     <InputGroup
       data-disabled={disabled || undefined}
       className={cn(
-        prefilled && "border-dashed border-warning-ink bg-prefilled",
+        amber && "border-dashed border-warning-ink bg-prefilled",
         disabled && "bg-disabled-fill",
+        readOnly && "bg-muted",
         className
       )}
     >
@@ -91,10 +126,11 @@ export function PrefixInput({
       <InputGroupInput
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onClick={prefilled && onViewSource ? onViewSource : undefined}
-        aria-description={prefilled ? "Machine filled, not yet verified" : undefined}
-        className={cn(prefilled && onViewSource && "cursor-pointer")}
+        onClick={amber && onViewSource ? onViewSource : undefined}
+        aria-description={amber ? "Machine filled, not yet verified" : undefined}
+        className={cn(amber && onViewSource && "cursor-pointer")}
         {...props}
+        readOnly={readOnly || props.readOnly}
         disabled={disabled}
       />
     </InputGroup>
@@ -132,6 +168,21 @@ export function OptionSelect({
     typeof o === "string" ? { value: o, label: o } : o
   );
   const isDisabled = useLockedDisabled(disabled);
+  const readOnly = useFieldReadOnly();
+  /* A Select has no read-only state — a flagged one therefore shows its chosen option as
+     a read-only value (brief §15.5, "rendered as text where the control type cannot be
+     read-only"). Focusable and announced; simply not re-openable. */
+  if (readOnly) {
+    const chosen = opts.find((o) => o.value === value);
+    return (
+      <ReadOnlyValue
+        id={id}
+        value={chosen?.label ?? value}
+        ariaLabel={ariaLabel}
+        className={className}
+      />
+    );
+  }
   return (
     <Select value={value || undefined} onValueChange={onValueChange} disabled={isDisabled}>
       <SelectTrigger
@@ -209,6 +260,10 @@ export function ComboField({
   id?: string;
 }) {
   const locked = useLockedDisabled(disabled);
+  const readOnly = useFieldReadOnly();
+  if (readOnly) {
+    return <ReadOnlyValue id={id} value={value} ariaLabel={ariaLabel} />;
+  }
   return (
     <Combobox
       items={items as unknown[]}

@@ -9,7 +9,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { FormField } from "@/components/filing/form-field";
 import { TextField } from "@/components/filing/inputs";
 import { LookupStatus } from "@/components/filing/lookup-status";
-import { useFieldLock } from "@/components/filing/posture";
+import { useFieldLock, useFieldReadOnly } from "@/components/filing/posture";
 
 /**
  * Its own component so it can read the correction lock, which `FormField` provides
@@ -25,7 +25,11 @@ function FetchDetailsButton({
   canFetch: boolean;
   busy: boolean;
 }) {
-  const locked = useFieldLock();
+  /* A flagged IFSC is answered in its inset, and the fetch it would otherwise run writes
+     the bank name and branch — fields this round did not flag (brief D3, §15.2). */
+  const inCorrectionLock = useFieldLock();
+  const flagged = useFieldReadOnly();
+  const locked = inCorrectionLock || flagged;
   return (
     /* Stays focusable while it works — disabling mid-click would drop a keyboard user's
        place. The guard in the handler stops a second run. */

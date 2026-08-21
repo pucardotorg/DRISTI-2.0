@@ -39,10 +39,23 @@ export type CorrectionValue = {
   setActiveDefect: (n: number | null) => void;
   /** The queue asking a repeating section to switch to another instance. */
   instanceRequest: { step: StepId; instance: number; nonce: number } | null;
-  /** Supplied by the correction screen: the warning / resolved frame around a field. */
+  /**
+   * Supplied by the correction screen: the accented field group, and the inset that
+   * carries everything scrutiny said about it. Returns two siblings — the group in the
+   * field's own cell, the inset spanning the row beneath it — so the form's rows are
+   * never relaid (brief §15.5).
+   */
   renderFieldDefect: (defect: Defect, control: React.ReactNode) => React.ReactNode;
-  /** Supplied by the correction screen: the frame and replace control for a document. */
-  renderDocDefect: (defect: Defect, row: React.ReactNode) => React.ReactNode;
+  /**
+   * The same, for a whole document. `replace` is the row's own file picker, lifted into
+   * the inset: in a correction round the flagged row is display-only and replacement
+   * happens inside the layer beneath it (brief §15.4).
+   */
+  renderDocDefect: (
+    defect: Defect,
+    row: React.ReactNode,
+    actions: { replace: () => void }
+  ) => React.ReactNode;
 };
 
 const CorrectionContext = React.createContext<CorrectionValue | null>(null);
@@ -136,4 +149,31 @@ export function useFieldLock(): boolean {
 /** `disabled` for a control: whatever the section asked for, or the correction lock. */
 export function useLockedDisabled(disabled?: boolean): boolean {
   return useFieldLock() || !!disabled;
+}
+
+/* ───────────────────────────── The flagged field ───────────────────────────── */
+
+const ReadOnlyContext = React.createContext(false);
+
+/**
+ * The flagged field is **read-only, not disabled** (brief §15.5).
+ *
+ * *Locked = disabled. Flagged = read-only.* Two states, two mechanisms, both honest. A
+ * disabled control is not focusable (`ACCESSIBILITY.md` §4/§5) and this value is the
+ * subject of the exchange, so it has to stay reachable by keyboard and readable by a
+ * screen reader — it simply cannot be typed over. The correction is made in the inset
+ * beneath it, so every changed value in a correction round has a named author.
+ */
+export function FieldReadOnly({
+  readOnly,
+  children,
+}: {
+  readOnly: boolean;
+  children: React.ReactNode;
+}) {
+  return <ReadOnlyContext.Provider value={readOnly}>{children}</ReadOnlyContext.Provider>;
+}
+
+export function useFieldReadOnly(): boolean {
+  return React.useContext(ReadOnlyContext);
 }

@@ -19,9 +19,12 @@ import {
 } from "@/components/ui/tooltip";
 import {
   FieldLock,
+  FieldReadOnly,
   useCorrection,
   useCorrectionInstance,
 } from "@/components/filing/posture";
+import { defectState } from "@/lib/tasks/defects";
+import { CircleCheckIcon } from "lucide-react";
 
 /** The `*` / "optional" marker after a label. */
 export function RequiredMark({ optional }: { optional?: boolean }) {
@@ -111,20 +114,39 @@ export function FormField({
 
   const marker =
     required || optional ? <RequiredMark optional={optional} /> : null;
+  /*
+   * One quiet tag on the label row of a flagged field (brief §15.1.2). Not a chip and
+   * not a strip: the label already names the field, so this says only what state it is
+   * in — which is also what keeps the accent stroke from being colour alone
+   * (`foundations/laws`).
+   */
+  const tag = defect ? (
+    defectState(defect, correction?.valueOf(defect)) === "resolved" ? (
+      <span className="ml-auto flex shrink-0 items-center gap-1 self-center text-caption font-medium text-success-ink">
+        <CircleCheckIcon className="size-3.5" aria-hidden />
+        Corrected
+      </span>
+    ) : (
+      <span className="ml-auto shrink-0 self-center text-caption font-medium text-warning-ink">
+        Scrutiny flagged
+      </span>
+    )
+  ) : null;
   const labelBody = (
     <>
       <span>{label}</span>
       {marker}
       {tip ? <LabelTip>{tip}</LabelTip> : null}
+      {tag}
     </>
   );
 
   const field = (
     <Field className={cn("gap-2", className)} data-invalid={error ? true : undefined}>
       {asGroup ? (
-        <FieldTitle className="text-body-compact">{labelBody}</FieldTitle>
+        <FieldTitle className={cn("text-body-compact", tag && "w-full")}>{labelBody}</FieldTitle>
       ) : (
-        <FieldLabel className="text-body-compact">{labelBody}</FieldLabel>
+        <FieldLabel className={cn("text-body-compact", tag && "w-full")}>{labelBody}</FieldLabel>
       )}
       {help && helpPlacement === "above" ? <FieldDescription>{help}</FieldDescription> : null}
       {children}
@@ -134,6 +156,12 @@ export function FormField({
   );
 
   if (!correction) return field;
-  if (defect) return <>{correction.renderFieldDefect(defect, field)}</>;
+  if (defect) {
+    /* Flagged: the control is read-only, and the correction is made in the inset the
+       screen renders beneath it (brief §15.2). */
+    return (
+      <>{correction.renderFieldDefect(defect, <FieldReadOnly readOnly>{field}</FieldReadOnly>)}</>
+    );
+  }
   return <FieldLock locked={locked}>{field}</FieldLock>;
 }

@@ -5,7 +5,8 @@ import * as React from "react";
 import type { YesNo } from "@/lib/filing/types";
 import { cn } from "@/lib/utils";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { useLockedDisabled } from "@/components/filing/posture";
+import { useFieldReadOnly, useLockedDisabled } from "@/components/filing/posture";
+import { ReadOnlyValue } from "@/components/filing/inputs";
 
 export type SegmentedOption<T extends string> = { value: T; label: string };
 
@@ -30,6 +31,15 @@ export function Segmented<T extends string>({
   className?: string;
 }) {
   const isDisabled = useLockedDisabled(disabled);
+  const readOnly = useFieldReadOnly();
+  /* Flagged by scrutiny: the chosen answer reads as a value — a toggle group cannot be
+     read-only without going inert, and inert is not focusable (brief §15.5). */
+  if (readOnly) {
+    const chosen = options.find((o) => o.value === value);
+    return (
+      <ReadOnlyValue value={chosen?.label ?? value} ariaLabel={ariaLabel} className="w-fit min-w-32" />
+    );
+  }
   return (
     <div className="flex">
       <ToggleGroup

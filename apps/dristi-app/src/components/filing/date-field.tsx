@@ -8,7 +8,8 @@ import type { ISODate } from "@/lib/filing/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
-import { useLockedDisabled } from "@/components/filing/posture";
+import { useFieldReadOnly, useLockedDisabled } from "@/components/filing/posture";
+import { ReadOnlyValue } from "@/components/filing/inputs";
 
 /**
  * Date control bound to an ISO string. Uses the DS DatePicker to pick; when the value was
@@ -35,6 +36,19 @@ export function DateField({
   id?: string;
 }) {
   const disabled = useLockedDisabled();
+  const readOnly = useFieldReadOnly();
+  /* Flagged by scrutiny: a date picker has no read-only state, so the date reads as a
+     value and the correction is made in the inset beneath it (brief §15.5). */
+  if (readOnly) {
+    return (
+      <ReadOnlyValue
+        id={id}
+        value={toDisplayDate(value) || ""}
+        ariaLabel={ariaLabel}
+        className={className}
+      />
+    );
+  }
   if (prefilled && onViewSource) {
     return (
       <Button
