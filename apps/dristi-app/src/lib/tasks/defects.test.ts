@@ -16,6 +16,7 @@ import {
   resolutionSatisfies,
   sameResolution,
   targetKey,
+  formOrder,
 } from "./defects";
 import { at, makeDefect, makeDocDefect } from "./fixtures";
 import type { Defect } from "./types";
@@ -316,6 +317,36 @@ describe("saying where a defect is", () => {
     }).target;
     assert.notEqual(targetKey(one), targetKey(two));
     assert.equal(targetKey(one), "field:cheque:0:ifsc");
+  });
+});
+
+describe("the queue's order — the form's, not the memo's", () => {
+  const field = (n: number, step: string, instance: number): Defect =>
+    makeDefect({
+      n,
+      target: { ...makeDefect().target, step, instance } as Defect["target"],
+    });
+
+  it("sorts by the form's walking order, then instance, then the officer's number", () => {
+    // The officer numbered the cheque defects first, but the form reads Documents,
+    // then Complainant, then Cheque — and cheque 1 before cheque 2.
+    const memo = [
+      field(1, "cheque", 1),
+      field(2, "cheque", 0),
+      makeDocDefect({ n: 3 }),
+      field(4, "complainant", 0),
+    ];
+    const sorted = [...memo].sort(formOrder);
+    assert.deepEqual(
+      sorted.map((d) => d.n),
+      [3, 4, 2, 1]
+    );
+  });
+
+  it("inside one instance the officer's numbering is the tiebreak", () => {
+    const a = field(5, "cheque", 0);
+    const b = field(2, "cheque", 0);
+    assert.deepEqual([a, b].sort(formOrder).map((d) => d.n), [2, 5]);
   });
 });
 

@@ -25,6 +25,7 @@
  * They agree because the screen writes and clears `resolution` as the value moves.
  */
 
+import { WALK_ORDER } from "@/lib/filing/steps";
 import type { Defect, DefectTarget, Resolution } from "./types";
 
 export type DefectState =
@@ -115,6 +116,21 @@ export function allResolved(
   valueOf: (defect: Defect) => string | undefined
 ): boolean {
   return defects.length > 0 && defects.every((d) => isResolved(d, valueOf(d)));
+}
+
+/**
+ * The order the filing itself reads in: the form's own walking order, then the instance
+ * (cheque 1 before cheque 2), then the officer's numbering as the tiebreak inside one
+ * instance. The queue is an index of the form, so it sorts the way the form turns its
+ * pages — the officer's numbering records who wrote what, not where the work is.
+ */
+export function formOrder(a: Defect, b: Defect): number {
+  const step = WALK_ORDER.indexOf(a.target.step) - WALK_ORDER.indexOf(b.target.step);
+  if (step !== 0) return step;
+  const ia = a.target.kind === "field" ? (a.target.instance ?? 0) : 0;
+  const ib = b.target.kind === "field" ? (b.target.instance ?? 0) : 0;
+  if (ia !== ib) return ia - ib;
+  return a.n - b.n;
 }
 
 /** The defect the screen should land on when it opens (or re-opens). */
