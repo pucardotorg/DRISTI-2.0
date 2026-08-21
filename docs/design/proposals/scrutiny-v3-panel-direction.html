@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Scrutiny return v3 — the panel is the workbench</title>
+<title>Scrutiny return v3.1 — the panel is the workbench</title>
 <style>
   /* ── Pucar DS tokens, light (copied from apps/dristi-app/src/app/globals.css) ── */
   :root {
@@ -11,7 +11,7 @@
     --neutral-6:#d9d9e0; --neutral-8:#b9bbc6; --neutral-11:#60646c; --neutral-12:#1c2024;
     --brand-3:#e0f8f3; --brand-9:#12a594; --brand-solid:#007e7e; --brand-tint-fg:#0a6969;
     --success-3:#e9f6e9; --success-ink:#2a7e3b;
-    --warning-3:#fff7c2; --warning-ink:#9d5c00;
+    --warning-2:#fefbe9; --warning-3:#fff7c2; --warning-ink:#9d5c00;
 
     --background:var(--neutral-1); --card:var(--neutral-1); --sidebar:var(--neutral-2);
     --foreground:var(--neutral-12); --muted-foreground:var(--neutral-11);
@@ -33,10 +33,10 @@
     font-family:var(--font-sans); background:var(--neutral-3); color:var(--foreground);
     -webkit-font-smoothing:antialiased; padding:40px 24px 80px;
   }
-  .wrap { max-width:1560px; margin:0 auto; display:flex; flex-direction:column; gap:48px; }
+  .wrap { max-width:1440px; margin:0 auto; display:flex; flex-direction:column; gap:48px; }
 
-  /* ── Document chrome (the annotation layer, not the product) ── */
-  .doc-head { max-width:760px; display:flex; flex-direction:column; gap:12px; }
+  /* ── Document chrome (annotation layer, not the product) ── */
+  .doc-head { max-width:780px; display:flex; flex-direction:column; gap:12px; }
   .doc-eyebrow { font-size:var(--t-caption); font-weight:600; letter-spacing:.06em;
     text-transform:uppercase; color:var(--brand-tint-fg); }
   .doc-title { font-size:2rem; line-height:2.5rem; font-weight:600; letter-spacing:-.02em; }
@@ -66,13 +66,13 @@
   .pagehead p { font-size:var(--t-caption); color:var(--muted-foreground); margin-top:2px; }
   .tnum { font-variant-numeric:tabular-nums; }
 
-  .body { display:grid; grid-template-columns:212px 1fr 400px; min-height:620px; }
+  /* v3.1 — the record gives width back to the workbench */
+  .body { display:grid; grid-template-columns:200px minmax(380px,1fr) 560px; min-height:700px; }
 
   /* ── Left rail ── */
   .rail { background:var(--sidebar); border-right:1px solid var(--hairline); padding:16px 8px; }
   .rail h3 { font-size:var(--t-caption); font-weight:500; color:var(--muted-foreground);
     padding:0 8px; margin-bottom:4px; }
-  .rail + .rail { margin-top:16px; }
   .rail-group { margin-bottom:16px; }
   .rail-item { display:flex; align-items:center; gap:8px; min-height:36px; padding:6px 8px;
     border-radius:var(--r-lg); font-size:var(--t-compact); color:var(--foreground); }
@@ -83,23 +83,21 @@
   .rail-item.is-active .dot { background:var(--brand-9); }
 
   /* ── Centre: the record ── */
-  .main { padding:24px; overflow:hidden; background:var(--background); }
+  .main { padding:24px 20px; background:var(--background); min-width:0; }
   .lockline { display:flex; align-items:center; gap:8px; font-size:var(--t-caption);
     color:var(--muted-foreground); margin-bottom:16px; }
   .card { background:var(--card); border:1px solid var(--hairline); border-radius:var(--r-xl);
-    box-shadow:var(--shadow-raised); padding:24px; }
+    box-shadow:var(--shadow-raised); padding:20px; }
   .card > h2 { font-size:var(--t-body); font-weight:600; }
   .card > .sub { font-size:var(--t-compact); color:var(--muted-foreground); margin-top:2px; }
-  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:24px; }
-  .span2 { grid-column:1 / -1; }
+  .stack { display:flex; flex-direction:column; gap:16px; margin-top:20px; }
 
   .field label { display:block; font-size:var(--t-compact); font-weight:500; margin-bottom:6px; }
-  .value { height:40px; display:flex; align-items:center; padding:0 12px;
+  .value { min-height:40px; display:flex; align-items:center; padding:0 12px;
     border:1px solid var(--input); border-radius:var(--r-lg); font-size:var(--t-compact);
     background:var(--surface-sunken); color:var(--muted-foreground);
     font-variant-numeric:tabular-nums; }
 
-  /* A flagged field: a quiet rule, not a fill. The active one takes the brand rule. */
   .field.flagged { border-left:2px solid var(--neutral-6); padding-left:12px; margin-left:-14px; }
   .field.flagged.is-active { border-left-color:var(--brand-9); }
   .field.flagged.is-active .value { background:var(--card); color:var(--foreground); font-weight:500; }
@@ -108,11 +106,11 @@
   .field .flag { font-size:var(--t-caption); color:var(--muted-foreground); font-weight:400; }
   .field.done .flag { color:var(--success-ink); }
 
-  /* ── Right: the panel (the workbench) ── */
+  /* ── Right: the workbench ── */
   .panel { background:var(--sidebar); border-left:1px solid var(--hairline);
-    display:flex; flex-direction:column; }
+    display:flex; flex-direction:column; min-width:0; }
   .panel-head { padding:20px 20px 16px; display:flex; flex-direction:column; gap:10px; }
-  .panel-head .row { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+  .panel-head .hrow { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
   .panel-head h2 { font-size:var(--t-body); font-weight:600; }
   .clock { display:inline-flex; align-items:center; gap:5px; font-size:var(--t-caption);
     font-weight:500; color:var(--warning-ink); font-variant-numeric:tabular-nums; }
@@ -121,38 +119,41 @@
   .panel-head .count { font-size:var(--t-caption); color:var(--muted-foreground);
     font-variant-numeric:tabular-nums; }
 
-  .queue { flex:1; padding:0 12px 12px; display:flex; flex-direction:column; gap:16px; overflow:auto; }
+  .queue { flex:1; padding:0 12px 12px; display:flex; flex-direction:column; gap:14px; overflow:auto; }
   .queue h3 { font-size:var(--t-caption); font-weight:500; color:var(--muted-foreground);
     padding:0 8px; margin-bottom:6px; }
   .rows { display:flex; flex-direction:column; gap:2px; }
 
-  .row { display:flex; align-items:center; gap:10px; min-height:40px; padding:8px 8px;
+  .row { display:flex; align-items:center; gap:10px; min-height:40px; padding:8px;
     border-radius:var(--r-lg); font-size:var(--t-compact); }
   .row .mark { width:16px; height:16px; flex:none; display:grid; place-items:center; }
   .row .where { flex:1; min-width:0; }
   .row .chev { color:var(--neutral-8); flex:none; }
   .row.resolved .where { color:var(--muted-foreground); }
-
-  .mark .ring { width:13px; height:13px; border-radius:999px; border:1.5px solid var(--neutral-8);
-    display:block; }
+  .row .how { font-size:var(--t-caption); color:var(--success-ink); flex:none; }
+  .mark .ring { width:13px; height:13px; border-radius:999px; border:1.5px solid var(--neutral-8); display:block; }
   .mark .tick { color:var(--success-ink); }
 
-  /* The one open card — where all the work happens */
+  /* The open card */
   .open-card { background:var(--card); border:1px solid var(--hairline); border-radius:var(--r-lg);
     box-shadow:var(--shadow-raised); overflow:hidden; }
-  .open-card .oc-head { display:flex; align-items:flex-start; gap:10px; padding:12px 12px 0; }
-  .open-card .oc-head .mark { margin-top:1px; }
-  .open-card .oc-title { font-size:var(--t-compact); font-weight:600; }
-  .open-card .oc-where { font-size:var(--t-caption); color:var(--muted-foreground); margin-top:1px; }
-  .oc-body { padding:12px; display:flex; flex-direction:column; gap:12px; }
+  .oc-head { display:flex; align-items:flex-start; gap:10px; padding:14px 16px 0; }
+  .oc-head .mark { margin-top:2px; }
+  .oc-title { font-size:var(--t-body); font-weight:600; }
+  .oc-where { font-size:var(--t-caption); color:var(--muted-foreground); margin-top:1px; }
+  .oc-step { margin-left:auto; font-size:var(--t-caption); color:var(--muted-foreground);
+    font-variant-numeric:tabular-nums; flex:none; }
+  .oc-body { padding:14px 16px 16px; display:flex; flex-direction:column; gap:14px; }
 
-  /* The correction, compressed: old → new, nothing else */
-  .diff { background:var(--surface-sunken); border-radius:var(--r-md); padding:10px 12px;
-    display:flex; flex-direction:column; gap:4px; }
-  .diff .was { font-size:var(--t-caption); color:var(--muted-foreground);
-    text-decoration:line-through; font-variant-numeric:tabular-nums; }
-  .diff .now { font-size:var(--t-body); font-weight:600; font-variant-numeric:tabular-nums; }
+  /* The correction — horizontal now that there is room */
+  .diff { background:var(--surface-sunken); border-radius:var(--r-md); padding:12px 14px;
+    display:flex; flex-direction:column; gap:6px; }
   .diff .lbl { font-size:var(--t-caption); color:var(--muted-foreground); }
+  .diff .pair { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .diff .was { font-size:var(--t-compact); color:var(--muted-foreground);
+    text-decoration:line-through; font-variant-numeric:tabular-nums; }
+  .diff .arrow { color:var(--neutral-8); flex:none; }
+  .diff .now { font-size:1.0625rem; font-weight:600; font-variant-numeric:tabular-nums; }
 
   .actions { display:flex; align-items:center; gap:8px; }
   .btn { height:40px; padding:0 14px; border-radius:var(--r-lg); font-size:var(--t-compact);
@@ -163,66 +164,97 @@
   .btn-ghost { background:transparent; color:var(--muted-foreground); padding:0 10px; }
   .btn-block { width:100%; }
   .btn[disabled] { opacity:.5; }
+  .kbd { font-size:11px; font-family:var(--font-sans); border:1px solid var(--hairline);
+    border-radius:4px; padding:1px 5px; color:var(--muted-foreground); background:var(--card); }
 
-  /* The evidence — one collapsed line, opened only when you doubt it */
+  /* Evidence — now with room to be evidence */
   .disclose { border-top:1px solid var(--hairline); }
-  .disclose > .dt { display:flex; align-items:center; gap:8px; width:100%; min-height:40px;
-    padding:0 12px; font-size:var(--t-compact); color:var(--muted-foreground);
-    background:transparent; border:0; font-family:inherit; cursor:pointer; }
+  .disclose > .dt { display:flex; align-items:center; gap:8px; width:100%; min-height:44px;
+    padding:0 16px; font-size:var(--t-compact); color:var(--muted-foreground);
+    background:transparent; border:0; font-family:inherit; cursor:pointer; text-align:left; }
   .disclose .dt .chev { margin-left:auto; }
-  .disclose .dc { padding:0 12px 12px; display:flex; flex-direction:column; gap:10px; }
-  .note { font-size:var(--t-compact); line-height:1.45; }
-  .audio { display:flex; align-items:center; gap:10px; background:var(--surface-sunken);
-    border-radius:var(--r-md); padding:8px 10px; }
-  .audio .play { width:28px; height:28px; border-radius:999px; background:var(--brand-solid);
-    color:#fff; display:grid; place-items:center; flex:none; }
-  .audio .bar { flex:1; height:3px; border-radius:999px; background:var(--neutral-6); position:relative; }
-  .audio .bar i { position:absolute; inset:0 55% 0 0; background:var(--brand-solid); border-radius:999px; }
-  .audio .time { font-size:var(--t-caption); color:var(--muted-foreground);
-    font-variant-numeric:tabular-nums; }
-  .scan { display:flex; align-items:center; gap:10px; }
-  .scan .thumb { width:44px; height:56px; border-radius:var(--r-sm); background:var(--surface-sunken);
-    border:1px solid var(--hairline); flex:none; position:relative; overflow:hidden; }
-  .scan .thumb::after { content:""; position:absolute; left:8px; right:8px; top:22px; height:9px;
-    border:1.5px solid var(--warning-ink); border-radius:2px; }
-  .scan .meta { min-width:0; }
-  .scan .nm { font-size:var(--t-caption); font-weight:500; }
-  .scan .sb { font-size:var(--t-caption); color:var(--muted-foreground); }
+  .disclose .dc { padding:2px 16px 16px; display:flex; flex-direction:column; gap:14px; }
 
-  /* The disagreement view — replaces the accept view, never stacks under it */
-  .field-sm label { display:block; font-size:var(--t-caption); font-weight:500; margin-bottom:5px; }
+  .officer { display:flex; align-items:center; gap:10px; }
+  .officer .who { width:28px; height:28px; border-radius:999px; background:var(--neutral-4);
+    color:var(--muted-foreground); display:grid; place-items:center; font-size:11px;
+    font-weight:600; flex:none; }
+  .officer .nm { font-size:var(--t-caption); font-weight:500; }
+  .officer .rl { font-size:var(--t-caption); color:var(--muted-foreground); }
+  .note { font-size:var(--t-compact); line-height:1.5; }
+
+  /* Voice note with a real waveform */
+  .audio { display:flex; align-items:center; gap:12px; background:var(--surface-sunken);
+    border-radius:var(--r-md); padding:10px 12px; }
+  .audio .play { width:32px; height:32px; border-radius:999px; background:var(--brand-solid);
+    color:#fff; display:grid; place-items:center; flex:none; }
+  .wave { flex:1; display:flex; align-items:center; gap:2px; height:26px; }
+  .wave i { flex:1; border-radius:1px; background:var(--neutral-6); }
+  .wave i.on { background:var(--brand-solid); }
+  .audio .time { font-size:var(--t-caption); color:var(--muted-foreground);
+    font-variant-numeric:tabular-nums; flex:none; }
+  .transcript { font-size:var(--t-caption); color:var(--muted-foreground); line-height:1.5;
+    padding-left:44px; }
+
+  /* The marked region, cropped and legible */
+  .scan { display:flex; flex-direction:column; gap:8px; }
+  .scan .frame { border:1px solid var(--hairline); border-radius:var(--r-md);
+    overflow:hidden; background:var(--card); }
+  .scan .frame svg { width:100%; height:auto; display:block; }
+  .scan .cap { display:flex; align-items:center; gap:8px; font-size:var(--t-caption);
+    color:var(--muted-foreground); }
+  .scan .cap .nm { font-weight:500; color:var(--foreground); }
+  .scan .cap .link { margin-left:auto; color:var(--brand-tint-fg); font-weight:500; flex:none; }
+
+  /* Disagreement view */
+  .field-sm label { display:block; font-size:var(--t-compact); font-weight:500; margin-bottom:6px; }
   .input { height:40px; border:1px solid var(--input); border-radius:var(--r-lg);
     padding:0 12px; font-size:var(--t-compact); display:flex; align-items:center;
     background:var(--card); font-variant-numeric:tabular-nums; }
-  .textarea { min-height:68px; border:1px solid var(--input); border-radius:var(--r-lg);
-    padding:9px 12px; font-size:var(--t-compact); color:var(--muted-foreground);
-    background:var(--card); line-height:1.4; }
+  .textarea { min-height:76px; border:1px solid var(--input); border-radius:var(--r-lg);
+    padding:10px 12px; font-size:var(--t-compact); color:var(--muted-foreground);
+    background:var(--card); line-height:1.5; }
   .hint { font-size:var(--t-caption); color:var(--muted-foreground); }
-  .superseded { opacity:.55; }
+  .superseded { opacity:.5; }
 
   .panel-foot { padding:16px; border-top:1px solid var(--hairline); background:var(--sidebar);
     display:flex; flex-direction:column; gap:8px; }
   .panel-foot .why { font-size:var(--t-caption); color:var(--muted-foreground); }
 
-  /* ── Annotations ── */
+  /* Review-before-submit */
+  .tally { background:var(--card); border:1px solid var(--hairline); border-radius:var(--r-lg);
+    box-shadow:var(--shadow-raised); overflow:hidden; }
+  .tally-row { display:flex; align-items:center; gap:12px; padding:12px 16px;
+    border-bottom:1px solid var(--hairline); font-size:var(--t-compact); }
+  .tally-row:last-child { border-bottom:0; }
+  .tally-row .n { font-size:1.0625rem; font-weight:600; font-variant-numeric:tabular-nums;
+    min-width:20px; }
+  .tally-row .lb { flex:1; }
+  .tally-row .sb { font-size:var(--t-caption); color:var(--muted-foreground); }
+  .tally-row.flag { background:var(--warning-2); }
+  .tally-row.flag .n, .tally-row.flag .lb { color:var(--warning-ink); }
+  .caution { display:flex; gap:8px; font-size:var(--t-caption); line-height:1.5;
+    color:var(--muted-foreground); }
+
+  /* Annotations */
   .note-strip { display:flex; flex-wrap:wrap; gap:12px; }
   .anno { flex:1 1 240px; background:var(--card); border:1px solid var(--hairline);
     border-left:2px solid var(--brand-9); border-radius:var(--r-lg); padding:12px 14px;
     box-shadow:var(--shadow-raised); }
+  .anno.new { border-left-color:var(--warning-ink); }
   .anno b { display:block; font-size:var(--t-compact); font-weight:600; margin-bottom:3px; }
-  .anno span { font-size:var(--t-caption); line-height:1.5; color:var(--muted-foreground); }
-
-  .pair { display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:start; }
-  @media (max-width:1100px) { .pair { grid-template-columns:1fr; } }
+  .anno span { font-size:var(--t-caption); line-height:1.5; color:var(--muted-foreground);
+    display:block; }
+  .anno span.kbd { display:inline-block; }
+  .pair-cols { display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:start; }
+  @media (max-width:1200px) { .pair-cols { grid-template-columns:1fr; } }
   .closeup { border-radius:var(--r-xl); overflow:hidden; border:1px solid var(--hairline);
-    box-shadow:var(--shadow-overlay); background:var(--sidebar); max-width:400px; }
+    box-shadow:var(--shadow-overlay); background:var(--sidebar); max-width:560px; }
   .closeup .panel { border-left:0; }
-
   .cut { display:flex; align-items:center; gap:10px; }
   .cut::after { content:""; flex:1; height:1px; background:var(--neutral-6); }
   .cut span { font-size:var(--t-caption); font-weight:600; letter-spacing:.06em;
     text-transform:uppercase; color:var(--muted-foreground); }
-
   svg { display:block; }
 </style>
 </head>
@@ -230,21 +262,22 @@
 <div class="wrap">
 
   <header class="doc-head">
-    <div class="doc-eyebrow">Scrutiny return · design iteration v3</div>
+    <div class="doc-eyebrow">Scrutiny return · design iteration v3.1</div>
     <h1 class="doc-title">The panel is the workbench</h1>
     <p class="doc-lede">
-      v2.1 says every defect twice — once as a layer under the field, once as a row in the queue —
-      and opens all of the officer's evidence before you have decided you need any of it. v3 gives
-      each side one job: the form is the <em>record</em>, the panel is where the <em>work</em>
-      happens. Evidence collapses to one line. Disagreement gets a real route, folded behind a
-      secondary action instead of sitting on screen for all eight defects.
+      v3 gave each side one job — the form is the <em>record</em>, the panel is where the
+      <em>work</em> happens. v3.1 pays for that: the record gives 240px back to the workbench,
+      and the evidence spends it. The marked region of the scan is now cropped and readable
+      rather than a thumbnail, the voice note has a waveform and its transcript, and the officer
+      has a name. Three additions beyond width — traversal, section grouping, and a
+      review before you file — are marked in amber below.
     </p>
   </header>
 
   <section style="display:flex;flex-direction:column;gap:16px">
     <div class="section-label">
-      <h2>A · At rest</h2>
-      <p>One defect open, everything else one line high. Three things in the card: what it is, the correction, what to do.</p>
+      <h2>A · At rest, evidence open</h2>
+      <p>200 · 632 · 560. The record still reads at a single column; the panel can finally show proof.</p>
     </div>
 
     <div class="artboard">
@@ -267,7 +300,6 @@
       </div>
 
       <div class="body">
-        <!-- Left rail -->
         <aside class="rail">
           <div class="rail-group">
             <h3>Documents</h3>
@@ -293,18 +325,17 @@
           </div>
         </aside>
 
-        <!-- Centre: the record. No fills, no insets, no tags. -->
         <main class="main">
           <p class="lockline">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            The filing as it was received. Corrections are made in the panel.
+            The filing as it was received.
           </p>
 
           <div class="card">
             <h2>Cheque 1 details</h2>
             <p class="sub">As written on the cheque leaf.</p>
 
-            <div class="grid2">
+            <div class="stack">
               <div class="field flagged is-active">
                 <label>Date on cheque <span class="flag">· scrutiny flagged</span></label>
                 <div class="value">14 May 2026</div>
@@ -313,7 +344,7 @@
                 <label>Amount</label>
                 <div class="value">₹ 2,40,000</div>
               </div>
-              <div class="field flagged span2">
+              <div class="field flagged">
                 <label>Cheque number <span class="flag">· scrutiny flagged</span></label>
                 <div class="value">4471</div>
               </div>
@@ -321,11 +352,7 @@
                 <label>Bank name</label>
                 <div class="value">Kerala Gramin Bank</div>
               </div>
-              <div class="field">
-                <label>Bank branch</label>
-                <div class="value">Chalakudy</div>
-              </div>
-              <div class="field flagged done span2">
+              <div class="field flagged done">
                 <label>Drawer bank IFSC <span class="flag">· corrected</span></label>
                 <div class="value">KLGB0040213</div>
               </div>
@@ -333,10 +360,9 @@
           </div>
         </main>
 
-        <!-- Right: the workbench -->
         <aside class="panel">
           <div class="panel-head">
-            <div class="row">
+            <div class="hrow">
               <h2>Resolution queue</h2>
               <span class="clock">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
@@ -348,11 +374,10 @@
           </div>
 
           <div class="queue">
+            <!-- Grouped by section, in the form's own order -->
             <div>
-              <h3>Open</h3>
+              <h3>Case details · Cheque 1</h3>
               <div class="rows">
-
-                <!-- THE open card -->
                 <div class="open-card">
                   <div class="oc-head">
                     <span class="mark"><span class="ring"></span></span>
@@ -360,47 +385,108 @@
                       <div class="oc-title">Date on cheque</div>
                       <div class="oc-where">Cheque 1 · Case details</div>
                     </div>
+                    <span class="oc-step">2 of 8</span>
                   </div>
 
                   <div class="oc-body">
                     <div class="diff">
                       <span class="lbl">Scrutiny's correction</span>
-                      <span class="was">14 May 2026</span>
-                      <span class="now">15 May 2026</span>
+                      <span class="pair">
+                        <span class="was">14 May 2026</span>
+                        <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                        <span class="now">15 May 2026</span>
+                      </span>
                     </div>
                     <div class="actions">
-                      <button class="btn btn-primary" style="flex:1">Accept correction</button>
+                      <button class="btn btn-primary" style="flex:1">
+                        Accept correction <span class="kbd" style="color:#fff;border-color:#ffffff55;background:transparent">⌘↵</span>
+                      </button>
                       <button class="btn btn-ghost">Ignore</button>
                     </div>
                   </div>
 
                   <div class="disclose">
-                    <button class="dt">
+                    <button class="dt" style="color:var(--foreground)">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
                       Why scrutiny flagged this
-                      <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                      <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transform:rotate(180deg)"><path d="m6 9 6 6 6-6"/></svg>
                     </button>
+                    <div class="dc">
+                      <div class="officer">
+                        <span class="who">KM</span>
+                        <span>
+                          <span class="nm">K. Menon</span>
+                          <span class="rl"> · Scrutiny officer · <span class="tnum">19 Aug, 11:04</span></span>
+                        </span>
+                      </div>
+
+                      <p class="note">The date you entered does not match the date written on the
+                        cheque leaf. The leaf reads 15/05/2026.</p>
+
+                      <div>
+                        <div class="audio">
+                          <span class="play"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
+                          <span class="wave">
+                            <i class="on" style="height:30%"></i><i class="on" style="height:55%"></i><i class="on" style="height:80%"></i><i class="on" style="height:45%"></i><i class="on" style="height:95%"></i><i class="on" style="height:60%"></i><i class="on" style="height:35%"></i><i class="on" style="height:70%"></i><i class="on" style="height:88%"></i><i class="on" style="height:50%"></i><i class="on" style="height:25%"></i><i class="on" style="height:65%"></i>
+                            <i style="height:78%"></i><i style="height:40%"></i><i style="height:92%"></i><i style="height:55%"></i><i style="height:30%"></i><i style="height:68%"></i><i style="height:85%"></i><i style="height:45%"></i><i style="height:60%"></i><i style="height:35%"></i><i style="height:75%"></i><i style="height:50%"></i><i style="height:28%"></i><i style="height:62%"></i>
+                          </span>
+                          <span class="time">0:04 / 0:18</span>
+                        </div>
+                        <p class="transcript" style="margin-top:8px">
+                          “Please check the date once — on the scan it clearly reads the fifteenth,
+                          not the fourteenth.”
+                        </p>
+                      </div>
+
+                      <div class="scan">
+                        <div class="frame">
+                          <!-- The region the officer marked, cropped — not the whole page -->
+                          <svg viewBox="0 0 500 150" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="500" height="150" fill="#fffefb"/>
+                            <text x="20" y="30" font-family="Helvetica Neue, Arial" font-size="11" fill="#8b8d98" letter-spacing="1.2">KERALA GRAMIN BANK — CHALAKUDY</text>
+                            <line x1="20" y1="42" x2="300" y2="42" stroke="#e8e8ec" stroke-width="1"/>
+                            <text x="300" y="72" font-family="Helvetica Neue, Arial" font-size="10" fill="#8b8d98" letter-spacing="1">DATE</text>
+                            <g font-family="Helvetica Neue, Arial" font-size="16" fill="#1c2024" letter-spacing="2">
+                              <text x="345" y="75">1 5 0 5 2 0 2 6</text>
+                            </g>
+                            <rect x="337" y="57" width="150" height="28" rx="3" fill="none" stroke="#9d5c00" stroke-width="2"/>
+                            <line x1="20" y1="105" x2="470" y2="105" stroke="#e8e8ec" stroke-width="1"/>
+                            <text x="20" y="125" font-family="Helvetica Neue, Arial" font-size="11" fill="#b9bbc6">PAY</text>
+                            <line x1="55" y1="128" x2="470" y2="128" stroke="#e8e8ec" stroke-width="1"/>
+                          </svg>
+                        </div>
+                        <p class="cap">
+                          <span class="nm">cheque-1-front.svg</span>
+                          <span>· the region scrutiny marked</span>
+                          <span class="link">See full page</span>
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div class="row"><span class="mark"><span class="ring"></span></span><span class="where">Cheque 1 › Cheque number</span><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>
-                <div class="row"><span class="mark"><span class="ring"></span></span><span class="where">Cheque 2 › Bank branch</span><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>
-                <div class="row"><span class="mark"><span class="ring"></span></span><span class="where">Cheque 2 › Amount</span><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>
-                <div class="row"><span class="mark"><span class="ring"></span></span><span class="where">Complainant 1 › Age</span><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>
-                <div class="row"><span class="mark"><span class="ring"></span></span><span class="where">Complainant 1 › Email address</span><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>
-                <div class="row"><span class="mark"><span class="ring"></span></span><span class="where">Demand notice 1 › Tracking number</span><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>
-                <div class="row"><span class="mark"><span class="ring"></span></span><span class="where">Proof of delivery (AD card)</span><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>
+                <div class="row"><span class="mark"><span class="ring"></span></span><span class="where">Cheque number</span><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>
+                <div class="row resolved">
+                  <span class="mark"><svg class="tick" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></span>
+                  <span class="where">IFSC code</span><span class="how">Accepted</span>
+                  <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                </div>
               </div>
             </div>
 
             <div>
-              <h3>Resolved</h3>
+              <h3>Case details · Cheque 2</h3>
               <div class="rows">
-                <div class="row resolved">
-                  <span class="mark"><svg class="tick" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></span>
-                  <span class="where">Cheque 1 › IFSC code</span>
-                  <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
-                </div>
+                <div class="row"><span class="mark"><span class="ring"></span></span><span class="where">Bank branch</span><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>
+                <div class="row"><span class="mark"><span class="ring"></span></span><span class="where">Amount</span><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>
+              </div>
+            </div>
+
+            <div>
+              <h3>Parties · Complainant 1</h3>
+              <div class="rows">
+                <div class="row"><span class="mark"><span class="ring"></span></span><span class="where">Age</span><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>
+                <div class="row"><span class="mark"><span class="ring"></span></span><span class="where">Email address</span><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>
               </div>
             </div>
           </div>
@@ -414,26 +500,26 @@
     </div>
 
     <div class="note-strip">
-      <div class="anno"><b>The form stopped shouting</b><span>No amber fills, no “Scrutiny flagged” tags, no inset under the field. A flagged field carries a hairline rule; the one the panel is on takes the brand rule and full-contrast value. The record stays readable as a record.</span></div>
-      <div class="anno"><b>Evidence is one line</b><span>The note, the voice remark and the annotated scan collapse into “Why scrutiny flagged this”. Most defects are accepted without opening it — it is justification for a decision you would make anyway.</span></div>
-      <div class="anno"><b>One card, three things</b><span>What it is · the correction as old → new · one primary action. Everything the v2 card carried at rest is now either a line, a disclosure, or gone.</span></div>
-      <div class="anno"><b>One amber on the screen</b><span>The deadline. Rail counts are plain numerals, rows carry a neutral ring or a green tick, and the officer's prose loses its yellow block.</span></div>
+      <div class="anno"><b>The scan is cropped to the mark</b><span>A whole cheque at thumbnail size proves nothing. The officer drew a box — show <em>that</em>, at a size where the digits are readable, with “See full page” for the rest. Evidence that can be read is the point of evidence.</span></div>
+      <div class="anno"><b>The voice note is a voice note</b><span>Waveform, real transport, and the transcript underneath it — so the text alternative is present whenever the audio is, and you can read it faster than you can listen to it.</span></div>
+      <div class="anno new"><b>New · The officer has a name</b><span>“K. Menon · Scrutiny officer · 19 Aug, 11:04”. This is a legal exchange between two professionals; an anonymous correction is harder to trust and harder to answer.</span></div>
+      <div class="anno new"><b>New · Grouped by section, in form order</b><span>Headings mirror the rail, so the queue reads as a route through the filing rather than a flat list of eight unrelated problems.</span></div>
     </div>
   </section>
 
-  <div class="cut"><span>The two states the wireframe never had</span></div>
+  <div class="cut"><span>Ignore, and the moment before you file</span></div>
 
-  <section class="pair">
+  <section class="pair-cols">
     <div style="display:flex;flex-direction:column;gap:16px">
       <div class="section-label">
         <h2>B · Ignore</h2>
-        <p>The disagreement route. It <em>replaces</em> the accept view rather than stacking beneath it.</p>
+        <p>Replaces the accept view — and opens the evidence, because that is when you want it.</p>
       </div>
 
       <div class="closeup">
         <aside class="panel">
           <div class="panel-head">
-            <div class="row">
+            <div class="hrow">
               <h2>Resolution queue</h2>
               <span class="clock">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
@@ -446,7 +532,7 @@
 
           <div class="queue">
             <div>
-              <h3>Open</h3>
+              <h3>Case details · Cheque 1</h3>
               <div class="rows">
                 <div class="open-card">
                   <div class="oc-head">
@@ -455,12 +541,13 @@
                       <div class="oc-title">Date on cheque</div>
                       <div class="oc-where">Cheque 1 · Case details</div>
                     </div>
+                    <span class="oc-step">2 of 8</span>
                   </div>
 
                   <div class="oc-body">
                     <div class="diff superseded">
                       <span class="lbl">Scrutiny suggested</span>
-                      <span class="now" style="font-size:var(--t-compact);font-weight:500">15 May 2026</span>
+                      <span class="pair"><span class="was">15 May 2026</span></span>
                     </div>
 
                     <div class="field-sm">
@@ -470,81 +557,15 @@
 
                     <div class="field-sm">
                       <label>Why this stands</label>
-                      <div class="textarea">The date is written as 14/05/2026 on the cheque leaf itself; the return memo at page 7 records the same date.</div>
-                      <p class="hint" style="margin-top:6px">Goes back to the Registry with the correction.</p>
+                      <div class="textarea">The cheque leaf reads 14/05/2026; the bank's return memo
+                        at page 7 records the same date of presentation.</div>
+                      <p class="hint" style="margin-top:6px">
+                        Goes back to the Registry as your remark on this defect.</p>
                     </div>
 
                     <div class="actions">
                       <button class="btn btn-primary" style="flex:1">Send back with this reason</button>
                       <button class="btn btn-ghost">Cancel</button>
-                    </div>
-                  </div>
-
-                  <div class="disclose">
-                    <button class="dt">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
-                      Why scrutiny flagged this
-                      <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
-                    </button>
-                  </div>
-                </div>
-
-                <div class="row"><span class="mark"><span class="ring"></span></span><span class="where">Cheque 1 › Cheque number</span><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>
-                <div class="row"><span class="mark"><span class="ring"></span></span><span class="where">Cheque 2 › Bank branch</span><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>
-              </div>
-            </div>
-          </div>
-        </aside>
-      </div>
-
-      <div class="anno" style="max-width:400px">
-        <b>Ignore is a route, not a resolution</b>
-        <span>Clicking Ignore swaps the body: the suggestion recedes to a single struck line, your own value and the reason take the space. Until a reason is written the defect stays open and the submit gate stays shut.</span>
-      </div>
-    </div>
-
-    <div style="display:flex;flex-direction:column;gap:16px">
-      <div class="section-label">
-        <h2>C · Evidence, and after</h2>
-        <p>The disclosure opened — and what a resolved defect leaves behind.</p>
-      </div>
-
-      <div class="closeup">
-        <aside class="panel">
-          <div class="panel-head">
-            <div class="row">
-              <h2>Resolution queue</h2>
-              <span class="clock">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-                Due in 3 days
-              </span>
-            </div>
-            <div class="track"><i style="width:25%"></i></div>
-            <p class="count">2 of 8 resolved</p>
-          </div>
-
-          <div class="queue">
-            <div>
-              <h3>Open</h3>
-              <div class="rows">
-                <div class="open-card">
-                  <div class="oc-head">
-                    <span class="mark"><span class="ring"></span></span>
-                    <div style="min-width:0">
-                      <div class="oc-title">Cheque number</div>
-                      <div class="oc-where">Cheque 1 · Case details</div>
-                    </div>
-                  </div>
-
-                  <div class="oc-body">
-                    <div class="diff">
-                      <span class="lbl">Scrutiny's correction</span>
-                      <span class="was">4471</span>
-                      <span class="now">004471</span>
-                    </div>
-                    <div class="actions">
-                      <button class="btn btn-primary" style="flex:1">Accept correction</button>
-                      <button class="btn btn-ghost">Ignore</button>
                     </div>
                   </div>
 
@@ -555,39 +576,28 @@
                       <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transform:rotate(180deg)"><path d="m6 9 6 6 6-6"/></svg>
                     </button>
                     <div class="dc">
-                      <p class="note">Cheque number is stated in four digits. The number printed on the cheque leaf is six digits — state it in full.</p>
-                      <div class="audio">
-                        <span class="play"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
-                        <span class="bar"><i></i></span>
-                        <span class="time">0:04 / 0:18</span>
+                      <div class="officer">
+                        <span class="who">KM</span>
+                        <span><span class="nm">K. Menon</span><span class="rl"> · Scrutiny officer</span></span>
                       </div>
                       <div class="scan">
-                        <span class="thumb"></span>
-                        <span class="meta">
-                          <span class="nm">cheque-1-front.svg</span><br>
-                          <span class="sb">Marked by scrutiny · opens full size</span>
-                        </span>
+                        <div class="frame">
+                          <svg viewBox="0 0 500 130" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="500" height="130" fill="#fffefb"/>
+                            <text x="300" y="52" font-family="Helvetica Neue, Arial" font-size="10" fill="#8b8d98" letter-spacing="1">DATE</text>
+                            <g font-family="Helvetica Neue, Arial" font-size="16" fill="#1c2024" letter-spacing="2">
+                              <text x="345" y="55">1 5 0 5 2 0 2 6</text>
+                            </g>
+                            <rect x="337" y="37" width="150" height="28" rx="3" fill="none" stroke="#9d5c00" stroke-width="2"/>
+                            <line x1="20" y1="88" x2="470" y2="88" stroke="#e8e8ec" stroke-width="1"/>
+                            <text x="20" y="110" font-family="Helvetica Neue, Arial" font-size="11" fill="#b9bbc6">PAY</text>
+                          </svg>
+                        </div>
+                        <p class="cap"><span class="nm">cheque-1-front.svg</span>
+                          <span class="link">See full page</span></p>
                       </div>
                     </div>
                   </div>
-                </div>
-
-                <div class="row"><span class="mark"><span class="ring"></span></span><span class="where">Cheque 2 › Bank branch</span><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>
-              </div>
-            </div>
-
-            <div>
-              <h3>Resolved</h3>
-              <div class="rows">
-                <div class="row resolved">
-                  <span class="mark"><svg class="tick" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></span>
-                  <span class="where">Cheque 1 › Date on cheque</span>
-                  <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
-                </div>
-                <div class="row resolved">
-                  <span class="mark"><svg class="tick" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></span>
-                  <span class="where">Cheque 1 › IFSC code</span>
-                  <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
                 </div>
               </div>
             </div>
@@ -595,20 +605,95 @@
         </aside>
       </div>
 
-      <div class="anno" style="max-width:400px">
-        <b>Everything the v2 card led with, folded into one line</b>
-        <span>Note, voice remark and marked scan live together and open together — so the text alternative is never absent when the audio is present. Resolved defects fall to a one-line row with a tick; the corrected value shows on the form.</span>
+      <div class="anno new" style="max-width:560px">
+        <b>New · Disagreeing opens the proof</b>
+        <span>Clicking Ignore auto-expands “Why scrutiny flagged this”. You are about to tell a
+        Registry officer they are wrong — the one moment you certainly want to look at what they
+        marked. Until a reason is written the defect stays open and the gate stays shut.</span>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="section-label">
+        <h2>C · All resolved</h2>
+        <p>The panel changes character: not a queue any more, a review of what you are about to file.</p>
+      </div>
+
+      <div class="closeup">
+        <aside class="panel">
+          <div class="panel-head">
+            <div class="hrow">
+              <h2>Ready to re-file</h2>
+              <span class="clock">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                Due in 3 days
+              </span>
+            </div>
+            <div class="track"><i style="width:100%"></i></div>
+            <p class="count">8 of 8 resolved</p>
+          </div>
+
+          <div class="queue">
+            <div>
+              <h3>What goes back to the Registry</h3>
+              <div class="tally">
+                <div class="tally-row">
+                  <span class="n" style="color:var(--success-ink)">5</span>
+                  <span class="lb">Accepted scrutiny's correction
+                    <span class="sb" style="display:block">The officer's value, taken as given</span></span>
+                </div>
+                <div class="tally-row">
+                  <span class="n">2</span>
+                  <span class="lb">Corrected with your own value
+                    <span class="sb" style="display:block">Cheque 1 › Cheque number · Complainant 1 › Age</span></span>
+                </div>
+                <div class="tally-row flag">
+                  <span class="n">1</span>
+                  <span class="lb">Sent back with a reason
+                    <span class="sb" style="display:block;color:var(--warning-ink)">Cheque 1 › Date on cheque — the officer will read your remark</span></span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3>Every decision</h3>
+              <div class="rows">
+                <div class="row resolved"><span class="mark"><svg class="tick" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></span><span class="where">Cheque 1 › Date on cheque</span><span class="how" style="color:var(--warning-ink)">Sent back</span></div>
+                <div class="row resolved"><span class="mark"><svg class="tick" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></span><span class="where">Cheque 1 › Cheque number</span><span class="how">Corrected</span></div>
+                <div class="row resolved"><span class="mark"><svg class="tick" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></span><span class="where">Cheque 1 › IFSC code</span><span class="how">Accepted</span></div>
+                <div class="row resolved"><span class="mark"><svg class="tick" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></span><span class="where">Cheque 2 › Bank branch</span><span class="how">Accepted</span></div>
+                <div class="row resolved"><span class="mark"><svg class="tick" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></span><span class="where">Cheque 2 › Amount</span><span class="how">Accepted</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-foot">
+            <p class="caution">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex:none;margin-top:2px"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+              A re-submission cannot be recalled, and limitation runs from the Registry's receipt.
+            </p>
+            <button class="btn btn-primary btn-block">Submit corrections to scrutiny</button>
+          </div>
+        </aside>
+      </div>
+
+      <div class="anno new" style="max-width:560px">
+        <b>New · A review before it becomes irreversible</b>
+        <span>Today the last thing you see is a dead button turning live. This is a filing to a
+        criminal court that cannot be recalled — so the panel earns one last job: show the shape
+        of what you decided, with the disagreement called out, because that is the one the officer
+        will actually read.</span>
       </div>
     </div>
   </section>
 
-  <div class="cut"><span>What this changes</span></div>
+  <div class="cut"><span>Suggestions not drawn here</span></div>
 
   <section class="note-strip">
-    <div class="anno"><b>Removed entirely</b><span>The inset under the field · the “Scrutiny flagged” tag · amber field fills · the three-tier accordion · the always-visible reason textarea · the per-row warning badges · the second place a defect speaks.</span></div>
-    <div class="anno"><b>Kept, moved</b><span>The officer's note, voice remark and annotated scan — now behind one disclosure. Replace-this-document keeps the same shape: the card's primary action becomes Replace, its Ignore stays a reason.</span></div>
-    <div class="anno"><b>Still true</b><span>Resolution is derived from the filing, never self-certified · nothing unflagged can be edited · Ignore with nothing written leaves the defect open and the gate shut · one teal action per view.</span></div>
-    <div class="anno"><b>Open for you</b><span>Does the centre form still earn a third of the width if it is read-only? A narrower record — or a peek-on-hover — would give the panel room to breathe further.</span></div>
+    <div class="anno new"><b>Traversal, so eight feels like three</b><span>Accepting should land you on the next open defect — card opens, form scrolls, focus moves. With <span class="kbd">⌘↵</span> to accept and <span class="kbd">esc</span> to cancel an Ignore, a clean return is cleared without the mouse. This is the biggest single win left; a queue you work <em>through</em> beats a list you pick from.</span></div>
+    <div class="anno new"><b>Undo stays reachable</b><span>A resolved row keeps its decision reversible on expand — “Accepted · Undo”. Cheap to build, and it removes the fear that makes people re-read every correction twice.</span></div>
+    <div class="anno new"><b>On a phone, the panel <em>is</em> the screen</b><span>The record collapses to a link per defect (“see it on the form”). Do not try to keep three panes; the workbench is the only pane that matters, and it already works alone.</span></div>
+    <div class="anno"><b>Considered and rejected · bulk accept</b><span>“Accept all” would clear a return in one click and destroy the thing that makes this design honest — every changed value in a correction round has a named author. Speed comes from traversal, not from batching away the decision.</span></div>
   </section>
 
 </div>
