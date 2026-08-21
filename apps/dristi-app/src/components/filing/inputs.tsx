@@ -124,7 +124,10 @@ export function PrefixInput({
       data-disabled={disabled || undefined}
       className={cn(
         amber && "border-dashed border-warning-ink bg-prefilled",
-        disabled && "bg-disabled-fill",
+        /* Locked: the same quiet sunken fill as every other locked control — the `!`
+           outranks the group's own `has-disabled:bg-input/50` (the correction screen
+           restores full opacity; see its centre pane). */
+        disabled && "bg-surface-sunken!",
         readOnly && "bg-muted",
         className
       )}

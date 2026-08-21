@@ -75,7 +75,9 @@ export function DateField({
       onValueChange={(d) => onChange(dateToIso(d))}
       disabled={disabled}
       placeholder={placeholder}
-      className={cn("w-full", className)}
+      /* Locked in a correction round: the same quiet sunken fill as every other locked
+         control (the correction screen restores full opacity; see its centre pane). */
+      className={cn("w-full", disabled && "disabled:bg-surface-sunken", className)}
     />
   );
 }
