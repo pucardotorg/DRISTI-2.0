@@ -1,6 +1,6 @@
 # Scrutiny return — advocate defect resolution
 
-Status: v1 built (feature/scrutiny-back-adv) · **v2.1 approved by the owner, not yet built** (§15)
+Status: **v2.1 built** (feature/scrutiny-back-adv) — §15 is the spec it was built to; build notes in §15.16
 Updated: 2026-08-21
 Source: docs/product/product-foundation.md (§3 Kerala operational spine, step 2 — "Scrutiny
 & defect check (Registry; before numbering / cognizance)"), docs/product/domain/practice-notes.md
@@ -877,3 +877,18 @@ except the two named above.
 | 2026-08-21 | **Ignore is a route, not a resolution** — Ignore with nothing entered leaves the defect open and the submit gate closed. Stated explicitly because it is the likeliest thing to build wrong, and because D6 forbids any self-certified resolution. | ux-designer (per D6) |
 | 2026-08-21 | **Deadline moves into the queue header** beside the count (*"Due in 3 days · 3 of 8"*), retiring v2's page-header clock. One place for the clock, one place for the counter. | Owner (mockup), ux-designer |
 | 2026-08-21 | **Elevation drops out of the state ladder.** v2 used `shadow-raised` for "in play"; v2.1 has no lift, because the filing's own section cards own the elevation and the form must render verbatim. "In play vs done" is now carried by the inset being open vs collapsed. | ux-designer (`foundations/elevation`) |
+
+### 15.16 Build notes (v2.1)
+
+| Date | Note | Who |
+|---|---|---|
+| 2026-08-21 | **v2.1 built.** The centre renders the e-filing form verbatim; the flagged control is `readOnly`, the accent is `border-l-2 border-l-warning-ink` + `pl-3` on the field group, and the inset (`mt-2 rounded-md bg-surface-sunken p-3`, no border, no lift) spans the row beneath it. `defect-frame.tsx` and `annotation.tsx` are deleted. | ui-designer |
+| 2026-08-21 | **`Resolution.how` is unchanged: `accepted · edited · kept · replaced`** — §15.3's own table names `edited` for the advocate's own value, so the contract did not have to move. Tests name the four routes and the one thing that is not a route (Ignore with nothing entered). | ui-designer |
+| 2026-08-21 | **Deviation — the queue's group labels carry no counts.** §15.6 is explicit ("the header owns the one counter") and the mockup's *"Open · 6"* is not built. The header reads *"Due in 3 days · 24 Aug"* over the bar over *"N of 8 resolved"*. | ui-designer (§15.6 over the mockup) |
+| 2026-08-21 | **Deviation — the flagged control drops its `prefilled` amber.** Two ambers on one row is what D4 forbade, and a value a person is now arguing about is no longer "machine-read, unverified". The read-only fill is the DS `Input`'s own (`read-only:bg-muted`). | ui-designer (D4) |
+| 2026-08-21 | **Deviation — the label-row tag and the inset's first line both name the state**, at different granularity: the tag says *"Scrutiny flagged"* / *"Corrected"*, the inset says *"Open"* / the resolution (*"Suggestion accepted"*). §15.1.2 asks for the tag, §15.5 and §15.8 ask for the icon-and-word line; neither is dropped, and neither repeats the other's words. | ui-designer (judgment) |
+| 2026-08-21 | **Deviation — a document defect resolves only on a replacement.** §15.4's "Ignore on a document = `kept`" is gated on the officer supplying a replacement file, which O9 says is not modelled, so no Ignore is offered on a document and no reason route is invented for one. | ui-designer (O9) |
+| 2026-08-21 | **The inset collapses when the *act* ends, not when the value resolves.** A reason resolves a defect on its first keystroke; collapsing then took the field away mid-sentence. The accent, the queue row and the counter still flip live. Found on the render. | ui-designer |
+| 2026-08-21 | **The fold now ungates the page header.** At 1280 × 200% text zoom a pinned header is more than half the window; below the queue's fold the page scrolls as a page and only the submit bar is sticky (`ACCESSIBILITY.md` §10). | ui-designer (a11y) |
+| 2026-08-21 | **The annotation boxes were a row off** the thing they marked, which the full-size view made obvious. They are now measured against the seeded pages, and the box is an outline in the lightbox rather than a dim-everything-else mark — at full size that greyed out the page the advocate opened it to read. | ui-designer |
+| 2026-08-21 | **Upstream DS feedback:** a `disabled` primary `Button` at `opacity-50` still reads as enabled in dark (`#0eb39e` at 50% over a dark card). The gate is stated in words beside it, so nothing is lost, but the disabled treatment does not survive the dark ramp. | ui-designer (`ui-craft` §6) |
