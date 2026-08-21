@@ -26,10 +26,31 @@ const captureDiagnostics =
   process.env.NEXT_PUBLIC_FASTERFIXES_CAPTURE_DIAGNOSTICS !== "false";
 const apiOrigin = process.env.NEXT_PUBLIC_FASTERFIXES_API_ORIGIN;
 
+const subscribeToReviewerToken = () => () => {};
+
+function hasReviewerToken() {
+  if (typeof window === "undefined") return false;
+
+  const tokenInUrl = new URLSearchParams(window.location.search).has("ff_token");
+  if (tokenInUrl) return true;
+
+  try {
+    return Boolean(window.localStorage.getItem("ff_reviewer_token"));
+  } catch {
+    return false;
+  }
+}
+
 export function FeedbackProvider({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  if (!projectId) {
+  const reviewerTokenPresent = React.useSyncExternalStore(
+    subscribeToReviewerToken,
+    hasReviewerToken,
+    () => false,
+  );
+
+  if (!projectId || !reviewerTokenPresent) {
     return <>{children}</>;
   }
 
