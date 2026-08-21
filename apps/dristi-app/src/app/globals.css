@@ -83,6 +83,14 @@
   --color-brand-muted-foreground: var(--brand-muted-foreground);
   --color-brand-muted-hover: var(--brand-muted-hover);
 
+  /* Brand canvas — the deep-teal gradient field behind full-height marketing and
+     sign-in panels. Deliberately identical in both modes: the panel reads as a fixed
+     institutional plate, not a themed surface, so it does not invert under `.dark`. */
+  --color-brand-canvas: var(--brand-canvas);
+  --color-brand-canvas-deep: var(--brand-canvas-deep);
+  --color-brand-canvas-foreground: var(--brand-canvas-foreground);
+  --color-brand-canvas-muted-foreground: var(--brand-canvas-muted-foreground);
+
   /* Interaction and accessibility primitives from Rajini 2.0. */
   --color-focus-ring: var(--focus-ring);
   --color-focus-ring-destructive: var(--focus-ring-destructive);
@@ -312,6 +320,13 @@
 
   /* Opaque hover composites reproduce Figma's base fill + tint layer. */
   --primary-hover: color-mix(in srgb, var(--primary), black 8%);
+  /* Tuned deep-teal plate, not raw ramp steps — the light stop sits between dark
+     brand-5 and brand-6, the deep stop below dark brand-1. Same values in `.dark`. */
+  --brand-canvas: #0f544c;
+  --brand-canvas-deep: #05221f;
+  --brand-canvas-foreground: #ffffff;
+  --brand-canvas-muted-foreground: #a7d9d0;
+
   --brand-muted-hover: color-mix(in srgb, var(--brand-muted), black 8%);
   --destructive-hover: color-mix(in srgb, var(--destructive), black 8%);
   --destructive-muted-hover: color-mix(in srgb, var(--destructive-muted), black 8%);
@@ -508,6 +523,12 @@
   --info-muted-foreground: var(--info-ink);
 
   --primary-hover: color-mix(in srgb, var(--primary), white 10%);
+  /* Identical to `:root` on purpose — see the note in @theme inline. */
+  --brand-canvas: #0f544c;
+  --brand-canvas-deep: #05221f;
+  --brand-canvas-foreground: #ffffff;
+  --brand-canvas-muted-foreground: #a7d9d0;
+
   --brand-muted-hover: color-mix(in srgb, var(--brand-muted), white 10%);
   --destructive-hover: color-mix(in srgb, var(--destructive), white 10%);
   --destructive-muted-hover: color-mix(in srgb, var(--destructive-muted), white 10%);
@@ -552,4 +573,21 @@
   html {
     @apply font-sans;
   }
+}
+
+/* Browser autofill paints an opaque highlight (often pale blue) that ignores the
+   field's rounded border and spills past the InputGroup hairline. Neutralise it with
+   the inset-shadow trick, keeping the DS field colours, so an autofilled value looks
+   like any other. Kept unlayered and `!important` on purpose: the DS InputGroup input
+   carries a `shadow-none` utility that would otherwise win the cascade. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--foreground);
+  -webkit-box-shadow: 0 0 0 1000px var(--background) inset !important;
+  box-shadow: 0 0 0 1000px var(--background) inset !important;
+  caret-color: var(--foreground);
+  border-radius: inherit;
+  transition: background-color 9999s ease-in-out 0s;
 }
