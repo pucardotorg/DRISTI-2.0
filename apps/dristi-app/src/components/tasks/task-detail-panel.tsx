@@ -27,6 +27,7 @@ import {
   WAITING,
 } from "@/lib/tasks/permissions";
 import { formatBytes } from "@/lib/tasks/data";
+import { breadcrumbOf, resolutionSatisfies } from "@/lib/tasks/defects";
 import { consequenceAt } from "@/lib/tasks/urgency";
 import type { Case, Person, Task, Verb } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
@@ -195,7 +196,13 @@ function TaskDetail({
   const deadlineContext = statusLine ?? (active && task.closesWhen ? task.closesWhen : undefined);
   const showNextHearing = !!kase.nextHearingAt && kase.nextHearingAt !== task.hearingAt;
   const blocking = active && task.isBlocking && !!task.hearingAt;
-  const unfixed = task.returned?.defects.filter((d) => !d.fixed).length ?? 0;
+  /*
+   * Read from the recorded resolution, not from a tick: a defect whose suggestion was
+   * overridden without a reason is still open (see `lib/tasks/defects`). The panel cannot
+   * see the filing draft, so it uses the task-side half of the same rule.
+   */
+  const defects = task.returned?.defects ?? [];
+  const unresolved = defects.filter((d) => !resolutionSatisfies(d)).length;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -345,23 +352,30 @@ function TaskDetail({
               </div>
               <div className="mx-4 flex flex-col gap-2 rounded-lg bg-warning-muted p-3">
                 <p className="text-caption font-semibold text-warning-ink">
-                  {unfixed === 0
+                  {unresolved === 0
                     ? "All defects addressed"
-                    : `${unfixed} ${unfixed === 1 ? "defect" : "defects"} to fix`}
+                    : `${unresolved} ${unresolved === 1 ? "defect" : "defects"} to resolve`}
                 </p>
                 <ol className="flex flex-col gap-2">
-                  {task.returned.defects.map((d) => (
-                    <li key={d.n} className="flex gap-2">
-                      <span className="text-caption font-semibold tabular-nums text-warning-ink">
-                        {d.n}
+                  {defects.map((d) => (
+                    <li key={d.n} className="flex flex-col gap-0.5">
+                      <span className="flex gap-2">
+                        <span className="text-caption font-semibold tabular-nums text-warning-ink">
+                          {d.n}
+                        </span>
+                        <span
+                          className={cn(
+                            "text-body-compact leading-relaxed",
+                            resolutionSatisfies(d) && "text-warning-muted-foreground line-through"
+                          )}
+                        >
+                          {d.note}
+                        </span>
                       </span>
-                      <span
-                        className={cn(
-                          "text-body-compact leading-relaxed",
-                          d.fixed && "text-warning-muted-foreground line-through"
-                        )}
-                      >
-                        {d.text}
+                      {/* Where it is — the answer to "which cheque?" that a bare remark
+                          cannot give (brief §2, problem 2). */}
+                      <span className="pl-6 text-caption text-warning-muted-foreground">
+                        {breadcrumbOf(d.target).join(" › ")}
                       </span>
                     </li>
                   ))}

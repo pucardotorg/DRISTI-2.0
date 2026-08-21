@@ -5,6 +5,7 @@ import * as React from "react";
 import type { YesNo } from "@/lib/filing/types";
 import { cn } from "@/lib/utils";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useLockedDisabled } from "@/components/filing/posture";
 
 export type SegmentedOption<T extends string> = { value: T; label: string };
 
@@ -28,6 +29,7 @@ export function Segmented<T extends string>({
   disabled?: boolean;
   className?: string;
 }) {
+  const isDisabled = useLockedDisabled(disabled);
   return (
     <div className="flex">
       <ToggleGroup
@@ -37,7 +39,7 @@ export function Segmented<T extends string>({
           if (v) onValueChange(v as T);
         }}
         aria-label={ariaLabel}
-        disabled={disabled}
+        disabled={isDisabled}
         className={cn(
           "h-10 w-fit gap-0.5 rounded-lg bg-track p-0.5",
           className,

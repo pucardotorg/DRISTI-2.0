@@ -1,6 +1,9 @@
+"use client";
+
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { useInCorrection } from "@/components/filing/posture";
 
 /**
  * Title block for a filing screen. `eyebrow` is the small primary label used on the
@@ -22,6 +25,8 @@ export function FilingPageHeader({
   actions?: React.ReactNode;
   className?: string;
 }) {
+  /* The correction screen owns the page's one `h1`; a section title under it is an `h2`. */
+  const Heading = useInCorrection() ? "h2" : "h1";
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -29,7 +34,9 @@ export function FilingPageHeader({
           {eyebrow ? (
             <p className="text-caption font-medium text-primary">{eyebrow}</p>
           ) : null}
-          <h1 className="text-title font-semibold tracking-tight text-foreground">{title}</h1>
+          <Heading className="text-title font-semibold tracking-tight text-foreground">
+            {title}
+          </Heading>
           {description ? (
             <p className="max-w-3xl text-body text-muted-foreground">{description}</p>
           ) : null}

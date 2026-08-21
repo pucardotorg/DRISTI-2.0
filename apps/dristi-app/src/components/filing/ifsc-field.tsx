@@ -9,6 +9,42 @@ import { Spinner } from "@/components/ui/spinner";
 import { FormField } from "@/components/filing/form-field";
 import { TextField } from "@/components/filing/inputs";
 import { LookupStatus } from "@/components/filing/lookup-status";
+import { useFieldLock } from "@/components/filing/posture";
+
+/**
+ * Its own component so it can read the correction lock, which `FormField` provides
+ * *below* `IfscField` in the tree — a hook called in `IfscField`'s own body would read
+ * the value outside that provider and stay enabled on a locked cheque.
+ */
+function FetchDetailsButton({
+  onClick,
+  canFetch,
+  busy,
+}: {
+  onClick: () => void;
+  canFetch: boolean;
+  busy: boolean;
+}) {
+  const locked = useFieldLock();
+  return (
+    /* Stays focusable while it works — disabling mid-click would drop a keyboard user's
+       place. The guard in the handler stops a second run. */
+    <Button
+      type="button"
+      variant="outline"
+      onClick={onClick}
+      disabled={!canFetch || locked}
+      aria-busy={busy}
+    >
+      {busy ? (
+        <Spinner data-icon="inline-start" />
+      ) : (
+        <RefreshCwIcon data-icon="inline-start" aria-hidden />
+      )}
+      Fetch details
+    </Button>
+  );
+}
 
 /** How the last lookup ended. Success is not kept here — it is `fetched` on the draft. */
 type IfscStatus = "idle" | "loading" | "not-found" | "error";
@@ -105,7 +141,7 @@ export function IfscField({
           : null;
 
   return (
-    <FormField label="IFSC code" required tip={tip}>
+    <FormField label="IFSC code" name="ifsc" required tip={tip}>
       <div className="flex flex-col gap-2">
         <div className="flex items-start gap-2">
           <TextField
@@ -117,22 +153,11 @@ export function IfscField({
             autoComplete="off"
             aria-describedby={result ? statusId : undefined}
           />
-          {/* Stays focusable while it works — disabling mid-click would drop a keyboard
-              user's place. The guard in the handler stops a second run. */}
-          <Button
-            type="button"
-            variant="outline"
+          <FetchDetailsButton
             onClick={fetchDetails}
-            disabled={!canFetch}
-            aria-busy={status === "loading"}
-          >
-            {status === "loading" ? (
-              <Spinner data-icon="inline-start" />
-            ) : (
-              <RefreshCwIcon data-icon="inline-start" aria-hidden />
-            )}
-            Fetch details
-          </Button>
+            canFetch={canFetch}
+            busy={status === "loading"}
+          />
         </div>
         <LookupStatus id={statusId} tone={result?.tone ?? "success"}>
           {result?.text}

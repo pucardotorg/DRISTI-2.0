@@ -36,6 +36,10 @@ import { FilingPageHeader } from "@/components/filing/filing-page-header";
 import { FilingMain } from "@/components/filing/filing-shell";
 import { FormCard, FormDivider, FormRow, HalfWidth } from "@/components/filing/form-card";
 import { FormField } from "@/components/filing/form-field";
+import {
+  CorrectionInstance,
+  useCorrectionInstanceRequest,
+} from "@/components/filing/posture";
 import { OptionSelect, PrefixInput, TextField } from "@/components/filing/inputs";
 import { SectionNotice } from "@/components/filing/notices";
 import { PrefillNotice } from "@/components/filing/prefill-notice";
@@ -135,6 +139,9 @@ export function DemandNoticeSection() {
 
   const index = Math.min(active, notices.length - 1);
   const notice = notices[index];
+
+  /* A scrutiny defect on "Demand notice 1 › Tracking number" selects that tab first. */
+  useCorrectionInstanceRequest("demand-notice", setActive);
 
   // The three uploads behind this notice; any of them may not be uploaded yet.
   const slots = {
@@ -259,6 +266,8 @@ export function DemandNoticeSection() {
 
         <PrefillNotice show={anyPrefilled} />
 
+        <CorrectionInstance value={index}>
+
         <SectionNotice variant="neutral">
           Where several notices went out for one cheque, use the one issued within 30
           days of the return. Add a notice per cheque.
@@ -272,6 +281,7 @@ export function DemandNoticeSection() {
           <FormRow>
             <FormField
               label="Nature of debt or other liability"
+              name="natureDebt"
               required
               tip="The legally enforceable debt or liability that existed when the cheque was issued."
             >
@@ -309,6 +319,7 @@ export function DemandNoticeSection() {
           <FormRow>
             <FormField
               label="Date of dispatch of demand notice"
+              name="dispatchDate"
               required
               tip="The notice must be sent within 30 days of receiving information about the cheque's return."
             >
@@ -320,7 +331,7 @@ export function DemandNoticeSection() {
                 ariaLabel="Date of dispatch of demand notice"
               />
             </FormField>
-            <FormField label="Mode of service" required>
+            <FormField label="Mode of service" name="modeService" required>
               <OptionSelect
                 value={notice.modeService}
                 onValueChange={(v) => set("modeService", v)}
@@ -333,6 +344,7 @@ export function DemandNoticeSection() {
           <HalfWidth>
             <FormField
               label="Tracking number"
+              name="tracking"
               optional
               tip="Consignment / tracking number from the postal or courier receipt."
             >
@@ -446,6 +458,7 @@ export function DemandNoticeSection() {
             </HalfWidth>
           ) : null}
         </FormCard>
+        </CorrectionInstance>
       </FilingMain>
 
       <FilingFooter

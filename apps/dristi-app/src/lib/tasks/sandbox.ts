@@ -4,15 +4,36 @@
  * Five advocates and their cases, and ~40 tasks that between them touch every kind,
  * every status, every view and every permission edge the screens must handle. Dates are
  * relative to *today*, so the seed never goes stale. Windows and closure rules follow
- * DRISTI 1.0's pending-task inventory: scrutiny returns cure in 3 days, payment tasks
+ * DRISTI 1.0's pending-task inventory: scrutiny returns cure in 5 days (owner, O7 —
+ * 1.0 practice is nearer 3, and 5 stands until the rule is confirmed), payment tasks
  * auto-close when the hearing they serve passes, response tasks close when the court
  * decides the application. Nothing here has been sent to a real court.
  */
 
-import type { Case, Person, Task } from "./types";
+import { SCRUTINY_DEFECTS, SCRUTINY_DRAFT_ID } from "./scrutiny-return";
+import type { Case, Defect, Person, Task } from "./types";
 
 /** Bump when the seed's shape changes; a browser holding an older seed is re-seeded. */
-export const SEED_VERSION = 4;
+export const SEED_VERSION = 5;
+
+/**
+ * A defect on a filing that was made outside this app, so there is no draft to open and
+ * no field to point at: the remark stands against the filed bundle. Only the demonstrated
+ * return (`t-retsainaba`) has a draft behind it — see `scrutiny-return.ts`.
+ */
+function bundleDefect(n: number, note: string): Defect {
+  return {
+    n,
+    note,
+    target: {
+      kind: "doc",
+      step: "documents",
+      slotKey: `filed-bundle-${n}`,
+      label: "The filed bundle",
+      sectionLabel: "Documents",
+    },
+  };
+}
 
 /* ───────────────────────────── people ───────────────────────────── */
 
@@ -524,27 +545,27 @@ export function buildTasks(): Task[] {
     }),
 
     /* ── Returned by scrutiny ────────────────────────────────────── */
+    /*
+     * The demonstrated return: eight defects pointing at real fields and one real
+     * document in the seeded filing draft, so `Fix` opens the filing in a correction
+     * posture rather than a checklist. O7 (owner, 2026-08-21): a return carries a
+     * deadline — assume five days from the return date until the rule is confirmed.
+     */
     task({
       id: "t-retsainaba",
       caseId: "c-sainaba",
       kind: "returned",
-      title: "Fix 3 defects and re-file the complaint",
-      why: created(-9, "Scrutiny returned the complaint for compliance with 3 defects"),
-      whatToDo: "Cure each defect, attach the corrected document where one is needed, and re-file.",
-      documentsNeeded: ["Complaint", "Affidavit in support", "Index of documents"],
-      dueAt: at(-6),
+      title: "Fix 8 defects and re-file the complaint",
+      why: created(-2, "Scrutiny returned the complaint for compliance with 8 defects"),
+      whatToDo:
+        "Correct each flagged field in the filing, replace the flagged document, and submit the corrections to scrutiny.",
+      documentsNeeded: ["Proof of delivery of demand notice (AD card)"],
+      dueAt: at(3),
       dueKind: "court-set",
-      deadlineNote: "Registry allows 3 days to cure defects",
+      deadlineNote: "Registry allows 5 days from the return to cure defects",
+      draftId: SCRUTINY_DRAFT_ID,
       status: "open",
-      returned: {
-        by: "scrutiny",
-        at: at(-9, 11),
-        defects: [
-          { n: 1, text: "Affidavit in support is not attested by a notary.", fixed: false },
-          { n: 2, text: "Copy of the postal acknowledgement referred to in para 4 is not produced.", fixed: false },
-          { n: 3, text: "Index of documents does not match the annexures.", fixed: false },
-        ],
-      },
+      returned: { by: "scrutiny", at: at(-2, 11), defects: SCRUTINY_DEFECTS },
     }),
     task({
       id: "t-ret941",
@@ -554,17 +575,17 @@ export function buildTasks(): Task[] {
       why: created(-3, "Scrutiny returned the application to condone the delay with 2 defects"),
       whatToDo: "Cure each defect, attach the corrected document where one is needed, and re-file.",
       documentsNeeded: ["Affidavit in support (attested)", "Postal acknowledgement"],
-      dueAt: at(0),
+      dueAt: at(2),
       dueKind: "court-set",
-      deadlineNote: "Registry allows 3 days to cure defects",
+      deadlineNote: "Registry allows 5 days from the return to cure defects",
       hearingAt: hearing(9),
       status: "open",
       returned: {
         by: "scrutiny",
         at: at(-3, 11),
         defects: [
-          { n: 1, text: "Affidavit in support is not attested by a notary.", fixed: false },
-          { n: 2, text: "Copy of the postal acknowledgement referred to in para 4 is not produced.", fixed: false },
+          bundleDefect(1, "Affidavit in support is not attested by a notary."),
+          bundleDefect(2, "Copy of the postal acknowledgement referred to in para 4 is not produced."),
         ],
       },
     }),
@@ -576,9 +597,9 @@ export function buildTasks(): Task[] {
       why: created(-4, "Scrutiny returned the chief affidavit with 1 defect"),
       whatToDo: "Cure the defect, attach the corrected affidavit, and re-file.",
       documentsNeeded: ["Chief affidavit (sworn)"],
-      dueAt: at(-1),
+      dueAt: at(1),
       dueKind: "court-set",
-      deadlineNote: "Registry allows 3 days to cure defects",
+      deadlineNote: "Registry allows 5 days from the return to cure defects",
       status: "ready",
       statusNote: "Prepared by S. Prakash",
       returned: {
@@ -586,17 +607,19 @@ export function buildTasks(): Task[] {
         at: at(-4, 11),
         defects: [
           {
-            n: 1,
-            text: "Page 3 of the affidavit is not signed by the deponent.",
-            fixed: true,
-            replacement: { id: "seed-f-aff221", name: "chief-affidavit-signed.pdf", size: 210_440, type: "application/pdf", ext: "PDF", slot: "Replacement for defect 1" },
+            ...bundleDefect(1, "Page 3 of the affidavit is not signed by the deponent."),
+            resolution: {
+              how: "replaced",
+              at: at(-1, 12, 10),
+              replacement: { id: "seed-f-aff221", name: "chief-affidavit-signed.pdf", size: 210_440, type: "application/pdf", ext: "PDF", slot: "Replacement for defect 1" },
+            },
           },
         ],
       },
       prepared: { by: "p-sp", at: at(-1, 12, 30), note: "Deponent signed page 3 in office yesterday; scan attached." },
       history: [
         { at: at(-4, 11), text: "Created — scrutiny returned the affidavit with 1 defect" },
-        { at: at(-1, 12, 10), by: "p-sp", text: "S. Prakash marked defect 1 fixed" },
+        { at: at(-1, 12, 10), by: "p-sp", text: "S. Prakash replaced the document for defect 1" },
         { at: at(-1, 12, 30), by: "p-sp", text: "S. Prakash marked this ready — “Deponent signed page 3 in office yesterday; scan attached.”" },
       ],
     }),
@@ -607,17 +630,17 @@ export function buildTasks(): Task[] {
       title: "Fix 2 defects and re-file the application to condone the delay",
       why: created(-20, "Scrutiny returned the application with 2 defects"),
       whatToDo: "Cure each defect, attach the corrected document where one is needed, and re-file.",
-      dueAt: at(-17),
+      dueAt: at(-15),
       dueKind: "court-set",
-      deadlineNote: "Registry allows 3 days to cure defects",
+      deadlineNote: "Registry allows 5 days from the return to cure defects",
       status: "expired",
       statusNote: "cure window lapsed",
       returned: {
         by: "scrutiny",
         at: at(-20, 11),
         defects: [
-          { n: 1, text: "Affidavit in support is not attested by a notary.", fixed: false },
-          { n: 2, text: "Court fee on the application is short by ₹50.", fixed: false },
+          bundleDefect(1, "Affidavit in support is not attested by a notary."),
+          bundleDefect(2, "Court fee on the application is short by ₹50."),
         ],
       },
       history: [

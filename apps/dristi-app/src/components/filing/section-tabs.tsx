@@ -6,6 +6,7 @@ import { PlusIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useInCorrection } from "@/components/filing/posture";
 
 export type SectionTab = {
   id: string;
@@ -41,6 +42,9 @@ export function SectionTabs({
   trailing?: React.ReactNode;
   className?: string;
 }) {
+  /* Adding a cheque or removing a complainant is an edit, not a correction (brief D3). */
+  const inCorrection = useInCorrection();
+  const canEditList = !inCorrection;
   return (
     <div
       className={cn(
@@ -71,7 +75,7 @@ export function SectionTabs({
                   <span className="font-normal text-muted-foreground">{t.meta}</span>
                 ) : null}
               </TabsTrigger>
-              {t.removable && onRemove ? (
+              {t.removable && onRemove && canEditList ? (
                 <Button
                   type="button"
                   variant="ghost"
@@ -87,7 +91,7 @@ export function SectionTabs({
           ))}
         </TabsList>
       </Tabs>
-      {addLabel && onAdd ? (
+      {addLabel && onAdd && canEditList ? (
         <Button type="button" variant="ghost" size="sm" onClick={onAdd} className="text-primary">
           <PlusIcon data-icon="inline-start" aria-hidden />
           {addLabel}

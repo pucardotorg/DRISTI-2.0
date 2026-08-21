@@ -6,6 +6,7 @@ import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useInCorrection } from "@/components/filing/posture";
 import { SavingIndicator } from "@/components/filing/saving-indicator";
 
 /**
@@ -49,6 +50,12 @@ export function FilingFooter({
   extra?: React.ReactNode;
   className?: string;
 }) {
+  /*
+   * A correction round is not a walk through the filing: there is no Back / Continue,
+   * and the one primary action is "Submit corrections to scrutiny" in the queue footer
+   * (brief D14 — ration teal). So the walking footer stands down.
+   */
+  const inCorrection = useInCorrection();
   const back =
     backHref !== undefined ? (
       <Button asChild variant="outline" size="lg">
@@ -86,6 +93,8 @@ export function FilingFooter({
         <ArrowRightIcon data-icon="inline-end" aria-hidden />
       </Button>
     );
+
+  if (inCorrection) return null;
 
   return (
     <footer

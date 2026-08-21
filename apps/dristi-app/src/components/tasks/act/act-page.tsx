@@ -35,15 +35,13 @@ import { SectionNotice } from "@/components/shell/notices";
 import { PANEL_CLASS } from "@/components/shell/panel";
 import { type ActContext } from "@/components/tasks/act/shared";
 import { FileBody } from "@/components/tasks/act/file-page";
-import { FixBody } from "@/components/tasks/act/fix-page";
 import { PayBody } from "@/components/tasks/act/pay-page";
 import { SignBody } from "@/components/tasks/act/sign-page";
 
-export type ActPageAction = "sign" | "fix" | "continue";
+export type ActPageAction = "sign" | "continue";
 
 const CRUMB: Record<ActPageAction, string> = {
   sign: "Sign",
-  fix: "Fix & re-file",
   continue: "Continue",
 };
 
@@ -54,14 +52,6 @@ function Notice({ action, task }: { action: ActPageAction; task: Task }) {
       <SectionNotice variant="neutral" title="Sandbox">
         Any 6-digit OTP is accepted and the signature stamp is generated locally — nothing
         reaches a court.
-      </SectionNotice>
-    );
-  }
-  if (action === "fix" || task.kind === "returned") {
-    return (
-      <SectionNotice variant="neutral" title="Interim screen">
-        The scrutiny flow is not built yet — this stands in for it. Sandbox: replacements
-        stay in this browser and the registry&apos;s answer is whatever you pick.
       </SectionNotice>
     );
   }
@@ -77,7 +67,6 @@ function Notice({ action, task }: { action: ActPageAction; task: Task }) {
 function Body({ ctx, action }: { ctx: ActContext; action: ActPageAction }) {
   const kind = ctx.task.kind;
   if (action === "sign" || kind === "sign") return <SignBody ctx={ctx} />;
-  if (action === "fix" || kind === "returned") return <FixBody ctx={ctx} />;
   if (kind === "pay") return <PayBody ctx={ctx} />;
   return <FileBody ctx={ctx} />;
 }

@@ -59,8 +59,8 @@ function useNow(): Date {
 
 /**
  * The flows that leave this screen for their own page, each behind a dialog that says
- * so. Signing is designed but lives in its own flow; scrutiny (fix & re-file) and
- * e-filing (drafts) are not built yet, so their pages are interim.
+ * so. Signing and the scrutiny correction round are both built and live in their own
+ * flows; e-filing (drafts) is not built yet, so its page is still interim.
  */
 type Flow = "sign" | "scrutiny" | "filing";
 
@@ -72,7 +72,7 @@ const FLOW_DIALOG: Record<Flow, { title: string; description: string }> = {
   scrutiny: {
     title: "Continuing in the scrutiny flow",
     description:
-      "Fixing defects and re-filing happens in the scrutiny flow, which is not built yet — this is an interim screen. We'll bring you back here when it's done.",
+      "Correcting the defects happens in the scrutiny flow, on the filing itself. We'll bring you back here when the corrections have gone to the Registry.",
   },
   filing: {
     title: "Continuing in the filing flow",

@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { DocumentSlot } from "@/components/ui/document-slot";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCorrection } from "@/components/filing/posture";
 import { readOutcome, readToneClass } from "@/components/filing/upload/read-status";
 import {
   useDropTarget,
@@ -132,6 +133,16 @@ export function IntakeSlotRow({
   const titleId = `${ids}-title`;
   const { isOver, dropProps } = useDropTarget({ onFiles, onOverChange });
 
+  /*
+   * In a correction round a document is either the one scrutiny flagged — and then it is
+   * replaced inside its defect frame, in place (brief D9) — or it is not this round's
+   * business. `inert` is the honest lock: the subtree stops taking pointer and keyboard
+   * both, rather than looking live and refusing.
+   */
+  const correction = useCorrection();
+  const defect = correction ? correction.defectForSlot(correction.step, slot.key) : null;
+  const locked = !!correction && !defect;
+
   const status = slotStatus(slot);
   const pct = Math.round(slot.progress ?? 0);
   const showGuidance = !slot.file && !slot.processing && !!slot.desc;
@@ -142,12 +153,13 @@ export function IntakeSlotRow({
   const statusLine = outcome && outcome.kind !== "reading" ? outcome : null;
   const StatusIcon = statusLine?.tone === "success" ? CircleCheckIcon : TriangleAlertIcon;
 
-  return (
+  const body = (
     <div
       role="group"
       aria-labelledby={titleId}
-      {...dropProps}
-      className="flex flex-col gap-2"
+      {...(locked ? {} : dropProps)}
+      inert={locked || undefined}
+      className={cn("flex flex-col gap-2", locked && "opacity-60")}
     >
       <div
         className={cn(
@@ -244,4 +256,7 @@ export function IntakeSlotRow({
       ) : null}
     </div>
   );
+
+  if (defect && correction) return <>{correction.renderDocDefect(defect, body)}</>;
+  return body;
 }

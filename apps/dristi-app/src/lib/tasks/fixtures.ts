@@ -3,7 +3,7 @@
  * exactly what it depends on.
  */
 
-import type { Case, Person, Task } from "./types";
+import type { Case, Defect, Person, Task } from "./types";
 
 export const NOW = "2026-08-18T12:00:00.000Z";
 
@@ -60,6 +60,45 @@ export function makeTask(over: Partial<Task> = {}): Task {
     systemObservable: kind !== "hearing",
     status: "open",
     history: [],
+    ...over,
+  };
+}
+
+/**
+ * A field defect pointing at a real place in a filing. Defaults to Cheque 1 › IFSC code;
+ * override `target` for anything else. `valueAtReturn` is what scrutiny saw — the
+ * baseline the resolution derivation measures against.
+ */
+export function makeDefect(over: Partial<Defect> = {}): Defect {
+  return {
+    n: 1,
+    note: "The IFSC does not belong to the branch named in the complaint.",
+    valueAtReturn: "KLGB0040231",
+    target: {
+      kind: "field",
+      step: "cheque",
+      instance: 0,
+      field: "ifsc",
+      label: "IFSC code",
+      sectionLabel: "Case details",
+      instanceLabel: "Cheque 1",
+    },
+    ...over,
+  };
+}
+
+/** A whole-document defect — the AD card of cheque 1. */
+export function makeDocDefect(over: Partial<Defect> = {}): Defect {
+  return {
+    n: 1,
+    note: "The acknowledgement card is cut off at the fold.",
+    target: {
+      kind: "doc",
+      step: "upload",
+      slotKey: "c1ad",
+      label: "Proof of delivery of demand notice (AD card)",
+      sectionLabel: "Documents",
+    },
     ...over,
   };
 }

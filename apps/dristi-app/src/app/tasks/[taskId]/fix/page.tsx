@@ -1,6 +1,6 @@
-import { TaskActPage } from "@/components/tasks/act/act-page";
+import { ScrutinyReturnPage } from "@/components/scrutiny/scrutiny-page";
 
-/** Fix a scrutiny return and re-file — interim page for the scrutiny flow (v2.2). */
+/** Scrutiny return — the advocate's correction round on a filing sent back for defects. */
 export default function Page() {
-  return <TaskActPage action="fix" />;
+  return <ScrutinyReturnPage />;
 }

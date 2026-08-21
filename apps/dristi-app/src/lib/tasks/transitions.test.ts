@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { at, junior, kase, makeTask, NOW, outsider, PEOPLE, senior, senior2 } from "./fixtures";
+import { at, junior, kase, makeDefect, makeTask, NOW, outsider, PEOPLE, senior, senior2 } from "./fixtures";
 import { verbFor, viewOf } from "./permissions";
 import {
   archive,
@@ -11,7 +11,7 @@ import {
   type Ctx,
   expire,
   file,
-  fixDefect,
+  resolveDefect,
   markDone,
   markReady,
   obsolete,
@@ -120,19 +120,41 @@ describe("completing (signatories only)", () => {
     assert.equal(confirmed.completion?.by, senior.id);
   });
 
-  it("refile needs every defect fixed; fixDefect is preparation anyone on the case can do", () => {
+  it("refile needs every defect resolved; resolveDefect is preparation anyone on the case can do", () => {
     const returned = makeTask({
       kind: "returned",
-      returned: { by: "scrutiny", at: at(-1), defects: [{ n: 1, text: "a", fixed: false }, { n: 2, text: "b", fixed: false }] },
+      returned: {
+        by: "scrutiny",
+        at: at(-1),
+        defects: [makeDefect({ n: 1 }), makeDefect({ n: 2, suggestion: { from: "a", to: "b" } })],
+      },
     });
     throwsCode(() => refile(returned, ctx()), "invalid");
-    const one = fixDefect(returned, ctx(junior), 1, true);
+
+    const one = resolveDefect(returned, ctx(junior), 1, { how: "edited", value: "KLGB0040213", at: at(0) });
     assert.equal(one.status, "draft");
     assert.equal(one.draft?.by, junior.id);
-    const two = fixDefect(one, ctx(junior), 2, true);
-    const filed = refile(two, ctx(senior));
+    // Defect 2 carried an explicit suggestion, so an override without a reason is not resolved.
+    const overridden = resolveDefect(one, ctx(junior), 2, { how: "edited", value: "c", at: at(0) });
+    throwsCode(() => refile(overridden, ctx(senior)), "invalid");
+
+    const justified = resolveDefect(overridden, ctx(junior), 2, {
+      how: "edited",
+      value: "c",
+      justification: "The memo at page 7 reads c.",
+      at: at(0),
+    });
+    const filed = refile(justified, ctx(senior));
     assert.equal(filed.status, "awaiting-court");
     assert.match(filed.history.at(-1)!.text, /prepared by S\. Prakash/);
+  });
+
+  it("resolveDefect refuses a defect number this return does not carry", () => {
+    const returned = makeTask({
+      kind: "returned",
+      returned: { by: "scrutiny", at: at(-1), defects: [makeDefect({ n: 1 })] },
+    });
+    throwsCode(() => resolveDefect(returned, ctx(junior), 9, { how: "accepted", at: at(0) }), "invalid");
   });
 
   it("markDone: any open-state task, any kind, by anyone on the case — records the manual close", () => {
@@ -166,7 +188,10 @@ describe("the court", () => {
     assert.equal(created.kind, "returned");
     assert.equal(created.status, "open");
     assert.equal(created.title, "Fix 2 defects and re-file the proof affidavit of the complainant");
-    assert.deepEqual(created.returned?.defects.map((d) => d.text), ["Not attested", "Annexure missing"]);
+    assert.deepEqual(created.returned?.defects.map((d) => d.note), ["Not attested", "Annexure missing"]);
+    // Free text from the sandbox registry control has no field to point at, so the
+    // remark stands against the filed bundle rather than guessing.
+    assert.deepEqual(created.returned?.defects.map((d) => d.target.kind), ["doc", "doc"]);
     assert.equal(created.dueAt, filed.dueAt);
     assert.equal(verbFor(senior, created, kase), "Re-file");
     assert.equal(verbFor(junior, created, kase), "View");

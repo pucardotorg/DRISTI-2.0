@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useLockedDisabled } from "@/components/filing/posture";
 
 /**
  * Text input that may carry a machine-read value. When `prefilled`, the DS amber fill
@@ -44,6 +45,7 @@ export function TextField({
   prefilled?: boolean;
   onViewSource?: () => void;
 }) {
+  const disabled = useLockedDisabled(props.disabled);
   return (
     <Input
       value={value}
@@ -52,6 +54,7 @@ export function TextField({
       onClick={prefilled && onViewSource ? onViewSource : undefined}
       className={cn(prefilled && onViewSource && "cursor-pointer", className)}
       {...props}
+      disabled={disabled}
     />
   );
 }
@@ -72,10 +75,13 @@ export function PrefixInput({
   prefilled?: boolean;
   onViewSource?: () => void;
 }) {
+  const disabled = useLockedDisabled(props.disabled);
   return (
     <InputGroup
+      data-disabled={disabled || undefined}
       className={cn(
         prefilled && "border-dashed border-warning-ink bg-prefilled",
+        disabled && "bg-disabled-fill",
         className
       )}
     >
@@ -89,6 +95,7 @@ export function PrefixInput({
         aria-description={prefilled ? "Machine filled, not yet verified" : undefined}
         className={cn(prefilled && onViewSource && "cursor-pointer")}
         {...props}
+        disabled={disabled}
       />
     </InputGroup>
   );
@@ -124,8 +131,9 @@ export function OptionSelect({
   const opts: Option[] = options.map((o) =>
     typeof o === "string" ? { value: o, label: o } : o
   );
+  const isDisabled = useLockedDisabled(disabled);
   return (
-    <Select value={value || undefined} onValueChange={onValueChange} disabled={disabled}>
+    <Select value={value || undefined} onValueChange={onValueChange} disabled={isDisabled}>
       <SelectTrigger
         id={id}
         aria-label={ariaLabel}
@@ -200,6 +208,7 @@ export function ComboField({
   ariaLabel?: string;
   id?: string;
 }) {
+  const locked = useLockedDisabled(disabled);
   return (
     <Combobox
       items={items as unknown[]}
@@ -212,7 +221,7 @@ export function ComboField({
         onChange(itemLabel(item));
         onSelect?.(item);
       }}
-      disabled={disabled}
+      disabled={locked}
     >
       <ComboboxInput
         id={id}

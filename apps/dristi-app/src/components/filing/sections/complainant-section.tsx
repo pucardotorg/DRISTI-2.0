@@ -48,6 +48,10 @@ import {
   HalfWidth,
 } from "@/components/filing/form-card";
 import { FormField } from "@/components/filing/form-field";
+import {
+  CorrectionInstance,
+  useCorrectionInstanceRequest,
+} from "@/components/filing/posture";
 import { OptionSelect, PrefixInput, TextField } from "@/components/filing/inputs";
 import { InfoWell } from "@/components/filing/notices";
 import { PrefillNotice } from "@/components/filing/prefill-notice";
@@ -109,6 +113,9 @@ export function ComplainantSection() {
   const [activeIndex, setActiveIndex] = React.useState(0);
   const active = Math.min(activeIndex, complainants.length - 1);
   const c = complainants[active];
+
+  /* A scrutiny defect on "Complainant 1 › Age" selects that tab before it takes focus. */
+  useCorrectionInstanceRequest("complainant", setActiveIndex);
 
   /**
    * The source rail is a column beside the form from `xl` up, so it starts expanded
@@ -320,6 +327,7 @@ export function ComplainantSection() {
 
         <PrefillNotice show={anyPrefilled} />
 
+        <CorrectionInstance value={active}>
         {/* Representation & type */}
         <FormCard title="Representation & type">
           <FormField
@@ -409,7 +417,7 @@ export function ComplainantSection() {
             */}
             <FormCard title="Basic details">
               <FormRow>
-                <FormField label="Full name" required>
+                <FormField label="Full name" name="name" required>
                   <TextField
                     value={c.name}
                     onChange={(v) => setRead("name", v)}
@@ -419,7 +427,7 @@ export function ComplainantSection() {
                     onViewSource={() => openSource("name")}
                   />
                 </FormField>
-                <FormField label="Age" required>
+                <FormField label="Age" name="age" required>
                   <TextField
                     value={c.age}
                     onChange={(v) => setRead("age", v)}
@@ -431,7 +439,7 @@ export function ComplainantSection() {
                 </FormField>
               </FormRow>
               <HalfWidth>
-                <FormField label="Email address" optional>
+                <FormField label="Email address" name="email" optional>
                   <TextField
                     type="email"
                     value={c.email}
@@ -669,6 +677,7 @@ export function ComplainantSection() {
             />
           </FormCard>
         ) : null}
+        </CorrectionInstance>
       </FilingMain>
 
       <FilingFooter

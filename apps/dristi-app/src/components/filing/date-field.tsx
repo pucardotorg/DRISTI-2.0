@@ -8,6 +8,7 @@ import type { ISODate } from "@/lib/filing/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
+import { useLockedDisabled } from "@/components/filing/posture";
 
 /**
  * Date control bound to an ISO string. Uses the DS DatePicker to pick; when the value was
@@ -33,6 +34,7 @@ export function DateField({
   className?: string;
   id?: string;
 }) {
+  const disabled = useLockedDisabled();
   if (prefilled && onViewSource) {
     return (
       <Button
@@ -40,6 +42,7 @@ export function DateField({
         type="button"
         variant="outline"
         onClick={onViewSource}
+        disabled={disabled}
         aria-label={ariaLabel}
         aria-description="Machine filled, not yet verified. Opens the source document."
         className={cn(
@@ -56,6 +59,7 @@ export function DateField({
     <DatePicker
       value={isoToDate(value)}
       onValueChange={(d) => onChange(dateToIso(d))}
+      disabled={disabled}
       placeholder={placeholder}
       className={cn("w-full", className)}
     />

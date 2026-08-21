@@ -11,8 +11,8 @@
  *   open · draft · ready ──sign──▶ done                  (signatory; event)
  *   open · draft · ready ──recordPayment──▶ done · payment-confirming · (failed) same state
  *   open · draft · ready ──file──▶ awaiting-court        (signatory)
- *   open · draft · ready ──refile──▶ awaiting-court      (signatory; every defect fixed)
- *   open · draft ──fixDefect──▶ draft                    (anyone on the case)
+ *   open · draft · ready ──refile──▶ awaiting-court      (signatory; every defect resolved)
+ *   open · draft ──resolveDefect──▶ draft                (anyone on the case)
  *   payment-confirming ──confirmPayment──▶ done          (event)
  *   awaiting-court ──courtAccepted──▶ done               (event)
  *   awaiting-court ──courtReturned(defects)──▶ obsolete + a new open `returned` task
@@ -25,13 +25,16 @@
  * "Completed by X — prepared by Y".
  */
 
+import { resolutionSatisfies } from "./defects";
 import { canArchive, canComplete, canMarkDone, canView, TERMINAL } from "./permissions";
 import type {
   Case,
   Defect,
+  DocTarget,
   PaymentResult,
   Person,
   PersonId,
+  Resolution,
   StoredFileRef,
   Task,
   TaskStatus,
@@ -157,18 +160,36 @@ export function markReady(task: Task, ctx: Ctx, note?: string, files?: StoredFil
   );
 }
 
-/** Mark a defect fixed / unfixed, optionally with a replacement upload. Anyone on the case. */
-export function fixDefect(task: Task, ctx: Ctx, n: number, fixed: boolean, replacement?: StoredFileRef): Task {
+/** What the correction screen writes back when a defect's resolution changes. */
+const RESOLUTION_WORD: Record<Resolution["how"], string> = {
+  accepted: "took scrutiny's suggested value for",
+  edited: "corrected",
+  replaced: "replaced the document for",
+};
+
+/**
+ * Record (or clear) what was done about a defect. Anyone on the case.
+ *
+ * The screen calls this as the filing changes — it is a record of an act, not a claim
+ * that the defect is cured: whether it counts is derived in `defects.ts` from the value
+ * now in the filing. Passing `undefined` clears the record (an undo, or a value put back).
+ */
+export function resolveDefect(task: Task, ctx: Ctx, n: number, resolution: Resolution | undefined): Task {
   if (task.kind !== "returned") throw new TransitionError("invalid", "Not a returned filing.");
-  assertState(task, PREPARABLE, "edit defects on");
+  assertState(task, PREPARABLE, "resolve defects on");
   assertAllowed(canView(ctx.actor, ctx.kase), "edit");
-  const defects = (task.returned?.defects ?? []).map((d) =>
-    d.n === n ? { ...d, fixed, replacement: replacement ?? d.replacement } : d
-  );
+  const before = task.returned?.defects ?? [];
+  if (!before.some((d) => d.n === n)) {
+    throw new TransitionError("invalid", `This return has no defect ${n}.`);
+  }
+  const defects = before.map((d) => (d.n === n ? { ...d, resolution } : d));
   const at = nowOf(ctx);
-  // Touching a defect is preparation: an open task becomes this person's draft; a ready
-  // task stays ready (a signatory unticking on review is not a rework).
+  // Working a defect is preparation: an open task becomes this person's draft; a ready
+  // task stays ready (a signatory revising on review is not a rework).
   const status: TaskStatus = task.status === "open" ? "draft" : task.status;
+  const line = resolution
+    ? `${ctx.actor.name} ${RESOLUTION_WORD[resolution.how]} defect ${n}`
+    : `${ctx.actor.name} undid the correction for defect ${n}`;
   return withHistory(
     {
       ...task,
@@ -177,7 +198,7 @@ export function fixDefect(task: Task, ctx: Ctx, n: number, fixed: boolean, repla
       draft: status === "draft" ? { by: ctx.actor.id, savedAt: at, note: task.draft?.note } : task.draft,
     },
     ctx,
-    `${ctx.actor.name} marked defect ${n} ${fixed ? "fixed" : "not fixed"}`
+    line
   );
 }
 
@@ -286,17 +307,23 @@ export function file(task: Task, ctx: Ctx, files?: StoredFileRef[]): Task {
   );
 }
 
-/** Re-file a returned filing once every defect is fixed. Signatories only. */
+/**
+ * Send the corrections back to scrutiny, once every defect is addressed. Signatories only.
+ *
+ * The gate reads the recorded resolutions rather than a tick: a defect whose suggestion
+ * was overridden without a justification does not count (brief D6/D7).
+ */
 export function refile(task: Task, ctx: Ctx): Task {
   if (task.kind !== "returned") throw new TransitionError("invalid", "Not a returned filing.");
   const line = beginComplete(task, ctx, "re-file");
-  if (task.returned?.defects.some((d) => !d.fixed)) {
-    throw new TransitionError("invalid", "Every defect must be marked fixed before re-filing.");
+  const defects = task.returned?.defects ?? [];
+  if (!defects.length || !defects.every(resolutionSatisfies)) {
+    throw new TransitionError("invalid", "Every defect must be resolved before the corrections go back.");
   }
   return withHistory(
     { ...task, status: "awaiting-court", statusNote: undefined, draft: undefined },
     ctx,
-    line("re-filed with the court — awaiting scrutiny")
+    line("submitted the corrections to scrutiny")
   );
 }
 
@@ -436,11 +463,31 @@ export function courtReturned(task: Task, ctx: Ctx, defects: string[]): { task: 
     createdAt: at,
     systemObservable: true,
     status: "open",
-    returned: { by: "scrutiny", at, defects: list.map((text, i): Defect => ({ n: i + 1, text, fixed: false })) },
+    returned: {
+      by: "scrutiny",
+      at,
+      defects: list.map((note, i): Defect => ({ n: i + 1, note, target: filedBundleTarget(i) })),
+    },
     files: task.files,
     history: [{ at, text: `Created — scrutiny returned ${object} with ${plural}` }],
   };
   return { task: superseded, created };
+}
+
+/**
+ * Where a defect raised by the *sandbox* registry control points. That control takes free
+ * text — it stands in for a registry we do not have — so the defect lands on the filed
+ * bundle rather than pretending to know which field the officer meant. A real scrutiny
+ * service sends the target with the remark (see `DefectTarget`).
+ */
+function filedBundleTarget(index: number): DocTarget {
+  return {
+    kind: "doc",
+    step: "documents",
+    slotKey: `filed-bundle-${index + 1}`,
+    label: "The filed bundle",
+    sectionLabel: "Documents",
+  };
 }
 
 /** "File the proof affidavit…" → "the proof affidavit…"; "Continue the draft X" → "the X". */

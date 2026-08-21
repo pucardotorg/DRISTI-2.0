@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 import { LeaveGuardProvider } from "@/components/filing/leave-guard";
+import { useInCorrection } from "@/components/filing/posture";
 import { SectionsRail, SectionsTrigger } from "@/components/filing/sections-rail";
 
 /**
@@ -61,6 +62,19 @@ export function FilingMain({
   sourceOpen?: boolean;
   className?: string;
 }) {
+  /*
+   * In a correction round this column is the middle of three panes and the frame around
+   * it already carries the page gutters, so it drops the wide ones and its own max-width
+   * rather than leaving the form stranded in the centre of a narrow column.
+   */
+  const inCorrection = useInCorrection();
+
+  if (inCorrection) {
+    return (
+      <div className={cn("flex w-full min-w-0 flex-col gap-6", className)}>{children}</div>
+    );
+  }
+
   return (
     <div
       className={cn(

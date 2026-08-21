@@ -37,13 +37,13 @@ describe("sandbox seed — grounded in the 1.0 inventory", () => {
     }
   });
 
-  it("returned tasks cure in 3 days from the return date (the 1.0 window)", () => {
+  it("returned tasks cure in 5 days from the return date (owner, O7 — 2026-08-21)", () => {
     const returned = tasks.filter((t) => t.kind === "returned");
     assert.ok(returned.length >= 3);
     for (const t of returned) {
       assert.ok(t.returned && t.dueAt, `${t.id} carries the return and a due date`);
-      assert.equal(daysBetween(t.returned.at, t.dueAt), 3, `${t.id} due 3 days after return`);
-      assert.equal(t.deadlineNote, "Registry allows 3 days to cure defects");
+      assert.equal(daysBetween(t.returned.at, t.dueAt), 5, `${t.id} due 5 days after return`);
+      assert.equal(t.deadlineNote, "Registry allows 5 days from the return to cure defects");
     }
   });
 

@@ -17,6 +17,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  FieldLock,
+  useCorrection,
+  useCorrectionInstance,
+} from "@/components/filing/posture";
 
 /** The `*` / "optional" marker after a label. */
 export function RequiredMark({ optional }: { optional?: boolean }) {
@@ -69,6 +74,7 @@ export function LabelTip({ children }: { children: React.ReactNode }) {
  */
 export function FormField({
   label,
+  name,
   required,
   optional,
   tip,
@@ -80,6 +86,11 @@ export function FormField({
   children,
 }: {
   label: React.ReactNode;
+  /**
+   * The key this field writes on its record ("ifsc", "age"). Only needed so a scrutiny
+   * defect can point at it — see `posture.tsx`; it changes nothing in the ordinary flow.
+   */
+  name?: string;
   required?: boolean;
   optional?: boolean;
   tip?: React.ReactNode;
@@ -92,6 +103,12 @@ export function FormField({
   className?: string;
   children: React.ReactNode;
 }) {
+  const correction = useCorrection();
+  const instance = useCorrectionInstance();
+  const defect =
+    correction && name ? correction.defectAt(correction.step, instance, name) : null;
+  const locked = !!correction && !defect;
+
   const marker =
     required || optional ? <RequiredMark optional={optional} /> : null;
   const labelBody = (
@@ -102,7 +119,7 @@ export function FormField({
     </>
   );
 
-  return (
+  const field = (
     <Field className={cn("gap-2", className)} data-invalid={error ? true : undefined}>
       {asGroup ? (
         <FieldTitle className="text-body-compact">{labelBody}</FieldTitle>
@@ -115,4 +132,8 @@ export function FormField({
       {error ? <FieldError>{error}</FieldError> : null}
     </Field>
   );
+
+  if (!correction) return field;
+  if (defect) return <>{correction.renderFieldDefect(defect, field)}</>;
+  return <FieldLock locked={locked}>{field}</FieldLock>;
 }

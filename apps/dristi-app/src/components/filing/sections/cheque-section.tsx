@@ -38,6 +38,10 @@ import {
   HalfWidth,
 } from "@/components/filing/form-card";
 import { FormField } from "@/components/filing/form-field";
+import {
+  CorrectionInstance,
+  useCorrectionInstanceRequest,
+} from "@/components/filing/posture";
 import { IfscField } from "@/components/filing/ifsc-field";
 import { OptionSelect, PrefixInput, TextField } from "@/components/filing/inputs";
 import { InfoWell, SectionNotice } from "@/components/filing/notices";
@@ -148,6 +152,9 @@ export function ChequeSection() {
 
   const index = Math.min(active, cheques.length - 1);
   const cheque = cheques[index];
+
+  /* A scrutiny defect on "Cheque 2 › Bank branch" selects that tab before it takes focus. */
+  useCorrectionInstanceRequest("cheque", setActive);
 
   const frontSlot = chequeSourceSlot(draft, index, "cheque-front");
   const memoSlot = chequeSourceSlot(draft, index, "return-memo");
@@ -290,13 +297,14 @@ export function ChequeSection() {
 
         <PrefillNotice show={anyPrefilled} />
 
+        <CorrectionInstance value={index}>
         {/* Cheque leaf */}
         <FormCard
           title={`Cheque ${index + 1} details`}
           description="As written on the cheque leaf."
         >
           <FormRow>
-            <FormField label="Date on cheque" required tip="As written on the cheque.">
+            <FormField label="Date on cheque" name="dateOnCheque" required tip="As written on the cheque.">
               <DateField
                 value={cheque.dateOnCheque}
                 onChange={(v) => editField("dateOnCheque", v)}
@@ -305,7 +313,7 @@ export function ChequeSection() {
                 ariaLabel="Date on cheque"
               />
             </FormField>
-            <FormField label="Amount" required tip="As written on the cheque.">
+            <FormField label="Amount" name="amount" required tip="As written on the cheque.">
               <PrefixInput
                 prefix="₹"
                 value={cheque.amount}
@@ -321,6 +329,7 @@ export function ChequeSection() {
           <HalfWidth>
             <FormField
               label="Cheque number"
+              name="chequeNumber"
               required
               tip="First set of six digits printed at the bottom of the cheque."
               help="The six-digit number, not the full MICR line."
@@ -371,6 +380,7 @@ export function ChequeSection() {
               <FormRow>
                 <FormField
                   label="Bank name"
+                  name="bankName"
                   required
                   tip="The bank written on the cheque — i.e. the drawer's (accused's) bank."
                 >
@@ -384,6 +394,7 @@ export function ChequeSection() {
                 </FormField>
                 <FormField
                   label="Bank branch"
+                  name="bankBranch"
                   required
                   tip="The branch written on the cheque — i.e. the drawer's (accused's) branch."
                 >
@@ -419,6 +430,7 @@ export function ChequeSection() {
           <FormRow>
             <FormField
               label="Date of presentation / deposit"
+              name="presentDate"
               required
               tip="Date on which the cheque was presented in the bank for clearance."
               help="Cannot be before the date on the cheque."
@@ -433,6 +445,7 @@ export function ChequeSection() {
             </FormField>
             <FormField
               label="Date of return"
+              name="returnDate"
               required
               tip="Date on which the cheque was dishonoured / returned, as written on the return memo."
               help="Cannot be before the date of presentation."
@@ -450,6 +463,7 @@ export function ChequeSection() {
           <HalfWidth>
             <FormField
               label="Return reason"
+              name="returnReason"
               required
               tip="Reason for return of the cheque, as per the return memo."
             >
@@ -475,6 +489,7 @@ export function ChequeSection() {
           ) : null}
 
         </FormCard>
+        </CorrectionInstance>
       </FilingMain>
 
       <FilingFooter

@@ -36,6 +36,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { TOP_BAR_HEIGHT, useFilingChrome } from "@/components/filing/chrome";
 import { useSourceRailSlot } from "@/components/filing/filing-shell";
+import { useInCorrection } from "@/components/filing/posture";
 import { Lightbox } from "@/components/filing/lightbox";
 
 export type SourceChip = { label: string; active: boolean; onClick: () => void };
@@ -86,7 +87,9 @@ export type SourcePanelProps = {
  * is a sheet that stays shut until "View source document" asks for it.
  */
 export function useSourceOpenState(): [boolean, (open: boolean) => void] {
-  const docked = useSourceDock();
+  const wide = useSourceDock();
+  const inCorrection = useInCorrection();
+  const docked = wide && !inCorrection;
   const [sheetOpen, setSheetOpen] = React.useState(false);
   return [docked || sheetOpen, setSheetOpen];
 }
@@ -106,7 +109,14 @@ export function useSourceOpenState(): [boolean, (open: boolean) => void] {
  * the upload, and no chip, filename or preview is drawn for a file that does not exist.
  */
 export function SourcePanel(props: SourcePanelProps) {
-  const docked = useSourceDock();
+  /*
+   * In a correction round the screen already spends its width on three panes (sections,
+   * form, resolution queue), so the source rail gives up its column and stays a sheet —
+   * opened on request, exactly as it behaves below `xl` in the ordinary flow.
+   */
+  const wide = useSourceDock();
+  const inCorrection = useInCorrection();
+  const docked = wide && !inCorrection;
   const roomy = useRoomForLabelledNav();
   const slot = useSourceRailSlot();
   const { foldNav } = useFilingChrome();
