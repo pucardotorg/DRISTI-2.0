@@ -49,3 +49,13 @@ export function useSourceDock() {
 export function useRoomForLabelledNav() {
   return useMinWidth(1536);
 }
+
+/** True from `lg` up — the board can give up width to an in-flow case peek. */
+export function useIsDesktop(): boolean {
+  return useMinWidth(1024);
+}
+
+/** True from `xl` up — the case peek and the tasks rail can coexist. */
+export function useIsWide(): boolean {
+  return useMinWidth(1280);
+}
