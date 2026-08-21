@@ -529,8 +529,10 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
         <DrawerContent className="max-h-[85svh]">
           <DrawerHeader>
             <DrawerTitle className="text-title-s font-semibold">Resolution queue</DrawerTitle>
+            {/* The progress line below is the count; §6 cut the second counter that can
+                disagree with the first, so this says what to do, not how many. */}
             <DrawerDescription className="text-body-compact">
-              {resolved} of {total} resolved. Open a defect to go to its field.
+              Open a defect to go to its field.
             </DrawerDescription>
           </DrawerHeader>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">{queueBody}</div>
