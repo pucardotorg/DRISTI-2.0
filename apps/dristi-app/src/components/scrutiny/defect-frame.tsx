@@ -29,6 +29,7 @@ import {
   Undo2Icon,
 } from "lucide-react";
 
+import { displayTargetValue } from "@/lib/filing/targets";
 import { breadcrumbOf, defectState, resolutionLabel } from "@/lib/tasks/defects";
 import type { Defect } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
@@ -65,17 +66,19 @@ export function OfficerFeedback({ defect }: { defect: Defect }) {
       ) : null}
 
       {defect.suggestion ? (
-        <DescriptionList className="gap-2 rounded-md border border-hairline bg-card p-3">
+        /* A flat card on the sunken well — the well is the recessed layer, so this does
+           not lift, and its corner stays a step inside the well's. */
+        <DescriptionList className="gap-2 rounded-sm bg-card p-3">
           <DescriptionRow className="border-hairline py-2">
             <DescriptionTerm>Filed as</DescriptionTerm>
             <DescriptionDetails className="tabular-nums line-through decoration-muted-foreground">
-              {defect.suggestion.from || "— blank —"}
+              {displayTargetValue(defect.target, defect.suggestion.from) || "— blank —"}
             </DescriptionDetails>
           </DescriptionRow>
           <DescriptionRow className="border-hairline py-2">
             <DescriptionTerm>Scrutiny suggests</DescriptionTerm>
             <DescriptionDetails className="font-medium tabular-nums text-foreground">
-              {defect.suggestion.to}
+              {displayTargetValue(defect.target, defect.suggestion.to)}
             </DescriptionDetails>
           </DescriptionRow>
           {defect.suggestion.evidence ? (
@@ -96,20 +99,31 @@ export function OfficerFeedback({ defect }: { defect: Defect }) {
 /* ───────────────────────────── Justification ───────────────────────────── */
 
 /**
- * Disagreement as a first-class resolution (brief D7). Required only where the officer
- * made an explicit suggestion and the advocate went another way: a bare "the IFSC is
- * wrong" answered by a corrected IFSC needs no essay. Labelled in the advocate's own
- * terms rather than "dispute", which sounds like an interlocutory application.
+ * Disagreement as a first-class resolution (brief D7).
+ *
+ * It is *required* only where the officer made an explicit suggestion and the advocate
+ * went another way — a bare "the IFSC is wrong" answered by a corrected IFSC needs no
+ * essay. It is *available* on every field defect, because this is also how the advocate
+ * says "the value as filed is right, and here is why", and that is a resolution too. Take
+ * it away and the only route past the submit gate is to change a value the advocate
+ * believes is correct.
+ *
+ * Labelled in the advocate's own terms rather than "dispute", which sounds like an
+ * interlocutory application — and the label follows what is actually happening, so it does
+ * not read as an accusation when the value has simply been corrected.
  */
 function Justification({
   defect,
   value,
   required,
+  keeping,
   onChange,
 }: {
   defect: Defect;
   value: string;
   required: boolean;
+  /** The filing still holds what scrutiny saw — the reason is a disagreement, not a note. */
+  keeping: boolean;
   onChange: (text: string) => void;
 }) {
   const id = `justify-${defect.n}`;
@@ -117,11 +131,15 @@ function Justification({
   return (
     <Field className="gap-2" data-invalid={missing || undefined}>
       <FieldLabel htmlFor={id} className="text-body-compact">
-        Why you are changing this value
+        {keeping ? "Why this value should stand" : "Why you are changing this value"}
       </FieldLabel>
       <FieldDescription>
-        Scrutiny suggested a value and you have entered a different one. Your reason goes
-        back to the registry with the correction.
+        {keeping
+          ? "If the filing is right as it stands, say why and this defect is answered — you do not have to change the value to clear it."
+          : defect.suggestion
+            ? "Scrutiny suggested a value and you have entered a different one."
+            : "Optional — add a reason if the correction needs explaining."}{" "}
+        Your reason goes back to the Registry with the correction.
       </FieldDescription>
       <Textarea
         id={id}
@@ -129,7 +147,11 @@ function Justification({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-invalid={missing || undefined}
-        placeholder="e.g. The return memo at page 7 reads ₹1,85,000; the figure in the complaint was the typing error."
+        placeholder={
+          keeping
+            ? "e.g. The complaint states this as it appears on the cheque leaf; it is the return memo that carries the error."
+            : "e.g. The return memo at page 7 reads ₹1,85,000; the figure in the complaint was the typing error."
+        }
       />
       {missing ? <FieldError>This defect is not resolved until you say why.</FieldError> : null}
     </Field>
@@ -154,6 +176,7 @@ export function DefectFrame({
   actions,
   children,
   onFocusCapture,
+  onBlurCapture,
 }: {
   defect: Defect;
   /** What the filing currently holds at this defect's target. */
@@ -163,6 +186,8 @@ export function DefectFrame({
   /** The field itself, or the document row. */
   children: React.ReactNode;
   onFocusCapture?: () => void;
+  /** Focus leaving the frame ends the act — the screen writes the record then. */
+  onBlurCapture?: (event: React.FocusEvent<HTMLElement>) => void;
 }) {
   const state = defectState(defect, value);
   const resolved = state === "resolved";
@@ -170,19 +195,26 @@ export function DefectFrame({
   const showAccept =
     !!defect.suggestion && !!actions.accept && value !== defect.suggestion.to;
   const needsReason = state === "needs-justification";
-  const justifiable = !!defect.suggestion && !resolvedBySuggestion(defect, value);
+  const keeping = (value ?? "").trim() === (defect.valueAtReturn ?? "").trim();
+  /* Every field defect can carry a reason; only taking scrutiny's exact value makes one
+     pointless, because there is then nothing to explain. */
+  const justifiable = defect.target.kind === "field" && !resolvedBySuggestion(defect, value);
 
   return (
     <section
       id={`defect-${defect.n}`}
+      data-defect-frame
       aria-label={`Defect ${defect.n} — ${trail}`}
       aria-current={active ? "true" : undefined}
       onFocusCapture={onFocusCapture}
+      onBlurCapture={onBlurCapture}
       /* One cue at a time: the frame's border and strip say what state the defect is in,
          the queue card's lift says which one is current, and the ring belongs to whatever
-         actually has focus inside. Stacking all three is the "selection costume". */
+         actually has focus inside. Stacking all three is the "selection costume".
+         `col-span-full` because a frame that lands in a two-up `FormRow` would otherwise
+         hold the officer's reasoning in half a column. */
       className={cn(
-        "scroll-mt-6 overflow-hidden rounded-lg border bg-card transition-colors",
+        "col-span-full scroll-mt-6 overflow-hidden rounded-lg border bg-card transition-colors",
         resolved ? "border-success-ink" : "border-warning-ink"
       )}
     >
@@ -210,7 +242,9 @@ export function DefectFrame({
       </header>
 
       <div className="flex flex-col gap-4 p-4">
-        {children}
+        {/* Named so "Go to the field" lands on the control the defect is about, and not on
+            whatever focusable the label happens to carry. */}
+        <div data-defect-control>{children}</div>
 
         <OfficerFeedback defect={defect} />
 
@@ -219,6 +253,7 @@ export function DefectFrame({
             defect={defect}
             value={actions.justification}
             required={needsReason}
+            keeping={keeping}
             onChange={actions.onJustificationChange}
           />
         ) : null}

@@ -26,6 +26,56 @@ export function useMinWidth(minWidth: number): boolean {
 }
 
 /**
+ * Is there room for `rem` worth of *this page's own text* across the viewport?
+ *
+ * A media query cannot answer that. `min-width: 80rem` measures the browser's default
+ * font size, which browser text zoom changes but a user stylesheet or an enlarged root
+ * size does not; a pixel query misses both. So this measures what is actually true —
+ * viewport width divided by the computed root font size — and re-measures whenever the
+ * document relayouts, which covers a resize, a page zoom and a font-size change alike.
+ *
+ * Multi-pane layouts need it: at 200% text zoom a 1280px viewport holds forty rem, not
+ * eighty, and three panes sized for eighty leave a rail too narrow to read a word in.
+ * Folding on *effective* width is what keeps the labels whole (`ACCESSIBILITY.md` §10).
+ *
+ * `false` before mount, so the narrow layout renders first and never claims room it has
+ * not measured.
+ */
+export function useRoomInRem(rem: number): boolean {
+  const [fits, setFits] = React.useState(false);
+
+  React.useEffect(() => {
+    /*
+     * A one-rem probe, because there is no event for "the root font size changed".
+     * Observing the document element does not work — its box is the viewport, which does
+     * not move when the text does. A box sized in `rem` does.
+     */
+    const probe = document.createElement("div");
+    probe.setAttribute("aria-hidden", "true");
+    probe.style.cssText =
+      "position:fixed;top:0;left:0;width:1rem;height:1rem;visibility:hidden;pointer-events:none";
+    document.body.appendChild(probe);
+
+    const measure = () => {
+      const base = probe.getBoundingClientRect().width || 16;
+      setFits(window.innerWidth / base >= rem);
+    };
+    measure();
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(probe);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+      probe.remove();
+    };
+  }, [rem]);
+
+  return fits;
+}
+
+/**
  * Width thresholds for the filing chrome. The flow can show four columns at once — main
  * nav, sections rail, form, source rail — so each surface has a width it is allowed to
  * take a column at, and below it becomes an overlay instead of squeezing the form.

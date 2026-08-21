@@ -59,6 +59,7 @@ function QueueCard({
 }: {
   item: QueueDefect;
   active: boolean;
+  /** Only the "go to the field" button calls this — the trigger is the accordion's. */
   onOpen: () => void;
 }) {
   const { defect, value } = item;
@@ -74,10 +75,10 @@ function QueueCard({
         active && "shadow-raised"
       )}
     >
-      <AccordionTrigger
-        onClick={onOpen}
-        className="items-start gap-3 px-4 py-3 hover:no-underline"
-      >
+      {/* No `onClick` here: the accordion's own `onValueChange` is the single owner of
+          which card is open. With both wired, the trigger re-opened the card the accordion
+          had just closed, and an open card could not be collapsed. */}
+      <AccordionTrigger className="items-start gap-3 px-4 py-3 hover:no-underline">
         <span className="flex min-w-0 flex-1 flex-col gap-1 text-left">
           <span className="flex items-center gap-2">
             <StateMark state={state} />
@@ -154,6 +155,8 @@ export function ResolutionQueue({
     <Accordion
       type="single"
       collapsible
+      /* One owner for "which card is open": expanding a card *is* opening that defect,
+         and collapsing it (`""`) leaves the queue with nothing current. */
       value={activeDefect === null ? "" : String(activeDefect)}
       onValueChange={(v) => onOpenDefect(v ? Number(v) : -1)}
       className={cn("flex flex-col gap-3", className)}

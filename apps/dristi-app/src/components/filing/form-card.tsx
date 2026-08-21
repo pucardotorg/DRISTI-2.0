@@ -67,7 +67,12 @@ export function FormRow({
   );
 }
 
-/** A field that should take half the card width on wide screens. */
+/**
+ * A field that should take half the card width on wide screens — unless a scrutiny defect
+ * frame has grown around it, in which case it takes the row. The officer's note, voice
+ * remark and suggested value do not read in half a column, and the half-width was a
+ * judgement about a short input, not about the block that explains it.
+ */
 export function HalfWidth({
   children,
   className,
@@ -75,7 +80,13 @@ export function HalfWidth({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={cn("w-full md:w-1/2 md:pr-2", className)}>{children}</div>;
+  return (
+    <div
+      className={cn("w-full md:w-1/2 md:pr-2 has-[[data-defect-frame]]:md:w-full", className)}
+    >
+      {children}
+    </div>
+  );
 }
 
 /** Sub-heading inside a card (e.g. "PoA holder details"). */

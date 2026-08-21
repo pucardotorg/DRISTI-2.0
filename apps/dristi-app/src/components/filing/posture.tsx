@@ -23,7 +23,7 @@
 import * as React from "react";
 
 import type { StepId } from "@/lib/filing/types";
-import type { Defect, Resolution } from "@/lib/tasks/types";
+import type { Defect } from "@/lib/tasks/types";
 
 export type CorrectionValue = {
   /** The step the centre pane is showing. */
@@ -34,8 +34,6 @@ export type CorrectionValue = {
   defectForSlot: (step: StepId, slotKey: string) => Defect | null;
   /** What the filing currently holds for a defect's target — the resolution is derived from it. */
   valueOf: (defect: Defect) => string | undefined;
-  /** Record (or clear) what was done about a defect. */
-  resolve: (defect: Defect, resolution: Resolution | undefined) => void;
   /** The defect the queue is currently on — its frame carries the focus. */
   activeDefect: number | null;
   setActiveDefect: (n: number | null) => void;

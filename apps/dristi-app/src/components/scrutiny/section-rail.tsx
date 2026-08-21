@@ -22,7 +22,16 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-const ROW = "h-10 w-full justify-start gap-2 px-2 font-normal";
+/**
+ * `min-h-10` rather than `h-10`, and the label wraps.
+ *
+ * At 200% text zoom the rail keeps its width while the words in it double, so a fixed
+ * height and a `truncate` turned "Case documents" into "Cas…" — a section list nobody can
+ * read is a loss of content, which `ACCESSIBILITY.md` §10 does not allow without an
+ * alternative. A taller row is the alternative.
+ */
+const ROW =
+  "h-auto min-h-10 w-full justify-start gap-2 whitespace-normal px-2 py-2 text-left font-normal";
 const ROW_ACTIVE =
   "bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
 
@@ -80,7 +89,7 @@ export function SectionRail({
                     className={cn(ROW, active && ROW_ACTIVE)}
                   >
                     <Icon aria-hidden className={active ? undefined : "text-muted-foreground"} />
-                    <span className="min-w-0 flex-1 truncate text-left">{s.title}</span>
+                    <span className="min-w-0 flex-1 text-left break-words">{s.title}</span>
                     {count > 0 ? (
                       <Badge variant="warning" className="tabular-nums">
                         {count}

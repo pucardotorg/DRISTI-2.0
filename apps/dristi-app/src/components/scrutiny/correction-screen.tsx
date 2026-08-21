@@ -17,6 +17,12 @@
  *   · **Resolved is derived, never certified** (D6). The screen reconciles each defect's
  *     recorded resolution against what the filing actually holds — see `lib/tasks/defects`
  *     — so nothing counts because someone ticked it.
+ *
+ * Derivation is live; the *record* is not. What the advocate sees — the frame's state, the
+ * queue's count, the submit gate — recomputes on every keystroke from the draft. What the
+ * task's history receives is written only when a human act finishes: focus leaves the
+ * field, typing pauses, a suggestion is accepted, or the corrections are submitted. A
+ * history that gained a line per keystroke would be a log of the keyboard, not of the work.
  */
 
 import * as React from "react";
@@ -35,15 +41,18 @@ import { longDate } from "@/lib/tasks/format";
 import {
   allResolved,
   countResolved,
-  editedResolution,
   firstUnresolved,
+  intendedResolution,
+  sameResolution,
   targetKey,
 } from "@/lib/tasks/defects";
-import { useMinWidth } from "@/hooks/use-min-width";
+import { useRoomInRem } from "@/hooks/use-min-width";
+import { cn } from "@/lib/utils";
 import { useFiling } from "@/lib/filing/store";
 import { intakeSlot, readTarget, writeTarget } from "@/lib/filing/targets";
 import type { StepId } from "@/lib/filing/types";
 import { getStep } from "@/lib/filing/steps";
+import type { Ctx } from "@/lib/tasks/transitions";
 import { refile, resolveDefect } from "@/lib/tasks/transitions";
 import type { Case, Defect, Resolution, Task } from "@/lib/tasks/types";
 import {
@@ -106,9 +115,39 @@ const RAIL_W = 256;
 const QUEUE_W = 320;
 const QUEUE_W_XL = 384;
 
+/** Room the three-pane and two-pane layouts need, measured in the page's own text. */
+const RAIL_REM = 80;
+const QUEUE_REM = 64;
+
+/** How long typing has to stop before the act is written to the task's history. */
+const COMMIT_QUIET_MS = 700;
+
+/** The one primary action, sized by its words rather than clipping them. */
+const SUBMIT_CLASS = "h-auto min-h-11 w-full whitespace-normal py-2 text-center";
+
 function dueCue(task: Task): string | null {
   if (!task.dueAt) return null;
   return `Due ${longDate(task.dueAt)}`;
+}
+
+/**
+ * Move focus to the thing the defect is about.
+ *
+ * "First enabled focusable in the frame" is not that: a field whose label carries a
+ * tooltip puts the tip's icon button ahead of the input in the DOM, so the advocate who
+ * clicked "Go to the field" landed on a help button. So the search is ordered — the
+ * control the frame nominates, then a real form control inside it, and only then any
+ * button, which is what a document row (Replace) legitimately offers.
+ */
+function focusTheControl(frame: HTMLElement): void {
+  const scope = frame.querySelector<HTMLElement>("[data-defect-control]") ?? frame;
+  const control =
+    scope.querySelector<HTMLElement>("[data-defect-focus]:not([disabled])") ??
+    scope.querySelector<HTMLElement>(
+      "input:not([disabled]):not([type=hidden]), textarea:not([disabled]), select:not([disabled])"
+    ) ??
+    scope.querySelector<HTMLElement>("button:not([disabled])");
+  control?.focus({ preventScroll: true });
 }
 
 export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
@@ -116,90 +155,141 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
   const { draft, update } = useFiling();
   const { act, busy, online } = useTaskActions();
 
-  const defects = React.useMemo(() => task.returned?.defects ?? [], [task.returned]);
+  const recorded = React.useMemo(() => task.returned?.defects ?? [], [task.returned]);
   const valueOf = React.useCallback(
     (defect: Defect) => readTarget(draft, defect.target),
     [draft]
   );
 
+  /**
+   * Reasons still being typed, by defect number. They live here rather than in the task
+   * so a half-written sentence never reaches the history; the record catches up on commit.
+   */
+  const [reasons, setReasons] = React.useState<Record<number, string>>({});
+
+  /**
+   * The defects as the screen sees them: the task's record, with any reason still being
+   * typed folded in. Every derivation below — the frames, the queue, the count, the gate —
+   * reads this, so a disagreement counts the moment it is written rather than the moment
+   * it is committed. `intendedResolution` is the same function the commit uses, so what is
+   * shown and what will be recorded can never disagree.
+   */
+  const defects = React.useMemo(
+    () =>
+      recorded.map((d) => {
+        const typed = reasons[d.n];
+        if (typed === undefined) return d;
+        const next = intendedResolution(d, readTarget(draft, d.target), typed, d.resolution?.at ?? "");
+        return sameResolution(d.resolution, next) ? d : { ...d, resolution: next };
+      }),
+    [recorded, reasons, draft]
+  );
+
   /* ── Where we are ────────────────────────────────────────────────── */
 
   const [step, setStep] = React.useState<StepId>(
-    () => firstUnresolved(defects, (d) => readTarget(draft, d.target))?.target.step ?? FALLBACK_STEP
+    () => firstUnresolved(recorded, (d) => readTarget(draft, d.target))?.target.step ?? FALLBACK_STEP
   );
   const [activeDefect, setActiveDefect] = React.useState<number | null>(
-    () => firstUnresolved(defects, (d) => readTarget(draft, d.target))?.n ?? null
+    () => firstUnresolved(recorded, (d) => readTarget(draft, d.target))?.n ?? null
   );
   const [instanceRequest, setInstanceRequest] = React.useState<
     CorrectionValue["instanceRequest"]
   >(null);
   const [railOpen, setRailOpen] = React.useState(false);
-  /* `xl` in viewport pixels — the queue takes its wider size only where there is room. */
-  const wideQueue = useMinWidth(1280);
+  /**
+   * The D11 ladder, measured in the page's own text rather than in viewport pixels: three
+   * panes need ~80rem of room, the queue alone needs ~64rem. At 200% text zoom a 1280px
+   * window is forty rem wide, so the rails fold to their sheet and the form keeps the
+   * width — which is what stops "Case documents" becoming "Cas…".
+   */
+  const railColumn = useRoomInRem(RAIL_REM);
+  const queueColumn = useRoomInRem(QUEUE_REM);
   const [queueOpen, setQueueOpen] = React.useState(false);
   const [confirm, setConfirm] = React.useState(false);
   const nonce = React.useRef(0);
 
-  /** Justifications are typed continuously; the task record is written on each change. */
-  const justificationOf = (defect: Defect) => defect.resolution?.justification ?? "";
+  /** The reason for a defect: what is being typed, or what the record already holds. */
+  const justificationOf = (defect: Defect) =>
+    reasons[defect.n] ?? defect.resolution?.justification ?? "";
 
   /* ── Recording what was done ─────────────────────────────────────── */
 
-  const record = React.useCallback(
-    (defect: Defect, resolution: Resolution | undefined) =>
-      void act(task.id, (t, c) => resolveDefect(t, c, defect.n, resolution)),
-    [act, task.id]
-  );
-
   /**
-   * Keep the task's record in step with the filing.
-   *
-   * The advocate edits the *form*, not this screen's own controls, so the resolution has
-   * to follow the draft: a value put back the way scrutiny saw it clears the record, a
-   * value that matches the suggestion is an acceptance, anything else is an edit — and it
-   * keeps whatever justification has already been written. Guarded so it only dispatches
-   * when the conclusion actually changes.
+   * The gap between what the task's record says and what the filing (plus any reason
+   * typed) actually shows. Empty on every render where nothing has been done — which is
+   * most of them, including every keystroke that only retypes the same conclusion.
    */
-  React.useEffect(() => {
-    if (task.status === "awaiting-court") return;
-    for (const defect of defects) {
-      const value = valueOf(defect);
-
+  const pending = React.useMemo<{ n: number; resolution: Resolution | undefined }[]>(() => {
+    if (task.status === "awaiting-court") return [];
+    const at = new Date().toISOString();
+    const changes: { n: number; resolution: Resolution | undefined }[] = [];
+    for (const defect of recorded) {
+      let next: Resolution | undefined;
       if (defect.target.kind === "doc") {
         /* A replacement upload is the resolution; putting the original back undoes it. */
         const slot = intakeSlot(draft, defect.target.slotKey);
         const replaced = !!slot?.file && slot.file.id !== defect.valueAtReturn;
-        if (replaced && defect.resolution?.replacement?.id !== slot!.file!.id) {
-          record(defect, {
-            how: "replaced",
-            at: new Date().toISOString(),
-            replacement: slot!.file!,
-          });
-        } else if (!replaced && defect.resolution) {
-          record(defect, undefined);
-        }
-        continue;
+        next = replaced ? { how: "replaced", at, replacement: slot!.file! } : undefined;
+      } else {
+        const value = valueOf(defect);
+        /* A target this draft cannot resolve is not evidence that nothing was done. */
+        if (value === undefined) continue;
+        next = intendedResolution(defect, value, justificationOf(defect), at);
       }
-
-      if (value === undefined) continue;
-      const current = defect.resolution;
-      const unchanged = value.trim() === (defect.valueAtReturn ?? "").trim();
-
-      if (unchanged) {
-        if (current) record(defect, undefined);
-        continue;
-      }
-      const how: Resolution["how"] =
-        defect.suggestion && value.trim() === defect.suggestion.to.trim() ? "accepted" : "edited";
-      if (current?.how === how && current.value === value) continue;
-      record(
-        defect,
-        how === "accepted"
-          ? { how, value, at: new Date().toISOString() }
-          : editedResolution(value, current?.justification, new Date().toISOString())
-      );
+      if (!sameResolution(defect.resolution, next)) changes.push({ n: defect.n, resolution: next });
     }
-  }, [defects, valueOf, record, task.status, draft]);
+    return changes;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recorded, draft, reasons, valueOf, task.status]);
+
+  /**
+   * Write the gap to the task — one dispatch, and one history line per defect actually
+   * decided. Folding the writes into a single transition also keeps them consistent: each
+   * `resolveDefect` is pure, so they compose on the same task rather than racing to
+   * overwrite one another.
+   */
+  const commit = React.useCallback(() => {
+    if (pending.length === 0) return;
+    void act(task.id, (t, c: Ctx) =>
+      pending.reduce((acc, ch) => resolveDefect(acc, c, ch.n, ch.resolution), t)
+    );
+  }, [act, pending, task.id]);
+
+  /* So a timer and a blur handler both reach the latest one without re-subscribing. */
+  const commitRef = React.useRef(commit);
+  React.useEffect(() => {
+    commitRef.current = commit;
+  }, [commit]);
+
+  /**
+   * Set by an explicit action — accept, undo — which is a finished act the moment it is
+   * clicked. It still waits for the next render, because the draft has to settle before
+   * there is anything true to write.
+   */
+  const commitSoon = React.useRef(false);
+
+  /**
+   * Commit when typing stops. Blur commits too (see `onFrameBlur`), which is the usual
+   * path; this catches the advocate who types a value and then reaches for the mouse
+   * without leaving the field, and it is what keeps the record honest if the tab is closed.
+   */
+  React.useEffect(() => {
+    if (pending.length === 0) return;
+    const wait = commitSoon.current ? 0 : COMMIT_QUIET_MS;
+    commitSoon.current = false;
+    const id = window.setTimeout(() => commitRef.current(), wait);
+    return () => window.clearTimeout(id);
+  }, [pending]);
+
+  /** Focus leaving a defect frame ends the act — write it now rather than on the timer. */
+  const onFrameBlur = React.useCallback(
+    (event: React.FocusEvent<HTMLElement>) => {
+      if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+      commitRef.current();
+    },
+    []
+  );
 
   /* ── Navigating to a defect ──────────────────────────────────────── */
 
@@ -227,10 +317,7 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
         const frame = document.getElementById(`defect-${n}`);
         if (!frame) return;
         frame.scrollIntoView({ block: "center", behavior: "smooth" });
-        const control = frame.querySelector<HTMLElement>(
-          "input:not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled])"
-        );
-        control?.focus({ preventScroll: true });
+        focusTheControl(frame);
       }, 120);
     },
     [defects]
@@ -248,12 +335,23 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
 
   /* ── The frames the form renders in place of a flagged field ─────── */
 
+  /** Forget a reason that is being typed — after an undo, or once a suggestion is taken. */
+  const clearReason = (n: number) =>
+    setReasons((prev) => {
+      if (!(n in prev)) return prev;
+      const next = { ...prev };
+      delete next[n];
+      return next;
+    });
+
   const frameActions = (defect: Defect): FrameActions => ({
     accept: defect.suggestion
       ? () => {
           const to = defect.suggestion!.to;
           update((d) => writeTarget(d, defect.target, to));
+          clearReason(defect.n);
           setActiveDefect(defect.n);
+          commitSoon.current = true;
         }
       : undefined,
     undo: defect.resolution
@@ -261,14 +359,13 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
           if (defect.target.kind === "field") {
             update((d) => writeTarget(d, defect.target, defect.valueAtReturn ?? ""));
           }
-          record(defect, undefined);
+          clearReason(defect.n);
+          commitSoon.current = true;
         }
       : undefined,
     justification: justificationOf(defect),
-    onJustificationChange: (text) => {
-      const value = valueOf(defect) ?? "";
-      record(defect, editedResolution(value, text, new Date().toISOString()));
-    },
+    onJustificationChange: (text) =>
+      setReasons((prev) => ({ ...prev, [defect.n]: text })),
   });
 
   const correction: CorrectionValue = {
@@ -286,7 +383,6 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
         (d) => d.target.kind === "doc" && d.target.step === s && d.target.slotKey === slotKey
       ) ?? null,
     valueOf,
-    resolve: record,
     activeDefect,
     setActiveDefect,
     instanceRequest,
@@ -298,6 +394,7 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
         active={activeDefect === defect.n}
         actions={frameActions(defect)}
         onFocusCapture={() => setActiveDefect(defect.n)}
+        onBlurCapture={onFrameBlur}
       >
         {control}
       </DefectFrame>
@@ -310,6 +407,7 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
         active={activeDefect === defect.n}
         actions={frameActions(defect)}
         onFocusCapture={() => setActiveDefect(defect.n)}
+        onBlurCapture={onFrameBlur}
       >
         {row}
       </DefectFrame>
@@ -319,9 +417,16 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
   /* ── Submitting ──────────────────────────────────────────────────── */
 
   const back = `/tasks?task=${encodeURIComponent(task.id)}`;
+  /**
+   * Anything still uncommitted goes in *with* the re-filing, in one transition: `refile`
+   * reads the resolutions off the task, so a reason typed a second before the click has to
+   * be on the task before `refile` looks at it — two dispatches would race.
+   */
   const submit = async () => {
     setConfirm(false);
-    const done = await act(task.id, refile);
+    const done = await act(task.id, (t, c: Ctx) =>
+      refile(pending.reduce((acc, ch) => resolveDefect(acc, c, ch.n, ch.resolution), t), c)
+    );
     if (done) router.push(back);
   };
 
@@ -360,7 +465,11 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
       <Button
         type="button"
         size="lg"
-        className="w-full"
+        /* The label wraps rather than clipping: at 200% text zoom "Submit corrections to
+           scrutiny" does not fit one line in any pane this screen has, and a button
+           reading "Submit corrections to scru…" is the loss of content
+           `ACCESSIBILITY.md` §10 forbids. Height follows the words. */
+        className={SUBMIT_CLASS}
         disabled={!complete || !online || !!busy}
         onClick={() => setConfirm(true)}
       >
@@ -428,28 +537,33 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
                 ) : null}
               </p>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setRailOpen(true)}
-              aria-haspopup="dialog"
-              className="shrink-0 xl:hidden"
-            >
-              <PanelLeftIcon data-icon="inline-start" aria-hidden />
-              Sections
-            </Button>
+            {railColumn ? null : (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setRailOpen(true)}
+                aria-haspopup="dialog"
+                className="shrink-0"
+              >
+                <PanelLeftIcon data-icon="inline-start" aria-hidden />
+                Sections
+              </Button>
+            )}
           </div>
         </header>
 
         <div className="flex min-h-0 min-w-0 flex-1">
-          {/* Left — every section, with the defect counts. A column from `lg`. */}
-          <aside
-            aria-label="Sections"
-            style={{ width: RAIL_W }}
-            className="hidden shrink-0 flex-col overflow-y-auto border-r border-hairline bg-sidebar py-4 xl:flex"
-          >
-            <SectionRail step={step} countFor={countFor} onSelect={setStep} />
-          </aside>
+          {/* Left — every section, with the defect counts. A column where there is room
+              for one; the same list in a sheet where there is not. */}
+          {railColumn ? (
+            <aside
+              aria-label="Sections"
+              style={{ width: RAIL_W }}
+              className="flex shrink-0 flex-col overflow-y-auto border-r border-hairline bg-sidebar py-4"
+            >
+              <SectionRail step={step} countFor={countFor} onSelect={setStep} />
+            </aside>
+          ) : null}
 
           {/* Centre — the section, in correction posture. */}
           <main className="flex min-w-0 flex-1 flex-col overflow-y-auto px-4 pb-8 pt-6 sm:px-6">
@@ -457,32 +571,41 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
               <Alert>
                 <LockIcon aria-hidden />
                 <AlertTitle>This is a correction round, not an edit round</AlertTitle>
+                {/* States the lock without promising an unlock: nothing in the product
+                    docs says an unflagged field reopens, or when. */}
                 <AlertDescription>
                   Only the fields scrutiny flagged can be changed. Everything else in{" "}
-                  {stepTitle.toLowerCase()} is locked until the Registry accepts the filing.
+                  {stepTitle.toLowerCase()} is locked for this correction round.
                 </AlertDescription>
               </Alert>
               <SectionBody step={step} />
             </div>
           </main>
 
-          {/* Right — the queue. A column from `xl`; a drawer below it. */}
-          <aside
-            aria-label="Resolution queue"
-            style={{ width: wideQueue ? QUEUE_W_XL : QUEUE_W }}
-            className="hidden shrink-0 flex-col overflow-hidden border-l border-hairline bg-sidebar lg:flex"
-          >
-            <div className="flex min-h-0 flex-1 flex-col gap-4 p-6">
-              <h2 className="text-title-s font-semibold text-foreground">Resolution queue</h2>
-              <ScrollArea className="-mx-2 min-h-0 flex-1 px-2">{queueBody}</ScrollArea>
-            </div>
-            <div className="border-t border-hairline p-4">{submitBlock}</div>
-          </aside>
+          {/* Right — the queue. A column where it fits; a drawer and a sticky bar below. */}
+          {queueColumn ? (
+            <aside
+              aria-label="Resolution queue"
+              style={{ width: railColumn ? QUEUE_W_XL : QUEUE_W }}
+              className="flex shrink-0 flex-col overflow-hidden border-l border-hairline bg-sidebar"
+            >
+              <div className="flex min-h-0 flex-1 flex-col gap-4 p-6">
+                <h2 className="text-title-s font-semibold text-foreground">Resolution queue</h2>
+                <ScrollArea className="-mx-2 min-h-0 flex-1 px-2">{queueBody}</ScrollArea>
+              </div>
+              <div className="border-t border-hairline p-4">{submitBlock}</div>
+            </aside>
+          ) : null}
         </div>
 
-        {/* Below xl the queue is the critical action, so it gets a persistent bar —
-            RESPONSIVE.md rule 7: never hide a critical action. */}
-        <div className="z-30 flex shrink-0 flex-col gap-3 border-t border-hairline bg-card p-4 lg:hidden">
+        {/* With the queue folded away it is still the critical action, so it keeps a
+            persistent bar — RESPONSIVE.md rule 7: never hide a critical action. */}
+        <div
+          className={cn(
+            "z-30 shrink-0 flex-col gap-3 border-t border-hairline bg-card p-4",
+            queueColumn ? "hidden" : "flex"
+          )}
+        >
           <div className="flex items-center gap-3">
             <QueueProgress resolved={resolved} total={total} className="min-w-0 flex-1" />
             <Button type="button" variant="outline" onClick={() => setQueueOpen(true)}>
@@ -493,7 +616,7 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
           <Button
             type="button"
             size="lg"
-            className="w-full"
+            className={SUBMIT_CLASS}
             disabled={!complete || !online || !!busy}
             onClick={() => setConfirm(true)}
           >
