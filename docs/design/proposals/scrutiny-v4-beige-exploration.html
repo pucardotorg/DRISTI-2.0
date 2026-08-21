@@ -23,30 +23,35 @@
     --destructive-ink:#ce2c31;
     --solid-fg:#ffffff;
 
-    /* — EXPLORATION: warm neutral ramp (beige) — */
-    --beige-0:#fffdfa;   /* card / white sheet, a hair warm so it sits on the canvas */
-    --beige-1:#faf7f2;   /* canvas — the page */
-    --beige-2:#f4efe7;   /* corrections panel, wells inside white cards */
-    --beige-3:#ede6db;   /* sections rail */
-    --beige-4:#e3dacd;   /* track, dividers on beige */
-    --beige-6:#cfc4b4;   /* input/control edge */
-    --beige-8:#a89c8c;   /* placeholder, chevrons */
-    --beige-11:#6d6357;  /* muted foreground (warm grey, ≥5.5:1 on beige-1) */
-    --beige-12:#221d18;  /* foreground — warm near-black */
+    /* — EXPLORATION: warm neutral ramp, second pass —
+       The first pass stepped the ramp ~6 points per layer and read as "a beige theme".
+       This one keeps every layer within ~2–3 points of its neighbour, nearly desaturated,
+       and lets the shadow do the lifting: warmth you feel, not beige you see. — */
+    --beige-0:#ffffff;   /* card — pure white; the one thing that lifts */
+    --beige-1:#fbfaf8;   /* canvas — barely off white */
+    --beige-2:#f7f5f2;   /* corrections panel, wells inside white cards */
+    --beige-3:#f3f1ee;   /* sections rail — the deepest fill on the screen */
+    --beige-4:#e8e5e0;   /* track, quiet dividers */
+    --beige-6:#d9d5ce;   /* input/control edge */
+    --beige-8:#aba49b;   /* placeholder, chevrons */
+    --beige-11:#6e6861;  /* muted foreground (≥5.5:1 on canvas) */
+    --beige-12:#1e1b18;  /* foreground — warm near-black */
 
-    /* — EXPLORATION: charcoal nav — */
-    --charcoal:#26221e; --charcoal-2:#2f2a25; --charcoal-fg:#b9afa3; --charcoal-on:#ffffff;
+    /* — EXPLORATION: charcoal nav — a touch deeper and less brown than pass one — */
+    --charcoal:#1f1d1a; --charcoal-2:#2a2723; --charcoal-fg:#a7a098; --charcoal-on:#ffffff;
 
     /* — semantic roles, pointing at the ramp — */
     --canvas:var(--beige-1); --card:var(--beige-0); --panel:var(--beige-2);
     --rail:var(--beige-3); --well:var(--beige-2); --track:var(--beige-4);
     --fg:var(--beige-12); --muted:var(--beige-11); --input:var(--beige-6);
-    --hairline:rgba(52,40,26,.10);
+    --hairline:rgba(40,32,24,.07);
+    --hover:rgba(40,32,24,.04);
 
-    /* — elevation (DS values) — */
-    --shadow-raised:0 1px 2px rgba(0,0,0,.04), 0 1px 3px rgba(0,0,0,.07);
-    --shadow-overlay:0 4px 12px rgba(0,0,0,.10), 0 2px 6px rgba(0,0,0,.06);
-    --shadow-modal:0 12px 32px rgba(0,0,0,.18), 0 4px 12px rgba(0,0,0,.12);
+    /* — elevation (DS structure; the raised shadow carries a whisper more depth because
+       the fills no longer do) — */
+    --shadow-raised:0 1px 2px rgba(30,24,18,.04), 0 2px 6px rgba(30,24,18,.05);
+    --shadow-overlay:0 4px 12px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.05);
+    --shadow-modal:0 12px 32px rgba(0,0,0,.16), 0 4px 12px rgba(0,0,0,.10);
 
     /* — radius ladder (DS, 10px knob) — */
     --radius:10px;
@@ -79,8 +84,9 @@
 
   .nav{background:var(--charcoal);display:flex;flex-direction:column;align-items:center;
     padding:12px 0;gap:6px;border-right:1px solid rgba(255,255,255,.06)}
-  .nav .logo{width:36px;height:36px;border-radius:var(--r-md);background:var(--brand-solid);
-    display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px;letter-spacing:.02em;margin-bottom:10px}
+  .nav .logo{width:36px;height:36px;border-radius:var(--r-md);background:var(--charcoal-2);
+    display:grid;place-items:center;color:var(--brand-9);font-weight:600;font-size:12px;letter-spacing:.04em;margin-bottom:10px;
+    border:1px solid rgba(255,255,255,.06)}
   .nav button{width:40px;height:40px;border-radius:var(--r-lg);display:grid;place-items:center;
     color:var(--charcoal-fg);position:relative}
   .nav button:hover{background:var(--charcoal-2);color:var(--charcoal-on)}
@@ -130,8 +136,8 @@
   .rail .grp{margin-bottom:18px}
   .rail-item{display:flex;align-items:center;gap:10px;min-height:36px;padding:6px 8px;width:100%;text-align:left;
     border-radius:var(--r-lg);font-size:var(--t-compact);line-height:var(--lh-compact);color:var(--fg)}
-  .rail-item:hover{background:rgba(52,40,26,.06)}
-  .rail-item.on{background:var(--card);box-shadow:var(--shadow-raised);font-weight:500}
+  .rail-item:hover{background:var(--hover)}
+  .rail-item.on{background:rgba(40,32,24,.06);font-weight:500}
   .rail-item .ic{width:16px;height:16px;color:var(--muted);flex:none}
   .rail-item.on .ic{color:var(--brand-tint-fg)}
   .rail-item .count{margin-left:auto;font-size:var(--t-caption);font-weight:500;color:var(--muted)}
@@ -200,7 +206,7 @@
   .plist>*{flex:none}
   .prow{display:flex;align-items:flex-start;gap:10px;min-height:42px;padding:9px 10px;border-radius:var(--r-lg);
     width:100%;text-align:left;font-size:var(--t-compact);line-height:var(--lh-compact)}
-  .prow:hover{background:rgba(52,40,26,.06)}
+  .prow:hover{background:var(--hover)}
   .prow .mk{width:16px;height:16px;flex:none;margin-top:2px}
   .prow .where{flex:1;min-width:0}
   .prow .where .sect{color:var(--muted)}
@@ -243,7 +249,7 @@
   .btn-outline{background:var(--card);border-color:var(--input);color:var(--fg)}
   .btn-outline:hover{background:var(--well)}
   .btn-ghost{color:var(--muted);padding:0 10px}
-  .btn-ghost:hover{background:rgba(52,40,26,.06);color:var(--fg)}
+  .btn-ghost:hover{background:var(--hover);color:var(--fg)}
   .btn-block{width:100%}
   .btn-sm{height:32px;padding:0 10px;font-size:var(--t-caption)}
   .grow{flex:1}
@@ -306,7 +312,7 @@
 
   /* exploration banner */
   .explore{position:fixed;right:16px;bottom:16px;background:var(--charcoal);color:var(--charcoal-fg);font-size:11px;padding:6px 10px;border-radius:var(--r-md);
-    z-index:40;letter-spacing:.02em}
+    z-index:40;letter-spacing:.02em;opacity:.8}
   .explore b{color:#fff;font-weight:600}
 </style>
 </head>
