@@ -18,6 +18,7 @@ import * as React from "react";
 import { CircleCheckIcon, RefreshCwIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
 
 import { formatBytes } from "@/lib/filing/files";
+import { defectState } from "@/lib/tasks/defects";
 import { cn } from "@/lib/utils";
 import type { IntakeSlot } from "@/lib/filing/types";
 import { Button } from "@/components/ui/button";
@@ -82,13 +83,20 @@ export function IntakeSlotRow({
 
   /*
    * In a correction round a document is either the one scrutiny flagged — and then it is
-   * replaced inside its defect frame, in place (brief D9) — or it is not this round's
-   * business. `inert` is the honest lock: the subtree stops taking pointer and keyboard
-   * both, rather than looking live and refusing.
+   * replaced from the panel's card (v3.2) — or it is not this round's business. `inert` is
+   * the honest lock: the subtree stops taking pointer and keyboard both, rather than
+   * looking live and refusing.
    */
   const correction = useCorrection();
   const defect = correction ? correction.defectForSlot(correction.step, slot.key) : null;
   const locked = !!correction && !defect;
+
+  /* The card holds the Replace action but this row owns the picker, so lend it out. */
+  const register = correction?.registerReplace;
+  React.useEffect(() => {
+    if (!register || !defect) return;
+    return register(slot.key, onChoose);
+  }, [register, defect, slot.key, onChoose]);
 
   const status = slotStatus(slot);
   const pct = Math.round(slot.progress ?? 0);
@@ -221,8 +229,25 @@ export function IntakeSlotRow({
     </div>
   );
 
-  if (defect && correction) {
-    return <>{correction.renderDocDefect(defect, body, { replace: onChoose })}</>;
+  if (defect) {
+    /* Flagged: a rule down the left, matching a flagged field. The scan the Registry saw
+       stays as it is; the replacement is made in the panel's card (v3.2). */
+    const resolved = defectState(defect, correction?.valueOf(defect)) === "resolved";
+    const active = correction?.activeDefect === defect.n;
+    return (
+      <div
+        id={`defect-${defect.n}`}
+        data-defect-group
+        data-defect={defect.n}
+        className={cn(
+          "scroll-mt-6 border-l-2 pl-3 transition-colors",
+          resolved ? "border-l-success-ink" : active ? "border-l-primary" : "border-l-border"
+        )}
+      >
+        {body}
+      </div>
+    );
   }
-  return body;
+  /* Untouched by scrutiny: listed so it can be read, but visibly out of play. */
+  return <div className={cn(locked && "opacity-45")}>{body}</div>;
 }

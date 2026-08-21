@@ -1,33 +1,23 @@
 "use client";
 
 /**
- * The resolution queue — a compact index, and the only place work is counted (brief D5,
- * §15.6).
+ * The corrections list — one flat run through the filing (brief v3.2).
  *
- * It is an index and not a reading surface: no officer prose, no accordion, no per-row
- * "go to the field" button. One row is one button, and the row *is* the affordance. What
- * a defect says lives beside the field it concerns; repeating it here was the redundancy
- * v2 set out to remove.
+ * Two things were taken out of v3.1 and both were layers of reading:
  *
- * Opening a row navigates the centre pane to that defect's section and instance, then
- * moves focus to the inset's primary action. Moving focus rather than merely scrolling is
- * what makes the queue work for a keyboard and a screen reader — a scroll-only jump is a
- * mouse affordance dressed as navigation.
+ *   · **Section headings are gone.** Every row names its own place — "Cheque 2 › Bank
+ *     branch" — so nothing has to be decoded from a heading three rows up.
+ *   · **Nothing regroups.** A corrected row keeps its position and gains a tick. Moving
+ *     finished work to the bottom made the list shuffle under the cursor of someone
+ *     working down it, which is a worse cost than having the done ones interleaved.
  *
- * The header carries the return's deadline and its count together: one place for the
- * clock, one place for the counter, and the group labels therefore carry no counts of
- * their own. The clock is the one amber in the chrome — the §138 clocks are the only
- * genuinely urgent thing on this screen.
+ * The order is the form's own (`formOrder`), so working down this list is working through
+ * the filing front to back. The open defect expands *in place* into its card, which is the
+ * only place a correction is made — see `defect-card.tsx`.
  */
 
 import * as React from "react";
-import {
-  ChevronRightIcon,
-  CircleCheckIcon,
-  CircleDashedIcon,
-  ClockIcon,
-  TriangleAlertIcon,
-} from "lucide-react";
+import { ChevronRightIcon, CircleCheckIcon, CircleDashedIcon, TriangleAlertIcon } from "lucide-react";
 
 import { dueCueOf } from "@/lib/tasks/format";
 import { breadcrumbOf, defectState, resolutionLabel } from "@/lib/tasks/defects";
@@ -43,19 +33,10 @@ export type QueueDefect = {
 
 /* ───────────────────────────── The header ───────────────────────────── */
 
-function StateMark({ state }: { state: ReturnType<typeof defectState> }) {
-  if (state === "resolved") {
-    return <CircleCheckIcon className="size-4 shrink-0 text-success-ink" aria-hidden />;
-  }
-  if (state === "needs-justification") {
-    return <TriangleAlertIcon className="size-4 shrink-0 text-warning-ink" aria-hidden />;
-  }
-  return <CircleDashedIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />;
-}
-
 /**
- * The deadline and the count, together. The relative phrase is what an advocate acts on;
- * the absolute date rides in a `<time dateTime>` because the five-day window is still an
+ * The deadline and the count, together — one clock and one counter on the whole screen, so
+ * no two numbers here can disagree. The relative phrase is what an advocate acts on; the
+ * absolute date rides in a `<time dateTime>` because the five-day window is still an
  * assumption (open question O7) and an assumption should be inspectable.
  */
 export function QueueProgress({
@@ -73,14 +54,13 @@ export function QueueProgress({
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       {due ? (
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-caption">
+        <p className="flex flex-wrap items-center gap-x-2 text-caption">
           <span
             className={cn(
-              "flex items-center gap-1.5 font-medium tabular-nums",
+              "font-medium tabular-nums",
               due.overdue ? "text-destructive-ink" : "text-warning-ink"
             )}
           >
-            <ClockIcon className="size-4 shrink-0" aria-hidden />
             {due.primary}
           </span>
           <span aria-hidden className="text-muted-foreground">
@@ -93,11 +73,11 @@ export function QueueProgress({
       ) : null}
       <Progress
         value={total ? (resolved / total) * 100 : 0}
-        aria-label={`${resolved} of ${total} defects resolved`}
+        aria-label={`${resolved} of ${total} corrections done`}
         className="h-1.5"
       />
       <p className="text-caption text-muted-foreground tabular-nums">
-        {`${resolved} of ${total} resolved`}
+        {`${resolved} of ${total} done`}
       </p>
     </div>
   );
@@ -105,30 +85,39 @@ export function QueueProgress({
 
 /* ───────────────────────────── One row ───────────────────────────── */
 
-function QueueRow({
+/**
+ * How a finished defect was finished — one word at the end of the row.
+ *
+ * `resolutionLabel` writes the full sentence a card can afford ("Suggestion accepted");
+ * a row shares its line with the whole location and cannot. Same four outcomes, said short.
+ */
+function doneWord(defect: Defect, value: string | undefined): string {
+  switch (resolutionLabel(defect, value)) {
+    case "Suggestion accepted":
+      return "Accepted";
+    case "Kept, with a reason":
+      return "Kept yours";
+    case "Document replaced":
+      return "Replaced";
+    default:
+      return "Corrected";
+  }
+}
+
+export function QueueRow({
   item,
-  active,
   onOpen,
 }: {
   item: QueueDefect;
-  active: boolean;
   onOpen: () => void;
 }) {
   const { defect, value } = item;
   const state = defectState(defect, value);
   const resolved = state === "resolved";
-  const trail = breadcrumbOf(defect.target);
-  /* The section is on the rail and in the form's own heading; the row needs the part that
-     disambiguates — "Cheque 2 › Bank branch". */
-  const where = trail.slice(1).join(" › ") || trail.join(" › ");
-  /* A second line only where it says something the group label has not: how a resolved
-     defect was resolved, or that one is waiting on its reason. A row in the Open group
-     reading "Open" again was the queue narrating itself. */
-  const detail = resolved
-    ? resolutionLabel(defect, value)
-    : state === "needs-justification"
-      ? "Needs a reason"
-      : null;
+  /* The whole location, on the row itself: "Cheque 2 › Bank branch". With the section
+     headings gone this is the only thing that says where the defect lives, so it wraps
+     rather than truncating — Malayalam and Gujarati run longer still. */
+  const where = breadcrumbOf(defect.target).join(" › ");
 
   return (
     <li>
@@ -136,40 +125,30 @@ function QueueRow({
         type="button"
         variant="ghost"
         onClick={onOpen}
-        aria-current={active ? "true" : undefined}
-        /* Selected is one quiet persistent cue, and `accent-strong` is the token the role
-           names (`AGENTS.md` rule 10) — not a ring, not a border, not a brand fill. */
-        className={cn(
-          "h-auto min-h-10 w-full items-start justify-start gap-2 whitespace-normal rounded-lg px-3 py-2 text-left font-normal",
-          active && "bg-accent-strong hover:bg-accent-strong"
-        )}
+        className="h-auto min-h-11 w-full items-start justify-start gap-2.5 whitespace-normal rounded-lg px-3 py-2.5 text-left font-normal"
       >
         <span className="flex pt-0.5">
-          <StateMark state={state} />
+          {resolved ? (
+            <CircleCheckIcon className="size-4 shrink-0 text-success-ink" aria-hidden />
+          ) : state === "needs-justification" ? (
+            <TriangleAlertIcon className="size-4 shrink-0 text-warning-ink" aria-hidden />
+          ) : (
+            <CircleDashedIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          )}
         </span>
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          {/* Wraps rather than truncates: a clipped "Cheque 2 › Bank branch" is a wrong
-              answer to the problem the target exists to solve, and Malayalam and Gujarati
-              run longer still. */}
-          <span
-            className={cn(
-              "text-body-compact font-medium break-words",
-              resolved ? "text-muted-foreground" : "text-foreground"
-            )}
-          >
-            {where}
+        <span
+          className={cn(
+            "min-w-0 flex-1 text-body-compact break-words",
+            resolved ? "text-muted-foreground" : "text-foreground"
+          )}
+        >
+          {where}
+        </span>
+        {resolved ? (
+          <span className="shrink-0 pt-0.5 text-caption text-success-ink">
+            {doneWord(defect, value)}
           </span>
-          {detail ? (
-            <span
-              className={cn(
-                "text-caption",
-                resolved ? "text-success-ink" : "text-warning-ink"
-              )}
-            >
-              {detail}
-            </span>
-          ) : null}
-        </span>
+        ) : null}
         <ChevronRightIcon
           aria-hidden
           className="mt-0.5 size-4 shrink-0 text-muted-foreground"
@@ -179,60 +158,42 @@ function QueueRow({
   );
 }
 
-/* ───────────────────────────── The index ───────────────────────────── */
+/* ───────────────────────────── The list ───────────────────────────── */
 
-function Group({
-  label,
-  items,
-  activeDefect,
-  onOpenDefect,
-}: {
-  label: string;
-  items: QueueDefect[];
-  activeDefect: number | null;
-  onOpenDefect: (n: number) => void;
-}) {
-  if (items.length === 0) return null;
-  return (
-    <div className="flex flex-col gap-1">
-      <h3 className="px-3 text-caption font-medium text-muted-foreground">{label}</h3>
-      <ul className="flex flex-col gap-0.5">
-        {items.map((item) => (
-          <QueueRow
-            key={item.defect.n}
-            item={item}
-            active={activeDefect === item.defect.n}
-            onOpen={() => onOpenDefect(item.defect.n)}
-          />
-        ))}
-      </ul>
-    </div>
-  );
-}
-
+/**
+ * The run, in the form's order. `renderOpen` supplies the card for whichever defect is
+ * open, so the card expands in the row's own place rather than the row vanishing to a
+ * panel somewhere else.
+ */
 export function ResolutionQueue({
   items,
   activeDefect,
   onOpenDefect,
+  renderOpen,
   className,
 }: {
   items: QueueDefect[];
   activeDefect: number | null;
   onOpenDefect: (n: number) => void;
+  renderOpen: (item: QueueDefect, index: number) => React.ReactNode;
   className?: string;
 }) {
-  const open = items.filter((i) => defectState(i.defect, i.value) !== "resolved");
-  const done = items.filter((i) => defectState(i.defect, i.value) === "resolved");
   return (
-    <div className={cn("flex flex-col gap-4", className)}>
-      <Group label="Open" items={open} activeDefect={activeDefect} onOpenDefect={onOpenDefect} />
-      <Group
-        label="Resolved"
-        items={done}
-        activeDefect={activeDefect}
-        onOpenDefect={onOpenDefect}
-      />
-    </div>
+    <ul className={cn("flex flex-col gap-1", className)}>
+      {items.map((item, i) =>
+        item.defect.n === activeDefect ? (
+          <li key={item.defect.n} className="py-1">
+            {renderOpen(item, i + 1)}
+          </li>
+        ) : (
+          <QueueRow
+            key={item.defect.n}
+            item={item}
+            onOpen={() => onOpenDefect(item.defect.n)}
+          />
+        )
+      )}
+    </ul>
   );
 }
 
@@ -244,6 +205,6 @@ export function submitReason(
 ): string {
   if (!online) return "You are offline — corrections stay on this device until you reconnect.";
   const left = total - resolved;
-  if (left <= 0) return "Every defect is resolved.";
-  return `${left} defect${left === 1 ? "" : "s"} still to resolve.`;
+  if (left <= 0) return "Everything is corrected.";
+  return `${left} left to correct.`;
 }

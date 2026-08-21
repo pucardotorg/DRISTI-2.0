@@ -903,3 +903,108 @@ except the two named above.
 | 2026-08-21 | **Locked fields are legible now** (owner feedback: the opacity). Locked stays `disabled` — out of the tab order, announced — but the correction screen restores full opacity and gives every locked control shape one quiet treatment: value in `muted-foreground` on `surface-sunken`. Fills are per-shape so a locked segmented answer or checkbox keeps its chosen-state fill (the choice *is* the value). Scoped to the correction screen's centre pane; the `!` overrides are owed to the primitives' `disabled:` rules tying at equal specificity. | ui-designer (owner feedback) |
 | 2026-08-21 | **Upstream DS feedback:** `disabled:opacity-50` is designed for the odd dead control; on a screen where ~90% of the form is deliberately locked it turns the record the advocate must *read* into a watermark. Proposal: a named locked/read-only-record treatment on the form primitives (full-opacity muted value on a quiet fill), so screens stop overriding opacity locally. | ui-designer (`ui-craft` §6) |
 | 2026-08-21 | **Queue rows carry a second line only when it adds information** — how a resolved defect was resolved, or "Needs a reason". A row in the Open group reading "Open" again was the queue narrating itself. The rail's per-section counts dropped their warning badges for plain muted `tabular-nums` — four ambers down a rail is alarm fatigue, and this screen's one amber in chrome is the deadline in the queue header. | ui-designer (`ui-craft` §1.4, §2) |
+
+---
+
+## 16. v3 — the panel is the workbench (approved and built, 2026-08-21)
+
+v2.1 shipped, and the owner's verdict on the render was information overload. The cause was
+structural rather than decorative: **every defect spoke twice** — once as an inset under the
+flagged field, once as a row in the queue — and **all of the officer's evidence was expanded
+before anyone had decided they needed it**. Three mockup rounds
+(`scrutiny-v3-panel-direction.html`) settled the direction; v3.2 is the approved one and is
+what is built.
+
+### 16.1 The one structural move
+
+Each side gets one job.
+
+| | Before (v2.1) | Now (v3.2) |
+|---|---|---|
+| Centre | The workspace: flagged fields carried an inset, a tag, an amber fill | **The record.** Read-only. A flagged field carries a rule down its left and one word after its name |
+| Right | An index that repeated what the inset already said | **The workbench.** The only place a correction is made |
+
+A defect is therefore announced once. Everything the inset did now happens in the card.
+
+### 16.2 What the card is
+
+Three things at rest — what it is, the comparison, one primary action — and one line for
+everything else.
+
+- **The comparison** is two labelled rows, *You filed* over *Scrutiny reads*, values
+  right-aligned in `tabular-nums`. **No strikethrough and no arrow** (owner: "a very crude UI
+  way to show that information"): the character that changed sits directly under the one it
+  replaces, so alignment carries the difference and the labels carry who said which.
+- **The primary action states its own outcome** — *Use ₹1,85,000*, not *Accept correction*.
+- **Keep mine** replaces the accept view rather than stacking under it, and opens the
+  evidence — that is the one moment it is certainly wanted. It remains a *route, not a
+  resolution*: choosing it and writing nothing leaves the defect open and the gate shut (D6
+  unchanged).
+- **Why it was flagged** holds the officer's words and the marked page. The officer's
+  *identity* is gone (owner: only scrutiny flags things, so the name said nothing); the space
+  went to the reason and the page it came from.
+- **A note or a spoken remark, not both.** They are alternatives. Voice always carries its
+  transcript inline — never behind a second disclosure — so WCAG 1.2.1 holds without asking.
+  Where an officer leaves both, the note reads first and the layout is unchanged.
+
+### 16.3 The list
+
+One flat run in the form's order (`formOrder`). **No section headings** (owner: "one more
+layer of complexity to look at") — every row names its own place, *Cheque 2 › Bank branch*.
+**Nothing regroups**: a corrected row keeps its position and gains a tick, because moving
+finished work to the bottom made the list shuffle under the cursor of someone working down it.
+
+### 16.4 The end
+
+No tally, no breakdown (owner). *All 8 corrected*, the list, one caution line, and
+**Send corrections back**. The limitation point moved into the confirm dialog, where a
+sentence is actually read.
+
+### 16.5 Adjustable panes
+
+The record and the corrections panel are a DS `Resizable` pair — how much room the evidence
+needs changes defect by defect, so it is the advocate's to set. Defaults are the proportions
+v3.1 settled (≈53/47), minimums stop either side being dragged into uselessness, the handle is
+the primitive's own keyboard-operable separator, and the last drag is remembered on the device.
+
+### 16.6 The record recedes
+
+Fields scrutiny did not flag drop to 45% and read as plainly out of play (owner). This
+**reverses the 2026-08-21 full-opacity change** earlier the same day, and coherently: that
+change was right when the form was the workspace and wrong once the panel became it. Receding
+now happens in exactly one place — `FormField` steps the whole field back — with the DS's own
+`disabled:opacity-50` neutralised in the centre pane so the two never compound.
+
+### 16.7 The copy pass
+
+Owner: "the entire copywriting is bad at the moment." Every string was rewritten; the full
+table is in the mockup. The load-bearing ones:
+
+| Was | Now |
+|---|---|
+| Resolution queue | Corrections |
+| Accept correction | Use 15 May 2026 |
+| Ignore | Keep mine |
+| Your value | *the field's own name* |
+| Why this stands | Your reply to scrutiny |
+| Send back with this reason | Keep my value |
+| Submit corrections to scrutiny | Send corrections back |
+| Only the fields scrutiny flagged can be changed here. | The filing as scrutiny received it. |
+
+### 16.8 Build notes (v3.2)
+
+| Date | Note | By |
+|---|---|---|
+| 2026-08-21 | **`defect-inset.tsx` is deleted; `defect-card.tsx` replaces it.** The form no longer renders anything under a flagged field, so `renderFieldDefect` / `renderDocDefect` left `CorrectionValue` entirely. `FormField` now draws the rule itself from `defectAt` + `activeDefect`, and the `has-[[data-defect-inset]]` grid rules in `form-card.tsx` died with the inset they existed for. | ui-designer |
+| 2026-08-21 | **A document slot lends the panel its picker.** Replace lives on the card but the upload belongs to the slot, so the slot registers its `onChoose` through `registerReplace` and the card calls it back — rather than threading a second uploader into the panel. | ui-designer |
+| 2026-08-21 | **The marked region is cropped, not thumbnailed.** A whole page at panel width is decoration; the officer drew a box, so the card shows *that*. `width`/`left` are percentages of the frame, but the vertical offset is a `translateY` — a `top` percentage resolves against the *container's* height, not the image's, which is why the first attempt threw the region off the frame. The frame then takes the region's own aspect (known from `annotation.page`), clamped, so the officer's outline usually fills it exactly. | ui-designer |
+| 2026-08-21 | **The waveform is the scrub's track.** The DS `Slider` is laid over the bars with its track and range transparent, so every keyboard and AT behaviour still comes from the primitive and the bars are `aria-hidden` decoration. The envelope is a smoothed random walk seeded from the note's id — real speech runs in syllables, and the unsmoothed version read as static (owner: "the current one is a little weird"). | ui-designer |
+| 2026-08-21 | **`react-resizable-panels` v4 is not v2.** `direction` → `orientation`, no `order`, and `autoSaveId` is gone in favour of `defaultLayout` + `onLayoutChanged`; persistence is therefore ours, read in a `useState` initialiser so the client's first paint already has it and hydration does not mismatch. | ui-designer |
+| 2026-08-21 | **Not verified on the render: the all-corrected state.** Seven of the eight defects were driven live; the eighth needs a real file through the OS picker, which the sandbox cannot synthesise. The `complete` branch (banner, caution, live button) is unexercised in the browser. | ui-designer |
+
+### 16.9 Still open
+
+- **O12** — Traversal. Accepting should land on the next open defect, with `⌘↵` to accept.
+  Proposed in the mockup, not built; it is the largest remaining win.
+- **O13** — On a phone the panel should *be* the screen, with the record reachable per defect.
+  Today the drawer still carries the whole list.

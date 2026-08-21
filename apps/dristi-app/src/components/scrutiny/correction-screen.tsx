@@ -27,7 +27,14 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { LockIcon, PanelLeftIcon, ListChecksIcon, SendIcon } from "lucide-react";
+import {
+  CircleCheckIcon,
+  ListChecksIcon,
+  LockIcon,
+  PanelLeftIcon,
+  SendIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 
 import { longDate } from "@/lib/tasks/format";
 import {
@@ -65,6 +72,11 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sheet,
@@ -80,7 +92,7 @@ import {
 } from "@/components/filing/chrome";
 import { Breadcrumbs } from "@/components/shell/chrome";
 import { CorrectionProvider, type CorrectionValue } from "@/components/filing/posture";
-import { DefectLayer, type DefectActions } from "@/components/scrutiny/defect-inset";
+import { DefectCard, type DefectActions } from "@/components/scrutiny/defect-card";
 import {
   QueueProgress,
   ResolutionQueue,
@@ -95,17 +107,18 @@ import { useTaskActions } from "@/components/tasks/use-task-actions";
 const FALLBACK_STEP: StepId = "cheque";
 
 /**
- * The two side panes are sized in pixels, not rems, on purpose.
+ * The sections rail is sized in pixels, not rems, on purpose.
  *
  * Tailwind's breakpoints are viewport pixels and do not move with the root font size, but
- * `w-64` does — so at 200% text zoom the rails would each double while the ladder stayed
- * on three panes, and the page would scroll sideways. `ACCESSIBILITY.md` §10 and
- * `RESPONSIVE.md` rule 9 both forbid that. Held in pixels, the rails keep their width and
- * the centre column reflows, which is what zooming is for.
+ * `w-64` does — so at 200% text zoom the rail would double while the ladder stayed on three
+ * panes, and the page would scroll sideways. `ACCESSIBILITY.md` §10 and `RESPONSIVE.md`
+ * rule 9 both forbid that. Held in pixels, the rail keeps its width and the columns beside
+ * it reflow, which is what zooming is for.
+ *
+ * The record and the corrections panel have no fixed width any more: they are a resizable
+ * pair whose proportions the advocate sets (v3.2).
  */
 const RAIL_W = 256;
-const QUEUE_W = 320;
-const QUEUE_W_XL = 384;
 
 /** Room the three-pane and two-pane layouts need, measured in the page's own text. */
 const RAIL_REM = 80;
@@ -116,6 +129,34 @@ const COMMIT_QUIET_MS = 700;
 
 /** The one primary action, sized by its words rather than clipping them. */
 const SUBMIT_CLASS = "h-auto min-h-11 w-full whitespace-normal py-2 text-center";
+
+/**
+ * Where the record / corrections handle was left, on this device.
+ *
+ * `react-resizable-panels` v4 dropped `autoSaveId` for an explicit
+ * `defaultLayout` + `onLayoutChanged` pair, so the persistence is ours to do — which is
+ * fine, and honest about the failure mode: a browser with storage denied simply opens on
+ * the default split every time rather than throwing.
+ */
+const SPLIT_KEY = "dristi:scrutiny-return:split";
+
+function readSplit(): Record<string, number> | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const raw = window.localStorage.getItem(SPLIT_KEY);
+    if (!raw) return undefined;
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return undefined;
+    const layout = parsed as Record<string, unknown>;
+    /* Only take it if it is the shape we wrote — a stale or hand-edited value should fall
+       back to the default rather than laying the screen out from nonsense. */
+    return Object.values(layout).every((v) => typeof v === "number" && v > 0)
+      ? (layout as Record<string, number>)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Move focus to the thing that answers the defect.
@@ -300,31 +341,34 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
           nonce: nonce.current,
         });
       }
-      /* Focus, not scroll: the queue has to work for a keyboard and a screen reader, and
-         a scroll-only jump is a mouse affordance wearing navigation's clothes. */
+      /*
+       * Two things move, and they move to different places (v3.2).
+       *
+       * The *record* scrolls to the field, so the value under discussion is in view — but
+       * focus does not go there any more: that control is read-only, and landing a keyboard
+       * user on a field they cannot type in is the trap R12 warns about. Focus goes to the
+       * card's own primary action in the panel, which is where the correction is made.
+       */
       window.setTimeout(() => {
         const group = document.getElementById(`defect-${n}`);
-        if (!group) return;
-        /* Scroll the *pane*, never the page. `scrollIntoView` walks every scrollable
-           ancestor, which drags the screen's own header and rail out of view — and this
-           screen holds the viewport precisely so those stay put. The field goes to the top
-           of the centre pane and the inset lands under it, because the two are read
-           together. */
-        const pane = group.closest("main");
-        if (pane && pane.scrollHeight > pane.clientHeight + 1) {
-          const top = pane.scrollTop + group.getBoundingClientRect().top -
-            pane.getBoundingClientRect().top - 24;
-          pane.scrollTo({ top, behavior: "smooth" });
-        } else {
-          /* Below the fold the page is the scroller and the header scrolls with it, so
-             there is nothing to drag out of view — and moving focus without moving the
-             page would leave the advocate looking at the top of the form. */
-          group.scrollIntoView({ block: "start", behavior: "smooth" });
+        if (group) {
+          /* Scroll the *pane*, never the page. `scrollIntoView` walks every scrollable
+             ancestor, which drags the screen's own header and rail out of view — and this
+             screen holds the viewport precisely so those stay put. */
+          const pane = group.closest("main");
+          if (pane && pane.scrollHeight > pane.clientHeight + 1) {
+            const top = pane.scrollTop + group.getBoundingClientRect().top -
+              pane.getBoundingClientRect().top - 24;
+            pane.scrollTo({ top, behavior: "smooth" });
+          } else {
+            /* Below the fold the page is the scroller and the header scrolls with it, so
+               there is nothing to drag out of view — and moving focus without moving the
+               page would leave the advocate looking at the top of the form. */
+            group.scrollIntoView({ block: "start", behavior: "smooth" });
+          }
         }
-        const inset = document.querySelector<HTMLElement>(
-          `[data-defect="${n}"] [data-defect-inset]`
-        );
-        focusTheAction(inset ?? group);
+        const card = document.querySelector<HTMLElement>("[data-defect-card]");
+        if (card) focusTheAction(card);
       }, 120);
     },
     [defects]
@@ -340,7 +384,40 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
     [defects]
   );
 
-  /* ── The layer the form renders over a flagged field ─────────────── */
+  /* ── What the panel's card can do ────────────────────────────────── */
+
+  /**
+   * Pickers lent by the document slots on screen (v3.2). The card holds the Replace action
+   * but the slot owns the upload, so it registers its own `onChoose` here.
+   */
+  const replacers = React.useRef(new Map<string, () => void>());
+  const registerReplace = React.useCallback((slotKey: string, choose: () => void) => {
+    replacers.current.set(slotKey, choose);
+    return () => {
+      if (replacers.current.get(slotKey) === choose) replacers.current.delete(slotKey);
+    };
+  }, []);
+  const replaceFor = React.useCallback(
+    (slotKey: string) => replacers.current.get(slotKey),
+    []
+  );
+
+  /* ── Where the handle was left ───────────────────────────────────── */
+
+  /**
+   * Read once, on the client. Reading during render would hand the server a different
+   * layout from the browser's and hydrate mismatched; reading in an effect would lay the
+   * panes out at the default and then jump. `useState`'s initialiser runs on the client's
+   * first render only, which is the moment that has both the storage and no paint yet.
+   */
+  const [savedLayout] = React.useState<Record<string, number> | undefined>(readSplit);
+  const rememberLayout = React.useCallback((layout: Record<string, number>) => {
+    try {
+      window.localStorage.setItem(SPLIT_KEY, JSON.stringify(layout));
+    } catch {
+      /* Storage denied (private mode, quota): the split still works, it just forgets. */
+    }
+  }, []);
 
   /** Forget a reason that is being typed — after an undo, or once a suggestion is taken. */
   const clearReason = (n: number) =>
@@ -353,8 +430,8 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
 
   /**
    * Every write in a correction round goes through here — there is no other route. The
-   * flagged control is read-only, so Accept and the inset's own value control are the
-   * only two things that can change a filed value, and both are named acts.
+   * form's control is read-only, so the card's *Use <value>* and its own value control are
+   * the only two things that can change a filed value, and both are named acts.
    */
   const defectActions = (defect: Defect): DefectActions => ({
     accept: defect.suggestion
@@ -381,6 +458,8 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
       : undefined,
     reason: justificationOf(defect),
     onReasonChange: (text) => setReasons((prev) => ({ ...prev, [defect.n]: text })),
+    replace:
+      defect.target.kind === "doc" ? replaceFor(defect.target.slotKey) : undefined,
   });
 
   const correction: CorrectionValue = {
@@ -401,32 +480,8 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
     activeDefect,
     setActiveDefect,
     instanceRequest,
-    renderFieldDefect: (defect, control) => (
-      <DefectLayer
-        key={targetKey(defect.target)}
-        defect={defect}
-        value={valueOf(defect)}
-        actions={defectActions(defect)}
-        onFocusCapture={() => setActiveDefect(defect.n)}
-        onBlurCapture={onFrameBlur}
-      >
-        {control}
-      </DefectLayer>
-    ),
-    /* The Replace control moves off the row and into the inset: the sanctity rule that
-       keeps a flagged field read-only extends to documents (§15.4). */
-    renderDocDefect: (defect, row, docActions) => (
-      <DefectLayer
-        key={targetKey(defect.target)}
-        defect={defect}
-        value={valueOf(defect)}
-        actions={{ ...defectActions(defect), replace: docActions.replace }}
-        onFocusCapture={() => setActiveDefect(defect.n)}
-        onBlurCapture={onFrameBlur}
-      >
-        {row}
-      </DefectLayer>
-    ),
+    registerReplace,
+    replaceFor,
   };
 
   /* ── Submitting ──────────────────────────────────────────────────── */
@@ -467,30 +522,62 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
 
   /* ── The panes ───────────────────────────────────────────────────── */
 
+  /**
+   * The run, and the card for whichever defect is open. Nothing regroups as work is done:
+   * a corrected row keeps its place and gains a tick, so the list never shuffles under the
+   * cursor of someone working down it (v3.2).
+   */
   const queueBody = (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <QueueProgress task={task} resolved={resolved} total={total} />
-      <ResolutionQueue items={items} activeDefect={activeDefect} onOpenDefect={openDefect} />
+      {complete ? (
+        <p className="flex items-center gap-2 rounded-lg bg-success-muted px-4 py-3 text-body-compact font-medium text-success-muted-foreground">
+          <CircleCheckIcon className="size-4 shrink-0" aria-hidden />
+          {`All ${total} corrected.`}
+        </p>
+      ) : null}
+      <ResolutionQueue
+        items={items}
+        activeDefect={activeDefect}
+        onOpenDefect={openDefect}
+        renderOpen={(item, index) => (
+          <DefectCard
+            key={targetKey(item.defect.target)}
+            defect={item.defect}
+            value={item.value}
+            actions={defectActions(item.defect)}
+            index={index}
+            total={total}
+            onFocusCapture={() => setActiveDefect(item.defect.n)}
+            onBlurCapture={onFrameBlur}
+          />
+        )}
+      />
     </div>
   );
 
   const submitBlock = (
     <div className="flex flex-col gap-3">
+      {complete ? (
+        <p className="flex gap-2 text-caption text-muted-foreground">
+          <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          Once sent, this cannot be recalled.
+        </p>
+      ) : null}
       <Button
         type="button"
         size="lg"
-        /* The label wraps rather than clipping: at 200% text zoom "Submit corrections to
-           scrutiny" does not fit one line in any pane this screen has, and a button
-           reading "Submit corrections to scru…" is the loss of content
+        /* The label wraps rather than clipping: at 200% text zoom it does not fit one line
+           in any pane this screen has, and a clipped label is the loss of content
            `ACCESSIBILITY.md` §10 forbids. Height follows the words. */
         className={SUBMIT_CLASS}
         disabled={!complete || !online || !!busy}
         onClick={() => setConfirm(true)}
       >
         <SendIcon data-icon="inline-start" aria-hidden />
-        Submit corrections to scrutiny
+        Send corrections back
       </Button>
-      <p className="text-caption text-muted-foreground">{reason}</p>
+      {complete ? null : <p className="text-caption text-muted-foreground">{reason}</p>}
     </div>
   );
 
@@ -582,67 +669,94 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
             </aside>
           ) : null}
 
-          {/* Centre — the section, in correction posture.
-
-              The `[&_…]` utilities are the locked-field treatment: on this screen most
-              of the form is locked, and the DS's `disabled:opacity-50` ghosting —
-              designed for the odd dead control — turns the whole record the advocate is
-              here to *read* into a watermark (owner feedback, 2026-08-21). Locked stays
-              `disabled` (out of the tab order, announced), but renders at full opacity
-              with the value in `muted-foreground` on the one quiet fill the DS names
-              for a receded surface, `surface-sunken` — legible, visibly stood down
-              under the flagged fields' full-contrast read-only values, and the same
-              fill on every locked control shape (input, prefix group, select, date; the
-              date button's fill rides in `date-field.tsx`, the one control a wrapper
-              selector cannot name). Fills are per-shape rather than blanket so a locked
-              segmented answer or checkbox keeps its chosen-state fill — the choice *is*
-              the value there. The `!`s are owed to the primitives' own `disabled:`
-              rules tying at equal specificity; noted as upstream DS feedback (§15.16). */}
-          <main
-            className={cn(
-              "flex min-w-0 flex-1 flex-col overflow-y-auto pb-8",
-              "[&_:disabled]:opacity-100! [&_:disabled]:text-muted-foreground",
-              "[&_:has(:disabled)]:opacity-100! [&_[data-slot=input-group-addon]]:opacity-100!",
-              "[&_input:disabled]:bg-surface-sunken! [&_textarea:disabled]:bg-surface-sunken!",
-              "[&_:has(>input:disabled)]:bg-surface-sunken! [&_[data-slot=select-trigger]:disabled]:bg-surface-sunken!",
-              queueColumn && "px-4 pt-6 sm:px-6"
-            )}
+          {/*
+           * Record and workbench, with a handle between them (owner, 2026-08-21).
+           *
+           * How much room the evidence needs is not ours to decide once and for all: a
+           * cropped cheque line wants width, a long section of the record wants width, and
+           * which one matters changes defect by defect. So the split is the DS `Resizable`
+           * with the proportions v3.1 settled as the default (roughly 632/560 at 1440),
+           * the last drag remembered on this device, and minimums that keep either side
+           * from being dragged into uselessness. The handle is keyboard-operable — it is
+           * the primitive's separator, not a bare div.
+           */}
+          <ResizablePanelGroup
+            orientation="horizontal"
+            defaultLayout={savedLayout}
+            onLayoutChanged={rememberLayout}
+            className="min-h-0 min-w-0 flex-1"
           >
-            {queueColumn ? null : pageHeader}
-            <div
-              className={cn(
-                "flex w-full min-w-0 max-w-4xl flex-col gap-4",
-                queueColumn ? null : "px-4 pt-4 sm:px-6"
-              )}
-            >
-              {/* The lock rule, once, as a caption (§15.7). No fill, no border, no
-                  `Alert`: the confusion a lock creates happens next to a dead control, so
-                  the explanation belongs here in the centre column — and a full-width
-                  banner over an unchanged e-filing form is the loudest thing on a screen
-                  whose loudest thing should be the flagged field. It wraps rather than
-                  truncating in a longer language. */}
-              <p className="flex items-start gap-2 text-caption text-muted-foreground">
-                <LockIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
-                Only the fields scrutiny flagged can be changed here.
-              </p>
-              <SectionBody step={step} />
-            </div>
-          </main>
+            {/* Centre — the section, as the record.
 
-          {/* Right — the queue. A column where it fits; a drawer and a sticky bar below. */}
-          {queueColumn ? (
-            <aside
-              aria-label="Resolution queue"
-              style={{ width: railColumn ? QUEUE_W_XL : QUEUE_W }}
-              className="flex shrink-0 flex-col overflow-hidden border-l border-hairline bg-sidebar"
+                The `[&_…]` utilities neutralise the DS's own `disabled:opacity-50`
+                ghosting so that receding is decided in *one* place instead of compounding:
+                `FormField` steps a whole untouched field back to 45% and the controls
+                inside it render normally at that one opacity (owner, 2026-08-21). The
+                sunken fill is kept per control shape, so a locked segmented answer or
+                checkbox still shows its chosen state — the choice *is* the value there.
+                The `!`s are owed to the primitives' `disabled:` rules tying at equal
+                specificity; noted as upstream DS feedback. */}
+            <ResizablePanel
+              id="record"
+              defaultSize="53"
+              minSize="30"
+              className="flex min-w-0 flex-col"
             >
-              <div className="flex min-h-0 flex-1 flex-col gap-4 p-6">
-                <h2 className="text-title-s font-semibold text-foreground">Resolution queue</h2>
-                <ScrollArea className="-mx-2 min-h-0 flex-1 px-2">{queueBody}</ScrollArea>
-              </div>
-              <div className="border-t border-hairline p-4">{submitBlock}</div>
-            </aside>
-          ) : null}
+              <main
+                className={cn(
+                  "flex min-w-0 flex-1 flex-col overflow-y-auto pb-8",
+                  "[&_:disabled]:opacity-100! [&_:disabled]:text-muted-foreground",
+                  "[&_:has(:disabled)]:opacity-100! [&_[data-slot=input-group-addon]]:opacity-100!",
+                  "[&_input:disabled]:bg-surface-sunken! [&_textarea:disabled]:bg-surface-sunken!",
+                  "[&_:has(>input:disabled)]:bg-surface-sunken! [&_[data-slot=select-trigger]:disabled]:bg-surface-sunken!",
+                  queueColumn && "px-4 pt-6 sm:px-6"
+                )}
+              >
+                {queueColumn ? null : pageHeader}
+                <div
+                  className={cn(
+                    "flex w-full min-w-0 max-w-4xl flex-col gap-4",
+                    queueColumn ? null : "px-4 pt-4 sm:px-6"
+                  )}
+                >
+                  {/* What this pane *is*, in one caption — not a rule about what may not
+                      be done. The corrections happen in the panel, and saying so once
+                      here is cheaper than a banner over an unchanged e-filing form. */}
+                  <p className="flex items-start gap-2 text-caption text-muted-foreground">
+                    <LockIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+                    The filing as scrutiny received it.
+                  </p>
+                  <SectionBody step={step} />
+                </div>
+              </main>
+            </ResizablePanel>
+
+            {/* Right — the workbench. A column where it fits; a drawer and a sticky bar
+                below. */}
+            {queueColumn ? (
+              <>
+                <ResizableHandle
+                  withHandle
+                  aria-label="Resize the record and the corrections panel"
+                  className="bg-hairline"
+                />
+                <ResizablePanel
+                  id="corrections"
+                  defaultSize="47"
+                  minSize="26"
+                  className="flex min-w-0 flex-col overflow-hidden bg-sidebar"
+                >
+                  <section aria-label="Corrections" className="flex min-h-0 flex-1 flex-col">
+                    <div className="flex min-h-0 flex-1 flex-col gap-4 p-5">
+                      <h2 className="text-title-s font-semibold text-foreground">Corrections</h2>
+                      <ScrollArea className="-mx-2 min-h-0 flex-1 px-2">{queueBody}</ScrollArea>
+                    </div>
+                    <div className="border-t border-hairline p-4">{submitBlock}</div>
+                  </section>
+                </ResizablePanel>
+              </>
+            ) : null}
+          </ResizablePanelGroup>
         </div>
 
         {/* With the queue folded away it is still the critical action, so it keeps a
@@ -657,7 +771,7 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
             <QueueProgress resolved={resolved} total={total} className="min-w-0 flex-1" />
             <Button type="button" variant="outline" onClick={() => setQueueOpen(true)}>
               <ListChecksIcon data-icon="inline-start" aria-hidden />
-              Open the queue
+              Corrections
             </Button>
           </div>
           <Button
@@ -668,7 +782,7 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
             onClick={() => setConfirm(true)}
           >
             <SendIcon data-icon="inline-start" aria-hidden />
-            Submit corrections to scrutiny
+            Send corrections back
           </Button>
           <p className="text-caption text-muted-foreground">{reason}</p>
         </div>
@@ -698,11 +812,11 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
       <Drawer open={queueOpen} onOpenChange={setQueueOpen}>
         <DrawerContent className="max-h-[85svh]">
           <DrawerHeader>
-            <DrawerTitle className="text-title-s font-semibold">Resolution queue</DrawerTitle>
+            <DrawerTitle className="text-title-s font-semibold">Corrections</DrawerTitle>
             {/* The progress line below is the count; §6 cut the second counter that can
                 disagree with the first, so this says what to do, not how many. */}
             <DrawerDescription className="text-body-compact">
-              Open a defect to go to its field.
+              Open one to see what scrutiny asked for.
             </DrawerDescription>
           </DrawerHeader>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">{queueBody}</div>
@@ -712,18 +826,19 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
       <AlertDialog open={confirm} onOpenChange={setConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Submit these corrections to scrutiny?</AlertDialogTitle>
+            <AlertDialogTitle>Send these corrections back?</AlertDialogTitle>
+            {/* The limitation point lives here rather than under the button: it is the one
+                thing worth a sentence, and a sentence under a button is a sentence nobody
+                reads. */}
             <AlertDialogDescription>
-              {`All ${total} defect${total === 1 ? "" : "s"} go back to the Registry as corrected. `}
-              In the live service a re-submission cannot be recalled, and limitation runs
-              from the Registry&apos;s receipt.
+              {`All ${total} go back to the Registry. `}
+              A re-submission cannot be recalled, and limitation runs from the
+              Registry&apos;s receipt.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void submit()}>
-              Submit corrections
-            </AlertDialogAction>
+            <AlertDialogAction onClick={() => void submit()}>Send them back</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

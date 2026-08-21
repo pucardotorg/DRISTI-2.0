@@ -24,7 +24,6 @@ import {
   useCorrectionInstance,
 } from "@/components/filing/posture";
 import { defectState } from "@/lib/tasks/defects";
-import { CircleCheckIcon } from "lucide-react";
 
 /** The `*` / "optional" marker after a label. */
 export function RequiredMark({ optional }: { optional?: boolean }) {
@@ -114,26 +113,39 @@ export function FormField({
 
   const marker =
     required || optional ? <RequiredMark optional={optional} /> : null;
+
+  const resolved = defect
+    ? defectState(defect, correction?.valueOf(defect)) === "resolved"
+    : false;
+  const active = !!defect && correction?.activeDefect === defect.n;
+  const hintId = defect ? `flagged-${defect.n}` : undefined;
+
   /*
-   * One quiet tag on the label row of a flagged field — §15.1.2's "thin layer: a 2px
-   * accent and an inset", of which this is the accent's non-visual half. Not a chip and
-   * not a strip: the label already names the field, so this says only what state it is
-   * in — which is what keeps the accent stroke from being colour alone
-   * (`foundations/laws`) and is the only signal a screen reader gets for *why* the
-   * control below is read-only ("Cheque number, Scrutiny flagged, read only, …").
+   * A word after the field's name, not a chip on the far side of the row (v3.2).
+   *
+   * The form is the record now; the work happens in the panel. So this says only which
+   * state the field is in, quietly, and keeps the left rule from being colour alone
+   * (`foundations/laws`). The sentence beside it is `sr-only` because a screen-reader
+   * user gets no rule and no panel adjacency — "read only" on its own would tell them the
+   * control is shut and nothing about where to act (`ACCESSIBILITY.md` §4/§5).
    */
   const tag = defect ? (
-    defectState(defect, correction?.valueOf(defect)) === "resolved" ? (
-      <span className="ml-auto flex shrink-0 items-center gap-1 self-center text-caption font-medium text-success-ink">
-        <CircleCheckIcon className="size-3.5" aria-hidden />
-        Corrected
+    <span
+      id={hintId}
+      className={cn(
+        "shrink-0 self-center text-caption font-normal",
+        resolved ? "text-success-ink" : "text-muted-foreground"
+      )}
+    >
+      · {resolved ? "corrected" : "flagged"}
+      <span className="sr-only">
+        {resolved
+          ? " by scrutiny, and corrected in the corrections panel"
+          : " by scrutiny — correct it in the corrections panel"}
       </span>
-    ) : (
-      <span className="ml-auto shrink-0 self-center text-caption font-medium text-warning-ink">
-        Scrutiny flagged
-      </span>
-    )
+    </span>
   ) : null;
+
   const labelBody = (
     <>
       <span>{label}</span>
@@ -146,9 +158,9 @@ export function FormField({
   const field = (
     <Field className={cn("gap-2", className)} data-invalid={error ? true : undefined}>
       {asGroup ? (
-        <FieldTitle className={cn("text-body-compact", tag && "w-full")}>{labelBody}</FieldTitle>
+        <FieldTitle className="text-body-compact">{labelBody}</FieldTitle>
       ) : (
-        <FieldLabel className={cn("text-body-compact", tag && "w-full")}>{labelBody}</FieldLabel>
+        <FieldLabel className="text-body-compact">{labelBody}</FieldLabel>
       )}
       {help && helpPlacement === "above" ? <FieldDescription>{help}</FieldDescription> : null}
       {children}
@@ -158,21 +170,44 @@ export function FormField({
   );
 
   if (!correction) return field;
+
   if (defect) {
-    /* Flagged: the control is read-only, and the correction is made in the inset the
-       screen renders beneath it (brief §15.2). */
+    /*
+     * Flagged: a rule down the left, and nothing else. The rule is neutral until the panel
+     * is on this defect, brand while it is, and success once it is corrected — so the one
+     * link between the two panes is which field is lit. No inset, no frame: the correction
+     * is made in the panel's card (v3.2).
+     */
     return (
-      <>
-        {correction.renderFieldDefect(
-          defect,
-          /* Described by the inset's first line — the control says it is read-only, and
-             that line says why and where the correction is made instead. */
-          <FieldReadOnly readOnly hintId={`defect-lede-${defect.n}`}>
-            {field}
-          </FieldReadOnly>
+      <div
+        id={`defect-${defect.n}`}
+        data-defect-group
+        data-defect={defect.n}
+        className={cn(
+          "scroll-mt-6 border-l-2 pl-3 transition-colors",
+          resolved
+            ? "border-l-success-ink"
+            : active
+              ? "border-l-primary"
+              : "border-l-border"
         )}
-      </>
+      >
+        <FieldReadOnly readOnly hintId={hintId}>
+          {field}
+        </FieldReadOnly>
+      </div>
     );
   }
-  return <FieldLock locked={locked}>{field}</FieldLock>;
+
+  /*
+   * Untouched by scrutiny: out of play, and it should look it. The form is a record in a
+   * correction round, so a field nobody flagged recedes rather than competing with the two
+   * that were — the DS `disabled` treatment is neutralised by the correction screen's
+   * centre pane and this single step replaces it (owner, 2026-08-21).
+   */
+  return (
+    <FieldLock locked={locked}>
+      <div className={cn(locked && "opacity-45")}>{field}</div>
+    </FieldLock>
+  );
 }

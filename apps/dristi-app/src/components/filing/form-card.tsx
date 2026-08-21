@@ -70,13 +70,7 @@ export function FormRow({
   className?: string;
 }) {
   return (
-    <div
-      className={cn(
-        "grid grid-cols-1 items-start gap-4 md:grid-cols-2",
-        "has-[[data-defect-inset]]:grid-flow-row-dense",
-        className
-      )}
-    >
+    <div className={cn("grid grid-cols-1 items-start gap-4 md:grid-cols-2", className)}>
       {children}
     </div>
   );
@@ -98,13 +92,7 @@ export function HalfWidth({
   className?: string;
 }) {
   return (
-    <div
-      className={cn(
-        "w-full md:w-1/2 md:pr-2",
-        "has-[[data-defect-inset]]:md:grid has-[[data-defect-inset]]:md:w-full has-[[data-defect-inset]]:md:grid-cols-2 has-[[data-defect-inset]]:md:items-start has-[[data-defect-inset]]:md:gap-4 has-[[data-defect-inset]]:md:pr-0",
-        className
-      )}
-    >
+    <div className={cn("w-full md:w-1/2 md:pr-2", className)}>
       {children}
     </div>
   );
