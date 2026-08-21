@@ -33,14 +33,17 @@
          panel     → white cards, lifted by hairline + raised shadow.
          well      → a warm sunken fill, only ever inside a white card.
        Warmth lives in exactly two places — chrome and wells — and nowhere else. */
+    /* Fourth pass — the tint is a *separator*, not a colour: a tad darker than white so
+       a surface reads as a surface, with the saturation all but removed. Chroma on the
+       chrome step is ~1%; you should feel the boundary, not see a hue. */
     --beige-0:#ffffff;   /* page, cards, top bar */
-    --beige-2:#f6f4f0;   /* chrome: sections rail + corrections panel */
-    --beige-3:#f3f0eb;   /* wells inside white cards */
-    --beige-4:#e7e3dd;   /* track, quiet dividers */
-    --beige-6:#d8d3cb;   /* input/control edge */
-    --beige-8:#aaa39a;   /* placeholder, chevrons */
-    --beige-11:#6b655e;  /* muted foreground */
-    --beige-12:#1e1b18;  /* foreground — warm near-black */
+    --beige-2:#f9f8f6;   /* chrome: sections rail + corrections panel — one hair off white */
+    --beige-3:#f5f4f1;   /* wells inside white cards */
+    --beige-4:#ebe9e5;   /* track, quiet dividers */
+    --beige-6:#dbd8d3;   /* input/control edge */
+    --beige-8:#aeaaa4;   /* placeholder, chevrons */
+    --beige-11:#6a6661;  /* muted foreground */
+    --beige-12:#1c1a18;  /* foreground — near-black, a breath warm */
 
     /* — EXPLORATION: charcoal nav — */
     --charcoal:#1f1d1a; --charcoal-2:#2a2723; --charcoal-fg:#a7a098; --charcoal-on:#ffffff;
@@ -49,8 +52,8 @@
     --canvas:var(--beige-0); --card:var(--beige-0); --panel:var(--beige-2);
     --rail:var(--beige-2); --well:var(--beige-3); --track:var(--beige-4);
     --fg:var(--beige-12); --muted:var(--beige-11); --input:var(--beige-6);
-    --hairline:rgba(40,32,24,.08);
-    --hover:rgba(40,32,24,.04);
+    --hairline:rgba(30,26,22,.08);
+    --hover:rgba(30,26,22,.04);
 
     /* — elevation (DS structure; the raised shadow carries a whisper more depth because
        the fills no longer do) — */
