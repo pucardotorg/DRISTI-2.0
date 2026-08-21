@@ -202,3 +202,32 @@ export function sameResolution(a: Resolution | undefined, b: Resolution | undefi
     (a.replacement?.id ?? null) === (b.replacement?.id ?? null)
   );
 }
+
+/**
+ * Is a reason *owed* for what the filing currently holds — the marker the inset shows?
+ *
+ * Two things are true at once and must not be confused. A bare-note defect left untouched
+ * is not resolved (the table above: unchanged and no reason → open), and the only way past
+ * it without editing is to say why the value stands. But the advocate who has just opened
+ * the defect has not yet said anything, and the control is *prefilled* with the filed
+ * value — so reading that prefill as an implicit "I keep this" and marking the reason
+ * REQUIRED on arrival demands a justification for the one thing they have not done yet.
+ * That inverts §15.3's own rule ("bare-note defect, new value entered → optional").
+ *
+ * So: where scrutiny made an explicit suggestion, keeping the filed value is already a
+ * position the moment tier 3 is open — Accept was right there — and the reason is owed
+ * (D7, unchanged). Where scrutiny only left a note, the reason becomes owed once the
+ * advocate has actually moved the value and brought it back: that return *is* the
+ * statement. Until then the field is optional and says so.
+ */
+export function reasonRequired(
+  defect: Defect,
+  value: string | undefined,
+  /** Has the value differed from what scrutiny saw at any point in this sitting? */
+  valueEverChanged: boolean
+): boolean {
+  if (defect.target.kind === "doc") return false;
+  if (defectState(defect, value) === "needs-justification") return true;
+  if (changed(defect, value)) return false;
+  return defect.suggestion ? true : valueEverChanged;
+}

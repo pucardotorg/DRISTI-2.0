@@ -11,6 +11,7 @@ import {
   intendedResolution,
   isResolved,
   keptResolution,
+  reasonRequired,
   resolutionLabel,
   resolutionSatisfies,
   sameResolution,
@@ -315,5 +316,40 @@ describe("saying where a defect is", () => {
     }).target;
     assert.notEqual(targetKey(one), targetKey(two));
     assert.equal(targetKey(one), "field:cheque:0:ifsc");
+  });
+});
+
+describe("when a reason is owed — the marker on the field, not the gate", () => {
+  it("a freshly opened bare-note defect does not demand a justification", () => {
+    // Tier 3 prefills the filed value. Untouched, that prefill is not a kept position:
+    // asking why it should stand is asking about the one thing not yet done (§15.3).
+    const d = makeDefect();
+    assert.equal(reasonRequired(d, "KLGB0040231", false), false);
+  });
+
+  it("a bare-note defect answered with a new value never needs one", () => {
+    const d = makeDefect();
+    assert.equal(reasonRequired(d, "KLGB0040213", true), false);
+  });
+
+  it("a bare-note value moved away and put back is a position, and owes a reason", () => {
+    const d = makeDefect();
+    assert.equal(reasonRequired(d, "KLGB0040231", true), true);
+  });
+
+  it("keeping the filed value against an explicit suggestion owes one from the start (D7)", () => {
+    const d = makeDefect({ suggestion: { from: "KLGB0040231", to: "KLGB0040213" } });
+    assert.equal(reasonRequired(d, "KLGB0040231", false), true);
+  });
+
+  it("overriding an explicit suggestion owes one", () => {
+    const d = makeDefect({ suggestion: { from: "KLGB0040231", to: "KLGB0040213" } });
+    assert.equal(reasonRequired(d, "KLGB0040299", true), true);
+  });
+
+  it("taking the suggestion owes nothing, and a document defect has no reason field", () => {
+    const d = makeDefect({ suggestion: { from: "KLGB0040231", to: "KLGB0040213" } });
+    assert.equal(reasonRequired(d, "KLGB0040213", true), false);
+    assert.equal(reasonRequired(makeDocDefect(), undefined, false), false);
   });
 });
