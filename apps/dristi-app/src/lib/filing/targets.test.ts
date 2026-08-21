@@ -11,6 +11,7 @@ import {
   displayTargetValue,
   isTargetable,
   readTarget,
+  targetControlKind,
   writeTarget,
 } from "./targets";
 
@@ -110,5 +111,34 @@ describe("showing a target's value the way the form does", () => {
 
     const code: DefectTarget = { ...amount, field: "ifsc", label: "IFSC code" };
     assert.equal(displayTargetValue(code, "KLGB0040213"), "KLGB0040213");
+  });
+});
+
+describe("the control the inset offers for a corrected value", () => {
+  it("matches the kind the flagged field itself uses", () => {
+    const field = (step: "cheque" | "demand-notice", name: string): DefectTarget => ({
+      kind: "field",
+      step,
+      field: name,
+      label: name,
+      sectionLabel: "Case details",
+    });
+    assert.equal(targetControlKind(field("cheque", "amount")), "amount");
+    assert.equal(targetControlKind(field("cheque", "dateOnCheque")), "date");
+    assert.equal(targetControlKind(field("demand-notice", "dispatchDate")), "date");
+    assert.equal(targetControlKind(field("cheque", "ifsc")), "text");
+  });
+
+  it("a document has no value control — its inset holds the replacement instead", () => {
+    assert.equal(
+      targetControlKind({
+        kind: "doc",
+        step: "upload",
+        slotKey: "c1ad",
+        label: "AD card",
+        sectionLabel: "Documents",
+      }),
+      "text"
+    );
   });
 });

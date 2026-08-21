@@ -26,7 +26,14 @@ export const SCRUTINY_FILES = {
   memo2: { id: "sc-f-c2m", name: "cheque-2-return-memo.svg", size: 41_200, type: "image/svg+xml", ext: "SVG" },
 } as const satisfies Record<string, StoredFileRef>;
 
-/** SVG page geometry, so `regionFromBox` maps the officer's box the same way OCR's is. */
+/**
+ * SVG page geometry, so `regionFromBox` maps the officer's box the same way OCR's is.
+ *
+ * The boxes below are in this space and are measured against the seeded pages in
+ * `lib/filing/scrutiny-demo.ts`, whose rows sit on baselines `120 + i * 56` with labels at
+ * x 60 and values at x 360. A box that lands a row away from the thing it marks is a
+ * demo that argues against itself, so the two files have to be kept in step.
+ */
 const PAGE = { width: 900, height: 400 };
 
 /**
@@ -77,7 +84,8 @@ export const SCRUTINY_DEFECTS: Defect[] = [
     valueAtReturn: "4471",
     annotation: {
       file: SCRUTINY_FILES.cheque1,
-      box: { x0: 96, y0: 296, x1: 320, y1: 350 },
+      /* The cheque number as printed — row 4's value. */
+      box: { x0: 350, y0: 262, x1: 480, y1: 298 },
       page: PAGE,
     },
   },
@@ -96,7 +104,8 @@ export const SCRUTINY_DEFECTS: Defect[] = [
     valueAtReturn: "Kollam",
     annotation: {
       file: SCRUTINY_FILES.cheque2,
-      box: { x0: 60, y0: 86, x1: 470, y1: 146 },
+      /* The branch is printed in the cheque's title line. */
+      box: { x0: 50, y0: 42, x1: 700, y1: 82 },
       page: PAGE,
     },
   },
@@ -184,7 +193,8 @@ export const SCRUTINY_DEFECTS: Defect[] = [
     note: "The acknowledgement card is scanned at an angle and the date of delivery and the signature are cut off at the fold. Produce a clean scan of the whole card.",
     annotation: {
       file: SCRUTINY_FILES.adCard,
-      box: { x0: 470, y0: 232, x1: 880, y1: 384 },
+      /* The two lines the fold cut off: delivery date and signature. */
+      box: { x0: 340, y0: 152, x1: 800, y1: 246 },
       page: PAGE,
     },
   },

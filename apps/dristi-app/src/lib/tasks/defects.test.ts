@@ -126,6 +126,81 @@ describe("defect resolution — derived, never certified", () => {
   });
 });
 
+describe("v2.1 — the four routes past the gate, and the one that is not a route", () => {
+  /*
+   * The flagged control is read-only now: a value can only change by accepting scrutiny's
+   * correction or by entering one in the inset. So the derivation has exactly four ways to
+   * read "addressed" — accepted, the advocate's own value, the filed value kept with a
+   * reason, and a replaced document — and Ignore is none of them.
+   */
+
+  it("Ignore is a route, not a resolution — opening tier 3 and entering nothing leaves it open", () => {
+    const d = makeDefect({ suggestion: { from: "85000", to: "185000" }, valueAtReturn: "85000" });
+    // Ignore only opens the accordion. Nothing has been written, so nothing is resolved.
+    assert.equal(defectState(d, "85000"), "open");
+    assert.equal(isResolved(d, "85000"), false);
+    assert.equal(allResolved([d], () => "85000"), false);
+    // And the record the screen would write is "nothing was done".
+    assert.equal(intendedResolution(d, "85000", "", AT), undefined);
+  });
+
+  it("accepted — scrutiny's exact value, and no reason is asked for", () => {
+    const d = makeDefect({ suggestion: { from: "85000", to: "185000" }, valueAtReturn: "85000" });
+    const r = intendedResolution(d, "185000", "", AT);
+    assert.equal(r?.how, "accepted");
+    assert.equal(r?.justification, undefined);
+    assert.equal(defectState({ ...d, resolution: r }, "185000"), "resolved");
+    assert.equal(resolutionLabel(d, "185000"), "Suggestion accepted");
+  });
+
+  it("own value on a bare note — resolved, reason optional", () => {
+    const d = makeDefect();
+    assert.equal(intendedResolution(d, "KLGB0040213", "", AT)?.how, "edited");
+    assert.equal(defectState(d, "KLGB0040213"), "resolved");
+  });
+
+  it("own value against an explicit suggestion — resolved only once the reason is there", () => {
+    const d = makeDefect({ suggestion: { from: "85000", to: "185000" }, valueAtReturn: "85000" });
+    assert.equal(defectState(d, "92000"), "needs-justification");
+    const r = intendedResolution(d, "92000", "The memo at page 7 reads ₹92,000.", AT);
+    assert.equal(r?.how, "edited");
+    assert.equal(defectState({ ...d, resolution: r }, "92000"), "resolved");
+  });
+
+  it("kept — the filed value stands, and the reason is the whole resolution", () => {
+    for (const d of [
+      makeDefect(),
+      makeDefect({ suggestion: { from: "KLGB0040231", to: "KLGB0040213" } }),
+    ]) {
+      const filed = d.valueAtReturn ?? "";
+      assert.equal(defectState(d, filed), "open", "no reason, no resolution");
+      const r = intendedResolution(d, filed, "The branch certificate reads this code.", AT);
+      assert.equal(r?.how, "kept");
+      assert.equal(defectState({ ...d, resolution: r }, filed), "resolved");
+      assert.equal(resolutionLabel({ ...d, resolution: r }, filed), "Kept, with a reason");
+    }
+  });
+
+  it("replaced — a document is answered by a new file, and by nothing else", () => {
+    const d = makeDocDefect();
+    // The advocate can neither type a value nor write a reason at a document target:
+    // the record for one is whatever the upload made of it.
+    assert.equal(intendedResolution(d, "old-file-id", "It is legible enough.", AT), undefined);
+    assert.equal(defectState(d, "old-file-id"), "open");
+  });
+
+  it("the vocabulary is exactly accepted · edited · kept · replaced", () => {
+    const hows = new Set<string>();
+    const bare = makeDefect();
+    const suggested = makeDefect({ suggestion: { from: "a", to: "b" }, valueAtReturn: "a" });
+    hows.add(intendedResolution(suggested, "b", "", AT)!.how);
+    hows.add(intendedResolution(bare, "changed", "", AT)!.how);
+    hows.add(intendedResolution(bare, bare.valueAtReturn ?? "", "why", AT)!.how);
+    hows.add("replaced");
+    assert.deepEqual([...hows].sort(), ["accepted", "edited", "kept", "replaced"]);
+  });
+});
+
 describe("resolutionSatisfies — the task-side half, with no draft in hand", () => {
   it("agrees with the screen on the cases the task can see", () => {
     assert.equal(resolutionSatisfies(makeDefect()), false);
