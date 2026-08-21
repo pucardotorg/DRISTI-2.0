@@ -26,15 +26,15 @@
  */
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeftIcon, LockIcon, PanelLeftIcon, ListChecksIcon, SendIcon } from "lucide-react";
+import { LockIcon, PanelLeftIcon, ListChecksIcon, SendIcon } from "lucide-react";
 
 import { longDate } from "@/lib/tasks/format";
 import {
   allResolved,
   countResolved,
   firstUnresolved,
+  formOrder,
   intendedResolution,
   sameResolution,
   targetKey,
@@ -78,6 +78,7 @@ import {
   TOP_BAR_HEIGHT,
   type FilingChromeValue,
 } from "@/components/filing/chrome";
+import { Breadcrumbs } from "@/components/shell/chrome";
 import { CorrectionProvider, type CorrectionValue } from "@/components/filing/posture";
 import { DefectLayer, type DefectActions } from "@/components/scrutiny/defect-inset";
 import {
@@ -140,7 +141,13 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
   const { draft, update } = useFiling();
   const { act, busy, online } = useTaskActions();
 
-  const recorded = React.useMemo(() => task.returned?.defects ?? [], [task.returned]);
+  /* In form order, not the officer's numbering: the queue is an index of the form, so it
+     reads the way the form's pages turn — Documents, Complainant, Cheque 1, Cheque 2 —
+     and the screen opens on the first unresolved defect *of the form*, not of the memo. */
+  const recorded = React.useMemo(
+    () => [...(task.returned?.defects ?? [])].sort(formOrder),
+    [task.returned]
+  );
   const valueOf = React.useCallback(
     (defect: Defect) => readTarget(draft, defect.target),
     [draft]
@@ -488,8 +495,11 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
   );
 
   /*
-   * The page header: the return, and the case it belongs to. The clock and the counter
-   * both live in the queue (§15.6).
+   * The page header: one slim identity strip. Getting *back* is the top bar's breadcrumb
+   * (`<Breadcrumbs>` below publishes Tasks › the task › Scrutiny return), so no second
+   * back affordance lives here, and the clock and the counter both live in the queue
+   * (§15.6) — what remains is the return's name and whose case it is, in two lines that
+   * cost the form almost no height.
    *
    * Where the queue is a column the header is chrome and stays put. Where the queue has
    * folded away, the header rides *inside* the centre pane and scrolls with it — at
@@ -497,57 +507,51 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
    * a hand's width of form to work in (`ACCESSIBILITY.md` §10).
    */
   const pageHeader = (
-  <header className="z-30 flex shrink-0 flex-col gap-2 border-b border-hairline bg-card px-4 py-3 sm:gap-3 sm:px-6 sm:py-4">
-    <Button asChild variant="ghost" size="xs" className="self-start text-muted-foreground">
-      <Link href={back}>
-        <ArrowLeftIcon data-icon="inline-start" aria-hidden />
-        Back to tasks
-      </Link>
-    </Button>
-    <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-3">
-      <div className="flex min-w-0 flex-col gap-0.5 sm:gap-1">
-        <h1 className="text-title font-semibold tracking-tight text-foreground">
-          Scrutiny return
-        </h1>
-        <p className="text-body-compact text-muted-foreground">
-          {kase.parties}
-          {kase.stNumber ? (
-            <>
-              {" · "}
-              <span className="font-mono tabular-nums">{kase.stNumber}</span>
-            </>
-          ) : (
-            " · Not yet numbered"
-          )}
-          {" · "}
-          {kase.court}
-        </p>
-        {/* The clock and the counter both live in the queue now (§15.6): one place
-            for the deadline, one place for the count, and no two numbers on this
-            screen that can disagree. */}
-        <p className="text-caption text-muted-foreground tabular-nums">
-          Returned by scrutiny on {task.returned ? longDate(task.returned.at) : "—"}
-        </p>
-      </div>
-      {railColumn ? null : (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setRailOpen(true)}
-          aria-haspopup="dialog"
-          className="shrink-0"
-        >
-          <PanelLeftIcon data-icon="inline-start" aria-hidden />
-          Sections
-        </Button>
-      )}
+  <header className="z-30 flex shrink-0 items-center justify-between gap-3 border-b border-hairline bg-card px-4 py-3 sm:px-6">
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <h1 className="text-title-s font-semibold tracking-tight text-foreground">
+        Scrutiny return
+      </h1>
+      <p className="text-caption text-muted-foreground">
+        {kase.parties}
+        {kase.stNumber ? (
+          <>
+            {" · "}
+            <span className="font-mono tabular-nums">{kase.stNumber}</span>
+          </>
+        ) : (
+          " · Not yet numbered"
+        )}
+        {" · "}
+        {kase.court}
+        {" · "}
+        <span className="tabular-nums">
+          Returned {task.returned ? longDate(task.returned.at) : "—"}
+        </span>
+      </p>
     </div>
+    {railColumn ? null : (
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => setRailOpen(true)}
+        aria-haspopup="dialog"
+        className="shrink-0"
+      >
+        <PanelLeftIcon data-icon="inline-start" aria-hidden />
+        Sections
+      </Button>
+    )}
   </header>
   );
 
   return (
     <FilingChromeContext.Provider value={chrome}>
     <CorrectionProvider value={correction}>
+      {/* The way back lives in the top bar: Tasks › the task › here (act-page's pattern). */}
+      <Breadcrumbs
+        crumbs={[{ label: task.title, href: back }, { label: "Scrutiny return" }]}
+      />
       {/*
        * With room for the queue, the screen holds the viewport and each pane scrolls
        * inside it: panes that scrolled away with the page would leave the queue — the
@@ -578,10 +582,29 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
             </aside>
           ) : null}
 
-          {/* Centre — the section, in correction posture. */}
+          {/* Centre — the section, in correction posture.
+
+              The `[&_…]` utilities are the locked-field treatment: on this screen most
+              of the form is locked, and the DS's `disabled:opacity-50` ghosting —
+              designed for the odd dead control — turns the whole record the advocate is
+              here to *read* into a watermark (owner feedback, 2026-08-21). Locked stays
+              `disabled` (out of the tab order, announced), but renders at full opacity
+              with the value in `muted-foreground` on the one quiet fill the DS names
+              for a receded surface, `surface-sunken` — legible, visibly stood down
+              under the flagged fields' full-contrast read-only values, and the same
+              fill on every locked control shape (input, prefix group, select, date; the
+              date button's fill rides in `date-field.tsx`, the one control a wrapper
+              selector cannot name). Fills are per-shape rather than blanket so a locked
+              segmented answer or checkbox keeps its chosen-state fill — the choice *is*
+              the value there. The `!`s are owed to the primitives' own `disabled:`
+              rules tying at equal specificity; noted as upstream DS feedback (§15.16). */}
           <main
             className={cn(
               "flex min-w-0 flex-1 flex-col overflow-y-auto pb-8",
+              "[&_:disabled]:opacity-100! [&_:disabled]:text-muted-foreground",
+              "[&_:has(:disabled)]:opacity-100! [&_[data-slot=input-group-addon]]:opacity-100!",
+              "[&_input:disabled]:bg-surface-sunken! [&_textarea:disabled]:bg-surface-sunken!",
+              "[&_:has(>input:disabled)]:bg-surface-sunken! [&_[data-slot=select-trigger]:disabled]:bg-surface-sunken!",
               queueColumn && "px-4 pt-6 sm:px-6"
             )}
           >
