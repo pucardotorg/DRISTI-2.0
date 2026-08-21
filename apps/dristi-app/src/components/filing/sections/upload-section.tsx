@@ -63,6 +63,7 @@ import { FilingPageHeader } from "@/components/filing/filing-page-header";
 import { FilingMain } from "@/components/filing/filing-shell";
 import { PANEL_CLASS } from "@/components/filing/form-card";
 import { SectionNotice } from "@/components/filing/notices";
+import { useInCorrection } from "@/components/filing/posture";
 import { DocumentCard } from "@/components/filing/upload/document-card";
 import { readOutcomeFor } from "@/components/filing/upload/read-status";
 import { IntakeSlotRow } from "@/components/filing/upload/slot-row";
@@ -148,6 +149,9 @@ type Pending =
 export function UploadSection() {
   const { draft, update, hrefFor } = useFiling();
   const intake = draft.intake;
+  /* In a correction round the bundle itself is fixed: a flagged document is *replaced*,
+     never removed, and nothing is added. Only the officer's flags open anything (D3). */
+  const inCorrection = useInCorrection();
   const { done, total, remaining, pct } = intakeProgress(intake);
   const { pick, input } = useFilePicker();
 
@@ -499,7 +503,7 @@ export function UploadSection() {
                   title={`Cheque ${cheque.n}`}
                   slots={cheque.slots}
                   onRemove={
-                    intake.cheques.length > 1
+                    intake.cheques.length > 1 && !inCorrection
                       ? () => setPending({ kind: "cheque", index })
                       : undefined
                   }
@@ -511,10 +515,12 @@ export function UploadSection() {
                 />
               ))}
 
-              <Button type="button" variant="outline" className="w-fit" onClick={addCheque}>
-                <PlusIcon data-icon="inline-start" aria-hidden />
-                Add another cheque
-              </Button>
+              {inCorrection ? null : (
+                <Button type="button" variant="outline" className="w-fit" onClick={addCheque}>
+                  <PlusIcon data-icon="inline-start" aria-hidden />
+                  Add another cheque
+                </Button>
+              )}
             </section>
           ) : null}
 
@@ -530,7 +536,7 @@ export function UploadSection() {
                   title={`Party ${party.n} details`}
                   slots={party.slots}
                   onRemove={
-                    intake.parties.length > 1
+                    intake.parties.length > 1 && !inCorrection
                       ? () => setPending({ kind: "party", index })
                       : undefined
                   }
@@ -553,10 +559,12 @@ export function UploadSection() {
                 />
               ))}
 
-              <Button type="button" variant="outline" className="w-fit" onClick={addParty}>
-                <PlusIcon data-icon="inline-start" aria-hidden />
-                Add another party
-              </Button>
+              {inCorrection ? null : (
+                <Button type="button" variant="outline" className="w-fit" onClick={addParty}>
+                  <PlusIcon data-icon="inline-start" aria-hidden />
+                  Add another party
+                </Button>
+              )}
             </section>
           ) : null}
 

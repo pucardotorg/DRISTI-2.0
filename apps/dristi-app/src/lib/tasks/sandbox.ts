@@ -70,6 +70,18 @@ function shortDate(iso: string): string {
 
 /* ───────────────────────────── cases ───────────────────────────── */
 
+/**
+ * How long a scrutiny return leaves to cure the defects.
+ *
+ * Open question O7: the real window is not confirmed — practice is believed to be around
+ * three days, and the brief's instruction is to assume five until the rule is known. So
+ * the fixture assumes five *and says that it is assuming*. Stating it as the Registry's
+ * rule would put an invented deadline in front of someone who has a statutory clock
+ * running (`docs/product/product-foundation.md` §3).
+ */
+const RETURN_WINDOW_NOTE =
+  "Assumed 5 days from the return to cure the defects — the Registry's window is not yet confirmed";
+
 const ON = "24×7 ON Court, Kollam";
 const JMFC1 = "JMFC Court 1, Kollam";
 const JMFC2 = "JMFC Court 2, Kollam";
@@ -562,7 +574,7 @@ export function buildTasks(): Task[] {
       documentsNeeded: ["Proof of delivery of demand notice (AD card)"],
       dueAt: at(3),
       dueKind: "court-set",
-      deadlineNote: "Registry allows 5 days from the return to cure defects",
+      deadlineNote: RETURN_WINDOW_NOTE,
       draftId: SCRUTINY_DRAFT_ID,
       status: "open",
       returned: { by: "scrutiny", at: at(-2, 11), defects: SCRUTINY_DEFECTS },
@@ -577,7 +589,7 @@ export function buildTasks(): Task[] {
       documentsNeeded: ["Affidavit in support (attested)", "Postal acknowledgement"],
       dueAt: at(2),
       dueKind: "court-set",
-      deadlineNote: "Registry allows 5 days from the return to cure defects",
+      deadlineNote: RETURN_WINDOW_NOTE,
       hearingAt: hearing(9),
       status: "open",
       returned: {
@@ -599,7 +611,7 @@ export function buildTasks(): Task[] {
       documentsNeeded: ["Chief affidavit (sworn)"],
       dueAt: at(1),
       dueKind: "court-set",
-      deadlineNote: "Registry allows 5 days from the return to cure defects",
+      deadlineNote: RETURN_WINDOW_NOTE,
       status: "ready",
       statusNote: "Prepared by S. Prakash",
       returned: {
@@ -632,7 +644,7 @@ export function buildTasks(): Task[] {
       whatToDo: "Cure each defect, attach the corrected document where one is needed, and re-file.",
       dueAt: at(-15),
       dueKind: "court-set",
-      deadlineNote: "Registry allows 5 days from the return to cure defects",
+      deadlineNote: RETURN_WINDOW_NOTE,
       status: "expired",
       statusNote: "cure window lapsed",
       returned: {

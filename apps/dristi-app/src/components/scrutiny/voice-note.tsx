@@ -50,6 +50,21 @@ function clock(ms: number): string {
 export function VoiceNoteRow({ note, className }: { note: VoiceNoteData; className?: string }) {
   const [playing, setPlaying] = React.useState(false);
   const [elapsed, setElapsed] = React.useState(0);
+  const scrub = React.useRef<HTMLDivElement>(null);
+
+  /**
+   * The scrub reports milliseconds, so a screen reader would announce "26000" for
+   * twenty-six seconds. `aria-valuetext` is what turns a raw number into the thing it
+   * measures — and it has to go on the thumb, which is where the `slider` role lives.
+   * The DS `Slider` owns its thumbs, so this sets the attribute on the rendered node
+   * rather than forking the primitive to add a prop.
+   */
+  React.useEffect(() => {
+    const thumb = scrub.current?.querySelector<HTMLElement>("[data-slot=slider-thumb]");
+    if (!thumb) return;
+    thumb.setAttribute("aria-valuetext", `${clock(elapsed)} of ${clock(note.durationMs)}`);
+    thumb.setAttribute("aria-label", "Position in the spoken remark");
+  }, [elapsed, note.durationMs]);
 
   React.useEffect(() => {
     if (!playing) return;
@@ -77,7 +92,9 @@ export function VoiceNoteRow({ note, className }: { note: VoiceNoteData; classNa
           layer, so this does not lift again. */}
       <Attachment
         size="sm"
-        className="w-full min-w-0 rounded-md border-hairline shadow-none has-data-[slot=attachment-content]:py-1.5"
+        /* Inside the sunken feedback well, so it stays flat and its corner sits a step
+           inside the well's `rounded-md`. */
+        className="w-full min-w-0 rounded-sm border-hairline shadow-none has-data-[slot=attachment-content]:py-1.5"
       >
         <AttachmentMedia className="bg-surface-sunken text-muted-foreground">
           <MicIcon aria-hidden />
@@ -95,11 +112,11 @@ export function VoiceNoteRow({ note, className }: { note: VoiceNoteData; classNa
               {playing ? <PauseIcon aria-hidden /> : <PlayIcon aria-hidden />}
             </Button>
             <Slider
+              ref={scrub}
               value={[Math.min(elapsed, note.durationMs)]}
               max={note.durationMs}
               step={TICK_MS}
               onValueChange={([v]) => setElapsed(v ?? 0)}
-              aria-label="Position in the spoken remark"
               className="min-w-16 flex-1"
             />
             <span className="shrink-0 font-mono text-caption tabular-nums text-muted-foreground">

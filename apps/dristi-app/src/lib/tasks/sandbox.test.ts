@@ -37,13 +37,14 @@ describe("sandbox seed — grounded in the 1.0 inventory", () => {
     }
   });
 
-  it("returned tasks cure in 5 days from the return date (owner, O7 — 2026-08-21)", () => {
+  it("returned tasks cure in an assumed 5 days, stated as an assumption (O7)", () => {
     const returned = tasks.filter((t) => t.kind === "returned");
     assert.ok(returned.length >= 3);
     for (const t of returned) {
       assert.ok(t.returned && t.dueAt, `${t.id} carries the return and a due date`);
       assert.equal(daysBetween(t.returned.at, t.dueAt), 5, `${t.id} due 5 days after return`);
-      assert.equal(t.deadlineNote, "Registry allows 5 days from the return to cure defects");
+      // O7 is open, so the note must read as an assumption and not as the Registry's rule.
+      assert.match(t.deadlineNote ?? "", /^Assumed 5 days .*not yet confirmed$/);
     }
   });
 

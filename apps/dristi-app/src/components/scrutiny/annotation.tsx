@@ -55,9 +55,14 @@ export function AnnotationView({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={imageUrl} alt={alt} className="block h-auto w-full" />
         {region ? (
+          /* Not the machine-read mark. The OCR region in `filing/source-panel` fills its
+             box with `bg-halo` — brand accent, "this is what the reader found". A person
+             drew this one, so it takes the warning edge and marks by *dimming everything
+             else* rather than tinting the marked area: two different marks, and no amber
+             stroke around a teal fill pretending to be one thing. */
           <div
             aria-hidden
-            className="pointer-events-none absolute rounded-sm border-2 border-warning-ink bg-halo"
+            className="pointer-events-none absolute rounded-sm border-2 border-warning-ink shadow-[0_0_0_9999px_var(--color-scrim)]"
             style={region}
           />
         ) : null}

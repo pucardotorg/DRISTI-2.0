@@ -159,7 +159,13 @@ export function IntakeSlotRow({
       aria-labelledby={titleId}
       {...(locked ? {} : dropProps)}
       inert={locked || undefined}
-      className={cn("flex flex-col gap-2", locked && "opacity-60")}
+      /* Locked in a correction round: the row is inert, and the DS disabled fill on its
+         controls says so. It does not fade — the point of listing the documents scrutiny
+         did *not* flag is that the advocate can read them. */
+      className={cn(
+        "flex flex-col gap-2",
+        locked && "[&_button]:bg-disabled-fill [&_button]:text-muted-foreground"
+      )}
     >
       <div
         className={cn(
@@ -231,6 +237,7 @@ export function IntakeSlotRow({
                 variant="outline"
                 onClick={onChoose}
                 aria-label={`Replace ${slot.label}`}
+                data-defect-focus
                 className="max-sm:w-10 max-sm:gap-0 max-sm:px-0 max-sm:has-data-[icon=inline-start]:pl-0"
               >
                 <RefreshCwIcon data-icon="inline-start" aria-hidden />
@@ -251,16 +258,21 @@ export function IntakeSlotRow({
                 <span className="max-sm:sr-only">Re-upload</span>
               </Button>
             ) : null}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={onDelete}
-              aria-label={`Remove the file added for ${slot.label}`}
-              className="text-muted-foreground hover:text-destructive"
-            >
-              <Trash2Icon aria-hidden />
-            </Button>
+            {/* No delete in a correction round. Removing a filed document is not a way to
+                answer a defect — replacement is the only path — and an empty slot where
+                the Registry saw a document is a worse filing, not a corrected one. */}
+            {correction ? null : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={onDelete}
+                aria-label={`Remove the file added for ${slot.label}`}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <Trash2Icon aria-hidden />
+              </Button>
+            )}
           </div>
         ) : null}
       </div>
