@@ -26,5 +26,5 @@ next-env.d.ts
 # local design-system clone (fetched by npm install → vendor/pucar-design-system)
 vendor/pucar-design-system/
 
-# runtime assets copied from node_modules on other branches (never committed)
+# generated browser runtime assets (pdf.js + tesseract), copied by apps/dristi-app/scripts/copy-runtime-assets.mjs
 apps/dristi-app/public/vendor/

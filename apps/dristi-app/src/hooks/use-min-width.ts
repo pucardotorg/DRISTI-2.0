@@ -1,39 +1,51 @@
-import { useCallback, useSyncExternalStore } from "react"
+"use client";
+
+import * as React from "react";
 
 /**
- * Viewport width check, mirroring the DS `useIsMobile` pattern for breakpoints
- * that hook does not cover.
- *
- * `lg` (1024) is where the board can give up width to an in-flow case peek at
- * all; `xl` (1280) is where it can hold the peek and the pending-tasks rail at
- * the same time.
+ * Viewport width check, mirroring the DS `useIsMobile` pattern for the breakpoints that
+ * hook does not cover. `false` on the server and before mount.
  */
-export function useMinWidth(minWidth: number) {
-  const query = `(min-width: ${minWidth}px)`
+export function useMinWidth(minWidth: number): boolean {
+  const query = `(min-width: ${minWidth}px)`;
 
-  const subscribe = useCallback(
-    (callback: () => void) => {
-      const mediaQuery = window.matchMedia(query)
-      mediaQuery.addEventListener("change", callback)
-      return () => mediaQuery.removeEventListener("change", callback)
+  const subscribe = React.useCallback(
+    (onChange: () => void) => {
+      const mql = window.matchMedia(query);
+      mql.addEventListener("change", onChange);
+      return () => mql.removeEventListener("change", onChange);
     },
     [query]
-  )
+  );
 
-  const getSnapshot = useCallback(
+  return React.useSyncExternalStore(
+    subscribe,
     () => window.matchMedia(query).matches,
-    [query]
-  )
-
-  return useSyncExternalStore(subscribe, getSnapshot, () => false)
+    () => false
+  );
 }
 
-/** True from `lg` up — the case peek can push instead of overlay. */
-export function useIsDesktop() {
-  return useMinWidth(1024)
+/**
+ * Width thresholds for the filing chrome. The flow can show four columns at once — main
+ * nav, sections rail, form, source rail — so each surface has a width it is allowed to
+ * take a column at, and below it becomes an overlay instead of squeezing the form.
+ *
+ * Budget (chrome at its widest): nav 16rem + sections 18rem + source 20rem = 54rem.
+ * The form column needs ~40rem to keep its two-up field rows; 54 + 40 = 94rem, past
+ * `2xl`. Hence: below `2xl` the nav gives up its labels rather than the form its width.
+ */
+
+/** From `lg`: the sections rail is a column. Below it, a sheet. */
+export function useSectionsDock() {
+  return useMinWidth(1024);
 }
 
-/** True from `xl` up — the case peek and the tasks rail can coexist. */
-export function useIsWide() {
-  return useMinWidth(1280)
+/** From `xl`: the source rail is a column beside the form. Below it, a sheet. */
+export function useSourceDock() {
+  return useMinWidth(1280);
+}
+
+/** From `2xl`: room for a labelled main nav *and* both rails at once. */
+export function useRoomForLabelledNav() {
+  return useMinWidth(1536);
 }
