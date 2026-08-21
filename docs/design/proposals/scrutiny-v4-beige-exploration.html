@@ -95,8 +95,8 @@
 
   .nav{background:var(--charcoal);display:flex;flex-direction:column;align-items:center;
     padding:12px 0;gap:6px;border-right:1px solid rgba(255,255,255,.06)}
-  .nav .logo{width:36px;height:36px;border-radius:var(--r-md);background:var(--charcoal-2);
-    display:grid;place-items:center;color:var(--brand-9);font-weight:600;font-size:12px;letter-spacing:.04em;margin-bottom:10px;
+  .nav .logo{width:40px;height:40px;border-radius:var(--r-lg);background:var(--charcoal-2);
+    display:grid;place-items:center;color:var(--brand-9);font-weight:600;font-size:12px;letter-spacing:.04em;margin-bottom:8px;
     border:1px solid rgba(255,255,255,.06)}
   .nav button{width:40px;height:40px;border-radius:var(--r-lg);display:grid;place-items:center;
     color:var(--charcoal-fg);position:relative}
@@ -157,7 +157,7 @@
 
   /* resizable split */
   .split{display:flex;min-width:0;min-height:0}
-  .record{flex:1;min-width:0;overflow:auto;background:var(--canvas);padding:24px 28px 48px;container-type:inline-size}
+  .record{flex:1;min-width:0;overflow:auto;background:var(--canvas);padding:24px 24px 48px;container-type:inline-size}
   .handle{width:14px;flex:none;cursor:col-resize;position:relative;background:transparent;margin:0 -6px;z-index:2}
   .handle::before{content:"";position:absolute;left:6px;top:0;bottom:0;width:1px;background:var(--hairline)}
   .handle::after{content:"";position:absolute;left:4px;top:50%;transform:translateY(-50%);width:5px;height:28px;
@@ -180,7 +180,7 @@
   .card .sub{font-size:var(--t-compact);color:var(--muted);margin-top:2px}
   /* One column until the record is genuinely wide enough for two — a half-width field
      at 250px is a label that wraps over a box that can't hold its value. */
-  .grid2{display:grid;grid-template-columns:1fr;gap:16px;margin-top:18px}
+  .grid2{display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px}
   @container (min-width:680px){ .grid2{grid-template-columns:1fr 1fr} }
   .span2{grid-column:1/-1}
   .card.empty{display:none}
@@ -210,7 +210,7 @@
   .slotwrap.hidden{display:none}
 
   /* ── Panel ── */
-  .phead{padding:18px 20px 14px;display:flex;flex-direction:column;gap:10px;flex:none}
+  .phead{padding:16px 20px 12px;display:flex;flex-direction:column;gap:8px;flex:none}
   .phead h2{font-size:var(--t-body);font-weight:600}
   .segs{display:flex;gap:4px}
   .segs i{flex:1;height:6px;border-radius:var(--r-full);background:var(--track);transition:background .2s}
@@ -220,7 +220,8 @@
     background:var(--success-3);color:var(--success-ink);font-size:var(--t-compact);font-weight:500}
   .plist{flex:1;min-height:0;overflow:auto;padding:0 12px 16px;display:flex;flex-direction:column;gap:2px}
   .plist>*{flex:none}
-  .prow{display:flex;align-items:flex-start;gap:10px;min-height:42px;padding:9px 10px;border-radius:var(--r-lg);
+  /* Row box at 12 from the panel edge, its mark at 20 — the same 20 the head text sits on. */
+  .prow{display:flex;align-items:flex-start;gap:10px;min-height:40px;padding:8px;border-radius:var(--r-lg);
     width:100%;text-align:left;font-size:var(--t-compact);line-height:var(--lh-compact)}
   .prow:hover{background:var(--hover)}
   .prow .mk{width:16px;height:16px;flex:none;margin-top:2px}
@@ -235,14 +236,14 @@
   .ocard{background:var(--card);border:1px solid var(--hairline);border-radius:var(--r-lg);box-shadow:var(--shadow-raised);
     overflow:hidden;margin:6px 0;outline:none}
   .ocard:focus-visible{box-shadow:var(--shadow-raised),0 0 0 3px rgba(0,126,126,.35)}
-  .oc-head{display:flex;align-items:flex-start;gap:10px;padding:14px 16px 0}
+  .oc-head{display:flex;align-items:flex-start;gap:10px;padding:16px 16px 0}
   .oc-title{font-size:var(--t-body);font-weight:600;line-height:var(--lh-body)}
   .oc-where{font-size:var(--t-caption);color:var(--muted);margin-top:1px}
   .oc-step{margin-left:auto;font-size:var(--t-caption);color:var(--muted);flex:none}
-  .oc-body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:14px}
+  .oc-body{padding:16px;display:flex;flex-direction:column;gap:12px}
 
   .compare{border:1px solid var(--hairline);border-radius:var(--r-md);overflow:hidden}
-  .cr{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 14px}
+  .cr{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 12px}
   .cr.filed{background:var(--well)}
   .cr.filed .k,.cr.filed .v{color:var(--muted)}
   .cr .k{font-size:var(--t-caption);flex:none}
@@ -294,7 +295,7 @@
   .why .dc{display:none;padding:2px 16px 18px;flex-direction:column;gap:16px}
   .why.open .dc{display:flex}
   .eyebrow{font-size:var(--t-caption);font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
-  .note{background:var(--well);border-radius:var(--r-md);padding:12px 14px;font-size:var(--t-compact);line-height:1.55}
+  .note{background:var(--well);border-radius:var(--r-md);padding:12px;font-size:var(--t-compact);line-height:1.55}
   .audio{display:flex;align-items:center;gap:12px;background:var(--well);border-radius:var(--r-md);padding:10px 12px}
   .audio .play{width:32px;height:32px;border-radius:50%;background:var(--brand-solid);color:#fff;display:grid;place-items:center;flex:none}
   .wave{flex:1;display:flex;align-items:center;gap:1px;height:28px}
@@ -307,7 +308,7 @@
   .scan .cap{display:flex;align-items:center;gap:6px;font-size:var(--t-caption);color:var(--muted);margin-top:8px}
   .scan .cap .link{margin-left:auto;color:var(--brand-tint-fg);font-weight:500;flex:none;cursor:pointer}
 
-  .pfoot{padding:16px;border-top:1px solid var(--hairline);display:flex;flex-direction:column;gap:8px;flex:none;background:var(--panel)}
+  .pfoot{padding:16px 20px;border-top:1px solid var(--hairline);display:flex;flex-direction:column;gap:8px;flex:none;background:var(--panel)}
   .pfoot .why-t{font-size:var(--t-caption);color:var(--muted)}
   .caution{display:flex;gap:8px;font-size:var(--t-caption);color:var(--muted);line-height:1.5}
 
@@ -327,7 +328,7 @@
   .toast.show{display:block}
 
   /* exploration banner */
-  .explore{position:fixed;right:16px;bottom:16px;background:var(--charcoal);color:var(--charcoal-fg);font-size:11px;padding:6px 10px;border-radius:var(--r-md);
+  .explore{position:fixed;left:80px;bottom:16px;background:var(--charcoal);color:var(--charcoal-fg);font-size:11px;padding:6px 10px;border-radius:var(--r-md);
     z-index:40;letter-spacing:.02em;opacity:.8}
   .explore b{color:#fff;font-weight:600}
 </style>
@@ -717,7 +718,7 @@ function cardHTMLFor(d){
   const why = d.suggestion ? `<div class="why ${d.why?'open':''}" id="why-${d.n}"><button onclick="toggleWhy(${d.n})" aria-expanded="${d.why}">${SVGS.info} Why it was flagged ${SVGS.down}</button><div class="dc">${whyHTML(d)}</div></div>` : '';
   const mark = needsReply ? SVGS.warn : '<span class="ring"></span>';
   return `<div class="ocard" id="card" tabindex="-1" data-n="${d.n}">
-    <div class="oc-head"><span style="margin-top:3px">${mark}</span>
+    <div class="oc-head"><span style="margin-top:5px;display:flex">${mark}</span>
       <div style="min-width:0"><div class="oc-title">${d.label}</div><div class="oc-where">${where}</div></div>
       <span class="oc-step tnum">${step} of ${DEFECTS.length}</span></div>
     <div class="oc-body">${body}</div>${why}</div>`;
