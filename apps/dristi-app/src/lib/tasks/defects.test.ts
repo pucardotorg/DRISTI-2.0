@@ -8,9 +8,12 @@ import {
   defectState,
   editedResolution,
   firstUnresolved,
+  intendedResolution,
   isResolved,
+  keptResolution,
   resolutionLabel,
   resolutionSatisfies,
+  sameResolution,
   targetKey,
 } from "./defects";
 import { at, makeDefect, makeDocDefect } from "./fixtures";
@@ -65,6 +68,43 @@ describe("defect resolution — derived, never certified", () => {
     assert.equal(defectState(d, "92000"), "needs-justification");
   });
 
+  it("disagreement resolves a bare-note defect with the value untouched (D7)", () => {
+    const d = makeDefect();
+    assert.equal(defectState(d, "KLGB0040231"), "open");
+
+    const disputed: Defect = {
+      ...d,
+      resolution: keptResolution("KLGB0040231", "The branch certificate at page 11 reads this code.", AT),
+    };
+    assert.equal(defectState(disputed, "KLGB0040231"), "resolved");
+    assert.equal(resolutionLabel(disputed, "KLGB0040231"), "Kept, with a reason");
+    assert.equal(resolutionSatisfies(disputed), true);
+  });
+
+  it("disagreement resolves a suggested defect too — the filed value stands, with a reason", () => {
+    const d = makeDefect({ suggestion: { from: "85000", to: "185000" }, valueAtReturn: "85000" });
+    assert.equal(defectState(d, "85000"), "open");
+
+    const disputed: Defect = {
+      ...d,
+      resolution: keptResolution("85000", "The memo is the document in error; the cheque reads ₹85,000.", AT),
+    };
+    assert.equal(defectState(disputed, "85000"), "resolved");
+    assert.equal(resolutionLabel(disputed, "85000"), "Kept, with a reason");
+  });
+
+  it("a kept record with no reason is not a resolution", () => {
+    const d = makeDefect({ resolution: { how: "kept", value: "KLGB0040231", at: AT } });
+    assert.equal(defectState(d, "KLGB0040231"), "open");
+    assert.equal(resolutionSatisfies(d), false);
+
+    const blank = makeDefect({
+      resolution: { how: "kept", value: "KLGB0040231", justification: "  ", at: AT },
+    });
+    assert.equal(defectState(blank, "KLGB0040231"), "open");
+    assert.equal(resolutionSatisfies(blank), false);
+  });
+
   it("a document defect resolves only on a replacement upload", () => {
     const d = makeDocDefect();
     assert.equal(defectState(d, "old-file-id"), "open");
@@ -110,6 +150,47 @@ describe("resolutionSatisfies — the task-side half, with no draft in hand", ()
           resolution: { how: "edited", value: "c", justification: "because", at: AT },
         })
       ),
+      true
+    );
+  });
+});
+
+describe("what the record should say — written on commit, not per keystroke", () => {
+  it("names the act: accepted, edited, kept, or nothing done", () => {
+    const bare = makeDefect();
+    assert.equal(intendedResolution(bare, "KLGB0040231", "", AT), undefined);
+    assert.deepEqual(intendedResolution(bare, "KLGB0040213", "", AT), {
+      how: "edited",
+      value: "KLGB0040213",
+      justification: undefined,
+      at: AT,
+    });
+    assert.deepEqual(intendedResolution(bare, "KLGB0040231", "This code is right.", AT), {
+      how: "kept",
+      value: "KLGB0040231",
+      justification: "This code is right.",
+      at: AT,
+    });
+
+    const suggested = makeDefect({ suggestion: { from: "85000", to: "185000" }, valueAtReturn: "85000" });
+    assert.deepEqual(intendedResolution(suggested, "185000", "", AT), {
+      how: "accepted",
+      value: "185000",
+      at: AT,
+    });
+    assert.equal(intendedResolution(suggested, "92000", "The memo reads ₹92,000.", AT)?.how, "edited");
+  });
+
+  it("compares records on substance, so a re-run writes no second line", () => {
+    const d = makeDefect();
+    const first = intendedResolution(d, "KLGB0040213", "", at(0));
+    const again = intendedResolution(d, "KLGB0040213", "", at(1));
+    assert.equal(sameResolution(first, again), true);
+    assert.equal(sameResolution(first, intendedResolution(d, "KLGB0040214", "", AT)), false);
+    assert.equal(sameResolution(undefined, undefined), true);
+    assert.equal(sameResolution(first, undefined), false);
+    assert.equal(
+      sameResolution(editedResolution("x", "why", AT), editedResolution("x", "why ", AT)),
       true
     );
   });

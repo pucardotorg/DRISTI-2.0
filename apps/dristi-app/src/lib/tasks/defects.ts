@@ -7,11 +7,17 @@
  *
  *   · the flagged field's value changed from what scrutiny saw, or
  *   · the officer's suggestion was taken, or
- *   · the flagged document was replaced —
+ *   · the flagged document was replaced, or
+ *   · the value stands as filed and the advocate wrote *why* —
  *
  * and, where the officer made an *explicit* suggestion and the advocate went a different
  * way, a written justification exists (brief D7). A bare "the IFSC is wrong" answered by
  * a corrected IFSC needs no essay; overriding "it should read KLGB0040213" does.
+ *
+ * That fourth route is disagreement, and it is a resolution rather than a hole in the
+ * gate (brief D7, objective 3): "the original value is right, here is why" travels back
+ * with the correction. Without it the only way past the submit gate is to edit a field
+ * the advocate believes is already correct, which is pressure to falsify a legal filing.
  *
  * Two tiers, because two callers need different things:
  *   `defectState(defect, value)` — the screen, which holds the live draft value.
@@ -35,6 +41,16 @@ function tookSuggestion(defect: Defect, value: string | undefined): boolean {
   return !!defect.suggestion && norm(value) === norm(defect.suggestion.to);
 }
 
+/** Does the filing hold something other than what scrutiny saw? */
+function changed(defect: Defect, value: string | undefined): boolean {
+  return norm(value) !== norm(defect.valueAtReturn);
+}
+
+/** The reason the advocate has written, if any. */
+function reasonOf(defect: Defect): string {
+  return norm(defect.resolution?.justification);
+}
+
 /**
  * The task-side check: does the recorded resolution stand on its own? Used by `refile`,
  * which has no access to the filing draft.
@@ -44,6 +60,8 @@ export function resolutionSatisfies(defect: Defect): boolean {
   if (!r) return false;
   if (r.how === "replaced") return !!r.replacement;
   if (r.how === "accepted") return true;
+  // Kept: the filed value stands, so the reason is the whole resolution.
+  if (r.how === "kept") return !!norm(r.justification);
   // Edited: an explicit suggestion overridden needs a reason on the record.
   return !defect.suggestion || !!norm(r.justification);
 }
@@ -52,6 +70,17 @@ export function resolutionSatisfies(defect: Defect): boolean {
  * The screen-side state, given what the filing currently holds for this defect's target.
  * `value` is the live field value (field defects) or the replacement file's id (document
  * defects, where `undefined` means nothing has been re-uploaded).
+ *
+ * Read as a table for a field defect:
+ *
+ *   value unchanged, no reason      → open
+ *   value unchanged, reason written → resolved (the advocate disagrees, on the record)
+ *   value = the suggested value     → resolved
+ *   value changed, no suggestion    → resolved
+ *   value changed, suggestion       → resolved once a reason is written
+ *
+ * The reason is read off the record rather than the record's `how`, because the reason is
+ * what the Registry receives — a stale `how` should never decide whether a defect counts.
  */
 export function defectState(defect: Defect, value: string | undefined): DefectState {
   if (defect.target.kind === "doc") {
@@ -60,11 +89,10 @@ export function defectState(defect: Defect, value: string | undefined): DefectSt
       : "open";
   }
 
-  const changed = norm(value) !== norm(defect.valueAtReturn);
-  if (!changed) return "open";
-  if (!defect.suggestion) return "resolved";
+  if (!changed(defect, value)) return reasonOf(defect) ? "resolved" : "open";
   if (tookSuggestion(defect, value)) return "resolved";
-  return norm(defect.resolution?.justification) ? "resolved" : "needs-justification";
+  if (!defect.suggestion) return "resolved";
+  return reasonOf(defect) ? "resolved" : "needs-justification";
 }
 
 export function isResolved(defect: Defect, value: string | undefined): boolean {
@@ -97,11 +125,12 @@ export function firstUnresolved(
   return defects.find((d) => !isResolved(d, valueOf(d))) ?? null;
 }
 
-/** "Suggestion accepted" / "Edited" / "Document replaced" — what the frame reports back. */
+/** "Suggestion accepted" / "Kept, with a reason" — what the frame reports back. */
 export function resolutionLabel(defect: Defect, value: string | undefined): string {
   const state = defectState(defect, value);
   if (state !== "resolved") return "";
   if (defect.target.kind === "doc") return "Document replaced";
+  if (!changed(defect, value)) return "Kept, with a reason";
   if (tookSuggestion(defect, value)) return "Suggestion accepted";
   if (defect.suggestion) return "Changed, with a reason";
   return "Corrected";
@@ -128,4 +157,48 @@ export function editedResolution(
   at: string
 ): Resolution {
   return { how: "edited", value, justification: norm(justification) || undefined, at };
+}
+
+/** The resolution to record when the filed value stands and the advocate said why (D7). */
+export function keptResolution(value: string, justification: string, at: string): Resolution {
+  return { how: "kept", value, justification: norm(justification), at };
+}
+
+/**
+ * What the task's record *should* say about a field defect, given what the filing now
+ * holds and the reason the advocate has written. `undefined` means "nothing was done" —
+ * the record is cleared.
+ *
+ * The screen calls this once per commit rather than per keystroke: the state above is
+ * derived live from the draft, so the record only has to catch up when a human act ends
+ * (blur, an explicit accept, a pause in typing). One human act, one line of history.
+ */
+export function intendedResolution(
+  defect: Defect,
+  value: string | undefined,
+  justification: string,
+  at: string
+): Resolution | undefined {
+  if (defect.target.kind === "doc") return defect.resolution;
+  const reason = norm(justification);
+  if (!changed(defect, value)) {
+    return reason ? keptResolution(norm(defect.valueAtReturn), reason, at) : undefined;
+  }
+  const now = value ?? "";
+  if (tookSuggestion(defect, value)) return { how: "accepted", value: now, at };
+  return editedResolution(now, reason, at);
+}
+
+/**
+ * Do two records say the same thing? Compared on substance, never on `at` — otherwise
+ * every reconciliation would look like a change and write another line of history.
+ */
+export function sameResolution(a: Resolution | undefined, b: Resolution | undefined): boolean {
+  if (!a || !b) return a === b;
+  return (
+    a.how === b.how &&
+    norm(a.value) === norm(b.value) &&
+    norm(a.justification) === norm(b.justification) &&
+    (a.replacement?.id ?? null) === (b.replacement?.id ?? null)
+  );
 }

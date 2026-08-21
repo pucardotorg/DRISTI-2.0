@@ -71,6 +71,7 @@ export function JurisdictionSection() {
         >
           <FormField
             asGroup
+            name="deposited"
             label="Did the payee (complainant) deposit the cheque in their bank account?"
             tip="If the payee deposited it, jurisdiction follows the payee's collecting bank branch."
           >
@@ -106,14 +107,14 @@ export function JurisdictionSection() {
               />
               {/* Typed, not read-only: a code the registry doesn't know still has to be filed. */}
               <FormRow>
-                <FormField label="Bank name" required>
+                <FormField label="Bank name" name="payeeBankName" required>
                   <TextField
                     value={j.payeeBankName}
                     onChange={(v) => set("payeeBankName", v)}
                     placeholder="Complainant's bank"
                   />
                 </FormField>
-                <FormField label="Bank branch" required>
+                <FormField label="Bank branch" name="payeeBankBranch" required>
                   <TextField
                     value={j.payeeBankBranch}
                     onChange={(v) => set("payeeBankBranch", v)}
@@ -122,7 +123,7 @@ export function JurisdictionSection() {
                 </FormField>
               </FormRow>
               <HalfWidth>
-                <FormField label="Police station of bank branch" required>
+                <FormField label="Police station of bank branch" name="payeePolice" required>
                   <ComboField
                     value={j.payeePolice}
                     onChange={(v: string) => set("payeePolice", v)}
@@ -136,7 +137,7 @@ export function JurisdictionSection() {
             </>
           ) : (
             <HalfWidth>
-              <FormField label="Police station of drawer (accused) bank branch" required>
+              <FormField label="Police station of drawer (accused) bank branch" name="drawerPolice" required>
                 <ComboField
                   value={j.drawerPolice}
                   onChange={(v: string) => set("drawerPolice", v)}
@@ -154,6 +155,7 @@ export function JurisdictionSection() {
         <FormCard title="Other cheque dishonour complaints between the same parties">
           <FormField
             asGroup
+            name="otherPending"
             label="Is there any other cheque dishonour complaint under Section 138 of the Negotiable Instruments Act, 1881 pending between the same parties?"
           >
             <YesNoSegmented
@@ -240,6 +242,7 @@ export function JurisdictionSection() {
           <FormRow>
             <FormField
               label="Date of cause of action"
+              name="causeDate"
               required
               help={
                 limitation.causeDerived
@@ -254,6 +257,7 @@ export function JurisdictionSection() {
             </FormField>
             <FormField
               label="Date of complaint filing"
+              name="filingDate"
               help={j.filingDate ? undefined : "Today."}
             >
               <DateField
@@ -301,7 +305,7 @@ export function JurisdictionSection() {
 
           {/* Only asked for when there is a delay to condone. */}
           {withinLimit || delay === null ? null : (
-            <FormField label="Reason for condonation of delay" required>
+            <FormField label="Reason for condonation of delay" name="condonationReason" required>
               <Textarea
                 value={j.condonationReason}
                 onChange={(e) => set("condonationReason", e.target.value)}

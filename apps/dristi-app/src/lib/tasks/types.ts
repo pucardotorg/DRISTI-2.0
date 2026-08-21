@@ -7,6 +7,7 @@
  * them once.
  */
 
+import type { TargetableStep } from "@/lib/filing/targets";
 import type { StepId as FilingStepId } from "@/lib/filing/types";
 
 export type PersonId = string;
@@ -99,10 +100,15 @@ export type StoredFileRef = {
  * within a repeating list; `field` is the key on that record. `label` /
  * `sectionLabel` / `instanceLabel` carry the officer's own words for the breadcrumb, so
  * the screen never has to reverse-engineer a human name from a key.
+ *
+ * `step` is deliberately narrower than the filing's own step list: only the sections whose
+ * fields are wired to be found can hold a defect, because a defect the form cannot show is
+ * one the advocate can never clear. `lib/filing/targets` owns that list and the note on
+ * widening it.
  */
 export type FieldTarget = {
   kind: "field";
-  step: FilingStepId;
+  step: TargetableStep;
   instance?: number;
   field: string;
   label: string;
@@ -152,10 +158,19 @@ export type Suggestion = {
  * actually replaced — and `defects.ts` derives "resolved" from it plus the live value.
  */
 export type Resolution = {
-  how: "accepted" | "edited" | "replaced";
+  /**
+   * `kept` is disagreement (brief D7): the filed value stands and the advocate has said
+   * why. It is a resolution, not an unresolved defect — and it is a different act from an
+   * edit, so the history must not call it one.
+   */
+  how: "accepted" | "edited" | "kept" | "replaced";
   /** The value now in the filing (field defects) — for the record, not the gate. */
   value?: string;
-  /** Required when an explicit suggestion was overridden; also the dispute channel. */
+  /**
+   * The advocate's reason. Required when an explicit suggestion was overridden and when
+   * the filed value is being kept; available on any field defect, because that is how a
+   * disagreement reaches the Registry at all.
+   */
   justification?: string;
   /** The upload that replaced the flagged document. */
   replacement?: StoredFileRef;

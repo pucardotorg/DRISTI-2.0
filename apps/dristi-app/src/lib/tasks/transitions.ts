@@ -164,6 +164,7 @@ export function markReady(task: Task, ctx: Ctx, note?: string, files?: StoredFil
 const RESOLUTION_WORD: Record<Resolution["how"], string> = {
   accepted: "took scrutiny's suggested value for",
   edited: "corrected",
+  kept: "kept the filed value, with a reason, for",
   replaced: "replaced the document for",
 };
 
