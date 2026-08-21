@@ -6,7 +6,7 @@
 <title>Scrutiny return — beige &amp; charcoal exploration</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400..700;1,14..32,400&display=swap" rel="stylesheet" />
 <style>
   /* ════════════════════════════════════════════════════════════════════════
      TOKENS
@@ -65,8 +65,8 @@
     --radius:10px;
     --r-sm:6px; --r-md:8px; --r-lg:10px; --r-xl:14px; --r-full:999px;
 
-    /* — type (DS sizes; Noto Sans face) — */
-    --font:"Noto Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    /* — type (DS sizes; Inter face, variable, with optical sizing) — */
+    --font:"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --t-title-s:1.25rem; --lh-title-s:1.75rem;
     --t-body:1rem; --lh-body:1.5rem;
     --t-compact:.875rem; --lh-compact:1.25rem;
@@ -79,7 +79,10 @@
     font-family:var(--font); font-size:var(--t-body); line-height:var(--lh-body);
     color:var(--fg); background:var(--canvas);
     -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
-    font-feature-settings:"kern","liga";
+    /* Inter: contextual alternates and slashed-free figures; tabular nums are opted into
+       per-element via .tnum. cv11 gives the single-storey a, which reads calmer at 14px. */
+    font-feature-settings:"kern","liga","calt","cv11";
+    font-optical-sizing:auto;
     overflow:hidden;
   }
   button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
@@ -417,7 +420,7 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
-<div class="explore"><b>Exploration</b> · beige ramp · charcoal nav · Noto Sans · tokens otherwise unchanged</div>
+<div class="explore"><b>Exploration</b> · beige ramp · charcoal nav · Inter · tokens otherwise unchanged</div>
 
 <script>
 /* ═══════════════════ Data — the demonstrated return, in form order ═══════════════════ */
