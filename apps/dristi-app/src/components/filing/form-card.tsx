@@ -52,7 +52,16 @@ export function FormCard({
   );
 }
 
-/** Two fields side by side from `md` up, stacked below. */
+/**
+ * Two fields side by side from `md` up, stacked below.
+ *
+ * `dense` only when the row holds a scrutiny inset. In a correction round a flagged
+ * field's inset is a sibling that spans the whole row (brief §15.5) — without dense
+ * packing it would push the field beside it onto a third line, which is the relaying of
+ * the form that v2.1 forbids. Dense backfills the hole the spanning item left, so the row
+ * renders exactly as the filing draws it and the layer lands underneath. Outside a
+ * correction nothing spans, and the rule has no effect.
+ */
 export function FormRow({
   children,
   className,
@@ -61,17 +70,25 @@ export function FormRow({
   className?: string;
 }) {
   return (
-    <div className={cn("grid grid-cols-1 items-start gap-4 md:grid-cols-2", className)}>
+    <div
+      className={cn(
+        "grid grid-cols-1 items-start gap-4 md:grid-cols-2",
+        "has-[[data-defect-inset]]:grid-flow-row-dense",
+        className
+      )}
+    >
       {children}
     </div>
   );
 }
 
 /**
- * A field that should take half the card width on wide screens — unless a scrutiny defect
- * frame has grown around it, in which case it takes the row. The officer's note, voice
- * remark and suggested value do not read in half a column, and the half-width was a
- * judgement about a short input, not about the block that explains it.
+ * A field that should take half the card width on wide screens.
+ *
+ * When it holds a flagged field it becomes the same two-column grid `FormRow` is, so the
+ * field keeps its width to the pixel (50% less half the gap) while its inset spans the
+ * row beneath it. The alternative — widening the wrapper — would stretch the input, and
+ * the centre column is the e-filing form verbatim (brief §15.1).
  */
 export function HalfWidth({
   children,
@@ -82,7 +99,11 @@ export function HalfWidth({
 }) {
   return (
     <div
-      className={cn("w-full md:w-1/2 md:pr-2 has-[[data-defect-frame]]:md:w-full", className)}
+      className={cn(
+        "w-full md:w-1/2 md:pr-2",
+        "has-[[data-defect-inset]]:md:grid has-[[data-defect-inset]]:md:w-full has-[[data-defect-inset]]:md:grid-cols-2 has-[[data-defect-inset]]:md:items-start has-[[data-defect-inset]]:md:gap-4 has-[[data-defect-inset]]:md:pr-0",
+        className
+      )}
     >
       {children}
     </div>

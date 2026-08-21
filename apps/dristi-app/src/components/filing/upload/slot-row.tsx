@@ -15,22 +15,16 @@
  */
 
 import * as React from "react";
-import {
-  CircleCheckIcon,
-  Maximize2Icon,
-  RefreshCwIcon,
-  Trash2Icon,
-  TriangleAlertIcon,
-} from "lucide-react";
+import { CircleCheckIcon, RefreshCwIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
 
-import { formatBytes, useFilePreview } from "@/lib/filing/files";
+import { formatBytes } from "@/lib/filing/files";
 import { cn } from "@/lib/utils";
 import type { IntakeSlot } from "@/lib/filing/types";
 import { Button } from "@/components/ui/button";
 import { DocumentSlot } from "@/components/ui/document-slot";
 import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useCorrection } from "@/components/filing/posture";
+import { SlotThumbnail } from "@/components/filing/upload/thumbnail";
 import { readOutcome, readToneClass } from "@/components/filing/upload/read-status";
 import {
   useDropTarget,
@@ -63,53 +57,6 @@ const MEDIA_CLASS = [
   "sm:[&_[data-slot=document-slot-media]]:h-14",
   "sm:[&_[data-slot=document-slot-media]]:w-20",
 ].join(" ");
-
-/* ───────────────────────────── Thumbnail ───────────────────────────────── */
-
-/**
- * The filled row's media well, and its preview control. Always a button — a PDF with no
- * image preview still has to be openable by keyboard and by voice.
- *
- * "You can enlarge this" cannot live on hover alone (ACCESSIBILITY §7), so the scrim is
- * revealed on hover *and* on keyboard focus, and stays visible where there is no hover at
- * all. It is decoration over the one control, not a second control.
- *
- * The DS media well is `overflow-hidden`, which would clip a focus ring, so focus is an
- * inset outline in the same `ring` colour.
- */
-function SlotThumbnail({ slot, onPreview }: { slot: IntakeSlot; onPreview: () => void }) {
-  const preview = useFilePreview(slot.file);
-  return (
-    <button
-      type="button"
-      onClick={onPreview}
-      aria-label={`Preview ${slot.file?.name ?? slot.label}`}
-      className="group/thumb relative size-full cursor-pointer rounded-md outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-    >
-      {preview.status === "loading" ? (
-        <Skeleton className="size-full rounded-md" />
-      ) : preview.status === "ready" && preview.imageUrl ? (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img src={preview.imageUrl} alt="" className="size-full object-cover" />
-      ) : (
-        <span className="flex size-full items-center justify-center text-caption font-semibold text-muted-foreground">
-          {slot.file?.ext ?? "File"}
-        </span>
-      )}
-
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md bg-scrim opacity-0 transition-opacity group-hover/thumb:opacity-100 group-focus-visible/thumb:opacity-100 pointer-coarse:opacity-100"
-      >
-        {/* The glyph rides its own card-on-scrim chip: `scrim` is a 50% black wash in both
-            themes, and no foreground token stays light in both. */}
-        <span className="flex size-6 items-center justify-center rounded-full bg-card text-foreground">
-          <Maximize2Icon className="size-3.5" />
-        </span>
-      </span>
-    </button>
-  );
-}
 
 /* ───────────────────────────── The row ─────────────────────────────────── */
 
@@ -208,7 +155,9 @@ export function IntakeSlotRow({
                 : undefined
           }
           thumbnail={
-            slot.file ? <SlotThumbnail slot={slot} onPreview={onPreview} /> : undefined
+            slot.file ? (
+              <SlotThumbnail file={slot.file} label={slot.label} onPreview={onPreview} />
+            ) : undefined
           }
           onChooseFile={onChoose}
           /* h-10: the slot's own Choose file button is `size="sm"` (36px), under the DS
@@ -228,22 +177,11 @@ export function IntakeSlotRow({
             row's actions is the same on every row whatever a row can do. */}
         {slot.file ? (
           <div className="flex shrink-0 items-center gap-1">
-            {/* A flagged document always offers the replace, whatever reading made of it:
-                the officer's complaint is about the scan, not about the read (brief D9).
-                It is `outline`, not primary — the one teal action is the submit. */}
-            {defect ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onChoose}
-                aria-label={`Replace ${slot.label}`}
-                data-defect-focus
-                className="max-sm:w-10 max-sm:gap-0 max-sm:px-0 max-sm:has-data-[icon=inline-start]:pl-0"
-              >
-                <RefreshCwIcon data-icon="inline-start" aria-hidden />
-                <span className="max-sm:sr-only">Replace</span>
-              </Button>
-            ) : statusLine?.reupload ? (
+            {/* A flagged row carries no action of its own. The sanctity that keeps a
+                flagged *field* read-only extends to documents: the scan the Registry saw
+                stays as it is on the row, and the replacement is made in the inset
+                beneath it (brief §15.4). The thumbnail still opens the full view. */}
+            {defect ? null : statusLine?.reupload ? (
               /* Labelled where there is room; a 40×40 icon button on a phone, where a
                  118px label would leave the status line about fifty pixels to wrap in.
                  The accessible name carries the label at every width. */
@@ -283,6 +221,8 @@ export function IntakeSlotRow({
     </div>
   );
 
-  if (defect && correction) return <>{correction.renderDocDefect(defect, body)}</>;
+  if (defect && correction) {
+    return <>{correction.renderDocDefect(defect, body, { replace: onChoose })}</>;
+  }
   return body;
 }

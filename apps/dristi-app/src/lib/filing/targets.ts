@@ -135,6 +135,20 @@ const DATE_FIELDS = new Set([
   "dob",
 ]);
 
+/**
+ * Which control the inset's "Your corrected value" should be (brief §15.2, tier 3): the
+ * same kind the flagged field uses, so a corrected date is picked and a corrected amount
+ * is typed in rupees rather than both being loose text.
+ */
+export type TargetControlKind = "amount" | "date" | "text";
+
+export function targetControlKind(target: DefectTarget): TargetControlKind {
+  if (target.kind !== "field") return "text";
+  if (AMOUNT_FIELDS.has(target.field)) return "amount";
+  if (DATE_FIELDS.has(target.field)) return "date";
+  return "text";
+}
+
 /** A stored value in the notation the form uses for that field. Never a lossy rewrite. */
 export function displayTargetValue(target: DefectTarget, value: string | undefined): string {
   const raw = (value ?? "").trim();
