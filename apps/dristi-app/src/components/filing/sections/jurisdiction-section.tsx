@@ -9,10 +9,12 @@
  * typed from memory, and an unlisted one is still accepted.
  */
 
+import Link from "next/link";
 import { PlusIcon } from "lucide-react";
 
-import { daysBetween } from "@/lib/filing/format";
+import { toLongDate } from "@/lib/filing/format";
 import { POLICE_STATIONS } from "@/lib/filing/options";
+import { limitationView, noticeServiceDate } from "@/lib/filing/selectors";
 import { neighbours } from "@/lib/filing/steps";
 import { useFiling } from "@/lib/filing/store";
 import { Button } from "@/components/ui/button";
@@ -46,9 +48,13 @@ export function JurisdictionSection() {
       d.jurisdiction.payeeFetched = false;
     });
 
-  const delay = daysBetween(j.causeDate, j.filingDate);
-  const withinLimit = delay !== null && delay <= 30;
-  const overBy = delay === null ? 0 : delay - 30;
+  const limitation = limitationView(draft);
+  const { elapsed: delay, withinLimit, overBy } = limitation;
+  // Shown in the derivation line, so the date it counts from is checkable.
+  const serviceDate = draft.notices
+    .map(noticeServiceDate)
+    .filter(Boolean)
+    .sort()[0] ?? "";
 
   return (
     <>
@@ -76,8 +82,8 @@ export function JurisdictionSection() {
           </FormField>
 
           <SectionNotice variant="info">
-            Jurisdiction is based on the bank branch where the cheque is presented for
-            collection and the account is maintained by the complainant.
+            Jurisdiction follows the branch where the cheque was presented and the
+            complainant holds the account.
           </SectionNotice>
 
           {j.deposited === "yes" ? (
@@ -122,7 +128,7 @@ export function JurisdictionSection() {
                     onChange={(v: string) => set("payeePolice", v)}
                     items={POLICE_STATIONS}
                     placeholder="Search stations"
-                    emptyLabel="No station by that name — what you typed is kept."
+                    emptyLabel="No station by that name."
                     ariaLabel="Police station of bank branch"
                   />
                 </FormField>
@@ -136,7 +142,7 @@ export function JurisdictionSection() {
                   onChange={(v: string) => set("drawerPolice", v)}
                   items={POLICE_STATIONS}
                   placeholder="Search stations"
-                  emptyLabel="No station by that name — what you typed is kept."
+                  emptyLabel="No station by that name."
                   ariaLabel="Police station of drawer (accused) bank branch"
                 />
               </FormField>
@@ -160,7 +166,7 @@ export function JurisdictionSection() {
           {j.otherPending === "yes" ? (
             <>
               <SectionNotice variant="neutral">
-                Please state the case details of such cases (court &amp; case number).
+                List each one — the court and the case number.
               </SectionNotice>
               <div className="flex flex-col gap-4">
                 {j.otherCases.map((oc, i) => (
@@ -174,7 +180,7 @@ export function JurisdictionSection() {
                               d.jurisdiction.otherCases[i].court = v;
                             })
                           }
-                          placeholder="Enter"
+                          placeholder="e.g. JMFC-II, Kollam"
                         />
                       </FormField>
                       <FormField label="Case number" required>
@@ -185,7 +191,7 @@ export function JurisdictionSection() {
                               d.jurisdiction.otherCases[i].caseNumber = v;
                             })
                           }
-                          placeholder="Enter"
+                          placeholder="e.g. CC/482/2025"
                         />
                       </FormField>
                     </FormRow>
@@ -224,18 +230,53 @@ export function JurisdictionSection() {
           title="Limitation period"
           description="The complaint must be filed within one month of the cause of action arising."
         >
+          {/*
+            Neither of these is really a question. The cause of action is fifteen days
+            after the demand notice was served, and the filing date is today — both follow
+            from what the form already knows, so they are filled in and the working is
+            shown. They stay editable because the derivation cannot cover every case, and
+            an edit sticks: once typed, the date is the filer's and stops following.
+          */}
           <FormRow>
             <FormField
               label="Date of cause of action"
               required
-              tip="The day after the 15-day payment window from the demand notice expires."
+              help={
+                limitation.causeDerived
+                  ? `15 days after the demand notice was served on ${toLongDate(serviceDate)}.`
+                  : undefined
+              }
             >
-              <DateField value={j.causeDate} onChange={(v) => set("causeDate", v)} />
+              <DateField
+                value={limitation.causeDate}
+                onChange={(v) => set("causeDate", v)}
+              />
             </FormField>
-            <FormField label="Date of complaint filing">
-              <DateField value={j.filingDate} onChange={(v) => set("filingDate", v)} />
+            <FormField
+              label="Date of complaint filing"
+              help={j.filingDate ? undefined : "Today."}
+            >
+              <DateField
+                value={limitation.filingDate}
+                onChange={(v) => set("filingDate", v)}
+              />
             </FormField>
           </FormRow>
+
+          {/* Nothing to derive from yet — said once, where the empty field is. */}
+          {limitation.causeDate ? null : (
+            <SectionNotice variant="neutral">
+              The cause of action is worked out from the demand notice. Record when it was
+              delivered — or returned unserved — under{" "}
+              <Link
+                href={hrefFor("demand-notice")}
+                className="font-medium text-current underline underline-offset-2"
+              >
+                Demand notice &amp; debt
+              </Link>
+              .
+            </SectionNotice>
+          )}
           {/*
             The delay was a key-value row with a caption under it explaining that it was
             calculated — three lines of furniture around one number. It is a result, so it
@@ -253,22 +294,19 @@ export function JurisdictionSection() {
               announce="polite"
               title={`${overBy} day${overBy === 1 ? "" : "s"} beyond the one-month limit`}
             >
-              The court can still take this complaint on file, but it has to be asked to
-              condone the delay first — give the reason below.
+              The court can still take this on file, but it must be asked to condone the
+              delay.
             </SectionNotice>
           )}
 
           {/* Only asked for when there is a delay to condone. */}
           {withinLimit || delay === null ? null : (
-            <FormField
-              label="Reason for praying condonation of delay"
-              required
-              help="What kept the complaint from being filed inside the one-month limit."
-            >
+            <FormField label="Reason for condonation of delay" required>
               <Textarea
                 value={j.condonationReason}
                 onChange={(e) => set("condonationReason", e.target.value)}
-                placeholder="Enter"
+                placeholder="e.g. The complainant was hospitalised between 12 June and 30 July, and the papers could not be settled in that time."
+                rows={4}
               />
             </FormField>
           )}

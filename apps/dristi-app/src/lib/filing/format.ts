@@ -75,3 +75,17 @@ export function daysBetween(a: ISODate, b: ISODate): number | null {
   if (!da || !db) return null;
   return Math.round((db.getTime() - da.getTime()) / 86_400_000);
 }
+
+/** `iso` moved on by `days`, as an ISO date. Empty in, empty out. */
+export function addDays(iso: ISODate, days: number): ISODate {
+  const d = isoToDate(iso);
+  if (!d) return "";
+  const out = new Date(d.getTime());
+  out.setDate(out.getDate() + days);
+  return dateToIso(out);
+}
+
+/** Today, as an ISO date. */
+export function todayIso(): ISODate {
+  return dateToIso(new Date());
+}

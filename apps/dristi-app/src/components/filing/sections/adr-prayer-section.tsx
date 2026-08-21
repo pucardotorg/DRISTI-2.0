@@ -71,9 +71,9 @@ export function AdrPrayerSection() {
           <FormField
             asGroup
             label={OTHER_DETAILS_QUESTION}
-            tip="Optional context for the court. The synopsis is auto-generated and can be reviewed on the Preview page."
+            tip="Anything the court should know that the form has not already asked for."
             helpPlacement="above"
-            help="Use this box to add any other details you would like to share with the court as part of the complaint. No need to repeat cheque details or other information already provided above. In addition, the synopsis will be auto-generated — you can review it on the Preview page."
+            help="No need to repeat anything already entered above."
           >
             <RichTextEditor
               value={adr.otherDetails}
@@ -87,7 +87,7 @@ export function AdrPrayerSection() {
         {/* Prayer */}
         <FormCard
           title="Prayer / relief sought"
-          description="Drafted for you under S-138. Edit where required to fit the facts of your case."
+          description="The standard S-138 prayer. Edit to fit your case."
         >
           <FormField asGroup label="Interim relief" optional helpPlacement="above" help={RELIEF_HELP}>
             <RichTextEditor

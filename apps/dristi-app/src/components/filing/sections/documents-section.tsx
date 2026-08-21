@@ -315,13 +315,12 @@ export function DocumentsSection() {
       <FilingMain width="wide">
         <FilingPageHeader
           title="List of documents"
-          description="No need to upload the affidavit or delay-condonation application here. Make sure each document is uploaded the right way up and is easy to read — not sideways or upside down."
+          description="Check each one is the right way up and readable. The affidavit and delay-condonation application are not needed here."
         />
 
         <SectionNotice variant="neutral">
-          Tick <strong className="font-semibold">Natively digital</strong> when you are
-          attaching an original digital document (e.g. an e-signed PDF), not a scanned copy
-          of a physical document.
+          Tick <strong className="font-semibold">Natively digital</strong> for an
+          original digital file, such as an e-signed PDF — not a scan of a paper copy.
         </SectionNotice>
 
         {groups.map((group) => (

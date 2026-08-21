@@ -8,7 +8,6 @@
 
 import {
   addressToString,
-  daysBetween,
   formatINR,
   joinDot,
   plural,
@@ -28,6 +27,7 @@ import {
 import {
   advocateName,
   documentsProgress,
+  limitationView,
   totalChequeAmount,
 } from "@/lib/filing/selectors";
 import type {
@@ -314,7 +314,8 @@ export function noticeAffidavit(n: DemandNotice | undefined) {
 export function jurisdictionSummary(draft: FilingDraft) {
   const j = draft.jurisdiction;
   const bank = commaJoin(j.payeeBankName, j.payeeBankBranch);
-  const delay = daysBetween(j.causeDate, j.filingDate);
+  const lim = limitationView(draft);
+  const delay = lim.elapsed;
   const beyond = delay === null ? 0 : delay - 30;
   return {
     depositedByPayee: j.deposited === "yes",
@@ -329,9 +330,10 @@ export function jurisdictionSummary(draft: FilingDraft) {
     bankName: orNot(j.payeeBankName),
     bankBranch: orNot(j.payeeBankBranch),
     bank: orNot(bank),
-    causeDate: displayDate(j.causeDate),
-    filingDate: displayDate(j.filingDate),
-    filingDateIso: j.filingDate,
+    causeDate: displayDate(lim.causeDate),
+    causeDateIso: lim.causeDate,
+    filingDate: displayDate(lim.filingDate),
+    filingDateIso: lim.filingDate,
     otherPending: j.otherPending === "yes" ? "Yes" : "No",
     otherCases: j.otherCases.filter((c) => c.court.trim() || c.caseNumber.trim()),
     inTime: delay === null || delay <= 30,
@@ -398,4 +400,44 @@ export function documentSummary(draft: FilingDraft) {
     )
     .filter(Boolean);
   return { uploaded, lines, ...documentsProgress(draft.documents) };
+}
+
+/**
+ * The affidavit, as HTML, composed from the case.
+ *
+ * This is the one text on the sheet the filer is expected to edit — it is sworn under
+ * BNSS s.225, and only they know whether the standard recitals fit their facts. So it is
+ * generated here from what the draft actually records (the return reason is quoted from
+ * the memo, the payment and service sentences come from `noticeAffidavit`), and the
+ * Affidavit step hands it to a rich-text editor.
+ *
+ * `draft.affidavit` holds the edited version when there is one; empty means "still the
+ * standard text", so the paragraphs keep tracking the case as the filer changes it. That
+ * is why the court document renders the *same* expression rather than regenerating its
+ * own copy — two paths would drift, and a sworn document that disagrees with the form it
+ * came from is the worst outcome available here.
+ */
+export function affidavitHtml(draft: FilingDraft): string {
+  const notice = noticeAffidavit(draft.notices[0]);
+  const reason = optionLabel(RETURN_REASONS, draft.cheques[0]?.returnReason ?? "");
+  const dishonoured = reason
+    ? `It has been dishonoured, the return memo recording the reason as \u201c${reason}\u201d.`
+    : "It has been dishonoured.";
+
+  return [
+    "I am the complainant / authorised representative of the complainant in the above case and am fully acquainted with the facts and circumstances of the case. I am competent and authorised to swear to this affidavit.",
+    `The accused issued the above cheque in discharge of a legally enforceable debt or liability. ${dishonoured} ${notice.payment} All other requirements under Section 138 of the Negotiable Instruments Act, 1881 have been complied with.`,
+    notice.service,
+    "In accordance with Section 225 of the Bharatiya Nagarik Suraksha Sanhita, 2023, I confirm that there is sufficient ground for proceeding against the accused.",
+    "In accordance with Section 223 and other relevant provisions of the Bharatiya Nagarik Suraksha Sanhita, 2023, I confirm that the contents of this complaint are true and correct to the best of my knowledge, belief and information.",
+    "The physical or electronic records of the documents etc. produced by me with this complaint are in my lawful and proper custody and possession.",
+    "It is therefore humbly prayed that this Hon\u2019ble Court may be pleased to take cognizance of the offence committed by the accused, and issue process to the accused.",
+  ]
+    .map((para) => `<p>${para}</p>`)
+    .join("");
+}
+
+/** What the sheet and the editor both show — the edit when there is one, else the standard text. */
+export function affidavitBody(draft: FilingDraft): string {
+  return draft.affidavit.trim() ? draft.affidavit : affidavitHtml(draft);
 }

@@ -41,9 +41,9 @@ import {
 import { FilingFooter } from "@/components/filing/filing-footer";
 import { FilingPageHeader } from "@/components/filing/filing-page-header";
 import { FilingMain } from "@/components/filing/filing-shell";
-import { FormCard, FormRow } from "@/components/filing/form-card";
+import { FormCard, HalfWidth } from "@/components/filing/form-card";
 import { FormField } from "@/components/filing/form-field";
-import { ComboField, TextField } from "@/components/filing/inputs";
+import { ComboField } from "@/components/filing/inputs";
 import { SectionNotice } from "@/components/filing/notices";
 import { RemoveButton } from "@/components/filing/repeat-lists";
 import {
@@ -115,15 +115,6 @@ export function AdvocateSection() {
   const setQuery = (id: string, value: string) =>
     setQueries((q) => ({ ...q, [id]: value }));
 
-  /** Rows the person chose to fill by hand because the register does not list them. */
-  const [manualIds, setManualIds] = React.useState<ReadonlySet<string>>(new Set());
-  const setManual = (id: string, on: boolean) =>
-    setManualIds((prev) => {
-      const next = new Set(prev);
-      if (on) next.add(id);
-      else next.delete(id);
-      return next;
-    });
 
   // One Vakalatnama is uploaded per complainant; show the one belonging to the complainant
   // the first advocate acts for (clamped, since indices survive a complainant's removal).
@@ -132,11 +123,6 @@ export function AdvocateSection() {
     Math.max(0, draft.complainants.length - 1)
   );
   const vakalatnama = partySourceSlot(draft, vakalatnamaParty, "vakalatnama");
-
-  const setField = (index: number, key: "name" | "barNumber", value: string) =>
-    update((d) => {
-      d.advocates[index][key] = value;
-    });
 
   /** The signed-in person filling in their own row — name and bar number in one action. */
   const canUseProfile = !!(profile?.name.trim() || profile?.barNumber.trim());
@@ -224,8 +210,7 @@ export function AdvocateSection() {
               })
             }
           >
-            The advocate must be registered on the court portal. Search by name or bar
-            number; if they are not on the register, enter the details by hand.
+            Only advocates registered on the court portal can appear on a filing.
           </SectionNotice>
         )}
 
@@ -259,7 +244,9 @@ export function AdvocateSection() {
                 ) : undefined
               }
             >
-              <FormField asGroup label="Advocate for" required>
+              {/* A lone short answer takes half the card, like every other one. */}
+              <HalfWidth>
+                <FormField asGroup label="Advocate for" required>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -312,17 +299,15 @@ export function AdvocateSection() {
                       );
                     })}
                   </DropdownMenuContent>
-                </DropdownMenu>
-              </FormField>
+                  </DropdownMenu>
+                </FormField>
+              </HalfWidth>
 
               {/*
-                One question, not two. Bar number and full name are the same lookup from
-                two directions — offering both as searchable fields put the identical
-                register behind two boxes and reported "found on the register" twice for
-                one advocate (owner, 2026-08-19). So: search once, by whichever you have,
-                and what you found is shown as a result rather than re-offered as fields
-                to fill in. The register is still not the last word on who is enrolled, so
-                entering an unlisted advocate by hand stays one click away.
+                One search, not two fields. The bar number and the name are the same
+                lookup from two directions, so asking for both put one register behind
+                two boxes. Only advocates on the register can appear on a filing, so the
+                register is the whole path — there is nothing to type by hand.
               */}
               {onRegister ? (
                 <FormField asGroup label="Advocate" required>
@@ -359,86 +344,43 @@ export function AdvocateSection() {
                     </Button>
                   </div>
                 </FormField>
-              ) : manualIds.has(a.id) ? (
-                <>
-                  <FormRow>
-                    <FormField label="Full name" required>
-                      <TextField
-                        value={a.name}
-                        onChange={(v) => setField(i, "name", v)}
-                        placeholder="As signed on the Vakalatnama"
-                        autoComplete="off"
-                      />
-                    </FormField>
-                    <FormField label="Bar registration number" required>
-                      <TextField
-                        value={a.barNumber}
-                        onChange={(v) => setField(i, "barNumber", v)}
-                        placeholder="e.g. K/1204/2011"
-                        autoComplete="off"
-                      />
-                    </FormField>
-                  </FormRow>
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="h-auto w-fit p-0 underline"
-                    onClick={() => setManual(a.id, false)}
-                  >
-                    Search the register instead
-                  </Button>
-                </>
               ) : (
-                <>
-                  <FormField
-                    label="Advocate"
-                    required
-                    help="Search by name or bar registration number — whichever you have."
-                  >
-                    <ComboField
-                      value={queries[a.id] ?? ""}
-                      onChange={(v: string) => {
-                        setQuery(a.id, v);
-                        searchRegister(v);
-                      }}
-                      items={register}
-                      filter={null}
-                      onSelect={(item) => {
-                        const adv = item as RegisteredAdvocate;
-                        setQuery(a.id, "");
-                        update((d) => {
-                          d.advocates[i].barNumber = adv.barNumber;
-                          d.advocates[i].name = adv.name;
-                        });
-                      }}
-                      itemKey={(item) => (item as RegisteredAdvocate).barNumber}
-                      itemLabel={(item) => (item as RegisteredAdvocate).name}
-                      renderItem={(item) => {
-                        const adv = item as RegisteredAdvocate;
-                        return (
-                          <span className="flex min-w-0 flex-col">
-                            <span className="truncate font-medium">{adv.name}</span>
-                            <span className="truncate text-caption text-muted-foreground">
-                              <span className="tabular-nums">{adv.barNumber}</span> ·{" "}
-                              {adv.bar}
-                            </span>
+                <FormField label="Advocate" required>
+                  <ComboField
+                    value={queries[a.id] ?? ""}
+                    onChange={(v: string) => {
+                      setQuery(a.id, v);
+                      searchRegister(v);
+                    }}
+                    items={register}
+                    filter={null}
+                    onSelect={(item) => {
+                      const adv = item as RegisteredAdvocate;
+                      setQuery(a.id, "");
+                      update((d) => {
+                        d.advocates[i].barNumber = adv.barNumber;
+                        d.advocates[i].name = adv.name;
+                      });
+                    }}
+                    itemKey={(item) => (item as RegisteredAdvocate).barNumber}
+                    itemLabel={(item) => (item as RegisteredAdvocate).name}
+                    renderItem={(item) => {
+                      const adv = item as RegisteredAdvocate;
+                      return (
+                        <span className="flex min-w-0 flex-col">
+                          <span className="truncate font-medium">{adv.name}</span>
+                          <span className="truncate text-caption text-muted-foreground">
+                            <span className="tabular-nums">{adv.barNumber}</span> ·{" "}
+                            {adv.bar}
                           </span>
-                        );
-                      }}
-                      placeholder="Search the bar register"
-                      emptyLabel="No match on the register."
-                      ariaLabel="Search the bar register"
-                    />
-                  </FormField>
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="h-auto w-fit p-0 underline"
-                    onClick={() => setManual(a.id, true)}
-                  >
-                    Not on the register? Enter the details by hand
-                  </Button>
-                </>
+                        </span>
+                      );
+                    }}
+                    placeholder="Name or bar number"
+                    emptyLabel="No one on the register by that name or number."
+                    ariaLabel="Advocate"
+                  />
+                </FormField>
               )}
 
               {canUseProfile ? (
