@@ -304,11 +304,14 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
            of the centre pane and the inset lands under it, because the two are read
            together. */
         const pane = group.closest("main");
-        if (pane) {
+        if (pane && pane.scrollHeight > pane.clientHeight + 1) {
           const top = pane.scrollTop + group.getBoundingClientRect().top -
             pane.getBoundingClientRect().top - 24;
           pane.scrollTo({ top, behavior: "smooth" });
         } else {
+          /* Below the fold the page is the scroller and the header scrolls with it, so
+             there is nothing to drag out of view — and moving focus without moving the
+             page would leave the advocate looking at the top of the form. */
           group.scrollIntoView({ block: "start", behavior: "smooth" });
         }
         const inset = document.querySelector<HTMLElement>(
