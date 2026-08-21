@@ -153,7 +153,19 @@ export function useLockedDisabled(disabled?: boolean): boolean {
 
 /* ───────────────────────────── The flagged field ───────────────────────────── */
 
-const ReadOnlyContext = React.createContext(false);
+type ReadOnlyValue = {
+  readOnly: boolean;
+  /**
+   * The element that says what the flag *is* and where it is answered — the inset's first
+   * line. The read-only control points at it with `aria-describedby`, so a screen reader
+   * hears "read only" together with "Open" and, when the row is two-up, the field it
+   * belongs to. "Read-only" on its own tells someone the control is shut and nothing
+   * about where to act (`ACCESSIBILITY.md` §4/§5).
+   */
+  hintId?: string;
+};
+
+const ReadOnlyContext = React.createContext<ReadOnlyValue>({ readOnly: false });
 
 /**
  * The flagged field is **read-only, not disabled** (brief §15.5).
@@ -166,14 +178,23 @@ const ReadOnlyContext = React.createContext(false);
  */
 export function FieldReadOnly({
   readOnly,
+  hintId,
   children,
 }: {
   readOnly: boolean;
+  hintId?: string;
   children: React.ReactNode;
 }) {
-  return <ReadOnlyContext.Provider value={readOnly}>{children}</ReadOnlyContext.Provider>;
+  const value = React.useMemo(() => ({ readOnly, hintId }), [readOnly, hintId]);
+  return <ReadOnlyContext.Provider value={value}>{children}</ReadOnlyContext.Provider>;
 }
 
 export function useFieldReadOnly(): boolean {
-  return React.useContext(ReadOnlyContext);
+  return React.useContext(ReadOnlyContext).readOnly;
+}
+
+/** The id of the line a flagged control should be described by, if it is flagged. */
+export function useFieldReadOnlyHint(): string | undefined {
+  const { readOnly, hintId } = React.useContext(ReadOnlyContext);
+  return readOnly ? hintId : undefined;
 }

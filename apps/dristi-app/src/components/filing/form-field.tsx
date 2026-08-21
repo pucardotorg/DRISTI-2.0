@@ -115,10 +115,12 @@ export function FormField({
   const marker =
     required || optional ? <RequiredMark optional={optional} /> : null;
   /*
-   * One quiet tag on the label row of a flagged field (brief §15.1.2). Not a chip and
+   * One quiet tag on the label row of a flagged field — §15.1.2's "thin layer: a 2px
+   * accent and an inset", of which this is the accent's non-visual half. Not a chip and
    * not a strip: the label already names the field, so this says only what state it is
-   * in — which is also what keeps the accent stroke from being colour alone
-   * (`foundations/laws`).
+   * in — which is what keeps the accent stroke from being colour alone
+   * (`foundations/laws`) and is the only signal a screen reader gets for *why* the
+   * control below is read-only ("Cheque number, Scrutiny flagged, read only, …").
    */
   const tag = defect ? (
     defectState(defect, correction?.valueOf(defect)) === "resolved" ? (
@@ -160,7 +162,16 @@ export function FormField({
     /* Flagged: the control is read-only, and the correction is made in the inset the
        screen renders beneath it (brief §15.2). */
     return (
-      <>{correction.renderFieldDefect(defect, <FieldReadOnly readOnly>{field}</FieldReadOnly>)}</>
+      <>
+        {correction.renderFieldDefect(
+          defect,
+          /* Described by the inset's first line — the control says it is read-only, and
+             that line says why and where the correction is made instead. */
+          <FieldReadOnly readOnly hintId={`defect-lede-${defect.n}`}>
+            {field}
+          </FieldReadOnly>
+        )}
+      </>
     );
   }
   return <FieldLock locked={locked}>{field}</FieldLock>;

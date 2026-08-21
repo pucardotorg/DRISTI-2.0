@@ -46,7 +46,7 @@ import {
   displayTargetValue,
   targetControlKind,
 } from "@/lib/filing/targets";
-import { defectState, resolutionLabel } from "@/lib/tasks/defects";
+import { defectState, reasonRequired, resolutionLabel } from "@/lib/tasks/defects";
 import type { Defect } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
 import { useFilePreview } from "@/lib/filing/files";
@@ -160,11 +160,12 @@ function OfficerWords({ defect }: { defect: Defect }) {
  * D7's rule, in one field.
  *
  * The reason is *required* when the entered value contradicts an explicit suggestion, and
- * whenever the entered value is the one already filed — "my value stands" is a position,
- * and a position without a reason is not one the Registry can read. It is *optional* on a
- * bare-note correction: a bare "the IFSC is wrong" answered by a corrected IFSC needs no
- * essay, and taxing the honest path at the rate of the contested one is the asymmetry D7
- * already decided against.
+ * when the value that stands is the one already filed against such a suggestion — "my
+ * value stands" is a position, and a position without a reason is not one the Registry
+ * can read. It is *optional* on a bare-note correction: a bare "the IFSC is wrong"
+ * answered by a corrected IFSC needs no essay, and taxing the honest path at the rate of
+ * the contested one is the asymmetry D7 already decided against. Which of the two a
+ * prefilled, untouched control is, is `reasonRequired`'s question — not this component's.
  */
 function Reason({
   defect,
@@ -248,8 +249,15 @@ function CorrectedValue({
   const mark = focusTarget ? "" : undefined;
   return (
     <Field className="gap-2">
-      <FieldLabel htmlFor={id} className="text-body-compact">
-        {defect.target.label}
+      {/* The label the brief names (§15.2: "one control … labelled 'Your corrected
+          value'"), and *not* the field's name again: the form's own label, the "Scrutiny
+          flagged" tag beside it and the inset's first line have already said which field
+          this is, and a fourth telling is what makes the layer read as a card (§15.9).
+          It is `sr-only` because the accordion trigger directly above carries the same
+          words to the eye — the label exists so the control is still named to a screen
+          reader and to voice control, which cannot use the trigger as one. */}
+      <FieldLabel htmlFor={id} className="sr-only">
+        Your corrected value
       </FieldLabel>
       {kind === "date" ? (
         <DateField id={id} value={value} onChange={onChange} />
@@ -275,12 +283,19 @@ export function DefectInset({
   defect,
   value,
   actions,
+  ambiguous = false,
   className,
 }: {
   defect: Defect;
   /** What the filing currently holds at this defect's target. */
   value: string | undefined;
   actions: DefectActions;
+  /**
+   * The flagged field shares its row with another field, so the inset spanning the row
+   * beneath cannot say which of the two it belongs to by position alone (§15.5). Only
+   * then does the first line name the field — see the comment where it is rendered.
+   */
+  ambiguous?: boolean;
   className?: string;
 }) {
   const state = defectState(defect, value);
@@ -297,6 +312,19 @@ export function DefectInset({
   const openItems = forcedOwnValue
     ? Array.from(new Set([...openTiers, "own"]))
     : openTiers;
+  /* The first line is what tells a screen-reader user *where* the read-only control is
+     answered, so the control points at it with `aria-describedby` (`ACCESSIBILITY.md`:
+     "read-only" on its own says nothing about where to act). */
+  const ledeId = `defect-lede-${defect.n}`;
+  const ownContentId = `defect-own-${defect.n}`;
+
+  /* Has the value ever left what scrutiny saw? A prefilled control the advocate has not
+     touched is not yet a kept position — see `reasonRequired`. */
+  const atReturn = (defect.valueAtReturn ?? "").trim();
+  const [everChanged, setEverChanged] = React.useState(
+    () => !isDoc && (value ?? "").trim() !== atReturn
+  );
+  if (!everChanged && !isDoc && (value ?? "").trim() !== atReturn) setEverChanged(true);
 
   /* Just changed: a brief wash that fades, and the one loudness-ladder slot nothing else
      uses. Not a toast — eight of those across a return is alarm fatigue (§15.8). The flip
@@ -336,6 +364,21 @@ export function DefectInset({
     wasInside.current = false;
   }, [collapsed]);
 
+  /* Ignore opens tier 3 — so focus goes there. Leaving it on the Ignore button makes the
+     keyboard user tab past everything the disclosure just inserted to reach the control
+     they asked for, which is the same trap D5 already answered for the queue: move focus,
+     do not merely reveal. Mirrors the collapse-and-land effect above. */
+  const landInOwnValue = React.useRef(false);
+  React.useLayoutEffect(() => {
+    if (!landInOwnValue.current || !openItems.includes("own")) return;
+    landInOwnValue.current = false;
+    const content = root.current?.querySelector<HTMLElement>(`#${CSS.escape(ownContentId)}`);
+    const control = content?.querySelector<HTMLElement>(
+      "[data-defect-focus]:not([disabled]), input:not([disabled]):not([type=hidden]), textarea:not([disabled]), button:not([disabled])"
+    );
+    control?.focus({ preventScroll: true });
+  });
+
   const watch = {
     ref: root,
     onFocusCapture: (event: React.FocusEvent<HTMLElement>) => {
@@ -371,7 +414,7 @@ export function DefectInset({
               className="h-auto min-h-10 w-full justify-start gap-2 whitespace-normal px-2 py-2 text-left font-normal hover:bg-accent"
             >
               <CircleCheckIcon className="size-4 shrink-0 text-success-ink" aria-hidden />
-              <span className="text-body-compact font-medium text-success-ink">
+              <span id={ledeId} className="text-body-compact font-medium text-success-ink">
                 {resolutionLabel(defect, value)}
               </span>
               {isDoc ? null : (
@@ -422,15 +465,19 @@ export function DefectInset({
 
   /* ── Open: three tiers ─────────────────────────────────────────────────── */
   const keeping = !isDoc && (value ?? "").trim() === (defect.valueAtReturn ?? "").trim();
-  const reasonRequired = needsReason || keeping;
+  const required = reasonRequired(defect, value, everChanged);
 
   return (
     <div data-defect-inset className={shell} {...watch}>
       {/* The first line: the state in an icon and a word — status is never colour alone
-          (`foundations/laws`) — and the field's own name, because the inset spans the row
-          beneath a two-up field and the tie has to be stated in words as well as in
-          position (§15.5). Not a chip, not a strip: a line on the inset's own fill. */}
-      <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          (`foundations/laws`). Not a chip, not a strip: a line on the inset's own fill.
+
+          The field's name is appended *only* where the inset cannot say which field it
+          belongs to by position — a two-up row, where it spans beneath both (§15.5). On a
+          row the field owns alone the name is already above it, on the label, beside the
+          "Scrutiny flagged" tag; repeating it a third time is what turns a thin layer
+          into a defect card (§15.9). */}
+      <p id={ledeId} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
         {resolved ? (
           <span className="flex items-center gap-1.5 text-caption font-medium text-success-ink">
             <CircleCheckIcon className="size-4 shrink-0" aria-hidden />
@@ -442,10 +489,14 @@ export function DefectInset({
             {needsReason ? "Needs a reason" : "Open"}
           </span>
         )}
-        <span aria-hidden className="text-caption text-muted-foreground">
-          ·
-        </span>
-        <span className="text-caption text-muted-foreground">{defect.target.label}</span>
+        {ambiguous ? (
+          <>
+            <span aria-hidden className="text-caption text-muted-foreground">
+              ·
+            </span>
+            <span className="text-caption text-muted-foreground">{defect.target.label}</span>
+          </>
+        ) : null}
       </p>
 
       {/* Tier 1. Where there is a correction to compare against, it is the reasoning in
@@ -478,8 +529,12 @@ export function DefectInset({
             <Button
               type="button"
               variant="ghost"
-              onClick={() => setOpenTiers((prev) => Array.from(new Set([...prev, "own"])))}
+              onClick={() => {
+                setOpenTiers((prev) => Array.from(new Set([...prev, "own"])));
+                landInOwnValue.current = true;
+              }}
               aria-expanded={openItems.includes("own")}
+              aria-controls={ownContentId}
               className="text-muted-foreground"
             >
               Ignore
@@ -514,7 +569,15 @@ export function DefectInset({
           <AccordionTrigger className="min-h-10 text-body-compact text-muted-foreground hover:no-underline">
             {isDoc ? "Your replacement document" : "Your corrected value"}
           </AccordionTrigger>
-          <AccordionContent className="flex h-auto flex-col gap-3 pb-3">
+          {/* `forceMount` so the region Ignore names in `aria-controls` exists before it
+              is opened — Radix otherwise mints the id only while open, and a button that
+              says it controls something has to point at something. Closed content is
+              still `hidden`, so nothing inside it is reachable or read. */}
+          <AccordionContent
+            forceMount
+            id={ownContentId}
+            className="flex h-auto flex-col gap-3 pb-3"
+          >
             {isDoc ? (
               <>
                 <Button
@@ -543,7 +606,7 @@ export function DefectInset({
                 <Reason
                   defect={defect}
                   value={actions.reason}
-                  required={reasonRequired}
+                  required={required}
                   overriding={needsReason}
                   keeping={keeping}
                   onChange={actions.onReasonChange}
@@ -557,6 +620,46 @@ export function DefectInset({
   );
 }
 
+/**
+ * Does the flagged field share its row with another field?
+ *
+ * This is the whole question §15.5's disambiguator exists for. The inset spans the row
+ * *beneath* the field group, so where the row holds two fields side by side, position
+ * alone cannot say which of them the inset answers — and only then does its first line
+ * name the field. Where the field has the row to itself (a full-width field, or any field
+ * at a width where the form has folded to one column), the inset sits directly under the
+ * only thing it could belong to, and naming the field again is the fourth telling that
+ * makes a thin layer read as a card (§15.9).
+ *
+ * It is measured rather than declared because the answer changes with the viewport: the
+ * same two-up row is one column on a phone. The two facts asked of the DOM are the ones
+ * the layout actually turns on — is the row rendering more than one column, and is there
+ * a sibling in it that is neither this group nor its inset.
+ */
+function useSharesItsRow(group: React.RefObject<HTMLElement | null>): boolean {
+  const [shared, setShared] = React.useState(false);
+  React.useEffect(() => {
+    const el = group.current;
+    const row = el?.parentElement;
+    if (!el || !row) return;
+    const measure = () => {
+      const columns = window
+        .getComputedStyle(row)
+        .gridTemplateColumns.split(" ")
+        .filter((track) => track && track !== "none").length;
+      const neighbour = Array.from(row.children).some(
+        (child) => child !== el && !child.querySelector("[data-defect-inset]")
+      );
+      setShared(columns > 1 && neighbour);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, [group]);
+  return shared;
+}
+
 /* ───────────────────────── The layer on the form ───────────────────────── */
 
 /**
@@ -566,7 +669,8 @@ export function DefectInset({
  * They are siblings rather than one wrapper because the form's rows must not be relaid
  * (§15.1): the group stays in the field's own grid cell, and the inset spans the row
  * beneath it. `warning-ink` as a *stroke* is not the "ink as a fill" violation — it is how
- * the officer's own annotation box is already drawn.
+ * the officer's own marked region is already drawn in the full view (`regionFromBox` in
+ * `filing/source-panel`, outlined in the `Lightbox`).
  */
 export function DefectLayer({
   defect,
@@ -586,6 +690,8 @@ export function DefectLayer({
   onBlurCapture?: (event: React.FocusEvent<HTMLElement>) => void;
 }) {
   const resolved = defectState(defect, value) === "resolved";
+  const group = React.useRef<HTMLDivElement>(null);
+  const ambiguous = useSharesItsRow(group);
   /* The group and its inset are siblings, so "focus left this defect" cannot be answered
      by `currentTarget.contains()` — it is answered by asking whether the focus landed on
      anything belonging to the same defect. One act, one line of history. */
@@ -597,6 +703,7 @@ export function DefectLayer({
   return (
     <>
       <div
+        ref={group}
         id={`defect-${defect.n}`}
         data-defect-group
         data-defect={defect.n}
@@ -615,7 +722,12 @@ export function DefectLayer({
         onFocusCapture={onFocusCapture}
         onBlurCapture={leaving}
       >
-        <DefectInset defect={defect} value={value} actions={actions} />
+        <DefectInset
+          defect={defect}
+          value={value}
+          actions={actions}
+          ambiguous={ambiguous}
+        />
       </div>
     </>
   );

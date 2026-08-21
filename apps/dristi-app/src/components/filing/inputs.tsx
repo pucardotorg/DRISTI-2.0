@@ -26,7 +26,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useFieldReadOnly, useLockedDisabled } from "@/components/filing/posture";
+import {
+  useFieldReadOnly,
+  useFieldReadOnlyHint,
+  useLockedDisabled,
+} from "@/components/filing/posture";
 
 /**
  * A flagged field's value, shown but not editable — for the controls that have no
@@ -45,12 +49,14 @@ export function ReadOnlyValue({
   ariaLabel?: string;
   className?: string;
 }) {
+  const hint = useFieldReadOnlyHint();
   return (
     <Input
       id={id}
       readOnly
       value={value}
       aria-label={ariaLabel}
+      aria-describedby={hint}
       className={cn("w-full", className)}
     />
   );
@@ -77,10 +83,12 @@ export function TextField({
   /* Flagged by scrutiny: the value stays legible and focusable, and is corrected in the
      inset beneath the field rather than typed over here (brief §15.2). */
   const readOnly = useFieldReadOnly();
+  const hint = useFieldReadOnlyHint();
   return (
     <Input
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      aria-describedby={hint}
       prefilled={prefilled && !readOnly}
       onClick={prefilled && onViewSource && !readOnly ? onViewSource : undefined}
       className={cn(prefilled && onViewSource && !readOnly && "cursor-pointer", className)}
@@ -109,6 +117,7 @@ export function PrefixInput({
 }) {
   const disabled = useLockedDisabled(props.disabled);
   const readOnly = useFieldReadOnly();
+  const hint = useFieldReadOnlyHint();
   const amber = prefilled && !readOnly;
   return (
     <InputGroup
@@ -127,6 +136,7 @@ export function PrefixInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onClick={amber && onViewSource ? onViewSource : undefined}
+        aria-describedby={hint}
         aria-description={amber ? "Machine filled, not yet verified" : undefined}
         className={cn(amber && onViewSource && "cursor-pointer")}
         {...props}
