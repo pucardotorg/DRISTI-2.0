@@ -81,7 +81,7 @@ function QueueCard({
         <span className="flex min-w-0 flex-1 flex-col gap-1 text-left">
           <span className="flex items-center gap-2">
             <StateMark state={state} />
-            <span className="text-caption font-semibold tabular-nums text-muted-foreground">
+            <span className="text-caption font-medium tabular-nums text-muted-foreground">
               Defect {defect.n}
             </span>
             <span aria-hidden className="text-caption text-muted-foreground">
@@ -127,11 +127,9 @@ export function QueueProgress({
 }) {
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-body-compact font-medium text-foreground tabular-nums whitespace-nowrap">
-          {resolved} of {total} resolved
-        </span>
-      </div>
+      <p className="text-body-compact font-medium tabular-nums whitespace-nowrap text-foreground">
+        {`${resolved} of ${total} resolved`}
+      </p>
       <Progress
         value={total ? (resolved / total) * 100 : 0}
         aria-label={`${resolved} of ${total} defects resolved`}

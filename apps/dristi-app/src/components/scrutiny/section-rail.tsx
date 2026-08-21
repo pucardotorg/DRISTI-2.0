@@ -16,6 +16,7 @@
 import * as React from "react";
 
 import { FILING_STEPS, UPLOAD_STEP, type FilingStep } from "@/lib/filing/steps";
+import { CORRECTABLE_SECTIONS } from "@/components/scrutiny/section-body";
 import type { StepId } from "@/lib/filing/types";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -25,8 +26,15 @@ const ROW = "h-10 w-full justify-start gap-2 px-2 font-normal";
 const ROW_ACTIVE =
   "bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
 
-/** The correction round walks the intake step too — a document defect lives there. */
-export const CORRECTION_STEPS: FilingStep[] = [UPLOAD_STEP, ...FILING_STEPS];
+/**
+ * The correction round walks the intake step too — a whole-document defect lives there.
+ * It is titled "Case documents" here: the filing's own list of documents is a separate
+ * step further down, and two rows reading "Documents" is a rail that cannot be used.
+ */
+export const CORRECTION_STEPS: FilingStep[] = [
+  { ...UPLOAD_STEP, title: "Case documents" },
+  ...FILING_STEPS,
+];
 
 export function SectionRail({
   step,
@@ -57,6 +65,10 @@ export function SectionRail({
               const count = countFor(s.id);
               const active = s.id === step;
               const Icon = s.icon;
+              /* Preview, signing and fees are reads or acts, not places a defect is
+                 cured — they stay listed for orientation, as the filing's own rail does
+                 with its placeholder steps, but they are not somewhere to be sent. */
+              const dead = !CORRECTABLE_SECTIONS[s.id];
               return (
                 <li key={`${s.group}-${s.id}`}>
                   <Button
@@ -64,7 +76,7 @@ export function SectionRail({
                     variant="ghost"
                     onClick={() => onSelect(s.id)}
                     aria-current={active ? "page" : undefined}
-                    disabled={!!s.placeholder}
+                    disabled={dead}
                     className={cn(ROW, active && ROW_ACTIVE)}
                   >
                     <Icon aria-hidden className={active ? undefined : "text-muted-foreground"} />

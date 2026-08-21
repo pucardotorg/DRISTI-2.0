@@ -1,6 +1,6 @@
 # Scrutiny return — advocate defect resolution
 
-Status: draft
+Status: built (feature/scrutiny-back-adv)
 Updated: 2026-08-21
 Source: docs/product/product-foundation.md (§3 Kerala operational spine, step 2 — "Scrutiny
 & defect check (Registry; before numbering / cognizance)"), docs/product/domain/practice-notes.md
@@ -497,3 +497,10 @@ Both go to `docs/design/ds-requests.md`. Neither licenses inventing inside Drist
 | 2026-08-21 | D4 translates the wireframe's "amber field / green field" into a defect *frame*, because `prefilled` (warning-2) already owns amber inside a field and `foundations/laws` forbids warning as a prefilled stand-in. **Needs owner confirmation** — same language, different surface. | ux-designer (judgment) |
 | 2026-08-21 | D6 retires the self-certifying `fixed` checkbox in favour of derived resolution. Implies the `Defect` contract change in D8 — a build prerequisite. | ux-designer (judgment) |
 | 2026-08-21 | D10 records that the DS has no audio primitive; composition specified, DS request filed (§13). | ux-designer, verified against DS glob |
+| 2026-08-21 | **Built.** D1–D14 implemented in `apps/dristi-app`. The `Defect` contract grew as D8 proposed, `fixed` is gone, and resolution is derived in `lib/tasks/defects.ts`. Deviations below. | ui-designer |
+| 2026-08-21 | **Deviation — the demo case.** §7's header example names *Sreekumar N. v. Vismaya Traders*, but that case is numbered and at evidence stage; scrutiny is step 2, *before* numbering (`product-foundation.md` §3). The fixture therefore sits on `c-sainaba` (*Sainaba K. v. Riyas M.*, pre-filing), the only seeded case at the right stage. | ui-designer (product correctness) |
+| 2026-08-21 | **Deviation — where the document defect lives.** §8 pairs document defects with `filing/upload/slot-row`, so the demo's document defect targets the **intake** step (`upload`, slot `c1ad`) rather than the `documents` table. The frame wraps the intake row in place, with a Replace that a flagged row always offers whatever the read made of it. The `documents` table is not a place a defect frame can be threaded without forking its rendering. | ui-designer |
+| 2026-08-21 | **Deviation — D9's extraction half.** The replace re-runs no extraction and writes no downstream field; the frame says so. D9's rule that mattered (no silent writes to a legal filing) is kept; its convenience half waits for a real replacement path. **Open for the owner.** | ui-designer |
+| 2026-08-21 | **Deviation — returns with no filing behind them.** Three seeded returns are on filings not made in DRISTI, so there is no draft to re-enter. They keep the new contract with a doc target on the filed bundle, and `Fix` lands on an honest end state (§10's error case) instead of an empty form. | ui-designer |
+| 2026-08-21 | **Deviation — pane widths in pixels.** `w-64` / `w-80` are rems, so at 200% text zoom the two rails doubled while the Tailwind ladder stayed on three panes and the page scrolled sideways (`ACCESSIBILITY.md` §10, `RESPONSIVE.md` rule 9). The side panes are sized in pixels so the centre column reflows instead. | ui-designer (a11y) |
+| 2026-08-21 | **Craft — the active defect gets no third cue.** D5 has the queue card expand and the frame take focus. The frame briefly also carried a focus ring, which stacked border + strip + ring; `ui-craft`'s loudness ladder says pick one, so the frame's border says *state*, the queue card's lift says *current*, and the ring belongs to whatever actually has focus. | ui-designer (ui-craft) |

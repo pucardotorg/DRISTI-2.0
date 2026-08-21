@@ -39,7 +39,7 @@ import { JurisdictionSection } from "@/components/filing/sections/jurisdiction-s
 import { UploadSection } from "@/components/filing/sections/upload-section";
 import { WitnessesSection } from "@/components/filing/sections/witnesses-section";
 
-const SECTIONS: Partial<Record<StepId, React.ComponentType>> = {
+export const CORRECTABLE_SECTIONS: Partial<Record<StepId, React.ComponentType>> = {
   upload: UploadSection,
   complainant: ComplainantSection,
   advocate: AdvocateSection,
@@ -54,7 +54,7 @@ const SECTIONS: Partial<Record<StepId, React.ComponentType>> = {
 };
 
 export function SectionBody({ step }: { step: StepId }) {
-  const Section = SECTIONS[step];
+  const Section = CORRECTABLE_SECTIONS[step];
 
   if (!Section) {
     return (

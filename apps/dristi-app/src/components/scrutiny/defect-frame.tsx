@@ -176,11 +176,14 @@ export function DefectFrame({
     <section
       id={`defect-${defect.n}`}
       aria-label={`Defect ${defect.n} — ${trail}`}
+      aria-current={active ? "true" : undefined}
       onFocusCapture={onFocusCapture}
+      /* One cue at a time: the frame's border and strip say what state the defect is in,
+         the queue card's lift says which one is current, and the ring belongs to whatever
+         actually has focus inside. Stacking all three is the "selection costume". */
       className={cn(
-        "scroll-mt-24 overflow-hidden rounded-lg border bg-card transition-colors",
-        resolved ? "border-success-ink" : "border-warning-ink",
-        active && "ring-3 ring-focus-ring"
+        "scroll-mt-6 overflow-hidden rounded-lg border bg-card transition-colors",
+        resolved ? "border-success-ink" : "border-warning-ink"
       )}
     >
       <header

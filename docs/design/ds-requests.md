@@ -270,3 +270,46 @@ at once and the semantics of "what is the value" live in the consumer.
 string the value when nothing matches, and lets `ComboboxEmpty` say so. Related: the DS
 guidance for `Combobox` should name this case, since a searchable field over a registry is
 the most common reason to reach for it in a government form.
+
+---
+
+## 14. No audio primitive — every feedback channel will compose its own
+
+`src/components/ui/` has 68 components and none of them plays media: no `audio`, no
+`media`, no `player`. The scrutiny return needs one, because a registry officer's remark
+arrives as a voice note as often as it arrives as text
+(`docs/product/domain/practice-notes.md`, `ke-scrutiny-officer-2026-07`), and any judge-,
+party- or officer-feedback channel in a court product will want spoken context.
+
+Dristi composes one at `components/scrutiny/voice-note.tsx`: `Attachment` as the row, a
+`Button size="icon"` transport, `Slider` as the scrub track, `font-mono tabular-nums`
+times, and a `Collapsible` transcript. It is deliberately not generalised.
+
+The reason this should be decided once rather than per screen is the accessibility
+contract around it, which is easy to get wrong and invisible when you do: WCAG 2.1 AA
+**1.2.1** requires a text alternative for prerecorded audio-only content, so a voice note
+may never be the sole carrier of a message and the component needs somewhere to put a
+transcript; the transport must be keyboard-operable and ≥ 40×40; and progress cannot be
+carried by colour alone.
+
+**Request:** `Audio` / `AudioNote` — transport button, `Slider` track, `tabular-nums`
+elapsed/duration, optional transcript disclosure, and the `idle | loading | error` states
+`Attachment` already models. Until it lands, a second team will build a second audio row.
+
+---
+
+## 15. "Annotation over a document" is a pattern with two callers and no home
+
+Dristi hand-rolls a highlight over an uploaded page twice now, with the same geometry and
+two different authors of the box: the OCR read region (`filing/source-panel.tsx`,
+`regionFromBox()`) and the scrutiny officer's mark (`scrutiny/annotation.tsx`, which
+reuses that function rather than growing a second one).
+
+The shape is stable — a pixel box plus the page dimensions it was measured in, mapped to
+percentages so it survives any render width — and the decisions around it are not obvious:
+the box is `aria-hidden` and the meaning lives in adjacent text, the image needs a real
+alt naming *why* it is marked, and the enlarge control has to be a button rather than a
+hover affordance.
+
+**Request:** document the pattern (and ideally ship the mapping helper) before a third
+caller appears. It does not need to be a component; it needs to be a decision.

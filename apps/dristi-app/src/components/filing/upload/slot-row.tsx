@@ -222,7 +222,21 @@ export function IntakeSlotRow({
             row's actions is the same on every row whatever a row can do. */}
         {slot.file ? (
           <div className="flex shrink-0 items-center gap-1">
-            {statusLine?.reupload ? (
+            {/* A flagged document always offers the replace, whatever reading made of it:
+                the officer's complaint is about the scan, not about the read (brief D9).
+                It is `outline`, not primary — the one teal action is the submit. */}
+            {defect ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onChoose}
+                aria-label={`Replace ${slot.label}`}
+                className="max-sm:w-10 max-sm:gap-0 max-sm:px-0 max-sm:has-data-[icon=inline-start]:pl-0"
+              >
+                <RefreshCwIcon data-icon="inline-start" aria-hidden />
+                <span className="max-sm:sr-only">Replace</span>
+              </Button>
+            ) : statusLine?.reupload ? (
               /* Labelled where there is room; a 40×40 icon button on a phone, where a
                  118px label would leave the status line about fifty pixels to wrap in.
                  The accessible name carries the label at every width. */

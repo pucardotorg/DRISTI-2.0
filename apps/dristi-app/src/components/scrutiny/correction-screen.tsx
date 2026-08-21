@@ -39,6 +39,7 @@ import {
   firstUnresolved,
   targetKey,
 } from "@/lib/tasks/defects";
+import { useMinWidth } from "@/hooks/use-min-width";
 import { useFiling } from "@/lib/filing/store";
 import { intakeSlot, readTarget, writeTarget } from "@/lib/filing/targets";
 import type { StepId } from "@/lib/filing/types";
@@ -72,6 +73,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  FilingChromeContext,
+  TOP_BAR_HEIGHT,
+  type FilingChromeValue,
+} from "@/components/filing/chrome";
 import { CorrectionProvider, type CorrectionValue } from "@/components/filing/posture";
 import { DefectFrame, type FrameActions } from "@/components/scrutiny/defect-frame";
 import {
@@ -86,6 +92,19 @@ import { useTaskActions } from "@/components/tasks/use-task-actions";
 
 /** Where the correction round starts when nothing is flagged on a step yet. */
 const FALLBACK_STEP: StepId = "cheque";
+
+/**
+ * The two side panes are sized in pixels, not rems, on purpose.
+ *
+ * Tailwind's breakpoints are viewport pixels and do not move with the root font size, but
+ * `w-64` does — so at 200% text zoom the rails would each double while the ladder stayed
+ * on three panes, and the page would scroll sideways. `ACCESSIBILITY.md` §10 and
+ * `RESPONSIVE.md` rule 9 both forbid that. Held in pixels, the rails keep their width and
+ * the centre column reflows, which is what zooming is for.
+ */
+const RAIL_W = 256;
+const QUEUE_W = 320;
+const QUEUE_W_XL = 384;
 
 function dueCue(task: Task): string | null {
   if (!task.dueAt) return null;
@@ -115,6 +134,8 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
     CorrectionValue["instanceRequest"]
   >(null);
   const [railOpen, setRailOpen] = React.useState(false);
+  /* `xl` in viewport pixels — the queue takes its wider size only where there is room. */
+  const wideQueue = useMinWidth(1280);
   const [queueOpen, setQueueOpen] = React.useState(false);
   const [confirm, setConfirm] = React.useState(false);
   const nonce = React.useRef(0);
@@ -307,6 +328,24 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
   const reason = submitReason(resolved, total, online);
   const stepTitle = getStep(step).title;
 
+  /*
+   * The correction screen is a filing chrome host in its own right: it owns the sections
+   * rail's open state, and the source rail (rendered deep inside a section) reads this
+   * context. Nothing here folds the main nav — that rail is not part of this screen.
+   */
+  const chrome: FilingChromeValue = React.useMemo(
+    () => ({
+      sectionsOpen: true,
+      setSectionsOpen: () => undefined,
+      sectionsSheetOpen: railOpen,
+      setSectionsSheetOpen: setRailOpen,
+      foldNav: () => undefined,
+      draftLabel: null,
+      setDraftLabel: () => undefined,
+    }),
+    [railOpen]
+  );
+
   /* ── The panes ───────────────────────────────────────────────────── */
 
   const queueBody = (
@@ -333,18 +372,27 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
   );
 
   return (
+    <FilingChromeContext.Provider value={chrome}>
     <CorrectionProvider value={correction}>
-      <div className="flex min-h-svh min-w-0 flex-1 flex-col">
+      {/*
+       * The screen holds the viewport and each pane scrolls inside it. Three panes that
+       * scroll away with the page would leave the queue — the critical action — off
+       * screen exactly when the form is long, and the queue is the spine of this screen.
+       */}
+      <div
+        style={{ height: `calc(100svh - ${TOP_BAR_HEIGHT})` }}
+        className="flex min-h-0 min-w-0 flex-1 flex-col"
+      >
         {/* Chrome: the page header states the return, the clock, and the count. */}
-        <header className="sticky top-0 z-30 flex flex-col gap-3 border-b border-hairline bg-card px-4 py-4 sm:px-6">
+        <header className="z-30 flex shrink-0 flex-col gap-2 border-b border-hairline bg-card px-4 py-3 sm:gap-3 sm:px-6 sm:py-4">
           <Button asChild variant="ghost" size="xs" className="self-start text-muted-foreground">
             <Link href={back}>
               <ArrowLeftIcon data-icon="inline-start" aria-hidden />
               Back to tasks
             </Link>
           </Button>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-3">
+            <div className="flex min-w-0 flex-col gap-0.5 sm:gap-1">
               <h1 className="text-title font-semibold tracking-tight text-foreground">
                 Scrutiny return
               </h1>
@@ -380,18 +428,16 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
                 ) : null}
               </p>
             </div>
-            <div className="flex items-center gap-2 xl:hidden">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setRailOpen(true)}
-                aria-haspopup="dialog"
-                className="lg:hidden"
-              >
-                <PanelLeftIcon data-icon="inline-start" aria-hidden />
-                Sections
-              </Button>
-            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setRailOpen(true)}
+              aria-haspopup="dialog"
+              className="shrink-0 xl:hidden"
+            >
+              <PanelLeftIcon data-icon="inline-start" aria-hidden />
+              Sections
+            </Button>
           </div>
         </header>
 
@@ -399,13 +445,14 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
           {/* Left — every section, with the defect counts. A column from `lg`. */}
           <aside
             aria-label="Sections"
-            className="hidden w-64 shrink-0 flex-col self-stretch overflow-y-auto border-r border-hairline bg-sidebar py-4 lg:flex"
+            style={{ width: RAIL_W }}
+            className="hidden shrink-0 flex-col overflow-y-auto border-r border-hairline bg-sidebar py-4 xl:flex"
           >
             <SectionRail step={step} countFor={countFor} onSelect={setStep} />
           </aside>
 
           {/* Centre — the section, in correction posture. */}
-          <main className="flex min-w-0 flex-1 flex-col px-4 pb-24 pt-6 sm:px-6 xl:pb-8">
+          <main className="flex min-w-0 flex-1 flex-col overflow-y-auto px-4 pb-8 pt-6 sm:px-6">
             <div className="flex w-full min-w-0 max-w-4xl flex-col gap-6">
               <Alert>
                 <LockIcon aria-hidden />
@@ -422,7 +469,8 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
           {/* Right — the queue. A column from `xl`; a drawer below it. */}
           <aside
             aria-label="Resolution queue"
-            className="hidden w-96 shrink-0 flex-col self-stretch border-l border-hairline bg-sidebar xl:flex"
+            style={{ width: wideQueue ? QUEUE_W_XL : QUEUE_W }}
+            className="hidden shrink-0 flex-col overflow-hidden border-l border-hairline bg-sidebar lg:flex"
           >
             <div className="flex min-h-0 flex-1 flex-col gap-4 p-6">
               <h2 className="text-title-s font-semibold text-foreground">Resolution queue</h2>
@@ -434,7 +482,7 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
 
         {/* Below xl the queue is the critical action, so it gets a persistent bar —
             RESPONSIVE.md rule 7: never hide a critical action. */}
-        <div className="sticky bottom-0 z-30 flex flex-col gap-3 border-t border-hairline bg-card p-4 xl:hidden">
+        <div className="z-30 flex shrink-0 flex-col gap-3 border-t border-hairline bg-card p-4 lg:hidden">
           <div className="flex items-center gap-3">
             <QueueProgress resolved={resolved} total={total} className="min-w-0 flex-1" />
             <Button type="button" variant="outline" onClick={() => setQueueOpen(true)}>
@@ -494,9 +542,9 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Submit these corrections to scrutiny?</AlertDialogTitle>
             <AlertDialogDescription>
-              All {total} defects go back to the Registry as corrected. In the live service
-              a re-submission cannot be recalled, and limitation runs from the Registry&apos;s
-              receipt.
+              {`All ${total} defect${total === 1 ? "" : "s"} go back to the Registry as corrected. `}
+              In the live service a re-submission cannot be recalled, and limitation runs
+              from the Registry&apos;s receipt.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -508,5 +556,6 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
         </AlertDialogContent>
       </AlertDialog>
     </CorrectionProvider>
+    </FilingChromeContext.Provider>
   );
 }

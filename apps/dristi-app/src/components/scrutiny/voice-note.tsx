@@ -77,7 +77,7 @@ export function VoiceNoteRow({ note, className }: { note: VoiceNoteData; classNa
           layer, so this does not lift again. */}
       <Attachment
         size="sm"
-        className="w-full min-w-0 border-hairline shadow-none has-data-[slot=attachment-content]:py-1.5"
+        className="w-full min-w-0 rounded-md border-hairline shadow-none has-data-[slot=attachment-content]:py-1.5"
       >
         <AttachmentMedia className="bg-surface-sunken text-muted-foreground">
           <MicIcon aria-hidden />
