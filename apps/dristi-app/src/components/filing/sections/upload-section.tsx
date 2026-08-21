@@ -447,37 +447,46 @@ export function UploadSection() {
       </p>
 
       <FilingMain width="narrow">
+        {/* In a correction round this section is a record of the filed documents, not an
+            intake — so the "add a card for every cheque" invitation, the intake progress
+            and the drag hint all stand down (v3.2 sanity pass). */}
         <FilingPageHeader
           eyebrow="Documents"
-          title="Add your case documents"
-          description="Add a card for every cheque and every complainant. We read what we can and fill the form from it."
+          title={inCorrection ? "Case documents" : "Add your case documents"}
+          description={
+            inCorrection
+              ? "The documents filed with the complaint, as scrutiny received them."
+              : "Add a card for every cheque and every complainant. We read what we can and fill the form from it."
+          }
         />
 
         {/* The one progress statement on this screen. */}
-        <Card size="sm" className={PANEL_CLASS}>
-          <CardContent className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <p
-                id={progressLabelId}
-                className="text-body font-semibold tabular-nums text-foreground"
-              >
-                {done} of {total} required documents added
+        {inCorrection ? null : (
+          <Card size="sm" className={PANEL_CLASS}>
+            <CardContent className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p
+                  id={progressLabelId}
+                  className="text-body font-semibold tabular-nums text-foreground"
+                >
+                  {done} of {total} required documents added
+                </p>
+                <p
+                  className={cn(
+                    "text-caption tabular-nums",
+                    remaining > 0 ? "text-muted-foreground" : "text-success-ink"
+                  )}
+                >
+                  {remaining > 0 ? `${remaining} to go` : "All set"}
+                </p>
+              </div>
+              <Progress value={pct} aria-labelledby={progressLabelId} className="h-2" />
+              <p className="text-caption text-muted-foreground pointer-coarse:hidden">
+                Drag files onto a card or a row, or choose them one at a time.
               </p>
-              <p
-                className={cn(
-                  "text-caption tabular-nums",
-                  remaining > 0 ? "text-muted-foreground" : "text-success-ink"
-                )}
-              >
-                {remaining > 0 ? `${remaining} to go` : "All set"}
-              </p>
-            </div>
-            <Progress value={pct} aria-labelledby={progressLabelId} className="h-2" />
-            <p className="text-caption text-muted-foreground pointer-coarse:hidden">
-              Drag files onto a card or a row, or choose them one at a time.
-            </p>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {pickError ? (
           <SectionNotice

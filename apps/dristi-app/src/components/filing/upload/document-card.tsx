@@ -32,6 +32,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { PANEL_CLASS } from "@/components/filing/form-card";
+import { useInCorrection } from "@/components/filing/posture";
 import { IntakeSlotRow } from "@/components/filing/upload/slot-row";
 import {
   useDropTarget,
@@ -72,11 +73,14 @@ export function DocumentCard({
 }) {
   const headingId = React.useId();
 
+  const inCorrection = useInCorrection();
   const required = slots.filter((s) => s.required);
   const optional = slots.filter((s) => !s.required);
   /* A card with nothing but optional slots is already an optional group — hiding it
-     behind a disclosure would leave a panel containing one button. */
-  const collapseOptional = required.length > 0 && optional.length > 0;
+     behind a disclosure would leave a panel containing one button. In a correction round
+     nothing collapses either: "Add optional documents" is intake language, the unflagged
+     rows hide themselves, and a flagged optional slot must never sit behind a disclosure. */
+  const collapseOptional = !inCorrection && required.length > 0 && optional.length > 0;
 
   /* `null` = nobody has touched the disclosure, so it follows the draft: a card that
      already holds an optional file opens itself rather than hiding it. Once the person
@@ -161,7 +165,9 @@ export function DocumentCard({
 
       <CardContent className="flex flex-col gap-4">
         {(collapseOptional ? required : slots).map(row)}
-        {collapseOptional ? null : optionalFooter}
+        {/* The footer is an intake affordance ("add other documents") — not part of a
+            correction round's record. */}
+        {collapseOptional || inCorrection ? null : optionalFooter}
 
         {collapseOptional ? (
           <Collapsible open={open} onOpenChange={setUserOpen} className="flex flex-col gap-4">

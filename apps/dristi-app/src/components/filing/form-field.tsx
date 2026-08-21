@@ -200,11 +200,13 @@ export function FormField({
   }
 
   /*
-   * Untouched by scrutiny: out of play, and it should look it. The form is a record in a
-   * correction round, so a field nobody flagged recedes rather than competing with the two
-   * that were — the DS `disabled` treatment is neutralised by the correction screen's
-   * centre pane and this single step replaces it (owner, 2026-08-21).
+   * Untouched by scrutiny: not this round's business, so by default it is not on screen at
+   * all — eight flagged fields scattered through the whole form is a needle-in-haystack
+   * read. The header's toggle brings the rest back for context, receded to one opacity
+   * step; the DS `disabled` treatment is neutralised by the correction screen's centre
+   * pane so the two never compound (owner, 2026-08-21).
    */
+  if (!correction.showAll) return null;
   return (
     <FieldLock locked={locked}>
       <div className={cn(locked && "opacity-45")}>{field}</div>

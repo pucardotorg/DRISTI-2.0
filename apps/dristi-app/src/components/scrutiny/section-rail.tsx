@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * Every section of the filing, with the defect count scrutiny raised on each.
+ * The filing's sections, with the defect count scrutiny raised on each.
  *
- * All thirteen are listed and every one is reachable — being able to *see* the clean
- * sections is what tells the advocate the officer did not flag them (brief §7). Sections
- * without defects stay full contrast and navigable; a 50% label is not a readable one,
- * and their read-only-ness is stated in the section itself, not implied by a dim row.
+ * By default only the flagged sections are listed, following the record's own default —
+ * the rail is a map of the work. The header's "show full filing" toggle brings every
+ * section back, full contrast and navigable: being able to *see* the clean sections is
+ * what tells the advocate the officer did not flag them (brief §7).
  *
  * A rail rather than the filing's own `sections-rail.tsx`: that one routes
  * (`/filings/<id>/<step>`), and a correction round is one page whose centre pane swaps.
@@ -48,16 +48,25 @@ export function SectionRail({
   step,
   countFor,
   onSelect,
+  onlyFlagged = false,
   className,
 }: {
   step: StepId;
   /** How many defects scrutiny raised on that step. */
   countFor: (id: StepId) => number;
   onSelect: (id: StepId) => void;
+  /**
+   * Show only the sections scrutiny flagged. Follows the header's "show full filing"
+   * toggle: when the record hides its untouched fields, a rail of thirteen mostly-empty
+   * sections would be a map to nowhere. The clean sections come back with the toggle —
+   * being able to *see* them is what tells the advocate the officer did not flag them.
+   */
+  onlyFlagged?: boolean;
   className?: string;
 }) {
   const groups: { group: string; steps: FilingStep[] }[] = [];
   for (const s of CORRECTION_STEPS) {
+    if (onlyFlagged && countFor(s.id) === 0) continue;
     const g = groups.find((x) => x.group === s.group);
     if (g) g.steps.push(s);
     else groups.push({ group: s.group, steps: [s] });

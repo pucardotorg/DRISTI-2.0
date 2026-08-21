@@ -1008,3 +1008,23 @@ table is in the mockup. The load-bearing ones:
   Proposed in the mockup, not built; it is the largest remaining win.
 - **O13** — On a phone the panel should *be* the screen, with the record reachable per defect.
   Today the drawer still carries the whole list.
+
+### 16.10 The owner's second render round (2026-08-21, evening)
+
+The v3 build went under the owner's cursor and came back with a defect list of its own.
+Every item below is fixed and verified on the render.
+
+| Date | Note | By |
+|---|---|---|
+| 2026-08-21 | **The one-character bug.** Resolution is derived live, so a bare-note defect resolved on the first keystroke — and the card, which collapsed the moment it resolved, unmounted the input under the advocate's fingers. One character ever landed. The collapse now waits for the *act* to end: touching the editing area engages the card, and it disengages only when focus leaves the card entirely or a named act finishes. `relatedTarget` is checked against the card root, so input → its own Save button never counts as leaving. | ui-designer (owner) |
+| 2026-08-21 | **The dead button.** "Keep my value" had no `onClick` at all — the advocate could type a reason and then not send it. It now ends the act (which is all it has to do: resolution is derived, the button changes no data), and a bare-note defect gets the same full stop: **Save correction**, disabled until the defect is actually resolved. | ui-designer (owner) |
+| 2026-08-21 | **The scroll root.** `react-resizable-panels` v4 applies `className` to a *nested* content-sized div, so the record pane grew to its content and the page itself scrolled behind the held viewport — the "random scrolls". `h-full overflow-hidden` on both panels makes each pane its own scroller; measured after: page scrollHeight = viewport exactly, in both filing modes. Navigation scrolls are all scoped `scrollTo` calls on the pane itself now; `scrollIntoView` survives only below the fold, where the page is the one scroller there is. The panel's head (counter, banner) is pinned; only the run scrolls. | ui-designer (owner) |
+| 2026-08-21 | **Flagged-only record, with a "Show full filing" toggle** in the page header. Off by default: unflagged fields and document rows return `null`, and two `:has()` rules retire the section cards and group headings they leave empty. On: everything returns at 45% opacity. The rail follows — flagged sections only, until the toggle brings the rest back. | ui-designer (owner) |
+| 2026-08-21 | **The deadline moved to the page header** — the return's one urgent fact rides with the page's identity, amber, with the absolute date in a `<time>`. The panel keeps the counter. §15.6's "clock and counter together" is superseded by this ruling. | ui-designer (owner) |
+| 2026-08-21 | **The progress bar became eight chunks.** One per correction, filled as they land — a continuous bar answers "how much", segments answer "how many", which is the question a return asks. Falls back to the DS bar above 16 segments. `role="progressbar"` with real values. | ui-designer (owner) |
+| 2026-08-21 | **The officer's material is labelled.** *Scrutiny officer's comment* / *Scrutiny officer's voice note* eyebrows over each block, the comment quoted in a sunken well — an unlabelled sentence inside a card reads as system copy, and system copy is what people have learned not to read. The whole disclosure got room: `gap-4`, wells, the transcript on a quiet left rule. | ui-designer (owner) |
+| 2026-08-21 | **CTA copy anchors on the correction**: *Accept correction* / *Reject correction* (not the value, which the comparison above already shows). The comparison labels are *Originally filed* / *Officer's correction*. "See full page" → *Open original document*. | ui-designer (owner) |
+| 2026-08-21 | **Sanity sweep, self-caught:** the upload section stopped speaking intake in a correction round — "Add your case documents" → *Case documents* with a record description, the required-documents progress card and drag hint stand down, "Add optional documents" never collapses a flagged slot behind a disclosure and the optional-footer affordance hides, and the machine-read outcome line ("nothing to pre-fill — type the details in the form") stands down against a read-only form. The header's right cluster wraps on a phone instead of clipping the Sections button. | ui-designer (sanity pass) |
+
+Still carried: O12 (traversal), O13 (the phone treatment), and the all-corrected state remains
+browser-unverified — the document defect needs a real file through the OS picker.

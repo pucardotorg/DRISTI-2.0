@@ -19,9 +19,8 @@
 import * as React from "react";
 import { ChevronRightIcon, CircleCheckIcon, CircleDashedIcon, TriangleAlertIcon } from "lucide-react";
 
-import { dueCueOf } from "@/lib/tasks/format";
 import { breadcrumbOf, defectState, resolutionLabel } from "@/lib/tasks/defects";
-import type { Defect, Task } from "@/lib/tasks/types";
+import type { Defect } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -34,48 +33,51 @@ export type QueueDefect = {
 /* ───────────────────────────── The header ───────────────────────────── */
 
 /**
- * The deadline and the count, together — one clock and one counter on the whole screen, so
- * no two numbers here can disagree. The relative phrase is what an advocate acts on; the
- * absolute date rides in a `<time dateTime>` because the five-day window is still an
- * assumption (open question O7) and an assumption should be inspectable.
+ * One chunk per correction, filled as they land — the deadline lives in the page header
+ * now (owner, 2026-08-21), so this is the panel's one number in two forms: countable
+ * segments for the glance, the words for the record. A continuous bar answers "how much";
+ * eight discrete chunks answer "how many", which is the question a return actually asks.
+ * Above a segment-count where chunks stop being countable it falls back to the DS bar.
  */
+const MAX_SEGMENTS = 16;
+
 export function QueueProgress({
-  task,
   resolved,
   total,
   className,
 }: {
-  task?: Task;
   resolved: number;
   total: number;
   className?: string;
 }) {
-  const due = task?.dueAt ? dueCueOf(task) : null;
   return (
     <div className={cn("flex flex-col gap-2", className)}>
-      {due ? (
-        <p className="flex flex-wrap items-center gap-x-2 text-caption">
-          <span
-            className={cn(
-              "font-medium tabular-nums",
-              due.overdue ? "text-destructive-ink" : "text-warning-ink"
-            )}
-          >
-            {due.primary}
-          </span>
-          <span aria-hidden className="text-muted-foreground">
-            ·
-          </span>
-          <time dateTime={task?.dueAt} className="text-muted-foreground tabular-nums">
-            {due.date}
-          </time>
-        </p>
-      ) : null}
-      <Progress
-        value={total ? (resolved / total) * 100 : 0}
-        aria-label={`${resolved} of ${total} corrections done`}
-        className="h-1.5"
-      />
+      {total > 0 && total <= MAX_SEGMENTS ? (
+        <div
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={total}
+          aria-valuenow={resolved}
+          aria-label={`${resolved} of ${total} corrections done`}
+          className="flex gap-1"
+        >
+          {Array.from({ length: total }, (_, i) => (
+            <span
+              key={i}
+              className={cn(
+                "h-1.5 min-w-0 flex-1 rounded-full transition-colors",
+                i < resolved ? "bg-primary" : "bg-track"
+              )}
+            />
+          ))}
+        </div>
+      ) : (
+        <Progress
+          value={total ? (resolved / total) * 100 : 0}
+          aria-label={`${resolved} of ${total} corrections done`}
+          className="h-1.5"
+        />
+      )}
       <p className="text-caption text-muted-foreground tabular-nums">
         {`${resolved} of ${total} done`}
       </p>

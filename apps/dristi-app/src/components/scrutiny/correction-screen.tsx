@@ -29,6 +29,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
   CircleCheckIcon,
+  ClockIcon,
   ListChecksIcon,
   LockIcon,
   PanelLeftIcon,
@@ -36,7 +37,7 @@ import {
   TriangleAlertIcon,
 } from "lucide-react";
 
-import { longDate } from "@/lib/tasks/format";
+import { dueCueOf, longDate } from "@/lib/tasks/format";
 import {
   allResolved,
   countResolved,
@@ -85,6 +86,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   FilingChromeContext,
   TOP_BAR_HEIGHT,
@@ -240,6 +243,13 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
   const queueColumn = useRoomInRem(QUEUE_REM);
   const [queueOpen, setQueueOpen] = React.useState(false);
   const [confirm, setConfirm] = React.useState(false);
+  /**
+   * Whether the record shows the whole filing or only what scrutiny flagged. Off by
+   * default — eight flagged fields scattered through thirteen sections is a
+   * needle-in-haystack read; the toggle in the header brings the rest back, receded,
+   * for the advocate who wants the surrounding context (owner, 2026-08-21).
+   */
+  const [showAll, setShowAll] = React.useState(false);
   const nonce = React.useRef(0);
 
   /** The reason for a defect: what is being typed, or what the record already holds. */
@@ -342,36 +352,43 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
         });
       }
       /*
-       * Two things move, and they move to different places (v3.2).
+       * Two things move, each inside its own scroller — nothing else on the screen moves
+       * (owner, 2026-08-21: the loose-scrolls round).
        *
-       * The *record* scrolls to the field, so the value under discussion is in view — but
-       * focus does not go there any more: that control is read-only, and landing a keyboard
-       * user on a field they cannot type in is the trap R12 warns about. Focus goes to the
-       * card's own primary action in the panel, which is where the correction is made.
+       * The *record pane* scrolls to the field, so the value under discussion is in view —
+       * but focus does not go there: that control is read-only, and landing a keyboard user
+       * on a field they cannot type in is the trap R12 warns about. The *panel's* scroller
+       * brings the opened card to its top, and focus goes to the card's primary action.
+       * Both are scoped `scrollTo` calls on the pane itself; `scrollIntoView` is used only
+       * below the fold, where the page is the one scroller there is — on the three-pane
+       * layout it would walk the ancestors and drag the held viewport around, which is
+       * exactly the "random scrolls" this fixes.
        */
       window.setTimeout(() => {
         const group = document.getElementById(`defect-${n}`);
         if (group) {
-          /* Scroll the *pane*, never the page. `scrollIntoView` walks every scrollable
-             ancestor, which drags the screen's own header and rail out of view — and this
-             screen holds the viewport precisely so those stay put. */
           const pane = group.closest("main");
-          if (pane && pane.scrollHeight > pane.clientHeight + 1) {
+          if (queueColumn && pane) {
             const top = pane.scrollTop + group.getBoundingClientRect().top -
               pane.getBoundingClientRect().top - 24;
-            pane.scrollTo({ top, behavior: "smooth" });
-          } else {
-            /* Below the fold the page is the scroller and the header scrolls with it, so
-               there is nothing to drag out of view — and moving focus without moving the
-               page would leave the advocate looking at the top of the form. */
+            pane.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+          } else if (!queueColumn) {
             group.scrollIntoView({ block: "start", behavior: "smooth" });
           }
         }
         const card = document.querySelector<HTMLElement>("[data-defect-card]");
-        if (card) focusTheAction(card);
+        if (card) {
+          const viewport = card.closest<HTMLElement>("[data-slot=scroll-area-viewport]");
+          if (viewport) {
+            const top = viewport.scrollTop + card.getBoundingClientRect().top -
+              viewport.getBoundingClientRect().top - 12;
+            viewport.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+          }
+          focusTheAction(card);
+        }
       }, 120);
     },
-    [defects]
+    [defects, queueColumn]
   );
 
   /* ── Progress and the gate ───────────────────────────────────────── */
@@ -480,6 +497,7 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
     activeDefect,
     setActiveDefect,
     instanceRequest,
+    showAll,
     registerReplace,
     replaceFor,
   };
@@ -523,37 +541,45 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
   /* ── The panes ───────────────────────────────────────────────────── */
 
   /**
-   * The run, and the card for whichever defect is open. Nothing regroups as work is done:
-   * a corrected row keeps its place and gains a tick, so the list never shuffles under the
-   * cursor of someone working down it (v3.2).
+   * The panel splits into a pinned head and a scrolling run: the counter and the
+   * all-corrected banner never scroll away with the list, so "where am I" has one fixed
+   * home (owner, 2026-08-21 — the loose scrolls round).
    */
-  const queueBody = (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <QueueProgress task={task} resolved={resolved} total={total} />
+  const queueHead = (
+    <div className="flex flex-col gap-3">
+      <QueueProgress resolved={resolved} total={total} />
       {complete ? (
         <p className="flex items-center gap-2 rounded-lg bg-success-muted px-4 py-3 text-body-compact font-medium text-success-muted-foreground">
           <CircleCheckIcon className="size-4 shrink-0" aria-hidden />
           {`All ${total} corrected.`}
         </p>
       ) : null}
-      <ResolutionQueue
-        items={items}
-        activeDefect={activeDefect}
-        onOpenDefect={openDefect}
-        renderOpen={(item, index) => (
-          <DefectCard
-            key={targetKey(item.defect.target)}
-            defect={item.defect}
-            value={item.value}
-            actions={defectActions(item.defect)}
-            index={index}
-            total={total}
-            onFocusCapture={() => setActiveDefect(item.defect.n)}
-            onBlurCapture={onFrameBlur}
-          />
-        )}
-      />
     </div>
+  );
+
+  /**
+   * The run, and the card for whichever defect is open. Nothing regroups as work is done:
+   * a corrected row keeps its place and gains a tick, so the list never shuffles under the
+   * cursor of someone working down it (v3.2).
+   */
+  const queueList = (
+    <ResolutionQueue
+      items={items}
+      activeDefect={activeDefect}
+      onOpenDefect={openDefect}
+      renderOpen={(item, index) => (
+        <DefectCard
+          key={targetKey(item.defect.target)}
+          defect={item.defect}
+          value={item.value}
+          actions={defectActions(item.defect)}
+          index={index}
+          total={total}
+          onFocusCapture={() => setActiveDefect(item.defect.n)}
+          onBlurCapture={onFrameBlur}
+        />
+      )}
+    />
   );
 
   const submitBlock = (
@@ -593,8 +619,14 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
    * 1280 × 200% text zoom a pinned header is more than half the window, which would leave
    * a hand's width of form to work in (`ACCESSIBILITY.md` §10).
    */
+  /* The deadline is the return's one urgent fact, so it rides in the page's own header
+     (owner, 2026-08-21) — the panel keeps the counter, and the two numbers cannot be
+     confused for each other. The absolute date rides in a `<time dateTime>` because the
+     five-day window is still an assumption (O7), and an assumption should be inspectable. */
+  const due = task.dueAt ? dueCueOf(task) : null;
+
   const pageHeader = (
-  <header className="z-30 flex shrink-0 items-center justify-between gap-3 border-b border-hairline bg-card px-4 py-3 sm:px-6">
+  <header className="z-30 flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-hairline bg-card px-4 py-3 sm:px-6">
     <div className="flex min-w-0 flex-col gap-0.5">
       <h1 className="text-title-s font-semibold tracking-tight text-foreground">
         Scrutiny return
@@ -617,18 +649,51 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
         </span>
       </p>
     </div>
-    {railColumn ? null : (
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => setRailOpen(true)}
-        aria-haspopup="dialog"
-        className="shrink-0"
-      >
-        <PanelLeftIcon data-icon="inline-start" aria-hidden />
-        Sections
-      </Button>
-    )}
+    <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2">
+      {due ? (
+        <p className="flex items-center gap-1.5 text-caption font-medium tabular-nums">
+          <ClockIcon
+            aria-hidden
+            className={cn(
+              "size-4 shrink-0",
+              due.overdue ? "text-destructive-ink" : "text-warning-ink"
+            )}
+          />
+          <span className={due.overdue ? "text-destructive-ink" : "text-warning-ink"}>
+            {due.primary}
+          </span>
+          <span aria-hidden className="font-normal text-muted-foreground">
+            ·
+          </span>
+          <time dateTime={task.dueAt} className="font-normal text-muted-foreground">
+            {due.date}
+          </time>
+        </p>
+      ) : null}
+      {/* The record shows only what was flagged; this brings the rest back for context.
+          A switch rather than a button: it is a reading mode, not an action. */}
+      <div className="flex items-center gap-2">
+        <Switch id="show-full-filing" checked={showAll} onCheckedChange={setShowAll} />
+        <Label
+          htmlFor="show-full-filing"
+          className="text-caption font-medium text-muted-foreground"
+        >
+          Show full filing
+        </Label>
+      </div>
+      {railColumn ? null : (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setRailOpen(true)}
+          aria-haspopup="dialog"
+          className="shrink-0"
+        >
+          <PanelLeftIcon data-icon="inline-start" aria-hidden />
+          Sections
+        </Button>
+      )}
+    </div>
   </header>
   );
 
@@ -665,7 +730,12 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
               style={{ width: RAIL_W }}
               className="flex shrink-0 flex-col overflow-y-auto border-r border-hairline bg-sidebar py-4"
             >
-              <SectionRail step={step} countFor={countFor} onSelect={setStep} />
+              <SectionRail
+                step={step}
+                countFor={countFor}
+                onSelect={setStep}
+                onlyFlagged={!showAll}
+              />
             </aside>
           ) : null}
 
@@ -696,11 +766,15 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
                 checkbox still shows its chosen state — the choice *is* the value there.
                 The `!`s are owed to the primitives' `disabled:` rules tying at equal
                 specificity; noted as upstream DS feedback. */}
+            {/* `h-full overflow-hidden` on both panels is what makes each pane its own
+                scroller: the primitive puts this className on a *nested* div that is
+                otherwise content-sized, so without it the record grew to its content and
+                the page itself scrolled — the "random scrolls" bug's root. */}
             <ResizablePanel
               id="record"
               defaultSize="53"
               minSize="30"
-              className="flex min-w-0 flex-col"
+              className="flex h-full min-w-0 flex-col overflow-hidden"
             >
               <main
                 className={cn(
@@ -709,6 +783,12 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
                   "[&_:has(:disabled)]:opacity-100! [&_[data-slot=input-group-addon]]:opacity-100!",
                   "[&_input:disabled]:bg-surface-sunken! [&_textarea:disabled]:bg-surface-sunken!",
                   "[&_:has(>input:disabled)]:bg-surface-sunken! [&_[data-slot=select-trigger]:disabled]:bg-surface-sunken!",
+                  /* Flagged-only mode: the fields hide themselves (`FormField` returns
+                     null), and these rules retire what they leave behind — section cards
+                     none of them are in, and group headings ("The parties") whose every
+                     card just went. An empty white panel is not a shorter form. */
+                  !showAll && "[&_[data-slot=card]:not(:has([data-defect]))]:hidden",
+                  !showAll && "[&_section:not(:has([data-defect]))]:hidden",
                   queueColumn && "px-4 pt-6 sm:px-6"
                 )}
               >
@@ -724,7 +804,9 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
                       here is cheaper than a banner over an unchanged e-filing form. */}
                   <p className="flex items-start gap-2 text-caption text-muted-foreground">
                     <LockIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
-                    The filing as scrutiny received it.
+                    {showAll
+                      ? "The filing as scrutiny received it."
+                      : "The flagged parts of the filing, as scrutiny received them."}
                   </p>
                   <SectionBody step={step} />
                 </div>
@@ -744,14 +826,19 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
                   id="corrections"
                   defaultSize="47"
                   minSize="26"
-                  className="flex min-w-0 flex-col overflow-hidden bg-sidebar"
+                  className="flex h-full min-w-0 flex-col overflow-hidden bg-sidebar"
                 >
                   <section aria-label="Corrections" className="flex min-h-0 flex-1 flex-col">
-                    <div className="flex min-h-0 flex-1 flex-col gap-4 p-5">
+                    {/* The head is pinned; only the run scrolls. One scroller per pane is
+                        the whole scroll model of this screen — see the layout comment. */}
+                    <div className="flex shrink-0 flex-col gap-3 p-5 pb-4">
                       <h2 className="text-title-s font-semibold text-foreground">Corrections</h2>
-                      <ScrollArea className="-mx-2 min-h-0 flex-1 px-2">{queueBody}</ScrollArea>
+                      {queueHead}
                     </div>
-                    <div className="border-t border-hairline p-4">{submitBlock}</div>
+                    <ScrollArea className="min-h-0 flex-1">
+                      <div className="px-3 pb-4">{queueList}</div>
+                    </ScrollArea>
+                    <div className="shrink-0 border-t border-hairline p-4">{submitBlock}</div>
                   </section>
                 </ResizablePanel>
               </>
@@ -793,13 +880,16 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
           <SheetHeader>
             <SheetTitle className="text-title-s font-semibold">Sections</SheetTitle>
             <SheetDescription className="text-body-compact">
-              Every part of this filing. The count shows what scrutiny flagged there.
+              {showAll
+                ? "Every part of this filing. The count shows what scrutiny flagged there."
+                : "The parts of the filing scrutiny flagged, and how many corrections each carries."}
             </SheetDescription>
           </SheetHeader>
           <div className="pb-6">
             <SectionRail
               step={step}
               countFor={countFor}
+              onlyFlagged={!showAll}
               onSelect={(id) => {
                 setStep(id);
                 setRailOpen(false);
@@ -819,7 +909,12 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
               Open one to see what scrutiny asked for.
             </DrawerDescription>
           </DrawerHeader>
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">{queueBody}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
+            <div className="flex flex-col gap-4">
+              {queueHead}
+              {queueList}
+            </div>
+          </div>
         </DrawerContent>
       </Drawer>
 

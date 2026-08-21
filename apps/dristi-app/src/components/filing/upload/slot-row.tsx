@@ -104,8 +104,11 @@ export function IntakeSlotRow({
 
   const outcome = readOutcome(slot);
   /* While the read is running the slot's meta line and the progress bar already say so;
-     a third "Reading…" line would be the same fact three times. */
-  const statusLine = outcome && outcome.kind !== "reading" ? outcome : null;
+     a third "Reading…" line would be the same fact three times. In a correction round the
+     machine-read outcome ("nothing to pre-fill — type the details in the form") is intake
+     advice about a form that is now read-only, so it stands down entirely. */
+  const statusLine =
+    !correction && outcome && outcome.kind !== "reading" ? outcome : null;
   const StatusIcon = statusLine?.tone === "success" ? CircleCheckIcon : TriangleAlertIcon;
 
   const body = (
@@ -248,6 +251,8 @@ export function IntakeSlotRow({
       </div>
     );
   }
-  /* Untouched by scrutiny: listed so it can be read, but visibly out of play. */
+  /* Untouched by scrutiny: off the screen unless the header's "show full filing" toggle
+     brings it back — and then visibly out of play. */
+  if (locked && !correction?.showAll) return null;
   return <div className={cn(locked && "opacity-45")}>{body}</div>;
 }

@@ -40,6 +40,15 @@ export type CorrectionValue = {
   /** The queue asking a repeating section to switch to another instance. */
   instanceRequest: { step: StepId; instance: number; nonce: number } | null;
   /**
+   * Whether the record shows the whole filing, or only what scrutiny flagged.
+   *
+   * Off by default: eight flagged fields scattered through a thirteen-section form is a
+   * needle-in-haystack read, so the record opens showing just the needles. The toggle in
+   * the page header brings the rest back — at reduced opacity — for the advocate who wants
+   * the surrounding context (owner, 2026-08-21).
+   */
+  showAll: boolean;
+  /**
    * A document slot lending the panel its file picker.
    *
    * The flagged row is display-only and replacement happens in the panel's card (v3.2), but

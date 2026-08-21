@@ -12,20 +12,24 @@
  * At rest the card is three things:
  *
  *   1. **What it is** — the field, and where it lives.
- *   2. **The comparison** — two labelled rows, *You filed* over *Scrutiny reads*. No
- *      strikethrough, no arrow: the values are right-aligned in `tabular-nums`, so the
- *      character that changed sits directly under its counterpart and the eye finds the
- *      difference without decoration.
- *   3. **One primary action** — *Use <the value>*, which states its own outcome, beside a
- *      quiet *Keep mine*.
+ *   2. **The comparison** — two labelled rows, *Originally filed* over *Officer's
+ *      correction*. No strikethrough, no arrow: the values are right-aligned in
+ *      `tabular-nums`, so the character that changed sits directly under its counterpart
+ *      and the eye finds the difference without decoration.
+ *   3. **One primary action** — *Accept correction*, beside a quiet *Reject correction*.
+ *      Both are named for the thing being acted on, the correction, so the pair reads the
+ *      same on every card.
  *
- * Everything else — the officer's note or spoken remark, and the marked page — is one line,
+ * Everything else — the officer's comment or voice note, and the marked page — is one line,
  * *Why it was flagged*, opened by the minority who want to check and by everyone about to
- * disagree (so *Keep mine* opens it).
+ * disagree (so *Reject correction* opens it).
  *
- * **Keep mine is a route, not a resolution.** Choosing it and writing nothing leaves the
+ * **Reject is a route, not a resolution.** Choosing it and writing nothing leaves the
  * defect open and the submit gate shut — resolution is derived from the filing (D6), never
- * self-certified, and this is the thing most likely to be built wrong.
+ * self-certified, and this is the thing most likely to be built wrong. The same derivation
+ * is why the collapse must wait for the *act* to end, not the state to flip: a bare-note
+ * defect resolves on its first keystroke, and collapsing then unmounts the input under the
+ * advocate's fingers (the one-character bug, owner 2026-08-21).
  *
  * A note and a spoken remark are *alternatives*: an officer leaves one or the other. Where
  * both somehow exist the note sits above the player and the layout is unchanged.
@@ -174,10 +178,10 @@ function MarkedRegion({ defect }: { defect: Defect }) {
 
       <p className="flex items-center gap-2 text-caption text-muted-foreground">
         <span className="min-w-0 truncate">
-          {defect.annotation ? `${file.name} — the part scrutiny marked` : file.name}
+          {defect.annotation ? "The area the officer marked" : file.name}
         </span>
         <span className="ml-auto shrink-0 font-medium text-brand-muted-foreground">
-          See full page
+          Open original document
         </span>
       </p>
 
@@ -197,23 +201,47 @@ function MarkedRegion({ defect }: { defect: Defect }) {
 
 /* ───────────────────────── Why it was flagged ───────────────────────── */
 
+/** The eyebrow above each piece of the officer's material — what a thing *is*, quietly. */
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-caption font-semibold tracking-wide text-muted-foreground uppercase">
+      {children}
+    </p>
+  );
+}
+
 /**
- * The officer's reason: a typed note **or** a spoken remark, and the page it came from.
+ * The officer's reason: a typed comment **or** a voice note, and the page it came from.
  *
- * Who wrote it is not shown. Only scrutiny flags a filing, so an officer's name told the
- * advocate nothing they did not already know and spent the space that the reason needed.
+ * Each piece sits under its own eyebrow — *Scrutiny officer's comment* over the words —
+ * because an unlabelled sentence inside a card reads as system copy, and system copy is
+ * what people have learned not to read (owner, 2026-08-21). The comment gets a sunken
+ * well of its own for the same reason: it is quoted material, not the card talking.
+ *
+ * Who exactly wrote it is still not shown — only scrutiny flags a filing, so a name says
+ * nothing the label does not.
  */
 function WhyFlagged({ defect }: { defect: Defect }) {
   const spoken = defect.voiceNote;
-  /* Alternatives, not a stack: the note is shown when it is the message, or when an
-     officer has left both — in which case it reads first and the remark follows. */
+  /* Alternatives, not a stack: the comment is shown when it is the message, or when an
+     officer has left both — in which case it reads first and the voice note follows. */
   const showNote = !spoken || !!defect.note.trim();
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       {showNote && defect.note.trim() ? (
-        <p className="text-body-compact text-foreground">{defect.note}</p>
+        <div className="flex flex-col gap-1.5">
+          <Eyebrow>Scrutiny officer&apos;s comment</Eyebrow>
+          <p className="rounded-md bg-surface-sunken p-3 text-body-compact leading-relaxed text-foreground">
+            {defect.note}
+          </p>
+        </div>
       ) : null}
-      {spoken ? <VoiceNoteRow note={spoken} /> : null}
+      {spoken ? (
+        <div className="flex flex-col gap-1.5">
+          <Eyebrow>Scrutiny officer&apos;s voice note</Eyebrow>
+          <VoiceNoteRow note={spoken} />
+        </div>
+      ) : null}
       <MarkedRegion defect={defect} />
     </div>
   );
@@ -222,9 +250,9 @@ function WhyFlagged({ defect }: { defect: Defect }) {
 /* ───────────────────────── The comparison ───────────────────────── */
 
 /**
- * *You filed* over *Scrutiny reads* — two labelled rows, values right-aligned in
- * `tabular-nums` so the character that changed lines up with the one it replaced. This is
- * the whole reason the strikethrough and the arrow are gone: alignment carries the
+ * *Originally filed* over *Officer's correction* — two labelled rows, values right-aligned
+ * in `tabular-nums` so the character that changed lines up with the one it replaced. This
+ * is the whole reason the strikethrough and the arrow are gone: alignment carries the
  * difference, and the labels carry who said which.
  */
 function Compare({
@@ -249,7 +277,7 @@ function Compare({
     >
       {supersededOnly ? null : (
         <div className="flex items-center justify-between gap-4 bg-surface-sunken px-3.5 py-2.5">
-          <span className="shrink-0 text-caption text-muted-foreground">You filed</span>
+          <span className="shrink-0 text-caption text-muted-foreground">Originally filed</span>
           <span className="min-w-0 text-right text-body-compact tabular-nums text-muted-foreground">
             {filed}
           </span>
@@ -267,7 +295,7 @@ function Compare({
             supersededOnly ? "text-muted-foreground" : "text-brand-muted-foreground"
           )}
         >
-          {supersededOnly ? "Scrutiny read" : "Scrutiny reads"}
+          Officer&apos;s correction
         </span>
         <span
           className={cn(
@@ -407,20 +435,35 @@ export function DefectCard({
   const isDoc = defect.target.kind === "doc";
   const suggestion = defect.suggestion;
 
-  /* Keeping your own value: opened by "Keep mine", and standing open by itself where it is
-     the only route there is — a bare note, or a document with nothing to accept. It is
-     also forced open while a reply is owed, because that is where the reply is written. */
+  /* Keeping your own value: opened by "Reject correction", and standing open by itself
+     where it is the only route there is — a bare note, or a document with nothing to
+     accept. It is also forced open while a reply is owed, because that is where the reply
+     is written. */
   const [keeping, setKeeping] = React.useState(false);
   const ownOpen = keeping || !suggestion || needsReason;
 
-  /* Disagreeing is the one moment the evidence is certainly wanted, so "Keep mine" opens
-     it. Otherwise it stays shut. */
+  /* Rejecting is the one moment the evidence is certainly wanted, so "Reject correction"
+     opens it. Otherwise it stays shut. */
   const [whyOpen, setWhyOpen] = React.useState(false);
+
+  /**
+   * Is the advocate mid-act inside the editing area?
+   *
+   * The thing this exists to prevent: resolution is *live* — a bare-note defect counts as
+   * resolved on the first keystroke that changes the value — and a card that collapsed the
+   * moment it resolved unmounted the input under the advocate's fingers, so exactly one
+   * character ever landed (owner, 2026-08-21). So the collapse waits for the act to end:
+   * touching anything in `[data-own-value]` engages the card, and it disengages only when
+   * focus leaves the card entirely or a named act — Save, Keep, Accept — finishes.
+   * `relatedTarget` is checked against the card root, not the editing area, so moving from
+   * the input to its own Save button (or out to the evidence) never counts as leaving.
+   */
+  const [engaged, setEngaged] = React.useState(false);
 
   const root = React.useRef<HTMLDivElement>(null);
   const landInOwn = React.useRef(false);
 
-  /* Keep mine reveals a control — so focus goes there. Leaving focus on the button makes a
+  /* Reject reveals a control — so focus goes there. Leaving focus on the button makes a
      keyboard user tab past everything that just appeared to reach what they asked for. */
   React.useLayoutEffect(() => {
     if (!landInOwn.current || !ownOpen) return;
@@ -444,17 +487,45 @@ export function DefectCard({
 
   const watch = {
     ref: root,
-    onFocusCapture,
-    onBlurCapture,
+    onFocusCapture: (event: React.FocusEvent<HTMLElement>) => {
+      const el = event.target as HTMLElement;
+      if (el.closest?.("[data-own-value]")) setEngaged(true);
+      onFocusCapture?.();
+    },
+    onBlurCapture: (event: React.FocusEvent<HTMLElement>) => {
+      const to = event.relatedTarget as HTMLElement | null;
+      if (!root.current?.contains(to)) setEngaged(false);
+      onBlurCapture?.(event);
+    },
   };
 
-  /* ── Resolved: the card reports what was decided, and offers the way back ── */
-  if (resolved) {
+  /** A named act finished — the card may collapse now. */
+  const finish = () => {
+    setKeeping(false);
+    setEngaged(false);
+  };
+
+  /* Collapsing removes whatever held focus, and losing focus to `<body>` strands a
+     keyboard user — so it lands on the collapsed card itself. */
+  const collapsed = resolved && !engaged && !keeping;
+  const wasCollapsed = React.useRef(collapsed);
+  React.useLayoutEffect(() => {
+    if (collapsed && !wasCollapsed.current) {
+      if (!root.current?.contains(document.activeElement)) {
+        root.current?.focus({ preventScroll: true });
+      }
+    }
+    wasCollapsed.current = collapsed;
+  }, [collapsed]);
+
+  /* ── Resolved, and the act has ended: report what was decided, offer the way back ── */
+  if (collapsed) {
     return (
       <div
         data-defect-card
+        tabIndex={-1}
         className={cn(
-          "overflow-hidden rounded-lg border border-hairline bg-card shadow-raised",
+          "overflow-hidden rounded-lg border border-hairline bg-card shadow-raised outline-none",
           className
         )}
         {...watch}
@@ -528,15 +599,19 @@ export function DefectCard({
 
         {suggestion && !ownOpen ? (
           <div className="flex items-center gap-2">
+            {/* Named for the thing being acted on — the correction — not the value inside
+                it (owner, 2026-08-21): the comparison above already shows the value, and
+                a verb + object pair reads the same on every card. */}
             <Button
               type="button"
-              onClick={actions.accept}
+              onClick={() => {
+                actions.accept?.();
+                finish();
+              }}
               data-defect-focus
               className="h-auto min-h-10 flex-1 whitespace-normal py-2"
             >
-              {/* The button states its own outcome — nothing has to be inferred from the
-                  block above it. */}
-              Use {displayTargetValue(defect.target, suggestion.to)}
+              Accept correction
             </Button>
             <Button
               type="button"
@@ -548,7 +623,7 @@ export function DefectCard({
               }}
               className="shrink-0 text-muted-foreground"
             >
-              Keep mine
+              Reject correction
             </Button>
           </div>
         ) : null}
@@ -586,26 +661,38 @@ export function DefectCard({
                   overriding={needsReason}
                   onChange={actions.onReasonChange}
                 />
-                {suggestion ? (
-                  <div className="flex items-center gap-2">
-                    {/* Nothing is sent at this point, so the button does not say it is —
-                        it says what it does. */}
-                    <Button type="button" className="flex-1" disabled={required && !actions.reason.trim()}>
-                      {standing ? "Keep my value" : "Use my value"}
-                    </Button>
+                <div className="flex items-center gap-2">
+                  {/* The act's own full stop. Resolution is derived, so this button
+                      changes no data — it ends the act, which is what lets the card
+                      collapse to its one-line report. Without it the only way to finish
+                      was to click somewhere else, which nobody trusts as "saved". */}
+                  <Button
+                    type="button"
+                    onClick={finish}
+                    disabled={!resolved}
+                    className="flex-1"
+                  >
+                    {suggestion
+                      ? standing
+                        ? "Keep my value"
+                        : "Use my value"
+                      : "Save correction"}
+                  </Button>
+                  {suggestion ? (
                     <Button
                       type="button"
                       variant="ghost"
                       onClick={() => {
                         setKeeping(false);
+                        setEngaged(false);
                         actions.undo?.();
                       }}
                       className="shrink-0 text-muted-foreground"
                     >
                       Cancel
                     </Button>
-                  </div>
-                ) : null}
+                  ) : null}
+                </div>
               </>
             )}
           </div>
