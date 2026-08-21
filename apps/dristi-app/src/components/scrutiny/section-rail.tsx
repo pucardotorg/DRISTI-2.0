@@ -19,7 +19,6 @@ import { FILING_STEPS, UPLOAD_STEP, type FilingStep } from "@/lib/filing/steps";
 import { CORRECTABLE_SECTIONS } from "@/components/scrutiny/section-body";
 import type { StepId } from "@/lib/filing/types";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -90,13 +89,18 @@ export function SectionRail({
                   >
                     <Icon aria-hidden className={active ? undefined : "text-muted-foreground"} />
                     <span className="min-w-0 flex-1 text-left break-words">{s.title}</span>
+                    {/* A plain muted count, not a warning badge per row: four ambers
+                        down the rail is alarm fatigue, and the one amber in this
+                        screen's chrome is the deadline in the queue header (ui-craft
+                        §1.4; same rule as tab counts). The number still maps where the
+                        work is; the queue carries the urgency. */}
                     {count > 0 ? (
-                      <Badge variant="warning" className="tabular-nums">
+                      <span className="text-caption font-medium tabular-nums text-muted-foreground">
                         {count}
                         <span className="sr-only">
                           {count === 1 ? " defect" : " defects"}
                         </span>
-                      </Badge>
+                      </span>
                     ) : null}
                   </Button>
                 </li>

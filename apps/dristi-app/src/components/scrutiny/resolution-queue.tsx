@@ -53,11 +53,6 @@ function StateMark({ state }: { state: ReturnType<typeof defectState> }) {
   return <CircleDashedIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />;
 }
 
-function stateWord(state: ReturnType<typeof defectState>): string {
-  if (state === "needs-justification") return "Needs a reason";
-  return "Open";
-}
-
 /**
  * The deadline and the count, together. The relative phrase is what an advocate acts on;
  * the absolute date rides in a `<time dateTime>` because the five-day window is still an
@@ -126,6 +121,14 @@ function QueueRow({
   /* The section is on the rail and in the form's own heading; the row needs the part that
      disambiguates — "Cheque 2 › Bank branch". */
   const where = trail.slice(1).join(" › ") || trail.join(" › ");
+  /* A second line only where it says something the group label has not: how a resolved
+     defect was resolved, or that one is waiting on its reason. A row in the Open group
+     reading "Open" again was the queue narrating itself. */
+  const detail = resolved
+    ? resolutionLabel(defect, value)
+    : state === "needs-justification"
+      ? "Needs a reason"
+      : null;
 
   return (
     <li>
@@ -156,14 +159,16 @@ function QueueRow({
           >
             {where}
           </span>
-          <span
-            className={cn(
-              "text-caption",
-              resolved ? "text-success-ink" : "text-muted-foreground"
-            )}
-          >
-            {resolved ? resolutionLabel(defect, value) : stateWord(state)}
-          </span>
+          {detail ? (
+            <span
+              className={cn(
+                "text-caption",
+                resolved ? "text-success-ink" : "text-warning-ink"
+              )}
+            >
+              {detail}
+            </span>
+          ) : null}
         </span>
         <ChevronRightIcon
           aria-hidden
