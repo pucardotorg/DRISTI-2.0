@@ -1,3 +1,5 @@
+import { JoinPage } from "@/app/join/[[...token]]/join-flow";
+
 export default function HomePage() {
-  return <main className="flex flex-1 flex-col bg-background" />;
+  return <JoinPage />;
 }
