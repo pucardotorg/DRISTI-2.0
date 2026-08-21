@@ -28,14 +28,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeftIcon,
-  ClockIcon,
-  LockIcon,
-  PanelLeftIcon,
-  ListChecksIcon,
-  SendIcon,
-} from "lucide-react";
+import { ArrowLeftIcon, LockIcon, PanelLeftIcon, ListChecksIcon, SendIcon } from "lucide-react";
 
 import { longDate } from "@/lib/tasks/format";
 import {
@@ -51,7 +44,6 @@ import { cn } from "@/lib/utils";
 import { useFiling } from "@/lib/filing/store";
 import { intakeSlot, readTarget, writeTarget } from "@/lib/filing/targets";
 import type { StepId } from "@/lib/filing/types";
-import { getStep } from "@/lib/filing/steps";
 import type { Ctx } from "@/lib/tasks/transitions";
 import { refile, resolveDefect } from "@/lib/tasks/transitions";
 import type { Case, Defect, Resolution, Task } from "@/lib/tasks/types";
@@ -65,7 +57,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -88,7 +79,7 @@ import {
   type FilingChromeValue,
 } from "@/components/filing/chrome";
 import { CorrectionProvider, type CorrectionValue } from "@/components/filing/posture";
-import { DefectFrame, type FrameActions } from "@/components/scrutiny/defect-frame";
+import { DefectLayer, type DefectActions } from "@/components/scrutiny/defect-inset";
 import {
   QueueProgress,
   ResolutionQueue,
@@ -125,22 +116,16 @@ const COMMIT_QUIET_MS = 700;
 /** The one primary action, sized by its words rather than clipping them. */
 const SUBMIT_CLASS = "h-auto min-h-11 w-full whitespace-normal py-2 text-center";
 
-function dueCue(task: Task): string | null {
-  if (!task.dueAt) return null;
-  return `Due ${longDate(task.dueAt)}`;
-}
-
 /**
- * Move focus to the thing the defect is about.
+ * Move focus to the thing that answers the defect.
  *
- * "First enabled focusable in the frame" is not that: a field whose label carries a
- * tooltip puts the tip's icon button ahead of the input in the DOM, so the advocate who
- * clicked "Go to the field" landed on a help button. So the search is ordered — the
- * control the frame nominates, then a real form control inside it, and only then any
- * button, which is what a document row (Replace) legitimately offers.
+ * Not the flagged control any more — that one is read-only now (§15.2), and landing a
+ * keyboard user on a field they cannot type in is the trap R12 warns about. The target is
+ * the inset's primary action: Accept where scrutiny offered a correction, otherwise the
+ * value control or the Replace button the inset nominates with `data-defect-focus`. D5's
+ * rule is unchanged — move focus, do not merely scroll; only its target moves.
  */
-function focusTheControl(frame: HTMLElement): void {
-  const scope = frame.querySelector<HTMLElement>("[data-defect-control]") ?? frame;
+function focusTheAction(scope: HTMLElement): void {
   const control =
     scope.querySelector<HTMLElement>("[data-defect-focus]:not([disabled])") ??
     scope.querySelector<HTMLElement>(
@@ -282,14 +267,11 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
     return () => window.clearTimeout(id);
   }, [pending]);
 
-  /** Focus leaving a defect frame ends the act — write it now rather than on the timer. */
-  const onFrameBlur = React.useCallback(
-    (event: React.FocusEvent<HTMLElement>) => {
-      if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-      commitRef.current();
-    },
-    []
-  );
+  /**
+   * Focus leaving a defect — its field *and* its inset, which the layer works out — ends
+   * the act, so the record is written now rather than on the quiet timer.
+   */
+  const onFrameBlur = React.useCallback(() => commitRef.current(), []);
 
   /* ── Navigating to a defect ──────────────────────────────────────── */
 
@@ -314,10 +296,25 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
       /* Focus, not scroll: the queue has to work for a keyboard and a screen reader, and
          a scroll-only jump is a mouse affordance wearing navigation's clothes. */
       window.setTimeout(() => {
-        const frame = document.getElementById(`defect-${n}`);
-        if (!frame) return;
-        frame.scrollIntoView({ block: "center", behavior: "smooth" });
-        focusTheControl(frame);
+        const group = document.getElementById(`defect-${n}`);
+        if (!group) return;
+        /* Scroll the *pane*, never the page. `scrollIntoView` walks every scrollable
+           ancestor, which drags the screen's own header and rail out of view — and this
+           screen holds the viewport precisely so those stay put. The field goes to the top
+           of the centre pane and the inset lands under it, because the two are read
+           together. */
+        const pane = group.closest("main");
+        if (pane) {
+          const top = pane.scrollTop + group.getBoundingClientRect().top -
+            pane.getBoundingClientRect().top - 24;
+          pane.scrollTo({ top, behavior: "smooth" });
+        } else {
+          group.scrollIntoView({ block: "start", behavior: "smooth" });
+        }
+        const inset = document.querySelector<HTMLElement>(
+          `[data-defect="${n}"] [data-defect-inset]`
+        );
+        focusTheAction(inset ?? group);
       }, 120);
     },
     [defects]
@@ -333,7 +330,7 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
     [defects]
   );
 
-  /* ── The frames the form renders in place of a flagged field ─────── */
+  /* ── The layer the form renders over a flagged field ─────────────── */
 
   /** Forget a reason that is being typed — after an undo, or once a suggestion is taken. */
   const clearReason = (n: number) =>
@@ -344,7 +341,12 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
       return next;
     });
 
-  const frameActions = (defect: Defect): FrameActions => ({
+  /**
+   * Every write in a correction round goes through here — there is no other route. The
+   * flagged control is read-only, so Accept and the inset's own value control are the
+   * only two things that can change a filed value, and both are named acts.
+   */
+  const defectActions = (defect: Defect): DefectActions => ({
     accept: defect.suggestion
       ? () => {
           const to = defect.suggestion!.to;
@@ -354,6 +356,10 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
           commitSoon.current = true;
         }
       : undefined,
+    setValue: (value) => {
+      update((d) => writeTarget(d, defect.target, value));
+      setActiveDefect(defect.n);
+    },
     undo: defect.resolution
       ? () => {
           if (defect.target.kind === "field") {
@@ -363,9 +369,8 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
           commitSoon.current = true;
         }
       : undefined,
-    justification: justificationOf(defect),
-    onJustificationChange: (text) =>
-      setReasons((prev) => ({ ...prev, [defect.n]: text })),
+    reason: justificationOf(defect),
+    onReasonChange: (text) => setReasons((prev) => ({ ...prev, [defect.n]: text })),
   });
 
   const correction: CorrectionValue = {
@@ -387,30 +392,30 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
     setActiveDefect,
     instanceRequest,
     renderFieldDefect: (defect, control) => (
-      <DefectFrame
+      <DefectLayer
         key={targetKey(defect.target)}
         defect={defect}
         value={valueOf(defect)}
-        active={activeDefect === defect.n}
-        actions={frameActions(defect)}
+        actions={defectActions(defect)}
         onFocusCapture={() => setActiveDefect(defect.n)}
         onBlurCapture={onFrameBlur}
       >
         {control}
-      </DefectFrame>
+      </DefectLayer>
     ),
-    renderDocDefect: (defect, row) => (
-      <DefectFrame
+    /* The Replace control moves off the row and into the inset: the sanctity rule that
+       keeps a flagged field read-only extends to documents (§15.4). */
+    renderDocDefect: (defect, row, docActions) => (
+      <DefectLayer
         key={targetKey(defect.target)}
         defect={defect}
         value={valueOf(defect)}
-        active={activeDefect === defect.n}
-        actions={frameActions(defect)}
+        actions={{ ...defectActions(defect), replace: docActions.replace }}
         onFocusCapture={() => setActiveDefect(defect.n)}
         onBlurCapture={onFrameBlur}
       >
         {row}
-      </DefectFrame>
+      </DefectLayer>
     ),
   };
 
@@ -431,7 +436,6 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
   };
 
   const reason = submitReason(resolved, total, online);
-  const stepTitle = getStep(step).title;
 
   /*
    * The correction screen is a filing chrome host in its own right: it owns the sections
@@ -455,7 +459,7 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
 
   const queueBody = (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <QueueProgress resolved={resolved} total={total} />
+      <QueueProgress task={task} resolved={resolved} total={total} />
       <ResolutionQueue items={items} activeDefect={activeDefect} onOpenDefect={openDefect} />
     </div>
   );
@@ -480,77 +484,83 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
     </div>
   );
 
+  /*
+   * The page header: the return, and the case it belongs to. The clock and the counter
+   * both live in the queue (§15.6).
+   *
+   * Where the queue is a column the header is chrome and stays put. Where the queue has
+   * folded away, the header rides *inside* the centre pane and scrolls with it — at
+   * 1280 × 200% text zoom a pinned header is more than half the window, which would leave
+   * a hand's width of form to work in (`ACCESSIBILITY.md` §10).
+   */
+  const pageHeader = (
+  <header className="z-30 flex shrink-0 flex-col gap-2 border-b border-hairline bg-card px-4 py-3 sm:gap-3 sm:px-6 sm:py-4">
+    <Button asChild variant="ghost" size="xs" className="self-start text-muted-foreground">
+      <Link href={back}>
+        <ArrowLeftIcon data-icon="inline-start" aria-hidden />
+        Back to tasks
+      </Link>
+    </Button>
+    <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-3">
+      <div className="flex min-w-0 flex-col gap-0.5 sm:gap-1">
+        <h1 className="text-title font-semibold tracking-tight text-foreground">
+          Scrutiny return
+        </h1>
+        <p className="text-body-compact text-muted-foreground">
+          {kase.parties}
+          {kase.stNumber ? (
+            <>
+              {" · "}
+              <span className="font-mono tabular-nums">{kase.stNumber}</span>
+            </>
+          ) : (
+            " · Not yet numbered"
+          )}
+          {" · "}
+          {kase.court}
+        </p>
+        {/* The clock and the counter both live in the queue now (§15.6): one place
+            for the deadline, one place for the count, and no two numbers on this
+            screen that can disagree. */}
+        <p className="text-caption text-muted-foreground tabular-nums">
+          Returned by scrutiny on {task.returned ? longDate(task.returned.at) : "—"}
+        </p>
+      </div>
+      {railColumn ? null : (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setRailOpen(true)}
+          aria-haspopup="dialog"
+          className="shrink-0"
+        >
+          <PanelLeftIcon data-icon="inline-start" aria-hidden />
+          Sections
+        </Button>
+      )}
+    </div>
+  </header>
+  );
+
   return (
     <FilingChromeContext.Provider value={chrome}>
     <CorrectionProvider value={correction}>
       {/*
-       * The screen holds the viewport and each pane scrolls inside it. Three panes that
-       * scroll away with the page would leave the queue — the critical action — off
-       * screen exactly when the form is long, and the queue is the spine of this screen.
+       * With room for the queue, the screen holds the viewport and each pane scrolls
+       * inside it: panes that scrolled away with the page would leave the queue — the
+       * critical action — off screen exactly when the form is long.
+       *
+       * Once the queue has folded into its drawer there is nothing to hold in place, and
+       * holding the viewport becomes the bug: at 1280 × 200% text zoom the page header
+       * alone is more than half the window, so a pinned header would leave a hand's width
+       * of form to work in. Below the fold the page scrolls as a page and only the bar
+       * with the submit action stays (`ACCESSIBILITY.md` §10, `RESPONSIVE.md` rule 9).
        */}
       <div
-        style={{ height: `calc(100svh - ${TOP_BAR_HEIGHT})` }}
+        style={queueColumn ? { height: `calc(100svh - ${TOP_BAR_HEIGHT})` } : undefined}
         className="flex min-h-0 min-w-0 flex-1 flex-col"
       >
-        {/* Chrome: the page header states the return, the clock, and the count. */}
-        <header className="z-30 flex shrink-0 flex-col gap-2 border-b border-hairline bg-card px-4 py-3 sm:gap-3 sm:px-6 sm:py-4">
-          <Button asChild variant="ghost" size="xs" className="self-start text-muted-foreground">
-            <Link href={back}>
-              <ArrowLeftIcon data-icon="inline-start" aria-hidden />
-              Back to tasks
-            </Link>
-          </Button>
-          <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-3">
-            <div className="flex min-w-0 flex-col gap-0.5 sm:gap-1">
-              <h1 className="text-title font-semibold tracking-tight text-foreground">
-                Scrutiny return
-              </h1>
-              <p className="text-body-compact text-muted-foreground">
-                {kase.parties}
-                {kase.stNumber ? (
-                  <>
-                    {" · "}
-                    <span className="font-mono tabular-nums">{kase.stNumber}</span>
-                  </>
-                ) : (
-                  " · Not yet numbered"
-                )}
-                {" · "}
-                {kase.court}
-              </p>
-              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-muted-foreground">
-                <span className="tabular-nums">
-                  Returned by scrutiny on {task.returned ? longDate(task.returned.at) : "—"}
-                </span>
-                <span aria-hidden>·</span>
-                <span className="tabular-nums">
-                  {total} defect{total === 1 ? "" : "s"} · {resolved} resolved
-                </span>
-                {dueCue(task) ? (
-                  <>
-                    <span aria-hidden>·</span>
-                    <span className="flex items-center gap-1 text-warning-ink tabular-nums">
-                      <ClockIcon className="size-4" aria-hidden />
-                      {dueCue(task)}
-                    </span>
-                  </>
-                ) : null}
-              </p>
-            </div>
-            {railColumn ? null : (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setRailOpen(true)}
-                aria-haspopup="dialog"
-                className="shrink-0"
-              >
-                <PanelLeftIcon data-icon="inline-start" aria-hidden />
-                Sections
-              </Button>
-            )}
-          </div>
-        </header>
+        {queueColumn ? pageHeader : null}
 
         <div className="flex min-h-0 min-w-0 flex-1">
           {/* Left — every section, with the defect counts. A column where there is room
@@ -566,18 +576,29 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
           ) : null}
 
           {/* Centre — the section, in correction posture. */}
-          <main className="flex min-w-0 flex-1 flex-col overflow-y-auto px-4 pb-8 pt-6 sm:px-6">
-            <div className="flex w-full min-w-0 max-w-4xl flex-col gap-6">
-              <Alert>
-                <LockIcon aria-hidden />
-                <AlertTitle>This is a correction round, not an edit round</AlertTitle>
-                {/* States the lock without promising an unlock: nothing in the product
-                    docs says an unflagged field reopens, or when. */}
-                <AlertDescription>
-                  Only the fields scrutiny flagged can be changed. Everything else in{" "}
-                  {stepTitle.toLowerCase()} is locked for this correction round.
-                </AlertDescription>
-              </Alert>
+          <main
+            className={cn(
+              "flex min-w-0 flex-1 flex-col overflow-y-auto pb-8",
+              queueColumn && "px-4 pt-6 sm:px-6"
+            )}
+          >
+            {queueColumn ? null : pageHeader}
+            <div
+              className={cn(
+                "flex w-full min-w-0 max-w-4xl flex-col gap-4",
+                queueColumn ? null : "px-4 pt-4 sm:px-6"
+              )}
+            >
+              {/* The lock rule, once, as a caption (§15.7). No fill, no border, no
+                  `Alert`: the confusion a lock creates happens next to a dead control, so
+                  the explanation belongs here in the centre column — and a full-width
+                  banner over an unchanged e-filing form is the loudest thing on a screen
+                  whose loudest thing should be the flagged field. It wraps rather than
+                  truncating in a longer language. */}
+              <p className="flex items-start gap-2 text-caption text-muted-foreground">
+                <LockIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+                Only the fields scrutiny flagged can be changed here.
+              </p>
               <SectionBody step={step} />
             </div>
           </main>
@@ -603,7 +624,7 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
         <div
           className={cn(
             "z-30 shrink-0 flex-col gap-3 border-t border-hairline bg-card p-4",
-            queueColumn ? "hidden" : "flex"
+            queueColumn ? "hidden" : "sticky bottom-0 flex"
           )}
         >
           <div className="flex items-center gap-3">
