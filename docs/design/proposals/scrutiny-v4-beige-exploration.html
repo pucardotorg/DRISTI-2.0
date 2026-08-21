@@ -128,14 +128,15 @@
   .switch input:focus-visible + .tr{outline:2px solid var(--brand-solid);outline-offset:2px}
 
   /* ── Three panes ── */
-  .body{display:grid;grid-template-columns:224px 1fr;min-height:0;flex:1}
+  .body{display:grid;grid-template-columns:256px 1fr;min-height:0;flex:1}
 
   .rail{background:var(--rail);border-right:1px solid var(--hairline);padding:16px 10px;overflow:auto}
-  .rail h3{font-size:var(--t-caption);line-height:var(--lh-caption);font-weight:600;color:var(--muted);
-    letter-spacing:.04em;text-transform:uppercase;padding:0 8px;margin:0 0 6px}
-  .rail .grp{margin-bottom:18px}
-  .rail-item{display:flex;align-items:center;gap:10px;min-height:36px;padding:6px 8px;width:100%;text-align:left;
-    border-radius:var(--r-lg);font-size:var(--t-compact);line-height:var(--lh-compact);color:var(--fg)}
+  .rail h3{font-size:var(--t-caption);line-height:var(--lh-caption);font-weight:500;color:var(--muted);
+    padding:0 10px;margin:0 0 4px}
+  .rail .grp{margin-bottom:16px}
+  .rail-item{display:flex;align-items:center;gap:10px;min-height:36px;padding:6px 10px;width:100%;text-align:left;
+    border-radius:var(--r-lg);font-size:var(--t-compact);line-height:var(--lh-compact);color:var(--fg);white-space:nowrap}
+  .rail-item > span:first-of-type{overflow:hidden;text-overflow:ellipsis;min-width:0}
   .rail-item:hover{background:var(--hover)}
   .rail-item.on{background:rgba(40,32,24,.06);font-weight:500}
   .rail-item .ic{width:16px;height:16px;color:var(--muted);flex:none}
@@ -145,7 +146,7 @@
 
   /* resizable split */
   .split{display:flex;min-width:0;min-height:0}
-  .record{min-width:0;overflow:auto;background:var(--canvas);padding:24px 24px 48px}
+  .record{flex:1;min-width:0;overflow:auto;background:var(--canvas);padding:24px 28px 48px;container-type:inline-size}
   .handle{width:14px;flex:none;cursor:col-resize;position:relative;background:transparent;margin:0 -6px;z-index:2}
   .handle::before{content:"";position:absolute;left:6px;top:0;bottom:0;width:1px;background:var(--hairline)}
   .handle::after{content:"";position:absolute;left:4px;top:50%;transform:translateY(-50%);width:5px;height:28px;
@@ -166,13 +167,17 @@
   .card{background:var(--card);border:1px solid var(--hairline);border-radius:var(--r-xl);box-shadow:var(--shadow-raised);padding:20px}
   .card h2{font-size:var(--t-body);font-weight:600}
   .card .sub{font-size:var(--t-compact);color:var(--muted);margin-top:2px}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+  /* One column until the record is genuinely wide enough for two — a half-width field
+     at 250px is a label that wraps over a box that can't hold its value. */
+  .grid2{display:grid;grid-template-columns:1fr;gap:16px;margin-top:18px}
+  @container (min-width:680px){ .grid2{grid-template-columns:1fr 1fr} }
   .span2{grid-column:1/-1}
   .card.empty{display:none}
 
   .field{min-width:0}
-  .field label{display:flex;align-items:center;gap:6px;font-size:var(--t-compact);font-weight:500;margin-bottom:6px}
-  .field label .flag{font-size:var(--t-caption);font-weight:400;color:var(--muted)}
+  .field label{display:flex;align-items:baseline;gap:6px;font-size:var(--t-compact);font-weight:500;margin-bottom:6px;min-width:0}
+  .field label > span:first-child{min-width:0}
+  .field label .flag{font-size:var(--t-caption);font-weight:400;color:var(--muted);white-space:nowrap;flex:none}
   .field label .flag.ok{color:var(--success-ink)}
   .value{min-height:40px;display:flex;align-items:center;padding:0 12px;border:1px solid var(--input);
     border-radius:var(--r-lg);font-size:var(--t-compact);background:var(--well);color:var(--muted)}
@@ -542,9 +547,9 @@ function fieldHTML(f){
     const d=byN(f.defect);
     const cls=['field','flagged', d.n===active?'active':'', d.state==='resolved'?'done':''].join(' ');
     const flag=d.state==='resolved'?'<span class="flag ok">· corrected</span>':'<span class="flag">· flagged</span>';
-    return `<div class="${cls} ${f.span?'span2':''}" id="f-${d.n}"><label>${f.label} ${flag}</label><div class="value tnum">${display(d,d.value)}</div></div>`;
+    return `<div class="${cls} ${f.span?'span2':''}" id="f-${d.n}"><label><span>${f.label}</span>${flag}</label><div class="value tnum">${display(d,d.value)}</div></div>`;
   }
-  return `<div class="field locked ${showAll?'':'hidden'} ${f.span?'span2':''}"><label>${f.label}</label><div class="value tnum">${f.value}</div></div>`;
+  return `<div class="field locked ${showAll?'':'hidden'} ${f.span?'span2':''}"><label><span>${f.label}</span></label><div class="value tnum">${f.value}</div></div>`;
 }
 function cardHTML(c){
   const anyDefect=c.fields.some(f=>f.defect);
