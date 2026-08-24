@@ -272,8 +272,8 @@ export function TasksScreen() {
   );
 
   const clearFilters = React.useCallback(
-    () => setFilters({ ...DEFAULT_FILTERS, view: filters.view, sort: filters.sort }),
-    [filters.view, filters.sort, setFilters]
+    () => setFilters({ ...DEFAULT_FILTERS, view: filters.view }),
+    [filters.view, setFilters]
   );
 
   // Only rows in the current table count as selected; ids that scrolled out of the
@@ -418,13 +418,11 @@ export function TasksScreen() {
             user={user}
             now={now}
             view={filters.view}
-            sort={filters.sort}
             query={filters.query}
             openId={taskId}
             selected={visibleSelected}
             offline={!online}
             emptyKind={emptyKind}
-            onSort={(sort) => setFilters({ sort })}
             onClearFilters={clearFilters}
             /*
              * One click, not two (owner, 2026-08-24). Opening a task also makes it the

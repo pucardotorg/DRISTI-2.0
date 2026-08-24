@@ -35,7 +35,11 @@ export function OverviewCards({
     <div
       role="group"
       aria-label="Kinds of work"
-      className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6"
+      /* Five kinds, five columns — the grid was still sized for six after Drafts left,
+         which parked a permanent hole at the row's end and stretched every card to
+         cover for it (owner, 2026-08-24). Capped so ultrawide screens deepen the
+         gutter, not the cards. */
+      className="grid max-w-5xl grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5"
     >
       {CARD_ORDER.map((kind) => {
         const c = counts?.[kind];
@@ -55,7 +59,7 @@ export function OverviewCards({
               aria-pressed={pressed}
               onClick={() => onToggle(kind)}
               disabled={loading}
-              className="flex h-full min-h-24 w-full flex-col gap-1 rounded-xl p-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:cursor-default"
+              className="flex h-full w-full flex-col gap-0.5 rounded-xl p-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:cursor-default"
             >
               {/* The kind is the card's heading, so it reads at heading scale — 14/500,
                   not a 12px caption doing a heading's job. */}
@@ -68,8 +72,9 @@ export function OverviewCards({
                 {CARD_LABELS[kind]}
               </span>
               {/* Count and caption sit at the bottom, so numbers line up across the row
-                  even when an eyebrow wraps to two lines. */}
-              <span className="mt-auto text-title font-semibold tabular-nums text-foreground">
+                  even when a heading wraps to two lines. The 24px count carried the old
+                  96px minimum's emptiness; at 20 the card sits at its natural height. */}
+              <span className="mt-auto pt-1 text-title-s font-semibold tabular-nums text-foreground">
                 {loading || !c ? "–" : c.count}
               </span>
               {view === "needs-action" ? (

@@ -154,11 +154,10 @@ describe("applyFilters", () => {
     assert.deepEqual(ids({ query: "ST 1/2025 zzz" }), []);
   });
 
-  it("other views and sorts", () => {
+  it("other views", () => {
     assert.deepEqual(ids({ view: "waiting" }), ["waiting", "confirming"]);
     assert.deepEqual(ids({ view: "completed" }), ["done"]);
     assert.deepEqual(ids({ view: "archived" }), ["archived"]);
-    assert.deepEqual(ids({ sort: "kind" }).slice(0, 3), ["today-sign", "ready-sign", "overdue-pay"]);
     // The junior's tabs hold different populations for the same URL.
     assert.deepEqual(
       applyFilters(world(junior), DEFAULT_FILTERS).map((t) => t.id),

@@ -1,11 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { ArrowDownIcon, CircleCheckIcon, SearchXIcon } from "lucide-react";
+import { CircleCheckIcon, SearchXIcon } from "lucide-react";
 
 import { dueCueOf, outcomeOf, secondLineOf, waitingOnOf } from "@/lib/tasks/format";
 import { canArchive, verbFor } from "@/lib/tasks/permissions";
-import type { SortKey } from "@/lib/tasks/selectors";
 import type { Case, Person, Task, TaskId, TaskView, Verb } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
 import { useMinWidth } from "@/hooks/use-min-width";
@@ -146,13 +145,11 @@ export type TasksTableProps = {
   user: Person;
   now: Date;
   view: TaskView;
-  sort: SortKey;
   query?: string;
   openId: string | null;
   selected: Set<TaskId>;
   offline: boolean;
   emptyKind: "none" | "filtered";
-  onSort: (sort: SortKey) => void;
   onClearFilters: () => void;
   onOpen: (task: Task) => void;
   onVerb: (task: Task, verb: Verb) => void;
@@ -265,38 +262,6 @@ export function TasksTable(props: TasksTableProps) {
   );
 }
 
-function SortHead({
-  label,
-  active,
-  onClick,
-  className,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  className?: string;
-}) {
-  return (
-    <TableHead
-      aria-sort={active ? "ascending" : "none"}
-      className={cn("h-10 px-4 text-caption font-semibold text-muted-foreground", className)}
-    >
-      <button
-        type="button"
-        onClick={onClick}
-        className="inline-flex h-10 items-center gap-1 rounded-sm text-left outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        {label}
-        <ArrowDownIcon
-          aria-hidden
-          className={cn("size-3.5 transition-opacity", active ? "opacity-100" : "opacity-0")}
-        />
-        <span className="sr-only">{active ? ", sorted" : ", sort by this"}</span>
-      </button>
-    </TableHead>
-  );
-}
-
 function WideTable({
   rows,
   cases,
@@ -304,11 +269,9 @@ function WideTable({
   user,
   now,
   view,
-  sort,
   openId,
   selected,
   offline,
-  onSort,
   onOpen,
   onVerb,
   onToggleSelect,
@@ -333,8 +296,11 @@ function WideTable({
             </TableHead>
           ) : null}
           <TableHead className={headClass}>Task</TableHead>
-          <SortHead label="Case" active={sort === "case"} onClick={() => onSort("case")} />
-          <SortHead label="Due" active={sort === "urgency"} onClick={() => onSort("urgency")} />
+          <TableHead className={headClass}>Case</TableHead>
+          {/* The rows are always most-urgent first (`sortTasks`); the headers no longer
+              re-sort — a task queue has one order, and offering others was table
+              convention, not a need (owner, 2026-08-24). */}
+          <TableHead className={headClass}>Due</TableHead>
           {/* The panel names the advocates itself; when it narrows the table past
               the full width, this column stands down rather than wrapping every
               other cell to three lines. */}

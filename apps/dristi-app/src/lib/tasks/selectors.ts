@@ -11,19 +11,6 @@ import { compareUrgency, consequenceAt, daysUntil, isOverdue } from "./urgency";
 import type { Case, CardKind, Person, PersonId, Task, TaskView } from "./types";
 
 export type DueFilter = "any" | "overdue" | "today" | "week" | "before-hearing";
-/**
- * `urgency` was called `due`, which undersold it and hid it (owner, 2026-08-24). It has
- * never been a plain date sort: `compareUrgency` weighs what blocks a hearing, what is
- * overdue, and only then the date. Naming it for the date meant nobody knew the screen
- * already answered "what do I do next".
- */
-export type SortKey = "urgency" | "case" | "kind";
-
-export const SORT_LABELS: Record<SortKey, string> = {
-  urgency: "Most urgent",
-  case: "Case name",
-  kind: "Type of task",
-};
 
 export type Filters = {
   view: TaskView;
@@ -35,7 +22,6 @@ export type Filters = {
   /** An advocate on the case; "" = anyone. */
   advocate: PersonId | "";
   query: string;
-  sort: SortKey;
 };
 
 export const DEFAULT_FILTERS: Filters = {
@@ -45,7 +31,6 @@ export const DEFAULT_FILTERS: Filters = {
   court: "",
   advocate: "",
   query: "",
-  sort: "urgency",
 };
 
 /** Every card names an act. "Draft" is a state, so it is not one of them — see `cardKindOf`. */
@@ -145,41 +130,35 @@ function settled(task: Task): boolean {
   return TERMINAL.has(task.status) || task.status === "archived";
 }
 
-export function sortBy(world: World, tasks: Task[], sort: SortKey): Task[] {
+/**
+ * The list has exactly one order: how urgently it needs you (owner, 2026-08-24).
+ *
+ * There used to be a sort control — urgency, case name, kind. Nobody sorts a to-do list
+ * alphabetically by case, and the cards already gather by kind; two of the three options
+ * existed because tables conventionally sort, not because anyone needed them. The one
+ * order that matters — blocks-a-hearing, then overdue, then due date — is now simply how
+ * the list *is*, and the height the control occupied goes back to the tasks.
+ */
+export function sortTasks(world: World, tasks: Task[]): Task[] {
   const now = world.now;
-  const list = [...tasks];
   // Settled tasks have no urgency; the most recently closed or archived comes first.
-  const urgency = (a: Task, b: Task) => {
+  return [...tasks].sort((a, b) => {
     const ta = settled(a);
     const tb = settled(b);
     if (ta && tb) return closedAt(b) - closedAt(a) || compareUrgency(a, b, now);
     if (ta !== tb) return ta ? 1 : -1;
     return compareUrgency(a, b, now);
-  };
-  switch (sort) {
-    case "urgency":
-      return list.sort(urgency);
-    case "case":
-      return list.sort((a, b) => {
-        const pa = caseOf(world, a)?.parties ?? "";
-        const pb = caseOf(world, b)?.parties ?? "";
-        return pa.localeCompare(pb) || urgency(a, b);
-      });
-    case "kind":
-      return list.sort(
-        (a, b) => CARD_ORDER.indexOf(cardKindOf(a)) - CARD_ORDER.indexOf(cardKindOf(b)) || urgency(a, b)
-      );
-  }
+  });
 }
 
-/** The rows the table shows for the filters, sorted. */
+/** The rows the table shows for the filters, most urgent first. */
 export function applyFilters(world: World, f: Filters): Task[] {
   const rows = tasksInView(world, f.view).filter((t) => {
     const kase = caseOf(world, t)!;
     if (f.kind && cardKindOf(t) !== f.kind) return false;
     return passesFilters(t, kase, f, world.now);
   });
-  return sortBy(world, rows, f.sort);
+  return sortTasks(world, rows);
 }
 
 export type CardCount = {

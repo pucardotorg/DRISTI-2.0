@@ -3,12 +3,11 @@
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-import { CARD_ORDER, DEFAULT_FILTERS, type DueFilter, type Filters, type SortKey } from "@/lib/tasks/selectors";
+import { CARD_ORDER, DEFAULT_FILTERS, type DueFilter, type Filters } from "@/lib/tasks/selectors";
 import type { CardKind, TaskView } from "@/lib/tasks/types";
 
 const VIEWS: TaskView[] = ["needs-action", "waiting", "completed", "archived"];
 const DUES: DueFilter[] = ["any", "overdue", "today", "week", "before-hearing"];
-const SORTS: SortKey[] = ["urgency", "case", "kind"];
 
 function oneOf<T extends string>(v: string | null, allowed: readonly T[], fallback: T): T {
   return v && (allowed as readonly string[]).includes(v) ? (v as T) : fallback;
@@ -24,7 +23,6 @@ export function parseFilters(params: URLSearchParams): Filters {
     court: params.get("court") ?? "",
     advocate: params.get("adv") ?? "",
     query: params.get("q") ?? "",
-    sort: oneOf(params.get("sort"), SORTS, DEFAULT_FILTERS.sort),
   };
 }
 
@@ -37,7 +35,6 @@ export function serializeFilters(f: Filters): URLSearchParams {
   if (f.court) p.set("court", f.court);
   if (f.advocate) p.set("adv", f.advocate);
   if (f.query.trim()) p.set("q", f.query.trim());
-  if (f.sort !== DEFAULT_FILTERS.sort) p.set("sort", f.sort);
   return p;
 }
 

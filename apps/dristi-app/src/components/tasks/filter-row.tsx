@@ -1,19 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { ArrowUpDownIcon, SlidersHorizontalIcon, XIcon } from "lucide-react";
+import { SearchIcon, SlidersHorizontalIcon, XIcon } from "lucide-react";
 
 import {
   CARD_LABELS,
   DUE_LABELS,
-  SORT_LABELS,
   type DueFilter,
   type Filters,
-  type SortKey,
 } from "@/lib/tasks/selectors";
 import type { Person } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { Kbd } from "@/components/ui/kbd";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -34,7 +34,6 @@ import {
 } from "@/components/ui/sheet";
 
 const DUES: DueFilter[] = ["any", "overdue", "today", "week", "before-hearing"];
-const SORTS: SortKey[] = ["urgency", "case", "kind"];
 
 /** Radix Select reserves "" for the placeholder, so "all" stands in for it. */
 const ALL = "all";
@@ -63,6 +62,66 @@ function AppliedChip({ label, onClear }: { label: string; onClear: () => void })
   );
 }
 
+/**
+ * The list's own search — local to this screen, not app chrome (owner, 2026-08-24).
+ *
+ * It used to live in the global top bar and only *render* on this route, which is a
+ * local search wearing chrome's clothes: it looked app-wide, sat far from the list it
+ * narrowed, and vanished on every other page. Here it sits beside the thing it filters.
+ * Typing echoes locally and the URL follows after a pause, so keystrokes never pile up
+ * history or jump the page; `/` still focuses it.
+ */
+function SearchBox({ query, onChange }: { query: string; onChange: (q: string) => void }) {
+  const ref = React.useRef<HTMLInputElement>(null);
+  const [text, setText] = React.useState(query);
+  // When the URL changes underneath (Clear, back/forward), follow it.
+  const [seen, setSeen] = React.useState(query);
+  if (seen !== query) {
+    setSeen(query);
+    setText(query);
+  }
+
+  React.useEffect(() => {
+    if (text === query) return;
+    const t = window.setTimeout(() => onChange(text), 200);
+    return () => window.clearTimeout(t);
+  }, [text, query, onChange]);
+
+  React.useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable=true], [role=dialog]")) return;
+      event.preventDefault();
+      ref.current?.focus();
+      ref.current?.select();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  return (
+    <InputGroup className="w-full sm:w-64">
+      <InputGroupAddon>
+        <SearchIcon aria-hidden />
+      </InputGroupAddon>
+      <InputGroupInput
+        ref={ref}
+        type="search"
+        aria-label="Search these tasks"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Search case or task"
+        autoComplete="off"
+        enterKeyHint="search"
+      />
+      <InputGroupAddon align="inline-end" className={text ? "hidden" : "max-sm:hidden"}>
+        <Kbd aria-hidden>/</Kbd>
+      </InputGroupAddon>
+    </InputGroup>
+  );
+}
+
 /** A labelled control inside the peek — label above, full-width control below. */
 function PeekField({
   id,
@@ -84,23 +143,19 @@ function PeekField({
 }
 
 /**
- * The task list's one control row: **how it is ordered**, then a way in to the filters,
- * then whatever is currently applied.
+ * The task list's one control row: search, a way in to the filters, then whatever is
+ * currently applied.
  *
- * The rebuild (owner, 2026-08-24 — "the overall UX of this screen is a little fucked"):
- *
- *   · **Sort is surfaced and named honestly.** It was reachable only by clicking a column
- *     header, and its default was labelled *Due* although it has always run
- *     `compareUrgency`. The screen answered "what do I do next" and never said so.
- *     *Most urgent* is now the visible default.
- *   · **The three selects moved into a peek.** Due · Court · Advocate sat on screen at
+ *   · **No sort control.** The list is always most-urgent first (`sortTasks`); the
+ *     alternatives it once offered were table conventions, not needs.
+ *   · **Search is local**, beside the list it narrows — see `SearchBox`.
+ *   · **The three selects live in a peek.** Due · Court · Advocate sat on screen at
  *     their defaults on nearly every visit, costing a row of height for controls almost
- *     nobody had touched, and pushing the first task far down the page.
- *   · **What is applied never hides.** The original row was built on the rule that
- *     "nothing is hidden in a sheet; an applied filter is visible in its own control",
- *     and that rule is right — a filter you cannot see is a short list you cannot
- *     explain. So the *controls* fold away and the *state* does not: every active filter
- *     stays out here as a removable chip, and the trigger carries a count.
+ *     nobody had touched.
+ *   · **What is applied never hides.** The old row's rule — an applied filter is always
+ *     visible — was right: a filter you cannot see is a short list you cannot explain.
+ *     The *controls* fold away and the *state* does not: every active filter stays out
+ *     here as a removable chip, and the trigger carries a count.
  */
 export function FilterRow({
   filters,
@@ -130,22 +185,7 @@ export function FilterRow({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {/* Order first: it is the thing that decides what the advocate reads at the top. */}
-      <div className="flex items-center gap-2">
-        <ArrowUpDownIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-        <Select value={filters.sort} onValueChange={(v) => onChange({ sort: v as SortKey })}>
-          <SelectTrigger id="task-sort" aria-label="Sort tasks" className="min-w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {SORTS.map((s) => (
-              <SelectItem key={s} value={s}>
-                {SORT_LABELS[s]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <SearchBox query={filters.query} onChange={(q) => onChange({ query: q })} />
 
       <Sheet>
         <SheetTrigger asChild>
