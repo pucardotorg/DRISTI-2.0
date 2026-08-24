@@ -80,13 +80,19 @@ export function viewOf(task: Task, user: Person | PersonId, kase: Case): TaskVie
 }
 
 /**
- * Which overview card a task counts under. Anything someone saved as a draft is a
- * draft, whatever it will become; a `draft`-kind task that has been marked ready (or
- * filed) is a filing from then on. An archived task counts by the state it left.
+ * Which overview card a task counts under — by the **act it still needs**, never by how
+ * far along it is (owner, 2026-08-24).
+ *
+ * The cards are a list of things to do, so every one of them has to name an act: sign,
+ * pay, file, re-file, appear. "Draft" is not an act, it is a state — a half-written filing
+ * is still *to file*, and a scrutiny return stays *returned* until it goes back. Counting
+ * started work under a separate "Drafts" card took it out of the queue it belongs to and
+ * made the same task move between cards just because someone opened it.
+ *
+ * Nothing is lost: that a task is in progress still shows on the row (the second line
+ * says who saved it and when) and in its verb, which reads *Continue* rather than *Start*.
  */
 export function cardKindOf(task: Task): CardKind {
-  const status = task.status === "archived" ? (task.archived?.from ?? "open") : task.status;
-  if (status === "draft") return "draft";
   if (task.kind === "draft") return "file";
   return task.kind;
 }

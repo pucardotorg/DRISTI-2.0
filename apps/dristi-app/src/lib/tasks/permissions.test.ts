@@ -92,18 +92,26 @@ describe("viewOf — viewer-dependent tabs", () => {
 });
 
 describe("cardKindOf", () => {
-  it("a task in draft status counts under Drafts whatever its kind", () => {
-    assert.equal(cardKindOf(makeTask({ kind: "file", status: "draft" })), "draft");
-    assert.equal(cardKindOf(makeTask({ kind: "draft", status: "draft" })), "draft");
+  /*
+   * The cards name acts, not states (owner, 2026-08-24). Started work stays in the queue
+   * for the act it still needs, so a half-written filing is *to file* and a return being
+   * worked on is still *returned* — the card must not move under someone just because
+   * they opened the task.
+   */
+  it("a task being worked on still counts under the act it needs", () => {
+    assert.equal(cardKindOf(makeTask({ kind: "file", status: "draft" })), "file");
+    assert.equal(cardKindOf(makeTask({ kind: "returned", status: "draft" })), "returned");
+    assert.equal(cardKindOf(makeTask({ kind: "sign", status: "draft" })), "sign");
   });
-  it("a draft-kind task marked ready is a filing from then on", () => {
+  it("a draft-kind task is a filing at every stage", () => {
+    assert.equal(cardKindOf(makeTask({ kind: "draft", status: "draft" })), "file");
     assert.equal(cardKindOf(makeTask({ kind: "draft", status: "ready" })), "file");
     assert.equal(cardKindOf(makeTask({ kind: "draft", status: "awaiting-court" })), "file");
   });
-  it("an archived task counts by the state it left", () => {
+  it("an archived task counts by its kind, like any other", () => {
     assert.equal(
       cardKindOf(makeTask({ kind: "file", status: "archived", archived: { at: at(0), from: "draft" } })),
-      "draft"
+      "file"
     );
     assert.equal(
       cardKindOf(makeTask({ kind: "sign", status: "archived", archived: { at: at(0), from: "open" } })),

@@ -27,7 +27,7 @@ import {
   WAITING,
 } from "@/lib/tasks/permissions";
 import { formatBytes } from "@/lib/tasks/data";
-import { breadcrumbOf, resolutionSatisfies } from "@/lib/tasks/defects";
+import { resolutionSatisfies } from "@/lib/tasks/defects";
 import { consequenceAt } from "@/lib/tasks/urgency";
 import type { Case, Person, Task, Verb } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
@@ -201,8 +201,21 @@ function TaskDetail({
    * overridden without a reason is still open (see `lib/tasks/defects`). The panel cannot
    * see the filing draft, so it uses the task-side half of the same rule.
    */
-  const defects = task.returned?.defects ?? [];
+  const defects = React.useMemo(() => task.returned?.defects ?? [], [task.returned]);
   const unresolved = defects.filter((d) => !resolutionSatisfies(d)).length;
+  const done = defects.length - unresolved;
+  /* The sections still carrying work — the shape of the job, in place of its wording. */
+  const sectionsAffected = React.useMemo(
+    () =>
+      Array.from(
+        new Set(
+          defects
+            .filter((d) => !resolutionSatisfies(d))
+            .map((d) => d.target.sectionLabel)
+        )
+      ),
+    [defects]
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -342,45 +355,59 @@ function TaskDetail({
         </Block>
 
         {task.returned?.defects.length ? (
-          <Block title="Defects from scrutiny">
-            <Card size="sm" className="gap-3">
-              <div className="flex flex-col gap-0.5 px-4">
-                <p className="text-body-compact font-semibold">Returned for correction</p>
+          /*
+           * How much is left, and where — not every defect's wording (owner, 2026-08-24).
+           *
+           * This panel exists so the advocate can *decide what to pick up*, and that
+           * decision needs a size and a shape: eight defects, three done, spread over
+           * these sections. Reading each officer's remark is the correction round's job,
+           * and the correction screen shows them one at a time beside the field they
+           * belong to. Reproducing all eight here made the panel the longest thing on the
+           * screen and duplicated a surface that does the job better.
+           */
+          <Block title="Scrutiny return">
+            <Card size="sm" className="gap-3 px-4">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="text-body-compact font-semibold">
+                  {done} of {defects.length} corrected
+                </p>
                 <p className="text-caption tabular-nums text-muted-foreground">
-                  {longDate(task.returned.at)}
+                  Returned {longDate(task.returned.at)}
                 </p>
               </div>
-              <div className="mx-4 flex flex-col gap-2 rounded-lg bg-warning-muted p-3">
-                <p className="text-caption font-semibold text-warning-ink">
-                  {unresolved === 0
-                    ? "All defects addressed"
-                    : `${unresolved} ${unresolved === 1 ? "defect" : "defects"} to resolve`}
-                </p>
-                <ol className="flex flex-col gap-2">
-                  {defects.map((d) => (
-                    <li key={d.n} className="flex flex-col gap-0.5">
-                      <span className="flex gap-2">
-                        <span className="text-caption font-semibold tabular-nums text-warning-ink">
-                          {d.n}
-                        </span>
-                        <span
-                          className={cn(
-                            "text-body-compact leading-relaxed",
-                            resolutionSatisfies(d) && "text-warning-muted-foreground line-through"
-                          )}
-                        >
-                          {d.note}
-                        </span>
-                      </span>
-                      {/* Where it is — the answer to "which cheque?" that a bare remark
-                          cannot give (brief §2, problem 2). */}
-                      <span className="pl-6 text-caption text-warning-muted-foreground">
-                        {breadcrumbOf(d.target).join(" › ")}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
+
+              {/* One chunk per defect — countable at a glance, same vocabulary as the
+                  correction screen's own progress. */}
+              <div
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={defects.length}
+                aria-valuenow={done}
+                aria-label={`${done} of ${defects.length} defects corrected`}
+                className="flex gap-1"
+              >
+                {defects.map((d, i) => (
+                  <span
+                    key={d.n}
+                    className={cn(
+                      "h-1.5 min-w-0 flex-1 rounded-full",
+                      i < done ? "bg-primary" : "bg-track"
+                    )}
+                  />
+                ))}
               </div>
+
+              {unresolved > 0 ? (
+                <p className="text-caption text-muted-foreground">
+                  {/* Where the work sits, so the size of the job is legible without
+                      reading it: the sections, not the remarks. */}
+                  {`${unresolved} left in ${sectionsAffected.join(" · ")}`}
+                </p>
+              ) : (
+                <p className="text-caption font-medium text-success-ink">
+                  Everything is corrected — ready to re-file.
+                </p>
+              )}
             </Card>
           </Block>
         ) : null}

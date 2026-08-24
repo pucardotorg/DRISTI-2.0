@@ -36,7 +36,8 @@ export const DEFAULT_FILTERS: Filters = {
   sort: "due",
 };
 
-export const CARD_ORDER: CardKind[] = ["sign", "pay", "file", "returned", "hearing", "draft"];
+/** Every card names an act. "Draft" is a state, so it is not one of them — see `cardKindOf`. */
+export const CARD_ORDER: CardKind[] = ["sign", "pay", "file", "returned", "hearing"];
 
 export const CARD_LABELS: Record<CardKind, string> = {
   sign: "To sign",

@@ -96,8 +96,8 @@ describe("cardCounts", () => {
     assert.equal(c.sign.count, 2);
     assert.equal(c.sign.overdue, 0);
     assert.equal(c.sign.nextDue, at(0));
-    assert.equal(c.file.count, 1); // the draft moved to Drafts
-    assert.equal(c.draft.count, 1);
+    // The started filing stays under To file — a draft is a state, not an act.
+    assert.equal(c.file.count, 2);
     assert.equal(c.hearing.count, 1);
     assert.equal(c.returned.count, 1);
   });
@@ -127,12 +127,13 @@ describe("applyFilters", () => {
     ]);
   });
 
-  it("a card narrows to one kind", () => {
+  it("a card narrows to one kind, and started work stays in its own queue", () => {
     assert.deepEqual(ids({ kind: "sign" }), ["today-sign", "ready-sign"]);
-    assert.deepEqual(ids({ kind: "draft" }), ["draft-file"]);
-    assert.deepEqual(ids({ kind: "file" }), ["week-file"]);
+    // The half-written filing sits under To file beside the untouched one.
+    assert.deepEqual(ids({ kind: "file" }), ["week-file", "draft-file"]);
+    // The junior sees only the filing they are on; visibility is unchanged by this.
     assert.deepEqual(
-      applyFilters(world(junior), { ...DEFAULT_FILTERS, kind: "draft" }).map((t) => t.id),
+      applyFilters(world(junior), { ...DEFAULT_FILTERS, kind: "file" }).map((t) => t.id),
       ["draft-file"]
     );
   });

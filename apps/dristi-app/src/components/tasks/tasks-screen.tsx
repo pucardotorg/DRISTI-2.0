@@ -426,7 +426,18 @@ export function TasksScreen() {
             emptyKind={emptyKind}
             onSort={(sort) => setFilters({ sort })}
             onClearFilters={clearFilters}
-            onOpen={(t) => openDetail(t.id)}
+            /*
+             * One click, not two (owner, 2026-08-24). Opening a task also makes it the
+             * selected one, so the bulk bar's Mark as done / Archive are reachable without
+             * first hunting for the checkbox. It *replaces* the selection rather than
+             * adding to it: a row click means "this is the one I am on", which is the
+             * single-task flow. Building a set of several is what the checkbox is for.
+             */
+            onOpen={(t) => {
+              openDetail(t.id);
+              const kase = cases.find((c) => c.id === t.caseId);
+              setSelected(kase && canArchive(user, t, kase) ? new Set([t.id]) : new Set());
+            }}
             onVerb={handleVerb}
             onToggleSelect={(t) =>
               setSelected((prev) => {
