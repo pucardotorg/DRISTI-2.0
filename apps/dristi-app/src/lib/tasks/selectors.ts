@@ -11,7 +11,19 @@ import { compareUrgency, consequenceAt, daysUntil, isOverdue } from "./urgency";
 import type { Case, CardKind, Person, PersonId, Task, TaskView } from "./types";
 
 export type DueFilter = "any" | "overdue" | "today" | "week" | "before-hearing";
-export type SortKey = "due" | "case" | "kind";
+/**
+ * `urgency` was called `due`, which undersold it and hid it (owner, 2026-08-24). It has
+ * never been a plain date sort: `compareUrgency` weighs what blocks a hearing, what is
+ * overdue, and only then the date. Naming it for the date meant nobody knew the screen
+ * already answered "what do I do next".
+ */
+export type SortKey = "urgency" | "case" | "kind";
+
+export const SORT_LABELS: Record<SortKey, string> = {
+  urgency: "Most urgent",
+  case: "Case name",
+  kind: "Type of task",
+};
 
 export type Filters = {
   view: TaskView;
@@ -33,7 +45,7 @@ export const DEFAULT_FILTERS: Filters = {
   court: "",
   advocate: "",
   query: "",
-  sort: "due",
+  sort: "urgency",
 };
 
 /** Every card names an act. "Draft" is a state, so it is not one of them — see `cardKindOf`. */
@@ -145,7 +157,7 @@ export function sortBy(world: World, tasks: Task[], sort: SortKey): Task[] {
     return compareUrgency(a, b, now);
   };
   switch (sort) {
-    case "due":
+    case "urgency":
       return list.sort(urgency);
     case "case":
       return list.sort((a, b) => {

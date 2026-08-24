@@ -8,7 +8,7 @@ import type { CardKind, TaskView } from "@/lib/tasks/types";
 
 const VIEWS: TaskView[] = ["needs-action", "waiting", "completed", "archived"];
 const DUES: DueFilter[] = ["any", "overdue", "today", "week", "before-hearing"];
-const SORTS: SortKey[] = ["due", "case", "kind"];
+const SORTS: SortKey[] = ["urgency", "case", "kind"];
 
 function oneOf<T extends string>(v: string | null, allowed: readonly T[], fallback: T): T {
   return v && (allowed as readonly string[]).includes(v) ? (v as T) : fallback;

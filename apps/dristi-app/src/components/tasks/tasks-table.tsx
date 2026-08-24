@@ -334,7 +334,7 @@ function WideTable({
           ) : null}
           <TableHead className={headClass}>Task</TableHead>
           <SortHead label="Case" active={sort === "case"} onClick={() => onSort("case")} />
-          <SortHead label="Due" active={sort === "due"} onClick={() => onSort("due")} />
+          <SortHead label="Due" active={sort === "urgency"} onClick={() => onSort("urgency")} />
           {/* The panel names the advocates itself; when it narrows the table past
               the full width, this column stands down rather than wrapping every
               other cell to three lines. */}
