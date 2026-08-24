@@ -28,3 +28,11 @@ vendor/pucar-design-system/
 
 # generated browser runtime assets (pdf.js + tesseract), copied by apps/dristi-app/scripts/copy-runtime-assets.mjs
 apps/dristi-app/public/vendor/
+
+# design explorations — standalone interactive HTML prototypes used to try a direction
+# before it becomes app code. They are working material, not the product: they duplicate
+# DS tokens by hand, bypass the token gates on purpose, and go stale the moment the real
+# screen moves. Kept on disk so they stay openable; never pushed. The decisions they
+# settle live in the brief under docs/design/proposals/, which *is* tracked.
+docs/design/explorations/*
+!docs/design/explorations/README.md

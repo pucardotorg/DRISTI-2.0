@@ -911,9 +911,10 @@ except the two named above.
 v2.1 shipped, and the owner's verdict on the render was information overload. The cause was
 structural rather than decorative: **every defect spoke twice** — once as an inset under the
 flagged field, once as a row in the queue — and **all of the officer's evidence was expanded
-before anyone had decided they needed it**. Three mockup rounds
-(`scrutiny-v3-panel-direction.html`) settled the direction; v3.2 is the approved one and is
-what is built.
+before anyone had decided they needed it**. Three mockup rounds settled the direction; v3.2 is
+the approved one and is what is built. (Those rounds ran as an interactive prototype under
+`docs/design/explorations/`, which is untracked by design — everything the rounds decided is
+recorded in this section, so nothing here depends on having that file.)
 
 ### 16.1 The one structural move
 
