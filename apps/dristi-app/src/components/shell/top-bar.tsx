@@ -28,7 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
-import { TASKS_HOME } from "@/components/shell/app-sidebar";
+import { TASKS_HOME } from "@/lib/tasks/routes";
 import { useChrome } from "@/components/shell/chrome";
 import { ConfirmDialog } from "@/components/shell/confirm-dialog";
 import { PersonAvatar } from "@/components/tasks/person-avatar";

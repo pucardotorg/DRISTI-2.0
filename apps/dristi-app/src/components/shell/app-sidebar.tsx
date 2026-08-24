@@ -13,6 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { TASKS_HOME } from "@/lib/tasks/routes";
 import { summaryOf } from "@/lib/tasks/selectors";
 import { useTasks } from "@/lib/tasks/store";
 import {
@@ -30,7 +31,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 /** The court identity at the page origin. */
 export const COURT = { brand: "DRISTI", place: "Kollam, Kerala" };
 
-export const TASKS_HOME = "/tasks";
+/**
+ * Re-exported so existing imports keep working. The value itself lives in
+ * `lib/tasks/routes` — a route is data, and a Server Component cannot safely import one
+ * out of a `"use client"` module (see the note there).
+ */
+export { TASKS_HOME };
 
 /**
  * DS `SidebarMenuButton` is 32px tall, and exactly 32×32 once the rail collapses (forced
