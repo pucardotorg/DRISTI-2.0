@@ -23,6 +23,7 @@ import {
 import { TASKS_HOME } from "@/lib/tasks/routes";
 import { summaryOf } from "@/lib/tasks/selectors";
 import { useTasks } from "@/lib/tasks/store";
+import { AdvocateJoinCaseDialog } from "@/components/advocate/join-case-dialog";
 import { BrandGlyph } from "@/components/brand-lockup";
 import { ConfirmDialog } from "@/components/shell/confirm-dialog";
 import { useProfile } from "@/components/shell/profile";
@@ -126,9 +127,11 @@ const GO: NavItem[] = [
 
 const START: NavItem[] = [
   // Both flows already live on this branch; the rail is just finally telling the truth
-  // about them. Join goes to the signed-in journey (case number → role questions →
-  // vakalatnama), not the pre-auth /join token entry, which bounced a signed-in person
-  // back through the sign-in gate.
+  // about them. File a Case routes to the filing area. Join a Case is not a route at
+  // all — it is the join journey (case number → role questions → vakalatnama), built as
+  // a self-contained dialog in the case-access work, and it opens *here*, over whatever
+  // screen the person is on. Sending them to the advocate portal for it swapped the
+  // whole world — chrome, even the signed-in identity — for what is a task, not a place.
   {
     id: "file-case",
     label: "File a Case",
@@ -136,12 +139,7 @@ const START: NavItem[] = [
     href: "/filings",
   },
   { id: "file-application", label: "File Application", icon: FileTextIcon },
-  {
-    id: "join-case",
-    label: "Join a Case",
-    icon: UserPlusIcon,
-    href: "/advocate?view=join",
-  },
+  { id: "join-case", label: "Join a Case", icon: UserPlusIcon },
 ];
 
 const WITH: NavItem[] = [{ id: "people", label: "People", icon: UsersIcon }];
@@ -224,10 +222,24 @@ function TasksCountLabel() {
   return <span className="sr-only">, {action} need action</span>;
 }
 
-/** One nav row: a link when it goes somewhere, an explained dead control when it does not. */
-function NavRow({ item }: { item: NavItem }) {
+/**
+ * One nav row: a link when it goes somewhere, an action when it starts something in
+ * place, and an explained dead control when it does neither.
+ */
+function NavRow({ item, onAction }: { item: NavItem; onAction?: () => void }) {
   const pathname = usePathname();
   const { id, label, icon: Icon, href } = item;
+
+  if (onAction) {
+    return (
+      <SidebarMenuItem>
+        <SidebarMenuButton tooltip={label} className={ROW} onClick={onAction}>
+          <Icon aria-hidden />
+          <span className={LABEL}>{label}</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  }
 
   if (!href) {
     return (
@@ -297,10 +309,13 @@ function NavGroup({
   items,
   label,
   separated,
+  actions,
 }: {
   items: NavItem[];
   label: string;
   separated?: boolean;
+  /** In-place actions by item id — a row with one opens something rather than routing. */
+  actions?: Record<string, () => void>;
 }) {
   return (
     <SidebarGroup
@@ -315,7 +330,7 @@ function NavGroup({
         <nav aria-label={label}>
           <SidebarMenu className="gap-1 group-data-[collapsible=icon]:items-center">
             {items.map((item) => (
-              <NavRow key={item.id} item={item} />
+              <NavRow key={item.id} item={item} onAction={actions?.[item.id]} />
             ))}
           </SidebarMenu>
         </nav>
@@ -540,6 +555,19 @@ function ProfileFooter() {
 /** Main navigation for the whole app. Icon rail from `md`, sheet below it. */
 export function AppSidebar() {
   const { theme } = useRailTheme();
+  const { switchProfile } = useProfile();
+
+  /**
+   * The join journey, mounted in this shell. The dialog was built self-contained in the
+   * case-access work — lookup, code, role, vakalatnama, done — precisely so it could be
+   * stitched into whichever chrome the product settled on. This is that stitching: the
+   * rail opens it over the current screen, and the person never changes worlds to do it.
+   */
+  const [joinOpen, setJoinOpen] = React.useState(false);
+  const startActions = React.useMemo(
+    () => ({ "join-case": () => setJoinOpen(true) }),
+    [],
+  );
 
   return (
     /*
@@ -579,11 +607,36 @@ export function AppSidebar() {
 
       <SidebarContent>
         <NavGroup items={GO} label="Main" />
-        <NavGroup items={START} label="Start something" separated />
+        <NavGroup
+          items={START}
+          label="Start something"
+          separated
+          actions={startActions}
+        />
         <NavGroup items={WITH} label="People" separated />
       </SidebarContent>
 
       <ProfileFooter />
+
+      {/* The dialog portals to the page, so it renders in the ordinary light DS
+          regardless of the rail's plate. `onJoinAsLitigant` is the journey discovering
+          the person is a party, not a representative — the same switch the profile
+          footer offers. */}
+      <AdvocateJoinCaseDialog
+        open={joinOpen}
+        onOpenChange={setJoinOpen}
+        mode="manual"
+        locale="en"
+        onJoined={() => {
+          /* The dialog's own done-stage reports the outcome (joined, or waiting on an
+             approver). A joined case will surface in Your Cases once that screen is
+             built on this shell. */
+        }}
+        onJoinAsLitigant={() => {
+          setJoinOpen(false);
+          switchProfile();
+        }}
+      />
     </Sidebar>
   );
 }
