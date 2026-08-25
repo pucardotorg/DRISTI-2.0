@@ -21,11 +21,7 @@ const NOTICE_ROLE = {
 } as const;
 
 export type NoticeVariant =
-  | "neutral"
-  | "info"
-  | "warning"
-  | "success"
-  | "destructive";
+  "neutral" | "info" | "warning" | "success" | "destructive";
 
 /**
  * A notice that carries a status wears that status: the DS `Alert` variants ship the
@@ -140,7 +136,7 @@ export function InfoWell({
     <div
       className={cn(
         "flex flex-wrap items-center gap-4 rounded-lg bg-surface-sunken p-4 text-body-compact text-muted-foreground",
-        className
+        className,
       )}
     >
       {children}

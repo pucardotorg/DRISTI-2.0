@@ -6,7 +6,12 @@ import { usePathname } from "next/navigation";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppSidebar } from "@/components/shell/app-sidebar";
-import { ChromeContext, type ChromeValue, type Crumb } from "@/components/shell/chrome";
+import {
+  ChromeContext,
+  type ChromeValue,
+  type Crumb,
+} from "@/components/shell/chrome";
+import { ProfileProvider } from "@/components/shell/profile";
 import { TopBar } from "@/components/shell/top-bar";
 
 /**
@@ -38,7 +43,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     open: area === "list",
   });
   const navOpen = nav.area === area ? nav.open : area === "list";
-  const setNavOpen = React.useCallback((open: boolean) => setNav({ area, open }), [area]);
+  const setNavOpen = React.useCallback(
+    (open: boolean) => setNav({ area, open }),
+    [area],
+  );
   const foldNav = React.useCallback(() => setNavOpen(false), [setNavOpen]);
   const unfoldNav = React.useCallback(() => setNavOpen(true), [setNavOpen]);
 
@@ -46,31 +54,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const chrome = React.useMemo<ChromeValue>(
     () => ({ crumbs, setCrumbs, navOpen, foldNav, unfoldNav }),
-    [crumbs, navOpen, foldNav, unfoldNav]
+    [crumbs, navOpen, foldNav, unfoldNav],
   );
 
   return (
     <TooltipProvider>
-      <ChromeContext.Provider value={chrome}>
-        {/*
-          * The collapsed rail is widened from the DS's 3rem so a 40px control sits in it
-          * with an even 8px gutter — at 3rem a 40px row leaves 4px a side and the icons
-          * read as crowded against the edge.
-          */}
-        <SidebarProvider
-          open={navOpen}
-          onOpenChange={setNavOpen}
-          style={{ "--sidebar-width-icon": "3.5rem" } as React.CSSProperties}
-        >
-          <AppSidebar />
-          {/* Not `SidebarInset`: that primitive is itself a `<main>`, and the screens
+      <ProfileProvider>
+        <ChromeContext.Provider value={chrome}>
+          {/*
+           * The collapsed rail is widened from the DS's 3rem so a 40px control sits in it
+           * with an even 8px gutter — at 3rem a 40px row leaves 4px a side and the icons
+           * read as crowded against the edge.
+           */}
+          <SidebarProvider
+            open={navOpen}
+            onOpenChange={setNavOpen}
+            style={{ "--sidebar-width-icon": "3.5rem" } as React.CSSProperties}
+          >
+            <AppSidebar />
+            {/* Not `SidebarInset`: that primitive is itself a `<main>`, and the screens
               below already own that landmark. */}
-          <div className="flex min-h-svh min-w-0 flex-1 flex-col bg-background">
-            <TopBar />
-            <div className="flex min-h-0 flex-1">{children}</div>
-          </div>
-        </SidebarProvider>
-      </ChromeContext.Provider>
+            <div className="flex min-h-svh min-w-0 flex-1 flex-col bg-background">
+              <TopBar />
+              <div className="flex min-h-0 flex-1">{children}</div>
+            </div>
+          </SidebarProvider>
+        </ChromeContext.Provider>
+      </ProfileProvider>
     </TooltipProvider>
   );
 }

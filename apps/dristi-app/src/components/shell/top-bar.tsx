@@ -24,13 +24,23 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { TASKS_HOME } from "@/lib/tasks/routes";
+import { caseOf, tasksInView } from "@/lib/tasks/selectors";
+import { compareUrgency, daysUntil, isOverdue } from "@/lib/tasks/urgency";
 import { useChrome } from "@/components/shell/chrome";
 import { ConfirmDialog } from "@/components/shell/confirm-dialog";
+import {
+  NotificationsBell,
+  type ShellNotification,
+} from "@/components/shell/notifications";
 import { PersonAvatar } from "@/components/tasks/person-avatar";
 
-const ROLE_LABEL = { senior: "Senior advocate", junior: "Junior advocate" } as const;
+const ROLE_LABEL = {
+  senior: "Senior advocate",
+  junior: "Junior advocate",
+} as const;
 
 /**
  * The one breadcrumb in the app. Route-aware: Tasks › the task › the action. The task
@@ -59,10 +69,16 @@ function ChromeBreadcrumb() {
             <React.Fragment key={`${i}-${crumb.label}`}>
               {/* Middle crumbs are what a narrow bar can afford to drop: the last crumb
                   is what orients you. */}
-              <BreadcrumbSeparator className={isLast ? "shrink-0" : "hidden md:inline-flex"} />
-              <BreadcrumbItem className={isLast ? "min-w-0" : "hidden min-w-0 md:inline-flex"}>
+              <BreadcrumbSeparator
+                className={isLast ? "shrink-0" : "hidden md:inline-flex"}
+              />
+              <BreadcrumbItem
+                className={isLast ? "min-w-0" : "hidden min-w-0 md:inline-flex"}
+              >
                 {isLast ? (
-                  <BreadcrumbPage className="truncate font-medium">{crumb.label}</BreadcrumbPage>
+                  <BreadcrumbPage className="truncate font-medium">
+                    {crumb.label}
+                  </BreadcrumbPage>
                 ) : crumb.href ? (
                   <BreadcrumbLink asChild className="truncate">
                     <Link href={crumb.href}>{crumb.label}</Link>
@@ -122,7 +138,9 @@ function AccountMenu() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-64">
           <DropdownMenuLabel className="flex flex-col gap-0.5">
-            <span className="text-body-compact font-medium text-foreground">{user.name}</span>
+            <span className="text-body-compact font-medium text-foreground">
+              {user.name}
+            </span>
             <span className="text-caption font-normal text-muted-foreground">
               {ROLE_LABEL[user.role]}
             </span>
@@ -137,10 +155,16 @@ function AccountMenu() {
             aria-label="Viewing as"
           >
             {people.map((p) => (
-              <DropdownMenuRadioItem key={p.id} value={p.id} disabled={state !== "ready"}>
+              <DropdownMenuRadioItem
+                key={p.id}
+                value={p.id}
+                disabled={state !== "ready"}
+              >
                 <span className="flex min-w-0 flex-1 items-center justify-between gap-3">
                   <span className="truncate">{p.name}</span>
-                  <span className="text-caption text-muted-foreground">{ROLE_LABEL[p.role]}</span>
+                  <span className="text-caption text-muted-foreground">
+                    {ROLE_LABEL[p.role]}
+                  </span>
                 </span>
               </DropdownMenuRadioItem>
             ))}
@@ -169,18 +193,85 @@ function AccountMenu() {
 }
 
 /**
- * Chrome for the whole app: the main nav's collapse trigger, where you are, and your
- * account. The court identity lives in the nav rail's header instead — it is the page
- * origin, and it should not move when this bar's contents change.
+ * What the bell reports, derived from the tasks already on screen.
+ *
+ * There is no notification service yet, so rather than invent events this reads the one
+ * source of truth the app has: a task past its date is a thing that needs attention, and
+ * saying so is a restatement of the person's own data rather than a fabricated feed.
+ * Overdue items are `persistent` — they do not stop mattering because the panel was
+ * opened — which also means nothing here is clearable until a real source lands.
+ */
+function useTaskNotifications() {
+  const world = useTasks();
+  const [readIds, setReadIds] = React.useState<ReadonlySet<string>>(new Set());
+
+  const { state, people, cases, tasks, user } = world;
+
+  const items = React.useMemo<ShellNotification[]>(() => {
+    if (state !== "ready") return [];
+    const now = new Date();
+    const w = { people, cases, tasks, user, now };
+    return tasksInView(w, "needs-action")
+      .filter((t) => isOverdue(t, now))
+      .sort((a, b) => compareUrgency(a, b, now))
+      .slice(0, 8)
+      .map((t) => {
+        const days = t.dueAt ? Math.abs(daysUntil(t.dueAt, now)) : 0;
+        const kase = caseOf(w, t);
+        return {
+          id: t.id,
+          title: t.title,
+          body: `${days === 0 ? "Due today" : `${days} day${days === 1 ? "" : "s"} overdue`}${
+            kase ? ` · ${kase.parties}` : ""
+          }`,
+          unread: !readIds.has(t.id),
+          tone: "warning" as const,
+          persistent: true,
+        };
+      });
+  }, [state, people, cases, tasks, user, readIds]);
+
+  const markAllRead = React.useCallback(() => {
+    setReadIds((prev) => {
+      const next = new Set(prev);
+      for (const n of items) next.add(n.id);
+      return next;
+    });
+  }, [items]);
+
+  // Nothing derived from live tasks is stale, so this is a no-op until a real feed
+  // arrives — the control disables itself off `stale`, so it never lies about clearing.
+  const clearStale = React.useCallback(() => {}, []);
+
+  return { items, markAllRead, clearStale };
+}
+
+/**
+ * Chrome for the whole app: the main nav's collapse trigger, where you are, what needs
+ * your attention, and your account. The court identity lives in the nav rail's header
+ * instead — it is the page origin, and it should not move when this bar's contents change.
  */
 export function TopBar() {
+  const notifications = useTaskNotifications();
+
   return (
     // `sticky` is positioned, so the phone search row can hang under it, full width.
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-hairline bg-card px-4 sm:px-6">
       {/* The DS ships this at 36px; 40 is the accessibility floor. */}
       <NavTrigger />
+      {/* The trigger is chrome for the rail, not part of the trail. A hairline between
+          them stops the breadcrumb reading as the collapse button's label. */}
+      <Separator
+        orientation="vertical"
+        className="hidden h-5! self-center! sm:block"
+      />
       <ChromeBreadcrumb />
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        <NotificationsBell
+          notifications={notifications.items}
+          onRead={notifications.markAllRead}
+          onClearAll={notifications.clearStale}
+        />
         <AccountMenu />
       </div>
     </header>

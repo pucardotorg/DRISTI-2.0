@@ -48,7 +48,9 @@ export function ConfirmDialog({
           <AlertDialogAction
             onClick={onConfirm}
             className={
-              destructive ? buttonVariants({ variant: "destructive-solid" }) : undefined
+              destructive
+                ? buttonVariants({ variant: "destructive-solid" })
+                : undefined
             }
           >
             {confirmLabel}

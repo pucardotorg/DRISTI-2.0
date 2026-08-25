@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CalendarDaysIcon,
+  CheckIcon,
   ChevronsUpDownIcon,
   FilePlusIcon,
   FileTextIcon,
@@ -21,17 +22,14 @@ import {
 import { TASKS_HOME } from "@/lib/tasks/routes";
 import { summaryOf } from "@/lib/tasks/selectors";
 import { useTasks } from "@/lib/tasks/store";
-import { BrandGlyph, BrandLockup } from "@/components/brand-lockup";
+import { BrandGlyph } from "@/components/brand-lockup";
+import { useProfile } from "@/components/shell/profile";
+import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Sidebar,
   SidebarContent,
@@ -43,7 +41,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 /** The court identity at the page origin. */
 export const COURT = { brand: "DRISTI", place: "Kollam, Kerala" };
@@ -73,6 +75,12 @@ export { TASKS_HOME };
  */
 const ROW = [
   "h-10 gap-3 px-2 group-data-[collapsible=icon]:size-10!",
+  // Centring the square is not enough — the glyph has to be centred *within* it. The
+  // label span survives the collapse at zero width, and the row's 12px gap is still
+  // measured against it, which pushed the icon 8px from the leading edge and 12px from
+  // the trailing one. Dropping the gap and the padding and centring by flex puts the
+  // 20px mark at 10px a side, which is what "a proper square" means here.
+  "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-0!",
   "[&_svg]:size-5",
   "data-[active=true]:font-semibold",
 ].join(" ");
@@ -89,7 +97,12 @@ const GO: NavItem[] = [
   { id: "search", label: "Search", icon: SearchIcon },
   { id: "home", label: "Home", icon: HouseIcon },
   { id: "cases", label: "Your Cases", icon: FolderClosedIcon },
-  { id: "tasks", label: "Pending Tasks", icon: ListChecksIcon, href: TASKS_HOME },
+  {
+    id: "tasks",
+    label: "Pending Tasks",
+    icon: ListChecksIcon,
+    href: TASKS_HOME,
+  },
   { id: "calendar", label: "Calendar", icon: CalendarDaysIcon },
 ];
 
@@ -101,13 +114,16 @@ const START: NavItem[] = [
 
 const WITH: NavItem[] = [{ id: "people", label: "People", icon: UsersIcon }];
 
+/**
+ * The row's label. It has to leave the layout on collapse, not merely be clipped by the
+ * rail's overflow: a flex child of zero visible width is still a flex child, and while
+ * the button had padding it measured 0 but at full width it takes 20px — enough to hold
+ * a centred 20px glyph hard against the leading edge.
+ */
+const LABEL = "truncate group-data-[collapsible=icon]:hidden";
+
 const UNBUILT_NOTE = "not part of this build";
 const SEARCH_NOTE = "product-wide search — not part of this build";
-
-const ROLE_LABEL = {
-  senior: "Senior advocate",
-  junior: "Junior advocate",
-} as const;
 
 /** The Needs-action count beside Pending Tasks — plain muted text, like every count. */
 function TasksCount() {
@@ -140,7 +156,7 @@ function NavRow({ item }: { item: NavItem }) {
               className={`${ROW} text-muted-foreground aria-disabled:pointer-events-auto aria-disabled:opacity-100`}
             >
               <Icon aria-hidden />
-              <span className="truncate">{label}</span>
+              <span className={LABEL}>{label}</span>
             </SidebarMenuButton>
           </TooltipTrigger>
           <TooltipContent side="right">
@@ -156,10 +172,15 @@ function NavRow({ item }: { item: NavItem }) {
   const isPage = pathname === href;
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton asChild isActive={inArea} tooltip={label} className={ROW}>
+      <SidebarMenuButton
+        asChild
+        isActive={inArea}
+        tooltip={label}
+        className={ROW}
+      >
         <Link href={href} aria-current={isPage ? "page" : undefined}>
           <Icon aria-hidden />
-          <span className="truncate">{label}</span>
+          <span className={LABEL}>{label}</span>
           {id === "tasks" ? <TasksCount /> : null}
         </Link>
       </SidebarMenuButton>
@@ -221,80 +242,120 @@ function NavGroup({
  * nothing beside it to be distinguished from, and both reference rails render it solid.
  */
 function ProfileFooter() {
-  const { state, people, user, setUser } = useTasks();
-  const canSwitch = people.length > 1;
-  const roleLabel = ROLE_LABEL[user.role as keyof typeof ROLE_LABEL] ?? "Litigant";
+  const { user } = useTasks();
+  const { profileRole, advocateProfileAvailable, switchProfile } = useProfile();
+  const roleLabel = profileRole === "advocate" ? "Advocate" : "Litigant";
 
   return (
     <SidebarFooter className="border-t border-hairline p-3 group-data-[collapsible=icon]:px-0">
       <SidebarMenu className="group-data-[collapsible=icon]:items-center">
-        <SidebarMenuItem>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <SidebarMenuButton
-                className={`${ROW} h-12 group-data-[collapsible=icon]:size-10!`}
-                tooltip={`${user.name} · ${roleLabel}`}
-                aria-label={`${user.name} · ${roleLabel}${canSwitch ? " · Switch profile" : ""}`}
-              >
-                <span
-                  aria-hidden
-                  className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-caption font-semibold text-primary-foreground group-data-[collapsible=icon]:size-7"
+        <SidebarMenuItem className="flex items-center gap-1">
+          <div className="min-w-0 flex-1">
+            <Popover>
+              <PopoverTrigger asChild>
+                <SidebarMenuButton
+                  className={`${ROW} h-12 group-data-[collapsible=icon]:size-10!`}
+                  tooltip={`${user.name} · ${roleLabel}`}
+                  aria-label={`${user.name} · ${roleLabel} · Switch profile`}
                 >
-                  {user.initials}
-                </span>
-                <span className="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
-                  <span className="truncate text-body-compact font-medium text-foreground">
-                    {user.name}
+                  <span className="relative shrink-0">
+                    <span
+                      aria-hidden
+                      className="flex size-8 items-center justify-center rounded-full bg-primary text-caption font-semibold text-primary-foreground"
+                    >
+                      {user.initials}
+                    </span>
+                    {/* The chevron rides the avatar rather than the row's trailing edge,
+                        so the affordance survives the collapse with the mark it belongs
+                        to. */}
+                    <span
+                      aria-hidden
+                      className="absolute top-1/2 -left-2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full bg-sidebar ring-1 ring-hairline"
+                    >
+                      <ChevronsUpDownIcon className="size-3! text-muted-foreground" />
+                    </span>
                   </span>
-                  <span className="truncate text-caption text-muted-foreground">{roleLabel}</span>
-                </span>
-                {canSwitch ? (
-                  <ChevronsUpDownIcon
+                  <span className="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
+                    <span className="truncate text-body-compact font-medium text-foreground">
+                      {user.name}
+                    </span>
+                    <span className="truncate text-caption text-muted-foreground">
+                      {roleLabel}
+                    </span>
+                  </span>
+                </SidebarMenuButton>
+              </PopoverTrigger>
+
+              <PopoverContent
+                side="top"
+                align="start"
+                collisionPadding={16}
+                className="w-64 p-2"
+              >
+                <p className="px-2 py-1.5 text-caption font-semibold text-muted-foreground">
+                  Switch profile
+                </p>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={
+                    profileRole === "advocate" ? switchProfile : undefined
+                  }
+                >
+                  <span
                     aria-hidden
-                    className="ml-auto text-muted-foreground group-data-[collapsible=icon]:hidden"
-                  />
-                ) : null}
-              </SidebarMenuButton>
-            </DropdownMenuTrigger>
-
-            <DropdownMenuContent side="right" align="end" className="min-w-64">
-              <DropdownMenuLabel className="flex flex-col gap-0.5">
-                <span className="text-body-compact font-medium text-foreground">{user.name}</span>
-                <span className="text-caption font-normal text-muted-foreground">{roleLabel}</span>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-
-              {canSwitch ? (
-                <>
-                  <DropdownMenuLabel className="text-caption font-medium text-muted-foreground">
-                    Switch profile
-                  </DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={user.id}
-                    onValueChange={(id) => void setUser(id)}
-                    aria-label="Switch profile"
+                    className="flex size-6 items-center justify-center rounded-full bg-surface-sunken text-caption font-semibold"
                   >
-                    {people.map((p) => (
-                      <DropdownMenuRadioItem key={p.id} value={p.id} disabled={state !== "ready"}>
-                        <span className="flex min-w-0 flex-1 items-center justify-between gap-3">
-                          <span className="truncate">{p.name}</span>
-                          <span className="text-caption text-muted-foreground">
-                            {ROLE_LABEL[p.role as keyof typeof ROLE_LABEL] ?? "Litigant"}
-                          </span>
-                        </span>
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                  <DropdownMenuSeparator />
-                </>
-              ) : null}
+                    L
+                  </span>
+                  <span className="flex-1 text-left">Litigant</span>
+                  {profileRole === "litigant" ? (
+                    <CheckIcon aria-hidden />
+                  ) : null}
+                </Button>
+                {advocateProfileAvailable ? (
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={
+                      profileRole === "litigant" ? switchProfile : undefined
+                    }
+                  >
+                    <span
+                      aria-hidden
+                      className="flex size-6 items-center justify-center rounded-full bg-surface-sunken text-caption font-semibold"
+                    >
+                      A
+                    </span>
+                    <span className="flex-1 text-left">Advocate</span>
+                    {profileRole === "advocate" ? (
+                      <CheckIcon aria-hidden />
+                    ) : null}
+                  </Button>
+                ) : null}
+              </PopoverContent>
+            </Popover>
+          </div>
 
-              <DropdownMenuItem disabled>
+          {/* Settings is its own control, not an item inside the profile menu: it is a
+              destination, and burying it under "switch profile" makes one of the two
+              reasons to come here invisible. */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-disabled="true"
+                aria-label="Profile settings"
+                className="size-10 shrink-0 [&_svg]:size-5 group-data-[collapsible=icon]:hidden"
+              >
                 <SettingsIcon aria-hidden />
-                Settings — {UNBUILT_NOTE}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              Settings — {UNBUILT_NOTE}
+            </TooltipContent>
+          </Tooltip>
         </SidebarMenuItem>
       </SidebarMenu>
     </SidebarFooter>
@@ -306,14 +367,17 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       {/*
-        * The brand sits at the page origin, in the rail — the top bar carries the
-        * breadcrumb instead, so the mark does not move when the rail collapses. The
-        * header is the top bar's own height so its rule and the breadcrumb bar's rule
-        * are one continuous line across the whole chrome.
-        */}
-      <SidebarHeader className="h-14 justify-center border-b border-hairline px-3 py-0 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
-        <BrandLockup className="h-10 group-data-[collapsible=icon]:hidden" />
-        <BrandGlyph className="hidden h-7 group-data-[collapsible=icon]:flex" />
+       * The brand sits at the page origin, in the rail — the top bar carries the
+       * breadcrumb instead, so the mark does not move when the rail collapses. The
+       * header is the top bar's own height so its rule and the breadcrumb bar's rule
+       * are one continuous line across the whole chrome.
+       */}
+      <SidebarHeader className="h-14 items-center justify-center border-b border-hairline px-3 py-0 group-data-[collapsible=icon]:px-0">
+        {/* The glyph alone, in both states. The full lockup stacks the wordmark under
+            the mark, and at the 40px a 56px bar can spare the "24×7 ON COURTS" line
+            renders too small to read — a mark that has to be squinted at is worse than
+            no wordmark at all. */}
+        <BrandGlyph className="h-8" />
       </SidebarHeader>
 
       <SidebarContent>
