@@ -79,13 +79,18 @@ export { TASKS_HOME };
 const ROW = [
   // `pr-3` against `px-2`: the count rides `ml-auto` to the trailing edge, and at 8px it
   // sat on the pill's curve. The extra step gives it something to stand in.
-  "h-10 gap-3 px-2 pr-3 group-data-[collapsible=icon]:size-10!",
+  // `relative` so the collapsed count can ride the glyph's corner.
+  "relative h-10 gap-3 px-2 pr-3 group-data-[collapsible=icon]:size-10!",
   // Centring the square is not enough — the glyph has to be centred *within* it. The
   // label span survives the collapse at zero width, and the row's 12px gap is still
   // measured against it, which pushed the icon 8px from the leading edge and 12px from
   // the trailing one. Dropping the gap and the padding and centring by flex puts the
   // 20px mark at 10px a side, which is what "a proper square" means here.
   "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-0!",
+  // The DS clips the button so a label cannot spill during the collapse. Once collapsed
+  // there is no label left to spill — it leaves the layout entirely — and the clip is
+  // only cutting the corner off the count badge.
+  "group-data-[collapsible=icon]:overflow-visible",
   "[&_svg]:size-5",
   // Selection inverts: on a charcoal plate there is no quiet tint left to spend, so the
   // selected row becomes the light surface. That fill *is* the cue — it is the strongest
@@ -149,21 +154,46 @@ const LABEL = "truncate group-data-[collapsible=icon]:hidden";
 const UNBUILT_NOTE = "not part of this build";
 const SEARCH_NOTE = "product-wide search — not part of this build";
 
-/** The Needs-action count beside Pending Tasks — plain muted text, like every count. */
+/**
+ * How many tasks are waiting on you, as a badge on the Pending Tasks row.
+ *
+ * It is the same object in both rail states, not two designs: at full width it sits at
+ * the row's trailing edge, and on collapse it rides the glyph's corner exactly as the
+ * bell's badge does — because collapsing the rail must not be a way to stop being told.
+ *
+ * The ring is what keeps a saturated mark legible over whatever it overlaps. It has to
+ * follow the row: charcoal under an idle row, white under the selected one.
+ */
 function TasksCount() {
   const { state, people, cases, tasks, user } = useTasks();
   if (state !== "ready") return null;
   const { action } = summaryOf({ people, cases, tasks, user, now: new Date() });
   if (!action) return null;
   return (
-    // The count has to follow the row it sits in. On the charcoal plate it is the muted
-    // grey like every other count; inside the selected row that same grey lands on a
-    // white fill at 2.08:1, so it swaps to the light palette's muted ink — still secondary
-    // to the label, still legible at 5.79:1.
-    <span className="ml-auto text-caption tabular-nums text-muted-foreground group-data-[collapsible=icon]:hidden group-data-[active=true]/menu-button:text-(--rail-muted)">
+    <span
+      aria-hidden
+      className={[
+        "flex h-4 min-w-4 items-center justify-center rounded-full px-1",
+        "bg-(--rail-badge) text-caption font-semibold leading-none tabular-nums text-(--rail-badge-ink)",
+        "ml-auto",
+        // Collapsed: off the row's flow and onto the glyph's corner.
+        "group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:-top-1 group-data-[collapsible=icon]:-right-1 group-data-[collapsible=icon]:ml-0",
+        "group-data-[collapsible=icon]:ring-2 ring-sidebar",
+        "group-data-[active=true]/menu-button:ring-brand-canvas-foreground",
+      ].join(" ")}
+    >
       {action}
     </span>
   );
+}
+
+/** What the badge says out loud. The badge itself is a bare numeral with no context. */
+function TasksCountLabel() {
+  const { state, people, cases, tasks, user } = useTasks();
+  if (state !== "ready") return null;
+  const { action } = summaryOf({ people, cases, tasks, user, now: new Date() });
+  if (!action) return null;
+  return <span className="sr-only">, {action} need action</span>;
 }
 
 /** One nav row: a link when it goes somewhere, an explained dead control when it does not. */
@@ -209,7 +239,12 @@ function NavRow({ item }: { item: NavItem }) {
         <Link href={href} aria-current={isPage ? "page" : undefined}>
           <Icon aria-hidden />
           <span className={LABEL}>{label}</span>
-          {id === "tasks" ? <TasksCount /> : null}
+          {id === "tasks" ? (
+            <>
+              <TasksCountLabel />
+              <TasksCount />
+            </>
+          ) : null}
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -451,9 +486,11 @@ export function AppSidebar() {
      * the plate was correct in structure but saturated chrome fights the content it is
      * supposed to frame.
      *
-     * So: charcoal, but picked rather than inherited. `neutral-4` (#272a2d) is L* 16,
-     * two steps up the ramp from black and the step that actually matches the reference.
-     * It reads as a considered surface, not as a piece of another mode.
+     * So: charcoal, but picked rather than inherited. `neutral-5` (#2e3135) is L* 19 —
+     * three steps up the ramp from black. `neutral-4` matched the reference exactly and
+     * still read a shade heavy against a white workspace; a step of lift softens the
+     * meeting without touching legibility, which the ramp guarantees because every step
+     * is luminance-locked. It reads as a considered surface, not a piece of another mode.
      *
      * `dark` is a scope, not a theme switch: it is what puts the dark ramp in reach and
      * what makes the popovers, tooltips and menus that open *inside* the rail render for
@@ -466,13 +503,14 @@ export function AppSidebar() {
       className="dark"
       style={
         {
-          "--sidebar": "var(--neutral-4)",
+          "--sidebar": "var(--neutral-5)",
           "--sidebar-foreground": "var(--neutral-12)",
           // Hover lifts one step. On charcoal that is enough to feel — and it has to stay
           // this quiet, because the selected row is the one thing here allowed to be light.
-          "--sidebar-accent": "var(--neutral-6)",
+          // It moves up with the plate, or the two collapse into each other.
+          "--sidebar-accent": "var(--neutral-7)",
           "--sidebar-accent-foreground": "var(--neutral-12)",
-          "--sidebar-border": "var(--neutral-6)",
+          "--sidebar-border": "var(--neutral-7)",
           "--sidebar-ring": "var(--neutral-12)",
         } as React.CSSProperties
       }

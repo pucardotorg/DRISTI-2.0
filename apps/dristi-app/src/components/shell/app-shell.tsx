@@ -87,6 +87,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 "--rail-ink": "var(--foreground)",
                 "--rail-accent": "var(--primary)",
                 "--rail-muted": "var(--muted-foreground)",
+                // The count badge has to be the same red as the bell's in the top bar —
+                // one alarm colour in the chrome, not two. The dark scope would give it
+                // the inverted pair (pale red, dark numeral) and quietly make the two
+                // badges different objects.
+                "--rail-badge": "var(--destructive)",
+                "--rail-badge-ink": "var(--destructive-foreground)",
               } as React.CSSProperties
             }
           >
