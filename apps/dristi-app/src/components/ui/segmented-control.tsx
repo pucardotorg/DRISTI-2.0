@@ -17,6 +17,11 @@ import { cn } from "@/lib/utils"
  * chip lifts with `shadow-raised` over its own hairline; `accent-strong` is the right
  * fill for a toggle on a page, but inside this well it would read as no selection.
  *
+ * The selected label steps to 600 in both sizes. The lifted chip alone was too quiet
+ * to read as a state (owner, 2026-08-25), and weight is the right cue rather than
+ * teal: a segment is a *value*, not an action, and a form carrying six toggles would
+ * scatter the rationed brand colour across all of them.
+ *
  * Two sizes, one control:
  * - `default` — the 40px form control. Use it inside forms, beside inputs.
  * - `compact` — a 32px visible well for secondary choices in dense chrome (language,
@@ -54,9 +59,9 @@ const segmentedControlItemVariants = cva(
   {
     variants: {
       size: {
-        default: "min-w-16 px-0.5 data-[state=on]:text-foreground",
+        default: "min-w-16 px-0.5 data-[state=on]:font-semibold data-[state=on]:text-foreground",
         compact:
-          "min-w-10 px-0.5 font-medium data-[state=on]:font-semibold data-[state=on]:text-primary data-[state=on]:hover:text-primary",
+          "min-w-10 px-0.5 font-medium data-[state=on]:font-semibold data-[state=on]:text-foreground",
       },
     },
     defaultVariants: { size: "default" },

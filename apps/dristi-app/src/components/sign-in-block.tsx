@@ -402,7 +402,7 @@ export function SignInBlock({
                     <Field data-invalid={badMobile}>
                       <FieldLabel>{pick(form.mobileLabel, locale)}</FieldLabel>
                       <InputGroup>
-                        <InputGroupAddon>
+                        <InputGroupAddon variant="field">
                           <InputGroupText>+91</InputGroupText>
                         </InputGroupAddon>
                         <InputGroupInput

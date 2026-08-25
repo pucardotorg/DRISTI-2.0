@@ -314,7 +314,7 @@ export function AdvocateSection() {
                   <div className="flex items-start gap-3 rounded-lg bg-surface-sunken p-4">
                     <span
                       aria-hidden
-                      className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-success-muted text-success-muted-foreground"
+                      className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-success bg-success-muted text-success-muted-foreground"
                     >
                       <CheckIcon className="size-5" />
                     </span>

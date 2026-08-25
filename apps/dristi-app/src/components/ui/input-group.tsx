@@ -36,9 +36,34 @@ const inputGroupAddonVariants = cva(
         "block-end":
           "order-last w-full justify-start px-2.5 pb-2 group-has-[>input]/input-group:pb-2 [.border-t]:pt-2",
       },
+      /**
+       * `field` turns the addon into its own cell inside the control — padded on both
+       * sides, full height, divided by a hairline. For a value that qualifies what the
+       * user types (a dialling code, a currency, a unit) rather than decorating the
+       * field, and it leaves a seat for the dropdown those prefixes eventually grow.
+       * `plain` stays the default: an icon or button floating in the field's own padding
+       * wants no cell and no rule.
+       */
+      variant: {
+        plain: "",
+        field: "self-stretch py-0 text-foreground",
+      },
     },
+    compoundVariants: [
+      {
+        variant: "field",
+        align: "inline-start",
+        className: "pr-3 pl-3 border-r border-hairline",
+      },
+      {
+        variant: "field",
+        align: "inline-end",
+        className: "pr-3 pl-3 border-l border-hairline",
+      },
+    ],
     defaultVariants: {
       align: "inline-start",
+      variant: "plain",
     },
   }
 )
@@ -46,6 +71,7 @@ const inputGroupAddonVariants = cva(
 function InputGroupAddon({
   className,
   align = "inline-start",
+  variant = "plain",
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof inputGroupAddonVariants>) {
   return (
@@ -53,7 +79,7 @@ function InputGroupAddon({
       role="group"
       data-slot="input-group-addon"
       data-align={align}
-      className={cn(inputGroupAddonVariants({ align }), className)}
+      className={cn(inputGroupAddonVariants({ align, variant }), className)}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest("button")) {
           return
