@@ -77,7 +77,13 @@ export { TASKS_HOME };
  * the component, which is the craft ceiling.
  */
 const ROW = [
-  "h-10 gap-3 px-2 group-data-[collapsible=icon]:size-10!",
+  // `pr-3` against `px-2`: the count rides `ml-auto` to the trailing edge, and at 8px it
+  // sat on the pill's curve. The extra step gives it something to stand in.
+  "h-10 gap-3 px-2 pr-3 group-data-[collapsible=icon]:size-10!",
+  // The DS button is `rounded-md` (8px). At 40px tall that reads soft — nearly a lozenge
+  // — and it is the loudest shape in the rail. `rounded-xs` (4px) is the next step down
+  // the DS ladder and lets the fill read as a marked row rather than a pill.
+  "rounded-xs",
   // Centring the square is not enough — the glyph has to be centred *within* it. The
   // label span survives the collapse at zero width, and the row's 12px gap is still
   // measured against it, which pushed the icon 8px from the leading edge and 12px from
@@ -95,9 +101,19 @@ const ROW = [
   // the deep teal here and measures 8.66:1 on white.
   //
   // Still one cue: a fill. No ring or border stacked on top of it.
-  "data-[active=true]:bg-brand-canvas-foreground data-[active=true]:text-brand-canvas",
-  "data-[active=true]:font-semibold",
-  "data-[active=true]:hover:bg-brand-canvas-foreground data-[active=true]:hover:text-brand-canvas",
+  //
+  // The ink is `--rail-active-ink`, resolved outside this rail's dark scope (see
+  // `app-shell`). `brand-canvas` was legible at 8.78:1 but so deep it read as near-black
+  // rather than as the brand — the colour was there and did not arrive. #007e7e is
+  // recognisably teal and still clears AA on white.
+  //
+  // And the weight comes back down to 400. The fill is already the loudest thing in the
+  // rail; 600 on top of it was a second shout, and it was flattening the colour — bold
+  // text at this size reads as darker before it reads as coloured.
+  "data-[active=true]:bg-brand-canvas-foreground data-[active=true]:text-(--rail-active-ink)",
+  // The DS marks its active row `font-medium`; this puts it back to the body weight.
+  "data-[active=true]:font-normal",
+  "data-[active=true]:hover:bg-brand-canvas-foreground data-[active=true]:hover:text-(--rail-active-ink)",
 ].join(" ");
 
 type NavItem = { id: string; label: string; icon: LucideIcon; href?: string };
@@ -149,9 +165,8 @@ function TasksCount() {
   return (
     // The count has to follow the row it sits in. On the charcoal plate it is the muted
     // grey like every other count; inside the selected row that grey lands on a white
-    // fill at 2.08:1, so it takes the row's own teal and keeps its lighter weight — the
-    // hierarchy against the label comes from weight, not from a colour it cannot afford.
-    <span className="ml-auto text-caption tabular-nums text-muted-foreground group-data-[collapsible=icon]:hidden group-data-[active=true]/menu-button:text-brand-canvas">
+    // fill at 2.08:1, so it takes the row's own ink.
+    <span className="ml-auto text-caption tabular-nums text-muted-foreground group-data-[collapsible=icon]:hidden group-data-[active=true]/menu-button:text-(--rail-active-ink)">
       {action}
     </span>
   );

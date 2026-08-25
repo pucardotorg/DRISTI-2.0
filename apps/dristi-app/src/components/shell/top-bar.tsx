@@ -12,6 +12,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { TASKS_HOME } from "@/lib/tasks/routes";
 import { caseOf, tasksInView } from "@/lib/tasks/selectors";
@@ -87,11 +88,21 @@ function NavTrigger() {
   // the trail's first crumb. It returns only when the rail is a strip with no room.
   if (!isMobile && open) return null;
   return (
-    <SidebarTrigger
-      size="icon"
-      aria-label="Expand main navigation"
-      className="shrink-0 text-muted-foreground [&_svg]:size-5"
-    />
+    <>
+      <SidebarTrigger
+        size="icon"
+        aria-label="Expand main navigation"
+        className="shrink-0 text-muted-foreground [&_svg]:size-5"
+      />
+      {/* The trigger belongs to the rail, the crumbs to the page. With the rail collapsed
+          they sit side by side with nothing between them and the button reads as the
+          trail's first item. A hairline is the least that separates them — and it lives
+          here, with the trigger, so the two appear and disappear together. */}
+      <Separator
+        orientation="vertical"
+        className="h-5! shrink-0 self-center! bg-hairline"
+      />
+    </>
   );
 }
 

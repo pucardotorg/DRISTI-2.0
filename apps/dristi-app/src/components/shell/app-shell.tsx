@@ -62,14 +62,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <ProfileProvider>
         <ChromeContext.Provider value={chrome}>
           {/*
-           * The collapsed rail is widened from the DS's 3rem so a 40px control sits in it
-           * with an even 8px gutter — at 3rem a 40px row leaves 4px a side and the icons
-           * read as crowded against the edge.
+           * Two values the rail needs that have to be declared out here, in the light
+           * scope, rather than on the rail itself.
+           *
+           * The width: the DS ships 3rem, which leaves a 40px row only 4px a side. 3.5rem
+           * made the gutters even but still read tight — the strip was a slot the icons
+           * were wedged into. 4rem gives each square 12px of air, which is what lets it
+           * read as a rail rather than a margin.
+           *
+           * The ink: the rail is `dark`-scoped so it can reach the dark neutral ramp for
+           * its charcoal, but that scope also inverts the teal ramp — `primary` becomes
+           * #0eb39e there, which is 3:1 on the selected row's white fill and fails. This
+           * resolves `primary` *here*, where it is still the light palette's #007e7e, and
+           * the rail inherits the computed value across the scope boundary. It is the one
+           * colour the rail cannot look up for itself.
            */}
           <SidebarProvider
             open={navOpen}
             onOpenChange={setNavOpen}
-            style={{ "--sidebar-width-icon": "3.5rem" } as React.CSSProperties}
+            style={
+              {
+                "--sidebar-width-icon": "4rem",
+                "--rail-active-ink": "var(--primary)",
+              } as React.CSSProperties
+            }
           >
             <AppSidebar />
             {/* Not `SidebarInset`: that primitive is itself a `<main>`, and the screens
