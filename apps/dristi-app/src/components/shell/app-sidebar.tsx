@@ -80,10 +80,6 @@ const ROW = [
   // `pr-3` against `px-2`: the count rides `ml-auto` to the trailing edge, and at 8px it
   // sat on the pill's curve. The extra step gives it something to stand in.
   "h-10 gap-3 px-2 pr-3 group-data-[collapsible=icon]:size-10!",
-  // The DS button is `rounded-md` (8px). At 40px tall that reads soft — nearly a lozenge
-  // — and it is the loudest shape in the rail. `rounded-xs` (4px) is the next step down
-  // the DS ladder and lets the fill read as a marked row rather than a pill.
-  "rounded-xs",
   // Centring the square is not enough — the glyph has to be centred *within* it. The
   // label span survives the collapse at zero width, and the row's 12px gap is still
   // measured against it, which pushed the icon 8px from the leading edge and 12px from
@@ -92,28 +88,25 @@ const ROW = [
   "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-0!",
   "[&_svg]:size-5",
   // Selection inverts: on a charcoal plate there is no quiet tint left to spend, so the
-  // selected row becomes the light surface and the brand colour moves into the text.
+  // selected row becomes the light surface. That fill *is* the cue — it is the strongest
+  // signal the rail has, and nothing stacks on it.
   //
-  // The teal is `brand-canvas`, not `primary`, and that is a correctness point rather
-  // than a preference. Inside a dark scope the teal ramp inverts — `primary` resolves to
-  // #0eb39e, which on a white fill measures 2.2:1 and fails AA outright. `brand-canvas`
-  // (#0f544c) is one of the few tokens the DS holds identical in both modes, so it stays
-  // the deep teal here and measures 8.66:1 on white.
+  // Which settles what the text should do: only be read. Asking the label to carry brand
+  // colour as well made it do two jobs and legibility lost — #007e7e at 400 is 4.90:1,
+  // over the line but a label you decode rather than read. Near-black is ~17:1.
   //
-  // Still one cue: a fill. No ring or border stacked on top of it.
+  // The teal moves to the icon, which is where it costs nothing. A glyph is a shape, not
+  // prose: it has no reading threshold, and 4.90:1 clears the 3:1 bar for non-text marks
+  // comfortably. Icons stay muted unless the icon is the signal; here it is.
   //
-  // The ink is `--rail-active-ink`, resolved outside this rail's dark scope (see
-  // `app-shell`). `brand-canvas` was legible at 8.78:1 but so deep it read as near-black
-  // rather than as the brand — the colour was there and did not arrive. #007e7e is
-  // recognisably teal and still clears AA on white.
+  // Weight is left to the DS's own `font-medium` — 400 was indistinguishable from an idle
+  // row, and 600 was a second shout over the fill.
   //
-  // And the weight comes back down to 400. The fill is already the loudest thing in the
-  // rail; 600 on top of it was a second shout, and it was flattening the colour — bold
-  // text at this size reads as darker before it reads as coloured.
-  "data-[active=true]:bg-brand-canvas-foreground data-[active=true]:text-(--rail-active-ink)",
-  // The DS marks its active row `font-medium`; this puts it back to the body weight.
-  "data-[active=true]:font-normal",
-  "data-[active=true]:hover:bg-brand-canvas-foreground data-[active=true]:hover:text-(--rail-active-ink)",
+  // All three inks are resolved outside this rail's dark scope (see `app-shell`), which
+  // would otherwise flip them to their dark-mode values and fail every one on white.
+  "data-[active=true]:bg-brand-canvas-foreground data-[active=true]:text-(--rail-ink)",
+  "data-[active=true]:[&_svg]:text-(--rail-accent)",
+  "data-[active=true]:hover:bg-brand-canvas-foreground data-[active=true]:hover:text-(--rail-ink)",
 ].join(" ");
 
 type NavItem = { id: string; label: string; icon: LucideIcon; href?: string };
@@ -164,9 +157,10 @@ function TasksCount() {
   if (!action) return null;
   return (
     // The count has to follow the row it sits in. On the charcoal plate it is the muted
-    // grey like every other count; inside the selected row that grey lands on a white
-    // fill at 2.08:1, so it takes the row's own ink.
-    <span className="ml-auto text-caption tabular-nums text-muted-foreground group-data-[collapsible=icon]:hidden group-data-[active=true]/menu-button:text-(--rail-active-ink)">
+    // grey like every other count; inside the selected row that same grey lands on a
+    // white fill at 2.08:1, so it swaps to the light palette's muted ink — still secondary
+    // to the label, still legible at 5.79:1.
+    <span className="ml-auto text-caption tabular-nums text-muted-foreground group-data-[collapsible=icon]:hidden group-data-[active=true]/menu-button:text-(--rail-muted)">
       {action}
     </span>
   );

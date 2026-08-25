@@ -70,12 +70,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
            * were wedged into. 4rem gives each square 12px of air, which is what lets it
            * read as a rail rather than a margin.
            *
-           * The ink: the rail is `dark`-scoped so it can reach the dark neutral ramp for
-           * its charcoal, but that scope also inverts the teal ramp — `primary` becomes
-           * #0eb39e there, which is 3:1 on the selected row's white fill and fails. This
-           * resolves `primary` *here*, where it is still the light palette's #007e7e, and
-           * the rail inherits the computed value across the scope boundary. It is the one
-           * colour the rail cannot look up for itself.
+           * The inks: the selected row inverts to a white fill, and everything printed on
+           * that fill needs light-palette colour. The rail is `dark`-scoped so it can
+           * reach the dark neutral ramp for its charcoal, but that scope flips these —
+           * `foreground` becomes near-white, `primary` becomes #0eb39e — and every one of
+           * them would fail on white. Resolving them here, outside the scope, hands the
+           * rail the light values to inherit. They are the colours it cannot look up for
+           * itself.
            */}
           <SidebarProvider
             open={navOpen}
@@ -83,7 +84,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             style={
               {
                 "--sidebar-width-icon": "4rem",
-                "--rail-active-ink": "var(--primary)",
+                "--rail-ink": "var(--foreground)",
+                "--rail-accent": "var(--primary)",
+                "--rail-muted": "var(--muted-foreground)",
               } as React.CSSProperties
             }
           >
