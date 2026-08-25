@@ -26,6 +26,8 @@ clone step.
 **Install / sync (do not hand-write):**
 
 ```bash
+npm run check:ds-fresh             # am I on the pinned DS? run this first
+npm run ds:bump                    # move the repo to a newer DS (on main only)
 npm run sync:ui -- button input    # copy components from local DS
 npm run sync:ui -- --tokens-only   # refresh token CSS
 npm run check:tokens               # no hardcoded colours / invent tokens
@@ -33,6 +35,17 @@ npm run check:typography           # named DS roles in product composition
 npm run check:ui-sync              # primitives + globals must match DS
 npm run check:rails                # Claude and Cursor agent rails must not drift
 ```
+
+`check:ds-fresh` is first for a reason. Every other gate here is *relative* — it
+compares the app to whatever sits in `vendor/pucar-design-system`, so the wrong DS
+version passes all of them. Four branches on three design systems, with every gate
+green, is what that cost.
+
+`ds.lock.json` at the repo root ends it: one commit id, recorded in the repo, checked
+out by `npm install`. Which DS you are on stops depending on when you last installed.
+Bumping is `npm run ds:bump` — run on main, it rewrites the pin, re-syncs every
+primitive and the tokens, and prints the range so the change is reviewable. Never edit
+the pin by hand, and never bump it on a feature branch.
 
 Catalog: DS `public/r/registry.json` (also
 https://pucar-design-system-five.vercel.app/r/registry.json). Dristi

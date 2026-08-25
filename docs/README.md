@@ -25,6 +25,7 @@ Orientation for this repo. Docs describe the product and how we design; they are
 | `.cursor/rules/`, `.claude/rules/` | Always-on guardrails (Cursor / Claude Code) |
 | `.cursor/skills/`, `.claude/skills/` | On-demand skills (add when a real workflow exists) |
 | `.claude/agents/`, `.cursor/rules/role-*.mdc` | Principal-level design roles: UX Designer (proposes) → UI Designer (builds) → UI Reviewer (audits). Subagents in Claude, role rules in Cursor |
+| `ds.lock.json` | The one design-system commit this repo builds against. `npm install` checks it out; `npm run ds:bump` moves it (on main only) |
 | `scripts/` | Repo-level gates that aren't app code — `check-rails.mjs` (`npm run check:rails`) fails if the Claude and Cursor agent rails drift apart |
 
 ## Intentionally not here

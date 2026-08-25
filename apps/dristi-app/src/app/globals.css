@@ -82,6 +82,15 @@
   --color-brand-muted: var(--brand-muted);
   --color-brand-muted-foreground: var(--brand-muted-foreground);
   --color-brand-muted-hover: var(--brand-muted-hover);
+  --color-brand-canvas: var(--brand-canvas);
+  --color-brand-canvas-deep: var(--brand-canvas-deep);
+  --color-brand-canvas-foreground: var(--brand-canvas-foreground);
+  --color-brand-canvas-muted-foreground: var(--brand-canvas-muted-foreground);
+  --color-paper: var(--paper);
+  --color-paper-foreground: var(--paper-foreground);
+  --color-paper-muted: var(--paper-muted);
+  --color-paper-muted-foreground: var(--paper-muted-foreground);
+  --color-paper-border: var(--paper-border);
 
   /* Brand canvas — the deep-teal gradient field behind full-height marketing and
      sign-in panels. Deliberately identical in both modes: the panel reads as a fixed
@@ -147,19 +156,24 @@
 }
 
 :root {
-  /* Neutral — Radix Slate, confirmed exact match against the live Figma file */
-  --neutral-1: #fcfcfd;
-  --neutral-2: #f9f9fb;
-  --neutral-3: #f0f0f3;
-  --neutral-4: #e8e8ec;
-  --neutral-5: #e0e1e6;
-  --neutral-6: #d9d9e0;
-  --neutral-7: #cdced6;
-  --neutral-8: #b9bbc6;
-  --neutral-9: #8b8d98;
-  --neutral-10: #80838d;
-  --neutral-11: #60646c;
-  --neutral-12: #1c2024;
+  /* Neutral — warm ramp, luminance-locked to Radix Slate step for step (max drift
+     2.4 points). Derived from the owner's scrutiny-v4-beige exploration: warmth you
+     feel, not beige you see — chroma is a whisper at the light end, fullest through
+     the border/edge band, tapering back into the ink. The duty-carrying steps keep
+     their measured ratios: 9 = 3.42:1 on white, 11 = 5.70:1, 12 = 17.35:1.
+     Dark mode stays on the cool ramp for now — its warm twins are a follow-up. */
+  --neutral-1: #fdfcfa;
+  --neutral-2: #f9f8f6;
+  --neutral-3: #f3f0ec;
+  --neutral-4: #ebe8e3;
+  --neutral-5: #e5e1db;
+  --neutral-6: #e2dcd5;
+  --neutral-7: #d4cec7;
+  --neutral-8: #c0b9af;
+  --neutral-9: #908a83;
+  --neutral-10: #87827c;
+  --neutral-11: #6a6661;
+  --neutral-12: #1c1a18;
 
   /* Brand — Radix-style 12-step teal ramp. Product UI never picks a raw step directly;
      go through a semantic token (primary, brand-accent, brand-muted...). */
@@ -239,7 +253,7 @@
   --destructive-solid: #c1232a;
   --brand-accent: var(--brand-9);
   --brand-tint-foreground: #0a6969;
-  --surface-sunken: #f4f4f7; /* tuned 2.5-step well, not a raw ramp step */
+  --surface-sunken: #f5f4f1; /* tuned warm 2.5-step well, not a raw ramp step */
   --success-ink: var(--success-11);
   --warning-ink: #9d5c00;
   --info-ink: #0c6ec3;
@@ -248,8 +262,9 @@
   --warning-on-solid: #3d2000;
 
   /* Elevation and interaction-state primitives. */
-  --elevation-raised-a: #0000000a;
-  --elevation-raised-b: #00000012;
+  /* Warm-tinted so lift reads as light on a warm page, not a grey smudge. */
+  --elevation-raised-a: #1e18120a;
+  --elevation-raised-b: #1e181212;
   --elevation-overlay-a: #0000001a;
   --elevation-overlay-b: #0000000f;
   --elevation-modal-a: #0000002e;
@@ -269,18 +284,22 @@
   --disabled-fill: color-mix(in srgb, var(--neutral-9) 50%, transparent);
   --halo: color-mix(in srgb, var(--brand-accent) 25%, transparent);
 
-  --background: var(--neutral-1);
+  /* The page is white — full stop. Panels read by hairline + raised shadow, wells
+     by the sunken fill inside them; the 2026-08-11 tinted-canvas split is reverted
+     (owner ruling 2026-08-25, matching the ui-craft layering model). Card shares
+     the page white deliberately: it is the lift, not the fill, that says "panel". */
+  --background: #ffffff;
   --foreground: var(--neutral-12);
-  --card: var(--neutral-1);
+  --card: #ffffff;
   --card-foreground: var(--neutral-12);
-  --popover: var(--neutral-1);
+  --popover: #ffffff;
   --popover-foreground: var(--neutral-12);
 
-  /* Structural surfaces — card/popover stay flat with the Figma master;
-     surface-raised is one step up for genuine elevation without a shadow. */
-  --surface: var(--neutral-1);
+  /* Structural base matches the page. muted / surface-raised stay neutral-2 —
+     one warm hair off white, the chrome step. */
+  --surface: #ffffff;
   --surface-raised: var(--neutral-2);
-  --track: var(--neutral-6); /* recessed tracks and placeholder wells: tabs list, progress, slider, skeleton */
+  --track: var(--neutral-6); /* tiny countable marks ONLY — progress, slider, skeleton. Control-sized wells (tabs list, segmented) are surface-sunken + hairline instead: separation is a whisper stroke, not a block of colour. */
   --prefilled: var(--warning-2); /* machine-prefilled, human-unverified field fill */
 
   /* Brand — teal. Confirmed against the live "Rajini 2.0" Figma file. */
@@ -289,14 +308,41 @@
   --brand-muted: var(--brand-3);
   --brand-muted-foreground: var(--brand-tint-foreground);
 
-  --secondary: var(--neutral-4);
+  /* Brand canvas — the deep-teal plate behind full-height sign-in and marketing
+     panels. Tuned stops rather than ramp steps: the light stop sits between dark
+     brand-5 and brand-6, the deep stop below dark brand-1. Repeated verbatim in
+     `.dark` on purpose — the plate is a fixed institutional surface, so it must not
+     invert when the rest of the page does. */
+  --brand-canvas: #0f544c;
+  --brand-canvas-deep: #05221f;
+  --brand-canvas-foreground: #ffffff;
+  --brand-canvas-muted-foreground: #a7d9d0;
+
+  /* Paper — the legal-document facsimile (court-document preview, the e-signed PDF).
+     Fixed cool-grey values, deliberately NOT the product neutral ramp and identical in
+     both modes: the complaint / affidavit is a print convention the reader recognises,
+     not a themed surface — a printed page does not go warm or dark. Locked to the
+     cool ramp's own pre-2026-08-25 values so the document reads exactly as it always
+     has, regardless of any future product palette change. Measured: paper-muted-foreground
+     5.94:1 on paper, 4.55:1 on paper-muted; paper-foreground 16.39:1 on paper. */
+  --paper: #ffffff;
+  --paper-foreground: #1c2024;
+  --paper-muted: #e0e1e6;
+  --paper-muted-foreground: #60646c;
+  --paper-border: #b9bbc6;
+
+  /* Interaction fills kept at n5 / n6 after the page step-down so hover stays
+     perceptible on both the sunken page and neutral-1 cards. */
+  --secondary: var(--neutral-5);
+  /* Hover is a whisper (owner 2026-08-25): the warm hue shift carries perceptibility
+     that pure luminance never did, so the fill steps back down the ramp. */
   --secondary-foreground: var(--neutral-12);
   --secondary-hover: var(--accent-strong);
   --muted: var(--neutral-2);
   --muted-foreground: var(--neutral-11);
-  --accent: var(--neutral-4);
+  --accent: var(--neutral-3);
   --accent-foreground: var(--neutral-12);
-  --accent-strong: var(--neutral-5); /* one step past accent — pressed toggles, engaged triggers */
+  --accent-strong: var(--neutral-4); /* one step past accent — pressed toggles, engaged triggers */
 
   --destructive: var(--destructive-solid);
   --destructive-foreground: var(--solid-foreground);
@@ -476,6 +522,8 @@
   --disabled-fill: color-mix(in srgb, var(--neutral-9) 50%, transparent);
   --halo: color-mix(in srgb, var(--brand-accent) 25%, transparent);
 
+  /* Dark stays flat: page and card share neutral-1 — the light-only sunken
+     split was not needed here. */
   --background: var(--neutral-1);
   --foreground: var(--neutral-12);
   --card: var(--neutral-1);
@@ -492,6 +540,20 @@
   --primary-foreground: var(--solid-foreground);
   --brand-muted: var(--brand-3);
   --brand-muted-foreground: var(--brand-tint-foreground);
+
+  /* Identical to `:root` on purpose — see the note there. The plate does not invert. */
+  --brand-canvas: #0f544c;
+  --brand-canvas-deep: #05221f;
+  --brand-canvas-foreground: #ffffff;
+  --brand-canvas-muted-foreground: #a7d9d0;
+
+  /* Paper — the legal-document facsimile (court-document preview, the e-signed PDF).
+     Identical to :root on purpose — see the note there. */
+  --paper: #ffffff;
+  --paper-foreground: #1c2024;
+  --paper-muted: #e0e1e6;
+  --paper-muted-foreground: #60646c;
+  --paper-border: #b9bbc6;
 
   --secondary: var(--neutral-4);
   --secondary-foreground: var(--neutral-12);
