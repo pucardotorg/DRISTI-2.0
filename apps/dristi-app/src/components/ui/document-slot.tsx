@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 
 const documentSlotVariants = cva(
-  "flex w-full items-center gap-4 rounded-lg border p-4",
+  "flex w-full items-start gap-4 rounded-lg border p-4",
   {
     variants: {
       status: {
@@ -56,7 +56,13 @@ function DocumentSlot({
     quality?: "good" | "poor"
     thumbnail?: React.ReactNode
     onChooseFile?: () => void
+    /** Locks the slot while an upload or scan is in flight. */
     disabled?: boolean
+    /**
+     * Overrides the slot's built-in strings. A slot that names the document it wants
+     * ("Add cheque") reads better than a generic "Choose file", and the scan verdicts
+     * need to speak the caller's language.
+     */
     copy?: {
       optional?: string
       noFile?: string
@@ -117,18 +123,17 @@ function DocumentSlot({
             {copy?.noFile ?? "No file chosen yet"}
           </p>
         ) : null}
+        {qualityTone === "good" ? (
+          <Badge variant="success" className="mt-2">
+            {copy?.goodScan ?? "Good scan"}
+          </Badge>
+        ) : null}
+        {qualityTone === "poor" ? (
+          <Badge variant="warning" className="mt-2">
+            {copy?.poorScan ?? "Poor scan"}
+          </Badge>
+        ) : null}
       </div>
-
-      {qualityTone === "good" ? (
-        <Badge variant="success" className="shrink-0 px-3 py-1 text-sm">
-          {copy?.goodScan ?? "Good scan"}
-        </Badge>
-      ) : null}
-      {qualityTone === "poor" ? (
-        <Badge variant="warning" className="shrink-0 px-3 py-1 text-sm">
-          {copy?.poorScan ?? "Poor scan"}
-        </Badge>
-      ) : null}
 
       {isEmpty ? (
         <Button

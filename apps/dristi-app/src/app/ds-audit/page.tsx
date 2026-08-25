@@ -6,13 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-  CompactSegmentedControl,
-  CompactSegmentedControlItem,
-} from "@/components/ui/compact-segmented-control";
+  SegmentedControl,
+  SegmentedControlItem,
+} from "@/components/ui/segmented-control";
 import { DocumentSlot } from "@/components/ui/document-slot";
 import { Separator } from "@/components/ui/separator";
 import { Stepper, StepperItem } from "@/components/ui/stepper";
-import { VerticalStepper } from "@/components/ui/vertical-stepper";
 import { PANEL_CLASS } from "@/components/filing/form-card";
 import { Segmented } from "@/components/filing/segmented";
 import { ConfirmDialog } from "@/components/shell/confirm-dialog";
@@ -129,7 +128,10 @@ export default function DsAuditPage() {
             Everything in this app that the design system does not own, measured on the merge of{" "}
             <code className="font-mono text-body-compact">scrutiny-back-adv</code> and{" "}
             <code className="font-mono text-body-compact">case-access-management</code>. Controls
-            below are live — click them. Nothing here has been pushed to the DS.
+            below are live — click them. As of 2026-08-25 the promotions are LANDED on the DS
+            branch and synced back: segmented control (one component, two sizes), document-slot
+            and stepper props, brand-canvas tokens, the warm neutral ramp, and the
+            wells-are-not-tracks grammar. check:ui-sync is green for the first time.
           </p>
           <p className="text-caption text-muted-foreground">
             <span className="tabular-nums">{total}</span> items awaiting a decision · delete this
@@ -162,30 +164,22 @@ export default function DsAuditPage() {
                 <Separator className="bg-hairline" />
                 {o.file.includes("compact-segmented") ? (
                   <Bench label="Live — 40px targets, 32px well" source={o.file}>
-                    <CompactSegmentedControl
+                    <SegmentedControl size="compact"
                       type="single"
                       value={signInMethod}
                       onValueChange={(v: string) => v && setSignInMethod(v)}
                       aria-label="Sign-in method"
                     >
-                      <CompactSegmentedControlItem value="otp">OTP</CompactSegmentedControlItem>
-                      <CompactSegmentedControlItem value="password">
+                      <SegmentedControlItem value="otp">OTP</SegmentedControlItem>
+                      <SegmentedControlItem value="password">
                         Password
-                      </CompactSegmentedControlItem>
-                    </CompactSegmentedControl>
+                      </SegmentedControlItem>
+                    </SegmentedControl>
                   </Bench>
                 ) : (
-                  <Bench label="Live — unused in the app" source={o.file}>
-                    <VerticalStepper
-                      className="w-full max-w-sm"
-                      current={1}
-                      items={[
-                        { title: "Verify identity", description: "Aadhaar or PAN" },
-                        { title: "Add advocate details", description: "Bar council number" },
-                        { title: "Review" },
-                      ]}
-                    />
-                  </Bench>
+                  <p className="text-caption text-muted-foreground">
+                    Deleted 2026-08-25 — it was imported nowhere.
+                  </p>
                 )}
               </Card>
             ))}
@@ -328,7 +322,7 @@ export default function DsAuditPage() {
                         />
                       </Bench>
                       <Bench label="His — sign-in" source="ui/compact-segmented-control.tsx">
-                        <CompactSegmentedControl
+                        <SegmentedControl size="compact"
                           type="single"
                           value={posture}
                           onValueChange={(v: string) =>
@@ -336,13 +330,13 @@ export default function DsAuditPage() {
                           }
                           aria-label="Posture"
                         >
-                          <CompactSegmentedControlItem value="complainant">
+                          <SegmentedControlItem value="complainant">
                             Complainant
-                          </CompactSegmentedControlItem>
-                          <CompactSegmentedControlItem value="accused">
+                          </SegmentedControlItem>
+                          <SegmentedControlItem value="accused">
                             Accused
-                          </CompactSegmentedControlItem>
-                        </CompactSegmentedControl>
+                          </SegmentedControlItem>
+                        </SegmentedControl>
                       </Bench>
                     </div>
                     <p className="text-caption text-muted-foreground">

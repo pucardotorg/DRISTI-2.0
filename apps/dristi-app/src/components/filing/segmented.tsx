@@ -4,15 +4,19 @@ import * as React from "react";
 
 import type { YesNo } from "@/lib/filing/types";
 import { cn } from "@/lib/utils";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  SegmentedControl,
+  SegmentedControlItem,
+} from "@/components/ui/segmented-control";
 import { useFieldReadOnly, useLockedDisabled } from "@/components/filing/posture";
 import { ReadOnlyValue } from "@/components/filing/inputs";
 
 export type SegmentedOption<T extends string> = { value: T; label: string };
 
 /**
- * Single-choice segmented control (Yes / No / Maybe…). Built on the DS ToggleGroup so
- * it has roving focus and pressed state; items are lifted to the 40px control height.
+ * Single-choice segmented control (Yes / No / Maybe…) for filing forms. A thin wrapper
+ * over the DS SegmentedControl that adds the filing posture rules: locked answers stay
+ * visible but disabled, and read-only renders as a value instead of a control.
  */
 export function Segmented<T extends string>({
   value,
@@ -42,7 +46,7 @@ export function Segmented<T extends string>({
   }
   return (
     <div className="flex">
-      <ToggleGroup
+      <SegmentedControl
         type="single"
         value={value}
         onValueChange={(v) => {
@@ -50,28 +54,14 @@ export function Segmented<T extends string>({
         }}
         aria-label={ariaLabel}
         disabled={isDisabled}
-        className={cn(
-          "h-10 w-fit gap-0.5 rounded-lg bg-track p-0.5",
-          className,
-        )}
+        className={cn("w-fit", className)}
       >
         {options.map((o) => (
-          /*
-           * Selected reads as a raised chip on the track, which is the DS's own treatment
-           * for "selected on a track": `Tabs` puts `bg-track` on its list and gives the
-           * active trigger `data-active:bg-background` plus a shadow. `Toggle`'s
-           * `accent-strong` is the right fill for a toggle on a page, but on this track it
-           * measures 1.08:1 — an invisible selection. See docs/design/ds-requests.md #11.
-           */
-          <ToggleGroupItem
-            key={o.value}
-            value={o.value}
-            className="h-9 min-w-16 rounded-md px-4 text-muted-foreground hover:text-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-raised"
-          >
+          <SegmentedControlItem key={o.value} value={o.value}>
             {o.label}
-          </ToggleGroupItem>
+          </SegmentedControlItem>
         ))}
-      </ToggleGroup>
+      </SegmentedControl>
     </div>
   );
 }

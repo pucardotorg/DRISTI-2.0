@@ -28,9 +28,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
-  CompactSegmentedControl,
-  CompactSegmentedControlItem,
-} from "@/components/ui/compact-segmented-control";
+  SegmentedControl,
+  SegmentedControlItem,
+} from "@/components/ui/segmented-control";
 import {
   Popover,
   PopoverContent,
@@ -329,18 +329,18 @@ function ShellInner({
   );
 
   const languageControl = (
-    <CompactSegmentedControl
+    <SegmentedControl size="compact"
       type="single"
       value={locale}
       onValueChange={(value) => value && onLocaleChange(value as Locale)}
       aria-label={pick(ui.language, locale)}
     >
       {LOCALES.map((l) => (
-        <CompactSegmentedControlItem key={l.value} value={l.value}>
+        <SegmentedControlItem key={l.value} value={l.value}>
           {l.label}
-        </CompactSegmentedControlItem>
+        </SegmentedControlItem>
       ))}
-    </CompactSegmentedControl>
+    </SegmentedControl>
   );
 
   return (
