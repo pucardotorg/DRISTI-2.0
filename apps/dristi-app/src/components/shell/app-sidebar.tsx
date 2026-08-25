@@ -12,6 +12,7 @@ import {
   FolderClosedIcon,
   HouseIcon,
   ListChecksIcon,
+  RotateCcwIcon,
   SearchIcon,
   SettingsIcon,
   UserPlusIcon,
@@ -23,6 +24,7 @@ import { TASKS_HOME } from "@/lib/tasks/routes";
 import { summaryOf } from "@/lib/tasks/selectors";
 import { useTasks } from "@/lib/tasks/store";
 import { BrandGlyph } from "@/components/brand-lockup";
+import { ConfirmDialog } from "@/components/shell/confirm-dialog";
 import { useProfile } from "@/components/shell/profile";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,6 +42,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import {
   Tooltip,
@@ -242,9 +245,11 @@ function NavGroup({
  * nothing beside it to be distinguished from, and both reference rails render it solid.
  */
 function ProfileFooter() {
-  const { user } = useTasks();
+  const { state, people, user, setUser, resetSandbox } = useTasks();
   const { profileRole, advocateProfileAvailable, switchProfile } = useProfile();
   const roleLabel = profileRole === "advocate" ? "Advocate" : "Litigant";
+  const [confirmReset, setConfirmReset] = React.useState(false);
+  const onResetSandbox = React.useCallback(() => setConfirmReset(true), []);
 
   return (
     <SidebarFooter className="border-t border-hairline p-3 group-data-[collapsible=icon]:px-0">
@@ -333,6 +338,38 @@ function ProfileFooter() {
                     ) : null}
                   </Button>
                 ) : null}
+
+                {/* The sandbox's own controls, kept with the identity they act on rather
+                    than behind a second account avatar in the top bar. They are scaffolding
+                    for a build with no session yet, so they read as a separate, quieter
+                    register below the rule. */}
+                <div className="mt-1 border-t border-hairline pt-1">
+                  <p className="px-2 py-1.5 text-caption font-semibold text-muted-foreground">
+                    Viewing as
+                  </p>
+                  {people.map((p) => (
+                    <Button
+                      key={p.id}
+                      variant="ghost"
+                      className="w-full justify-start font-normal"
+                      disabled={state !== "ready"}
+                      onClick={() => void setUser(p.id)}
+                    >
+                      <span className="flex-1 truncate text-left">
+                        {p.name}
+                      </span>
+                      {p.id === user.id ? <CheckIcon aria-hidden /> : null}
+                    </Button>
+                  ))}
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start font-normal text-muted-foreground"
+                    onClick={onResetSandbox}
+                  >
+                    <RotateCcwIcon aria-hidden />
+                    <span className="flex-1 text-left">Reset sandbox data</span>
+                  </Button>
+                </div>
               </PopoverContent>
             </Popover>
           </div>
@@ -358,6 +395,18 @@ function ProfileFooter() {
           </Tooltip>
         </SidebarMenuItem>
       </SidebarMenu>
+
+      <ConfirmDialog
+        open={confirmReset}
+        onOpenChange={setConfirmReset}
+        title="Reset the sandbox?"
+        description="Every task, upload and decision made in this browser is discarded and the seed data is loaded again. Other open tabs reload too."
+        confirmLabel="Reset sandbox"
+        onConfirm={() => {
+          setConfirmReset(false);
+          void resetSandbox();
+        }}
+      />
     </SidebarFooter>
   );
 }
@@ -365,19 +414,44 @@ function ProfileFooter() {
 /** Main navigation for the whole app. Icon rail from `md`, sheet below it. */
 export function AppSidebar() {
   return (
-    <Sidebar collapsible="icon">
+    /*
+     * EXPERIMENT — charcoal rail against a light workspace.
+     *
+     * `dark` here is not a theme override, it is a scope: the rail opts into the design
+     * system's own dark palette while the page stays light, so every token it paints
+     * with (`sidebar`, `sidebar-accent`, `sidebar-foreground`, the brand steps) is one
+     * the DS already ships and has already contrast-checked. Nothing is invented, and
+     * dark mode still works — the rail simply already looks like that.
+     *
+     * The brand step brightens on its own: the dark palette maps the accent to a lighter
+     * point on the teal ramp than the light palette does, which is the "brighter variant"
+     * the charcoal needs to keep the active row legible.
+     *
+     * Remove this one class to return to the light rail; nothing else depends on it.
+     */
+    <Sidebar collapsible="icon" className="dark">
       {/*
        * The brand sits at the page origin, in the rail — the top bar carries the
        * breadcrumb instead, so the mark does not move when the rail collapses. The
        * header is the top bar's own height so its rule and the breadcrumb bar's rule
        * are one continuous line across the whole chrome.
        */}
-      <SidebarHeader className="h-14 items-center justify-center border-b border-hairline px-3 py-0 group-data-[collapsible=icon]:px-0">
-        {/* The glyph alone, in both states. The full lockup stacks the wordmark under
-            the mark, and at the 40px a 56px bar can spare the "24×7 ON COURTS" line
-            renders too small to read — a mark that has to be squinted at is worse than
-            no wordmark at all. */}
-        <BrandGlyph className="h-8" />
+      {/*
+       * Logo left, collapse control right — the mark sits at the page origin, where a
+       * mark belongs, and the control that owns the rail sits with the rail. Centring
+       * the glyph gave it a formality it has not earned and left the header's right
+       * half empty; moving the trigger here also takes it out of the breadcrumb's row,
+       * where it was reading as the trail's first item.
+       */}
+      <SidebarHeader className="h-14 flex-row items-center justify-between border-b border-hairline px-3 py-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+        {/* The glyph alone, in both states. The full lockup stacks its wordmark under
+            the mark, and at the size a 56px bar can spare, "24×7 ON COURTS" cannot be
+            read — a mark that has to be squinted at is worse than no wordmark at all. */}
+        <BrandGlyph className="h-6" />
+        <SidebarTrigger
+          aria-label="Collapse main navigation"
+          className="size-8 shrink-0 text-muted-foreground group-data-[collapsible=icon]:hidden [&_svg]:size-5"
+        />
       </SidebarHeader>
 
       <SidebarContent>

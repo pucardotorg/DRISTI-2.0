@@ -102,17 +102,25 @@ export function NotificationsBell({
           }`}
         >
           <BellIcon aria-hidden />
+          {/*
+           * The badge sits on the button's corner, not on the glyph. A fixed 16px
+           * circle could not hold two characters — "9+" broke its own edge — so it is
+           * a pill that starts circular and grows only as far as the digits need. The
+           * ring is the bar's own fill, which is what lets a saturated mark sit over a
+           * line drawing without the two reading as one smudge. Counts stop at 9+:
+           * past that the number has stopped being information and is only alarm.
+           */}
           {unreadCount > 0 ? (
             <span
               aria-hidden
-              className="absolute top-1.5 right-1.5 flex size-4 items-center justify-center rounded-full bg-destructive text-caption font-semibold leading-none text-destructive-foreground"
+              className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-caption font-semibold leading-none text-destructive-foreground ring-2 ring-card"
             >
-              {unreadCount}
+              {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           ) : hasPersistentAttention ? (
             <span
               aria-hidden
-              className="absolute top-2 right-2 size-2.5 rounded-full bg-destructive ring-2 ring-card"
+              className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-destructive ring-2 ring-card"
             />
           ) : null}
         </Button>

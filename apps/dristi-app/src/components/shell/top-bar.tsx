@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { RotateCcwIcon } from "lucide-react";
 
 import { useTasks } from "@/lib/tasks/store";
 import {
@@ -13,34 +12,15 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { TASKS_HOME } from "@/lib/tasks/routes";
 import { caseOf, tasksInView } from "@/lib/tasks/selectors";
 import { compareUrgency, daysUntil, isOverdue } from "@/lib/tasks/urgency";
 import { useChrome } from "@/components/shell/chrome";
-import { ConfirmDialog } from "@/components/shell/confirm-dialog";
 import {
   NotificationsBell,
   type ShellNotification,
 } from "@/components/shell/notifications";
-import { PersonAvatar } from "@/components/tasks/person-avatar";
-
-const ROLE_LABEL = {
-  senior: "Senior advocate",
-  junior: "Junior advocate",
-} as const;
 
 /**
  * The one breadcrumb in the app. Route-aware: Tasks › the task › the action. The task
@@ -101,94 +81,17 @@ function ChromeBreadcrumb() {
  * rail is open — the DS's own `SidebarTrigger` carries the state in its label instead.
  */
 function NavTrigger() {
-  const { open, openMobile, isMobile } = useSidebar();
-  const shown = isMobile ? openMobile : open;
+  const { open, isMobile } = useSidebar();
+  // An open rail carries its own collapse control, in its header. Repeating it here
+  // would put it back at the head of the breadcrumb row — which is what made it read as
+  // the trail's first crumb. It returns only when the rail is a strip with no room.
+  if (!isMobile && open) return null;
   return (
     <SidebarTrigger
       size="icon"
-      aria-label={shown ? "Collapse main navigation" : "Expand main navigation"}
-      className="shrink-0 text-muted-foreground"
+      aria-label="Expand main navigation"
+      className="shrink-0 text-muted-foreground [&_svg]:size-5"
     />
-  );
-}
-
-/**
- * The account menu, and — until a session exists — the sandbox identity switcher. Picking
- * a teammate re-derives every verb, tab and count on the screen from their vakalatnamas,
- * which is how the permission model is seen working. Reset wipes this browser's data and
- * re-seeds.
- */
-function AccountMenu() {
-  const { state, people, user, setUser, resetSandbox } = useTasks();
-  const [confirmReset, setConfirmReset] = React.useState(false);
-
-  return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={`Account: ${user.name}`}
-            className="rounded-full"
-          >
-            <PersonAvatar person={user} you size="default" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-64">
-          <DropdownMenuLabel className="flex flex-col gap-0.5">
-            <span className="text-body-compact font-medium text-foreground">
-              {user.name}
-            </span>
-            <span className="text-caption font-normal text-muted-foreground">
-              {ROLE_LABEL[user.role]}
-            </span>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel className="text-caption font-medium text-muted-foreground">
-            Viewing as
-          </DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            value={user.id}
-            onValueChange={(id) => void setUser(id)}
-            aria-label="Viewing as"
-          >
-            {people.map((p) => (
-              <DropdownMenuRadioItem
-                key={p.id}
-                value={p.id}
-                disabled={state !== "ready"}
-              >
-                <span className="flex min-w-0 flex-1 items-center justify-between gap-3">
-                  <span className="truncate">{p.name}</span>
-                  <span className="text-caption text-muted-foreground">
-                    {ROLE_LABEL[p.role]}
-                  </span>
-                </span>
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => setConfirmReset(true)}>
-            <RotateCcwIcon aria-hidden />
-            Reset sandbox data
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <ConfirmDialog
-        open={confirmReset}
-        onOpenChange={setConfirmReset}
-        title="Reset the sandbox?"
-        description="Every task, upload and decision made in this browser is discarded and the seed data is loaded again. Other open tabs reload too."
-        confirmLabel="Reset sandbox"
-        onConfirm={() => {
-          setConfirmReset(false);
-          void resetSandbox();
-        }}
-      />
-    </>
   );
 }
 
@@ -257,23 +160,16 @@ export function TopBar() {
   return (
     // `sticky` is positioned, so the phone search row can hang under it, full width.
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-hairline bg-card px-4 sm:px-6">
-      {/* The DS ships this at 36px; 40 is the accessibility floor. */}
       <NavTrigger />
-      {/* The trigger is chrome for the rail, not part of the trail. A hairline between
-          them stops the breadcrumb reading as the collapse button's label. */}
-      <Separator
-        orientation="vertical"
-        className="hidden h-5! self-center! sm:block"
-      />
       <ChromeBreadcrumb />
-      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-        <NotificationsBell
-          notifications={notifications.items}
-          onRead={notifications.markAllRead}
-          onClearAll={notifications.clearStale}
-        />
-        <AccountMenu />
-      </div>
+      {/* The person is named once, at the foot of the rail. A second avatar here said
+          the same thing twice and put two account controls on one screen. What stays is
+          the one thing this bar owes you that the rail cannot give: what changed. */}
+      <NotificationsBell
+        notifications={notifications.items}
+        onRead={notifications.markAllRead}
+        onClearAll={notifications.clearStale}
+      />
     </header>
   );
 }
