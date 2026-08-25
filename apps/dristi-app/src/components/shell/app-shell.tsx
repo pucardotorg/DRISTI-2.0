@@ -12,6 +12,7 @@ import {
   type Crumb,
 } from "@/components/shell/chrome";
 import { ProfileProvider } from "@/components/shell/profile";
+import { RailThemeProvider } from "@/components/shell/rail-theme";
 import { TopBar } from "@/components/shell/top-bar";
 
 /**
@@ -62,48 +63,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <ProfileProvider>
         <ChromeContext.Provider value={chrome}>
           {/*
-           * Two values the rail needs that have to be declared out here, in the light
-           * scope, rather than on the rail itself.
-           *
            * The width: the DS ships 3rem, which leaves a 40px row only 4px a side. 3.5rem
            * made the gutters even but still read tight — the strip was a slot the icons
            * were wedged into. 4rem gives each square 12px of air, which is what lets it
            * read as a rail rather than a margin.
            *
-           * The inks: the selected row inverts to a white fill, and everything printed on
-           * that fill needs light-palette colour. The rail is `dark`-scoped so it can
-           * reach the dark neutral ramp for its charcoal, but that scope flips these —
-           * `foreground` becomes near-white, `primary` becomes #0eb39e — and every one of
-           * them would fail on white. Resolving them here, outside the scope, hands the
-           * rail the light values to inherit. They are the colours it cannot look up for
-           * itself.
+           * The rail's inks all come from the selected rail theme now — see
+           * `rail-theme.tsx`, where each plate names its complete, contrast-checked
+           * palette outright instead of borrowing a scope.
            */}
-          <SidebarProvider
-            open={navOpen}
-            onOpenChange={setNavOpen}
-            style={
-              {
-                "--sidebar-width-icon": "4rem",
-                "--rail-ink": "var(--foreground)",
-                "--rail-accent": "var(--primary)",
-                "--rail-muted": "var(--muted-foreground)",
-                // The count badge has to be the same red as the bell's in the top bar —
-                // one alarm colour in the chrome, not two. The dark scope would give it
-                // the inverted pair (pale red, dark numeral) and quietly make the two
-                // badges different objects.
-                "--rail-badge": "var(--destructive)",
-                "--rail-badge-ink": "var(--destructive-foreground)",
-              } as React.CSSProperties
-            }
-          >
-            <AppSidebar />
-            {/* Not `SidebarInset`: that primitive is itself a `<main>`, and the screens
+          <RailThemeProvider>
+            <SidebarProvider
+              open={navOpen}
+              onOpenChange={setNavOpen}
+              style={{ "--sidebar-width-icon": "4rem" } as React.CSSProperties}
+            >
+              <AppSidebar />
+              {/* Not `SidebarInset`: that primitive is itself a `<main>`, and the screens
               below already own that landmark. */}
-            <div className="flex min-h-svh min-w-0 flex-1 flex-col bg-background">
-              <TopBar />
-              <div className="flex min-h-0 flex-1">{children}</div>
-            </div>
-          </SidebarProvider>
+              <div className="flex min-h-svh min-w-0 flex-1 flex-col bg-background">
+                <TopBar />
+                <div className="flex min-h-0 flex-1">{children}</div>
+              </div>
+            </SidebarProvider>
+          </RailThemeProvider>
         </ChromeContext.Provider>
       </ProfileProvider>
     </TooltipProvider>
