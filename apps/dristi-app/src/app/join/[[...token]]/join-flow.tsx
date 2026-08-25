@@ -38,11 +38,20 @@ function JoinFlow() {
   const [locale, setLocale] = React.useState<Locale>("en");
   const [open, setOpen] = React.useState(false);
 
-  // Auth succeeded — cross to the signed-in portal, carrying the summons token (it
-  // arms the auto join-modal there), the no-case flag, the deferred-ID flag, and the
-  // locale. The summons URL cannot tell the accused from their advocate — the same QR
-  // serves both — so the destination is decided by the role the number is registered
-  // under: litigants land on /home, advocates on /advocate.
+  // Auth succeeded — cross into the product.
+  //
+  // Every permutation of this screen (sign in / create account × litigant / advocate)
+  // lands on the shared shell now, because that is where the product lives: pending
+  // tasks, filings, the join landing. The original portals (/home, /advocate) still
+  // exist — team case-access management lives there and nothing is deleted — but they
+  // are no longer where the front door opens.
+  //
+  // The one exception is a summons token. That journey — the auto join-modal armed
+  // with the served case, the accused/advocate split the QR cannot make — is built
+  // into those portals and works; it keeps routing there until the summons journey is
+  // ported onto the shell like the manual join was. Two litigant registration flags
+  // (deferred ID, incomplete profile) ride only the portal route for the same reason:
+  // the reminders they arm live there today.
   const goHome = React.useCallback(
     (options?: {
       idSkipped?: boolean;
@@ -50,11 +59,18 @@ function JoinFlow() {
       role?: "litigant" | "advocate";
     }) => {
       const advocate = options?.role === "advocate";
+
+      if (!token) {
+        router.push("/tasks");
+        return;
+      }
+
       const query = new URLSearchParams();
-      if (token) query.set("token", token);
-      if (token && searchParams.get("nocase") === "1") query.set("nocase", "1");
+      query.set("token", token);
+      if (searchParams.get("nocase") === "1") query.set("nocase", "1");
       if (!advocate && options?.idSkipped) query.set("noid", "1");
-      if (!advocate && options?.profileIncomplete) query.set("profile", "missing");
+      if (!advocate && options?.profileIncomplete)
+        query.set("profile", "missing");
       if (locale !== "en") query.set("lang", locale);
       const qs = query.toString();
       router.push(`${advocate ? "/advocate" : "/home"}${qs ? `?${qs}` : ""}`);
