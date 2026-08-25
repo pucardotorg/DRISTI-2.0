@@ -7,6 +7,15 @@
  *
  * Always installs to vendor/pucar-design-system (gitignored) so every machine
  * has the same in-repo path. Verifies org/remote; refuses wrong-org trees.
+ *
+ * An existing clone is brought up to date, not left alone. Cloning once and never
+ * fetching again is how a checkout silently drifts: between 3 and 13 August 2026 this
+ * repo synced primitives from a ten-day-old DS, so every `sync:ui` copied stale files
+ * and the gate still passed. Staleness has to be impossible, not merely unlikely.
+ *
+ * Updating is deliberately conservative — it fast-forwards `main` and stops at anything
+ * that could lose work: a feature branch, local commits, or a dirty tree. Someone
+ * working *on* the DS from this clone keeps their work and gets told what to do.
  */
 import { existsSync, mkdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -30,8 +39,75 @@ function vendorReady() {
   );
 }
 
+/** Run git in the vendor clone, returning trimmed stdout ("" on failure). */
+function git(...args) {
+  try {
+    return execFileSync("git", ["-C", VENDOR_DS_PATH, ...args], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Fast-forward an existing clone to origin/main. Never discards anything: a dirty tree,
+ * local commits, or a non-main branch each stop the update with a message naming the
+ * exact command to run once the work is parked.
+ */
+function updateVendor() {
+  const branch = git("rev-parse", "--abbrev-ref", "HEAD");
+  const dirty = git("status", "--porcelain");
+
+  if (dirty) {
+    console.log(
+      `DS ready: ${VENDOR_DS_PATH} (left as is — uncommitted changes in the clone)`
+    );
+    return;
+  }
+  if (branch !== "main") {
+    console.log(
+      `DS ready: ${VENDOR_DS_PATH} (left as is — clone is on "${branch}", not main)`
+    );
+    return;
+  }
+
+  // `--depth 1` clones carry no history to merge onto, so deepen before fetching.
+  if (git("rev-parse", "--is-shallow-repository") === "true") {
+    git("fetch", "--unshallow", "origin", "main");
+  } else {
+    git("fetch", "origin", "main");
+  }
+
+  const local = git("rev-parse", "HEAD");
+  const remote = git("rev-parse", "origin/main");
+  if (!local || !remote || local === remote) {
+    console.log(`DS ready: ${VENDOR_DS_PATH}`);
+    return;
+  }
+
+  const behind = git("rev-list", "--count", "HEAD..origin/main");
+  const ahead = git("rev-list", "--count", "origin/main..HEAD");
+  if (ahead !== "0") {
+    console.log(
+      `DS ready: ${VENDOR_DS_PATH} (left as is — ${ahead} local commit(s) not on origin/main)`
+    );
+    return;
+  }
+
+  git("merge", "--ff-only", "origin/main");
+  if (git("rev-parse", "HEAD") === remote) {
+    console.log(
+      `DS updated: ${VENDOR_DS_PATH} — fast-forwarded ${behind} commit(s) to origin/main`
+    );
+  } else {
+    console.log(`DS ready: ${VENDOR_DS_PATH} (could not fast-forward; left as is)`);
+  }
+}
+
 if (vendorReady()) {
-  console.log(`DS ready: ${VENDOR_DS_PATH}`);
+  updateVendor();
   process.exit(0);
 }
 
