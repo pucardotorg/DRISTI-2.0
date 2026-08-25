@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint && npm run check:tokens && npm run check:typography && npm run check:ui-sync",
     "check:tokens": "node scripts/check-tokens.mjs",
+    "check:ds-fresh": "node scripts/check-ds-fresh.mjs",
     "check:typography": "node scripts/check-typography.mjs",
     "check:ui-sync": "node scripts/check-ui-sync.mjs",
     "sync:ui": "node scripts/sync-ui-from-ds.mjs"

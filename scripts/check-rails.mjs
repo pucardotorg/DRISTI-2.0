@@ -14,6 +14,11 @@
  *     Cursor carries description/alwaysApply), and the Cursor copy opens with a
  *     "> Cursor note." blockquote explaining what that tool cannot enforce. Both are
  *     stripped before comparing.
+ *
+ *   Rules   (.claude/rules/<x>.md  ↔  .cursor/rules/<x>.mdc)
+ *     must match in body, same normalisation. These are the always-on gates — the DS
+ *     gate included — so a silent drift here means the two tools enforce different
+ *     rules. They were mirrored by convention and ungated until 2026-08-25.
  */
 
 import { readFileSync, existsSync, readdirSync } from "node:fs";
@@ -133,6 +138,29 @@ for (const role of ROLES) {
   }
 }
 
+// --- rules: always-on gates, body must match --------------------------------
+const claudeRulesDir = join(ROOT, ".claude/rules");
+const RULES = existsSync(claudeRulesDir)
+  ? readdirSync(claudeRulesDir)
+      .filter((f) => f.endsWith(".md"))
+      .map((f) => f.replace(/\.md$/, ""))
+      .sort()
+  : [];
+
+for (const rule of RULES) {
+  const claude = join(ROOT, ".claude/rules", `${rule}.md`);
+  const cursor = join(ROOT, ".cursor/rules", `${rule}.mdc`);
+  if (!existsSync(cursor)) {
+    problems.push(`rule "${rule}" has no Cursor mirror — expected .cursor/rules/${rule}.mdc`);
+    continue;
+  }
+  const a = normalize(stripFrontmatter(readFileSync(claude, "utf8")));
+  const b = normalize(stripLeadingBlockquote(stripFrontmatter(readFileSync(cursor, "utf8"))));
+  if (a !== b) {
+    problems.push(`rule "${rule}" body differs between Claude and Cursor at ${firstDifferingLine(a, b)}`);
+  }
+}
+
 if (problems.length > 0) {
   console.error("check:rails — agent rails have drifted\n");
   for (const p of problems) console.error(`  ✗ ${p}\n`);
@@ -141,4 +169,4 @@ if (problems.length > 0) {
   process.exit(1);
 }
 
-console.log(`check:rails — ok (${skills.length} skills, ${ROLES.length} roles mirrored)`);
+console.log(`check:rails — ok (${skills.length} skills, ${ROLES.length} roles, ${RULES.length} rules mirrored)`);
