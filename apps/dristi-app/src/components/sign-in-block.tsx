@@ -14,9 +14,9 @@ import { RegistrationFlow } from "@/components/registration/registration-flow";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  CompactSegmentedControl,
-  CompactSegmentedControlItem,
-} from "@/components/ui/compact-segmented-control";
+  SegmentedControl,
+  SegmentedControlItem,
+} from "@/components/ui/segmented-control";
 import {
   Field,
   FieldDescription,
@@ -322,7 +322,7 @@ export function SignInBlock({
           {/* Two locales, so a segmented toggle beats a dropdown: it costs one tap
               instead of two, and — the reason it matters here — it shows മലയാളം in its
               own script, findable by someone who cannot read the word "Language". */}
-          <CompactSegmentedControl
+          <SegmentedControl size="compact"
             className="lg:ml-auto"
             type="single"
             value={locale}
@@ -330,14 +330,14 @@ export function SignInBlock({
             aria-label={pick(ui.language, locale)}
           >
             {LOCALES.map((l) => (
-              <CompactSegmentedControlItem
+              <SegmentedControlItem
                 key={l.value}
                 value={l.value}
               >
                 {l.label}
-              </CompactSegmentedControlItem>
+              </SegmentedControlItem>
             ))}
-          </CompactSegmentedControl>
+          </SegmentedControl>
         </header>
 
         <main
@@ -402,7 +402,7 @@ export function SignInBlock({
                     <Field data-invalid={badMobile}>
                       <FieldLabel>{pick(form.mobileLabel, locale)}</FieldLabel>
                       <InputGroup>
-                        <InputGroupAddon>
+                        <InputGroupAddon variant="field">
                           <InputGroupText>+91</InputGroupText>
                         </InputGroupAddon>
                         <InputGroupInput
@@ -436,7 +436,7 @@ export function SignInBlock({
                       >
                         {pick(form.methodLegend, locale)}
                       </span>
-                      <CompactSegmentedControl
+                      <SegmentedControl size="compact"
                         type="single"
                         value={method}
                         onValueChange={(value) => {
@@ -447,14 +447,14 @@ export function SignInBlock({
                         aria-labelledby={methodLabelId}
                       >
                         {METHOD_ORDER.map((m) => (
-                          <CompactSegmentedControlItem
+                          <SegmentedControlItem
                             key={m}
                             value={m}
                           >
                             {pick(methods[m], locale)}
-                          </CompactSegmentedControlItem>
+                          </SegmentedControlItem>
                         ))}
-                      </CompactSegmentedControl>
+                      </SegmentedControl>
                     </div>
 
                     {method === "password" ? (

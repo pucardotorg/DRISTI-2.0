@@ -43,6 +43,8 @@ function DocumentSlot({
   quality,
   thumbnail,
   onChooseFile,
+  disabled = false,
+  copy,
   ...props
 }: React.ComponentProps<"div"> &
   VariantProps<typeof documentSlotVariants> & {
@@ -54,6 +56,20 @@ function DocumentSlot({
     quality?: "good" | "poor"
     thumbnail?: React.ReactNode
     onChooseFile?: () => void
+    /** Locks the slot while an upload or scan is in flight. */
+    disabled?: boolean
+    /**
+     * Overrides the slot's built-in strings. A slot that names the document it wants
+     * ("Add cheque") reads better than a generic "Choose file", and the scan verdicts
+     * need to speak the caller's language.
+     */
+    copy?: {
+      optional?: string
+      noFile?: string
+      goodScan?: string
+      poorScan?: string
+      chooseFile?: string
+    }
   }) {
   const isEmpty = status === "empty" || status === "empty-optional"
   const showOptional = optional || status === "empty-optional"
@@ -65,6 +81,7 @@ function DocumentSlot({
       data-slot="document-slot"
       data-status={status}
       data-media={media}
+      aria-disabled={disabled || undefined}
       className={cn(documentSlotVariants({ status, media }), className)}
       {...props}
     >
@@ -93,7 +110,7 @@ function DocumentSlot({
             </span>
           ) : null}
           {showOptional ? (
-            <Badge variant="secondary">Optional</Badge>
+            <Badge variant="secondary">{copy?.optional ?? "Optional"}</Badge>
           ) : null}
         </div>
         {(filename || meta) && !isEmpty ? (
@@ -103,24 +120,30 @@ function DocumentSlot({
         ) : null}
         {isEmpty ? (
           <p className="mt-0.5 text-sm text-muted-foreground">
-            No file chosen yet
+            {copy?.noFile ?? "No file chosen yet"}
           </p>
         ) : null}
         {qualityTone === "good" ? (
           <Badge variant="success" className="mt-2">
-            Good scan
+            {copy?.goodScan ?? "Good scan"}
           </Badge>
         ) : null}
         {qualityTone === "poor" ? (
           <Badge variant="warning" className="mt-2">
-            Poor scan
+            {copy?.poorScan ?? "Poor scan"}
           </Badge>
         ) : null}
       </div>
 
       {isEmpty ? (
-        <Button type="button" variant="outline" size="sm" onClick={onChooseFile}>
-          Choose file
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          onClick={onChooseFile}
+        >
+          {copy?.chooseFile ?? "Choose file"}
         </Button>
       ) : null}
     </div>

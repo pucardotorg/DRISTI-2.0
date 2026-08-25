@@ -94,24 +94,24 @@ export function CourtDocument({
     <Card className={cn(PANEL_CLASS, "gap-0 p-6 md:p-10", className)}>
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 text-body">
         <header className="flex flex-col items-center gap-1 text-center">
-          <p className="text-caption font-semibold text-muted-foreground">Before the</p>
+          <p className="text-caption font-semibold text-paper-muted-foreground">Before the</p>
           <p className="text-body font-semibold">{kase.court}</p>
           {kase.stNumber || kase.cnr ? (
-            <p className="font-mono text-caption tabular-nums text-muted-foreground">
+            <p className="font-mono text-caption tabular-nums text-paper-muted-foreground">
               {[kase.stNumber, kase.cnr].filter(Boolean).join(" · ")}
             </p>
           ) : (
-            <p className="text-caption text-muted-foreground">Not yet numbered</p>
+            <p className="text-caption text-paper-muted-foreground">Not yet numbered</p>
           )}
         </header>
 
         <div className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-2 text-body-compact">
           <p className="font-medium">{complainant ?? kase.parties}</p>
-          <p className="text-muted-foreground">Complainant</p>
-          <p className="text-muted-foreground">v.</p>
+          <p className="text-paper-muted-foreground">Complainant</p>
+          <p className="text-paper-muted-foreground">v.</p>
           <p />
           <p className="font-medium">{accused ?? "—"}</p>
-          <p className="text-muted-foreground">Accused</p>
+          <p className="text-paper-muted-foreground">Accused</p>
         </div>
 
         <h2 className="text-center text-title-s font-semibold text-balance">{documentTitleOf(task)}</h2>
@@ -131,18 +131,18 @@ export function CourtDocument({
               .
             </p>
           ) : null}
-          <p className="text-muted-foreground">{words.closing}</p>
+          <p className="text-paper-muted-foreground">{words.closing}</p>
         </div>
 
         <div className="grid grid-cols-1 gap-6 border-t border-hairline pt-6 text-body-compact sm:grid-cols-2">
           <div className="flex flex-col gap-1">
-            <p className="text-caption font-semibold text-muted-foreground">Place · date</p>
+            <p className="text-caption font-semibold text-paper-muted-foreground">Place · date</p>
             <p>
               Kollam · <span className="tabular-nums">{longDate(task.completion?.at ?? new Date().toISOString())}</span>
             </p>
           </div>
           <div className="flex flex-col gap-1">
-            <p className="text-caption font-semibold text-muted-foreground">{words.role}</p>
+            <p className="text-caption font-semibold text-paper-muted-foreground">{words.role}</p>
             {signed && signedBy ? (
               <p className="flex items-start gap-1.5 text-success-ink">
                 <CircleCheckIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
@@ -154,7 +154,7 @@ export function CourtDocument({
                 </span>
               </p>
             ) : (
-              <p className="text-muted-foreground">
+              <p className="text-paper-muted-foreground">
                 {signatories.map((s) => s.name).join(" / ") || "—"}
                 <span className="block text-caption">Signature pending</span>
               </p>

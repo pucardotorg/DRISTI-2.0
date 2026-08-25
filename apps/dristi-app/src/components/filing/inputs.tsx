@@ -132,7 +132,7 @@ export function PrefixInput({
         className
       )}
     >
-      <InputGroupAddon>
+      <InputGroupAddon variant="field">
         <InputGroupText>{prefix}</InputGroupText>
       </InputGroupAddon>
       <InputGroupInput

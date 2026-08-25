@@ -82,6 +82,9 @@
   --color-brand-muted: var(--brand-muted);
   --color-brand-muted-foreground: var(--brand-muted-foreground);
   --color-brand-muted-hover: var(--brand-muted-hover);
+  /* Brand canvas — the deep-teal gradient field behind full-height marketing and
+     sign-in panels. Deliberately identical in both modes: the panel reads as a fixed
+     institutional plate, not a themed surface, so it does not invert under `.dark`. */
   --color-brand-canvas: var(--brand-canvas);
   --color-brand-canvas-deep: var(--brand-canvas-deep);
   --color-brand-canvas-foreground: var(--brand-canvas-foreground);
@@ -91,14 +94,6 @@
   --color-paper-muted: var(--paper-muted);
   --color-paper-muted-foreground: var(--paper-muted-foreground);
   --color-paper-border: var(--paper-border);
-
-  /* Brand canvas — the deep-teal gradient field behind full-height marketing and
-     sign-in panels. Deliberately identical in both modes: the panel reads as a fixed
-     institutional plate, not a themed surface, so it does not invert under `.dark`. */
-  --color-brand-canvas: var(--brand-canvas);
-  --color-brand-canvas-deep: var(--brand-canvas-deep);
-  --color-brand-canvas-foreground: var(--brand-canvas-foreground);
-  --color-brand-canvas-muted-foreground: var(--brand-canvas-muted-foreground);
 
   /* Interaction and accessibility primitives from Rajini 2.0. */
   --color-focus-ring: var(--focus-ring);
@@ -366,13 +361,6 @@
 
   /* Opaque hover composites reproduce Figma's base fill + tint layer. */
   --primary-hover: color-mix(in srgb, var(--primary), black 8%);
-  /* Tuned deep-teal plate, not raw ramp steps — the light stop sits between dark
-     brand-5 and brand-6, the deep stop below dark brand-1. Same values in `.dark`. */
-  --brand-canvas: #0f544c;
-  --brand-canvas-deep: #05221f;
-  --brand-canvas-foreground: #ffffff;
-  --brand-canvas-muted-foreground: #a7d9d0;
-
   --brand-muted-hover: color-mix(in srgb, var(--brand-muted), black 8%);
   --destructive-hover: color-mix(in srgb, var(--destructive), black 8%);
   --destructive-muted-hover: color-mix(in srgb, var(--destructive-muted), black 8%);
@@ -585,12 +573,6 @@
   --info-muted-foreground: var(--info-ink);
 
   --primary-hover: color-mix(in srgb, var(--primary), white 10%);
-  /* Identical to `:root` on purpose — see the note in @theme inline. */
-  --brand-canvas: #0f544c;
-  --brand-canvas-deep: #05221f;
-  --brand-canvas-foreground: #ffffff;
-  --brand-canvas-muted-foreground: #a7d9d0;
-
   --brand-muted-hover: color-mix(in srgb, var(--brand-muted), white 10%);
   --destructive-hover: color-mix(in srgb, var(--destructive), white 10%);
   --destructive-muted-hover: color-mix(in srgb, var(--destructive-muted), white 10%);

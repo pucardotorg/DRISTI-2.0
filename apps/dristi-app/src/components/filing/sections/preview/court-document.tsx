@@ -56,7 +56,7 @@ function DocGroupRow({
     <tr>
       <td
         colSpan={span}
-        className="border border-border bg-secondary px-3 py-2 text-body-compact font-semibold text-secondary-foreground"
+        className="border border-paper-border bg-paper-muted px-3 py-2 text-body-compact font-semibold text-paper-muted-foreground"
       >
         {children}
       </td>
@@ -74,9 +74,9 @@ function DocCell({
   span?: number;
 }) {
   return (
-    <td colSpan={span} className="border border-border px-3 py-2 align-top">
+    <td colSpan={span} className="border border-paper-border px-3 py-2 align-top">
       {label ? (
-        <span className="block text-caption font-medium text-muted-foreground">
+        <span className="block text-caption font-medium text-paper-muted-foreground">
           {label}
         </span>
       ) : null}
@@ -128,7 +128,7 @@ export function CourtDocument({ draft }: { draft: FilingDraft }) {
     <Card className={cn(PANEL_CLASS, "gap-0 p-6 font-sans text-foreground sm:p-8")}>
       {/* Court and cause title */}
       <div className="flex flex-col gap-1 text-center">
-        <p className="text-caption font-medium tracking-wide text-muted-foreground">
+        <p className="text-caption font-medium tracking-wide text-paper-muted-foreground">
           In the {COURT.name}
         </p>
         <p className="text-body-compact font-semibold tabular-nums">
@@ -140,7 +140,7 @@ export function CourtDocument({ draft }: { draft: FilingDraft }) {
       <div className="mt-4 flex items-start justify-between gap-4 py-1">
         <div className="min-w-0">
           <p className="text-body-compact font-semibold break-words">{complainant.name}</p>
-          <p className="mt-1 text-caption font-medium leading-relaxed text-muted-foreground">
+          <p className="mt-1 text-caption font-medium leading-relaxed text-paper-muted-foreground">
             {complainant.age ? (
               <>
                 Aged {complainant.age} years,
@@ -160,7 +160,7 @@ export function CourtDocument({ draft }: { draft: FilingDraft }) {
           <p className="text-body-compact font-semibold break-words">
             {firstAccused ? firstAccused.heading : NOT_PROVIDED}
           </p>
-          <p className="mt-1 text-caption font-medium leading-relaxed text-muted-foreground">
+          <p className="mt-1 text-caption font-medium leading-relaxed text-paper-muted-foreground">
             R/o {firstAccused ? firstAccused.address : NOT_PROVIDED}
           </p>
         </div>
@@ -306,7 +306,7 @@ export function CourtDocument({ draft }: { draft: FilingDraft }) {
           </tbody>
         </DocTable>
       ) : (
-        <DocP className="text-muted-foreground">
+        <DocP className="text-paper-muted-foreground">
           No advocate has been added — the complainant appears as a party in person.
         </DocP>
       )}
@@ -517,7 +517,7 @@ export function CourtDocument({ draft }: { draft: FilingDraft }) {
       {interimRelief.length ? (
         interimRelief.map((p, i) => <DocP key={i}>{p}</DocP>)
       ) : (
-        <DocP className="text-muted-foreground">{NOT_PROVIDED}</DocP>
+        <DocP className="text-paper-muted-foreground">{NOT_PROVIDED}</DocP>
       )}
       <p className="mt-4 text-body-compact font-semibold">Final relief</p>
       {finalRelief.length ? (
@@ -527,7 +527,7 @@ export function CourtDocument({ draft }: { draft: FilingDraft }) {
           </DocP>
         ))
       ) : (
-        <DocP className="text-muted-foreground">{NOT_PROVIDED}</DocP>
+        <DocP className="text-paper-muted-foreground">{NOT_PROVIDED}</DocP>
       )}
 
       {/* ── 3. Evidence ── */}
@@ -567,13 +567,13 @@ export function CourtDocument({ draft }: { draft: FilingDraft }) {
           </colgroup>
           <thead>
             <tr>
-              <th className="border border-border bg-secondary px-3 py-2 text-left text-body-compact font-semibold text-secondary-foreground">
+              <th className="border border-paper-border bg-paper-muted px-3 py-2 text-left text-body-compact font-semibold text-paper-muted-foreground">
                 S. no.
               </th>
-              <th className="border border-border bg-secondary px-3 py-2 text-left text-body-compact font-semibold text-secondary-foreground">
+              <th className="border border-paper-border bg-paper-muted px-3 py-2 text-left text-body-compact font-semibold text-paper-muted-foreground">
                 Document name
               </th>
-              <th className="border border-border bg-secondary px-3 py-2 text-left text-body-compact font-semibold text-secondary-foreground">
+              <th className="border border-paper-border bg-paper-muted px-3 py-2 text-left text-body-compact font-semibold text-paper-muted-foreground">
                 Natively digital
               </th>
             </tr>
@@ -586,7 +586,7 @@ export function CourtDocument({ draft }: { draft: FilingDraft }) {
                   <DocCell>
                     {d.name}
                     {d.file ? (
-                      <span className="mt-0.5 block text-caption text-muted-foreground">
+                      <span className="mt-0.5 block text-caption text-paper-muted-foreground">
                         {d.file.name}
                       </span>
                     ) : null}
@@ -638,7 +638,7 @@ export function CourtDocument({ draft }: { draft: FilingDraft }) {
         with legal requirements.
       </DocP>
       <DocP className="text-center">***</DocP>
-      <DocP className="text-muted-foreground">
+      <DocP className="text-paper-muted-foreground">
         Please turn over the page to see the documents uploaded by the complainant.
       </DocP>
     </Card>
