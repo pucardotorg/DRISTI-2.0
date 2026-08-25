@@ -125,8 +125,10 @@ const GO: NavItem[] = [
 ];
 
 const START: NavItem[] = [
-  // The e-filing flow and Mohit's QR-less join entry — both already on this branch;
-  // the rail is just finally telling the truth about them.
+  // Both flows already live on this branch; the rail is just finally telling the truth
+  // about them. Join goes to the signed-in journey (case number → role questions →
+  // vakalatnama), not the pre-auth /join token entry, which bounced a signed-in person
+  // back through the sign-in gate.
   {
     id: "file-case",
     label: "File a Case",
@@ -134,7 +136,12 @@ const START: NavItem[] = [
     href: "/filings",
   },
   { id: "file-application", label: "File Application", icon: FileTextIcon },
-  { id: "join-case", label: "Join a Case", icon: UserPlusIcon, href: "/join" },
+  {
+    id: "join-case",
+    label: "Join a Case",
+    icon: UserPlusIcon,
+    href: "/advocate?view=join",
+  },
 ];
 
 const WITH: NavItem[] = [{ id: "people", label: "People", icon: UsersIcon }];

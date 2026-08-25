@@ -22,12 +22,14 @@ function AdvocatePage() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const lang = searchParams.get("lang");
+  const view = searchParams.get("view");
 
   return (
     <AdvocateScreen
       summoned={Boolean(token)}
       hasCase={searchParams.get("nocase") !== "1"}
       initialLocale={lang === "ml" ? ("ml" as Locale) : "en"}
+      initialView={view === "join" ? "join" : "home"}
     />
   );
 }
