@@ -85,7 +85,19 @@ const ROW = [
   // 20px mark at 10px a side, which is what "a proper square" means here.
   "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-0!",
   "[&_svg]:size-5",
+  // Selection inverts: on a charcoal plate there is no quiet tint left to spend, so the
+  // selected row becomes the light surface and the brand colour moves into the text.
+  //
+  // The teal is `brand-canvas`, not `primary`, and that is a correctness point rather
+  // than a preference. Inside a dark scope the teal ramp inverts — `primary` resolves to
+  // #0eb39e, which on a white fill measures 2.2:1 and fails AA outright. `brand-canvas`
+  // (#0f544c) is one of the few tokens the DS holds identical in both modes, so it stays
+  // the deep teal here and measures 8.66:1 on white.
+  //
+  // Still one cue: a fill. No ring or border stacked on top of it.
+  "data-[active=true]:bg-brand-canvas-foreground data-[active=true]:text-brand-canvas",
   "data-[active=true]:font-semibold",
+  "data-[active=true]:hover:bg-brand-canvas-foreground data-[active=true]:hover:text-brand-canvas",
 ].join(" ");
 
 type NavItem = { id: string; label: string; icon: LucideIcon; href?: string };
@@ -135,7 +147,11 @@ function TasksCount() {
   const { action } = summaryOf({ people, cases, tasks, user, now: new Date() });
   if (!action) return null;
   return (
-    <span className="ml-auto text-caption tabular-nums text-muted-foreground group-data-[collapsible=icon]:hidden">
+    // The count has to follow the row it sits in. On the charcoal plate it is the muted
+    // grey like every other count; inside the selected row that grey lands on a white
+    // fill at 2.08:1, so it takes the row's own teal and keeps its lighter weight — the
+    // hierarchy against the label comes from weight, not from a colour it cannot afford.
+    <span className="ml-auto text-caption tabular-nums text-muted-foreground group-data-[collapsible=icon]:hidden group-data-[active=true]/menu-button:text-brand-canvas">
       {action}
     </span>
   );
@@ -415,21 +431,43 @@ function ProfileFooter() {
 export function AppSidebar() {
   return (
     /*
-     * EXPERIMENT — charcoal rail against a light workspace.
+     * A charcoal rail against a light workspace.
      *
-     * `dark` here is not a theme override, it is a scope: the rail opts into the design
-     * system's own dark palette while the page stays light, so every token it paints
-     * with (`sidebar`, `sidebar-accent`, `sidebar-foreground`, the brand steps) is one
-     * the DS already ships and has already contrast-checked. Nothing is invented, and
-     * dark mode still works — the rail simply already looks like that.
+     * Two earlier attempts are worth recording, because both failed for reasons that
+     * name what this one has to get right.
      *
-     * The brand step brightens on its own: the dark palette maps the accent to a lighter
-     * point on the teal ramp than the light palette does, which is the "brighter variant"
-     * the charcoal needs to keep the active row legible.
+     * The first took the sidebar's dark default, `neutral-2` (#18191b). That is L* 9 —
+     * perceptually black rather than charcoal — and against a white workspace it landed
+     * as a cut rather than a seam. The second painted the rail in `brand-canvas` teal;
+     * the plate was correct in structure but saturated chrome fights the content it is
+     * supposed to frame.
      *
-     * Remove this one class to return to the light rail; nothing else depends on it.
+     * So: charcoal, but picked rather than inherited. `neutral-4` (#272a2d) is L* 16,
+     * two steps up the ramp from black and the step that actually matches the reference.
+     * It reads as a considered surface, not as a piece of another mode.
+     *
+     * `dark` is a scope, not a theme switch: it is what puts the dark ramp in reach and
+     * what makes the popovers, tooltips and menus that open *inside* the rail render for
+     * a dark ground instead of dropping white cards onto it. The `--sidebar` override
+     * then moves the plate off that scope's near-black default onto the chosen step.
+     * Every value is a DS ramp step; none is invented.
      */
-    <Sidebar collapsible="icon" className="dark">
+    <Sidebar
+      collapsible="icon"
+      className="dark"
+      style={
+        {
+          "--sidebar": "var(--neutral-4)",
+          "--sidebar-foreground": "var(--neutral-12)",
+          // Hover lifts one step. On charcoal that is enough to feel — and it has to stay
+          // this quiet, because the selected row is the one thing here allowed to be light.
+          "--sidebar-accent": "var(--neutral-6)",
+          "--sidebar-accent-foreground": "var(--neutral-12)",
+          "--sidebar-border": "var(--neutral-6)",
+          "--sidebar-ring": "var(--neutral-12)",
+        } as React.CSSProperties
+      }
+    >
       {/*
        * The brand sits at the page origin, in the rail — the top bar carries the
        * breadcrumb instead, so the mark does not move when the rail collapses. The
