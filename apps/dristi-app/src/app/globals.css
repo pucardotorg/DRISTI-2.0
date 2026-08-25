@@ -82,9 +82,6 @@
   --color-brand-muted: var(--brand-muted);
   --color-brand-muted-foreground: var(--brand-muted-foreground);
   --color-brand-muted-hover: var(--brand-muted-hover);
-  /* Brand canvas — the deep-teal gradient field behind full-height marketing and
-     sign-in panels. Deliberately identical in both modes: the panel reads as a fixed
-     institutional plate, not a themed surface, so it does not invert under `.dark`. */
   --color-brand-canvas: var(--brand-canvas);
   --color-brand-canvas-deep: var(--brand-canvas-deep);
   --color-brand-canvas-foreground: var(--brand-canvas-foreground);
