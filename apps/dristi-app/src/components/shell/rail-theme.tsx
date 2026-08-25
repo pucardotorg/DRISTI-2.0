@@ -161,6 +161,28 @@ export const RAIL_THEMES: RailTheme[] = [
     },
   },
   {
+    id: "deep-teal-quiet",
+    label: "Deep teal III — quieter",
+    swatch: "#114741",
+    darkPlate: true,
+    // Owner-requested nudge on the canvas plate: a step darker and a touch desaturated
+    // (#0f544c → #114741, saturation ~70% → ~61%). NOT a DS token yet — the one
+    // deliberate exception in this file, held as a candidate: if it wins the experiment
+    // it goes to the DS as a value, it does not stay a local hex.
+    vars: {
+      ...CARD,
+      "--sidebar": "#114741",
+      "--sidebar-foreground": "#ffffff", //             10.5:1
+      "--rail-muted": "#a7d9d0", //                     brand-canvas-muted-foreground — 6.8:1
+      "--sidebar-accent": "#0d3d38", //                 brand-12
+      "--sidebar-accent-foreground": "#ffffff",
+      "--rail-seam": DARK_SEAM,
+      "--sidebar-border": DARK_SEAM,
+      "--sidebar-ring": "#ffffff",
+      "--rail-active-shadow": "none",
+    },
+  },
+  {
     id: "night-teal",
     label: "Night teal",
     swatch: "#0d3d38",

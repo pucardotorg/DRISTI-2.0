@@ -16,14 +16,56 @@ export type FilingChromeValue = {
   /** The sections rail as a sheet, below `lg`. */
   sectionsSheetOpen: boolean;
   setSectionsSheetOpen: (open: boolean) => void;
-  /** Collapse the main nav to its icon rail — used when a right-hand rail opens. */
-  foldNav: () => void;
   /** Title of the draft currently loaded, for the breadcrumb. `null` outside a draft. */
   draftLabel: string | null;
   setDraftLabel: (label: string | null) => void;
 };
 
-export const FilingChromeContext = React.createContext<FilingChromeValue | null>(null);
+export const FilingChromeContext =
+  React.createContext<FilingChromeValue | null>(null);
+
+/**
+ * The filing area's own chrome state — the sections rail and the draft's breadcrumb
+ * title. It used to live inside a filings-only app shell; folding the *main* nav is the
+ * shared shell's job now (`useChrome().foldNav`), so what is left here is exactly the
+ * state no other area has, provided by the filings layout around the one `AppShell`.
+ */
+export function FilingChromeProvider({
+  children,
+  sectionsDefaultOpen = true,
+}: {
+  children: React.ReactNode;
+  /** Read from the cookie on the server so the rail does not flip after hydration. */
+  sectionsDefaultOpen?: boolean;
+}) {
+  const [sectionsOpen, setSectionsOpenState] =
+    React.useState(sectionsDefaultOpen);
+  const [sectionsSheetOpen, setSectionsSheetOpen] = React.useState(false);
+  const setSectionsOpen = React.useCallback((open: boolean) => {
+    setSectionsOpenState(open);
+    document.cookie = `${SECTIONS_COOKIE}=${open}; path=/; max-age=${SECTIONS_COOKIE_MAX_AGE}`;
+  }, []);
+
+  const [draftLabel, setDraftLabel] = React.useState<string | null>(null);
+
+  const value = React.useMemo<FilingChromeValue>(
+    () => ({
+      sectionsOpen,
+      setSectionsOpen,
+      sectionsSheetOpen,
+      setSectionsSheetOpen,
+      draftLabel,
+      setDraftLabel,
+    }),
+    [sectionsOpen, setSectionsOpen, sectionsSheetOpen, draftLabel],
+  );
+
+  return (
+    <FilingChromeContext.Provider value={value}>
+      {children}
+    </FilingChromeContext.Provider>
+  );
+}
 
 /**
  * State the filing chrome shares across rails: which rails are open, and what the
@@ -32,7 +74,8 @@ export const FilingChromeContext = React.createContext<FilingChromeValue | null>
  */
 export function useFilingChrome(): FilingChromeValue {
   const ctx = React.useContext(FilingChromeContext);
-  if (!ctx) throw new Error("useFilingChrome must be used inside <FilingsAppShell>");
+  if (!ctx)
+    throw new Error("useFilingChrome must be used inside <FilingsAppShell>");
   return ctx;
 }
 

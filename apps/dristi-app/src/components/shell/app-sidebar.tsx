@@ -125,9 +125,16 @@ const GO: NavItem[] = [
 ];
 
 const START: NavItem[] = [
-  { id: "file-case", label: "File a Case", icon: FilePlusIcon },
+  // The e-filing flow and Mohit's QR-less join entry — both already on this branch;
+  // the rail is just finally telling the truth about them.
+  {
+    id: "file-case",
+    label: "File a Case",
+    icon: FilePlusIcon,
+    href: "/filings",
+  },
   { id: "file-application", label: "File Application", icon: FileTextIcon },
-  { id: "join-case", label: "Join a Case", icon: UserPlusIcon },
+  { id: "join-case", label: "Join a Case", icon: UserPlusIcon, href: "/join" },
 ];
 
 const WITH: NavItem[] = [{ id: "people", label: "People", icon: UsersIcon }];
@@ -272,9 +279,12 @@ function NavRow({ item }: { item: NavItem }) {
  * carries a hairline on its trailing edge, so padding-based centring leaves 8px on one
  * side and 7px on the other. Centring by flex is immune to the border.
  *
- * A group after the first is separated by the theme's seam. The seam is hidden when the
- * rail collapses: the rows are already grouped by their own spacing, and a full-width
- * rule across an icon rail is a stroke doing nothing.
+ * A group after the first is separated by the theme's seam — in both states. Hiding the
+ * rules on collapse was a mistake worth recording: the header's seam survived, so the
+ * strip was half-ruled — one line at the top and then nothing, which read as the rail
+ * losing its structure rather than simplifying it. Collapsed, the rule stays but insets
+ * to the width of the squares (12px a side), so it underlines the group instead of
+ * cutting the whole strip.
  */
 function NavGroup({
   items,
@@ -289,7 +299,7 @@ function NavGroup({
     <SidebarGroup
       className={
         separated
-          ? "border-t border-(--rail-seam) px-3 py-2 group-data-[collapsible=icon]:border-t-0 group-data-[collapsible=icon]:px-0"
+          ? "border-t border-(--rail-seam) px-3 py-2 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:px-0"
           : "px-3 py-2 group-data-[collapsible=icon]:px-0"
       }
     >

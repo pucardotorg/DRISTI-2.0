@@ -100,16 +100,20 @@ function ChromeBreadcrumb() {
   );
 }
 
-/** The DS trigger, told to say whether the rail it controls is open. */
+/**
+ * The DS trigger — only while the rail is a strip with no room for its own. An open
+ * rail carries its collapse control in its header (the shared shell's pattern); a
+ * second trigger here would sit at the head of the breadcrumb and read as its first
+ * crumb.
+ */
 function NavTrigger() {
-  const { open, openMobile, isMobile } = useSidebar();
-
+  const { open, isMobile } = useSidebar();
+  if (!isMobile && open) return null;
   return (
     <SidebarTrigger
       size="icon"
-      aria-label="Toggle main navigation"
-      aria-expanded={isMobile ? openMobile : open}
-      className="shrink-0 text-muted-foreground"
+      aria-label="Expand main navigation"
+      className="shrink-0 text-muted-foreground [&_svg]:size-5"
     />
   );
 }

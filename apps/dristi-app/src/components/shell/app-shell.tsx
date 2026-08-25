@@ -16,13 +16,20 @@ import { RailThemeProvider } from "@/components/shell/rail-theme";
 import { TopBar } from "@/components/shell/top-bar";
 
 /**
- * Which part of the tasks area a path belongs to. The main nav is expanded on the list
- * and collapsed inside an act flow (pay, sign, file, fix), where the page needs the
- * width for a document and its actions.
+ * Which part of the app a path belongs to. The main nav is expanded on list/dashboard
+ * screens and collapsed inside a flow (a task's pay/sign/fix, a filing draft), where
+ * the page needs the width for a document and its actions.
  */
 function areaOf(pathname: string): "list" | "flow" {
-  const rest = pathname.replace(/^\/tasks\/?/, "");
-  return rest ? "flow" : "list";
+  if (pathname.startsWith("/tasks")) {
+    return pathname.replace(/^\/tasks\/?/, "") ? "flow" : "list";
+  }
+  if (pathname.startsWith("/filings")) {
+    // `/filings/new` and `/filings/bulk` are dashboard screens, not drafts.
+    const first = pathname.replace(/^\/filings\/?/, "").split("/")[0];
+    return first && first !== "new" && first !== "bulk" ? "flow" : "list";
+  }
+  return "list";
 }
 
 /**
@@ -34,8 +41,19 @@ function areaOf(pathname: string): "list" | "flow" {
  * Nav width follows the route: labels on the list, the icon rail inside an act flow. The
  * state is keyed by area, so a toggle holds for as long as the person stays in that area
  * and is not overridden on every render.
+ *
+ * `topBar` lets an area bring its own bar (the filings flow has a draft breadcrumb and
+ * a sections-rail toggle no other area needs) while everything else — rail, theme,
+ * profile, fold behaviour — stays the one shell. This is the unification seam: an area
+ * customises the bar, never the rail.
  */
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  topBar,
+}: {
+  children: React.ReactNode;
+  topBar?: React.ReactNode;
+}) {
   const pathname = usePathname();
   const area = areaOf(pathname);
 
@@ -82,7 +100,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {/* Not `SidebarInset`: that primitive is itself a `<main>`, and the screens
               below already own that landmark. */}
               <div className="flex min-h-svh min-w-0 flex-1 flex-col bg-background">
-                <TopBar />
+                {topBar ?? <TopBar />}
                 <div className="flex min-h-0 flex-1">{children}</div>
               </div>
             </SidebarProvider>

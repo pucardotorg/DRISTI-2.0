@@ -34,7 +34,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TOP_BAR_HEIGHT, useFilingChrome } from "@/components/filing/chrome";
+import { TOP_BAR_HEIGHT } from "@/components/filing/chrome";
+import { useChrome } from "@/components/shell/chrome";
 import { useSourceRailSlot } from "@/components/filing/filing-shell";
 import { useInCorrection } from "@/components/filing/posture";
 import { Lightbox } from "@/components/filing/lightbox";
@@ -119,7 +120,7 @@ export function SourcePanel(props: SourcePanelProps) {
   const docked = wide && !inCorrection;
   const roomy = useRoomForLabelledNav();
   const slot = useSourceRailSlot();
-  const { foldNav } = useFilingChrome();
+  const { foldNav } = useChrome();
 
   /**
    * A third column below `2xl` would leave the form too narrow to read. The nav gives up

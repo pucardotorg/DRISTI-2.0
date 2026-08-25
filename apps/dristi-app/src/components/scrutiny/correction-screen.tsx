@@ -531,7 +531,6 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
       setSectionsOpen: () => undefined,
       sectionsSheetOpen: railOpen,
       setSectionsSheetOpen: setRailOpen,
-      foldNav: () => undefined,
       draftLabel: null,
       setDraftLabel: () => undefined,
     }),
