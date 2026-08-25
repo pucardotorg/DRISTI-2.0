@@ -139,6 +139,28 @@ export const RAIL_THEMES: RailTheme[] = [
     },
   },
   {
+    id: "deep-teal-bright",
+    label: "Deep teal II — brighter ink",
+    swatch: "#0f544c",
+    darkPlate: true,
+    // The owner's read on Deep teal: right plate, ink a touch subdued. Same plate,
+    // secondary ink stepped up the brand ramp — brand-4 instead of the canvas muted —
+    // so the idle menu sits closer to the primary white without becoming it, and the
+    // rows keep one visible step between idle and hover.
+    vars: {
+      ...CARD,
+      "--sidebar": "#0f544c", //                        brand-canvas
+      "--sidebar-foreground": "#ffffff", //             brand-canvas-foreground — 8.4:1
+      "--rail-muted": "#ccf3ea", //                     brand-4 — 7.2:1, one step brighter
+      "--sidebar-accent": "#0d3d38", //                 brand-12
+      "--sidebar-accent-foreground": "#ffffff",
+      "--rail-seam": DARK_SEAM,
+      "--sidebar-border": DARK_SEAM,
+      "--sidebar-ring": "#ffffff",
+      "--rail-active-shadow": "none",
+    },
+  },
+  {
     id: "night-teal",
     label: "Night teal",
     swatch: "#0d3d38",

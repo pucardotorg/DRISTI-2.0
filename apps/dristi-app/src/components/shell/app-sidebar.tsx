@@ -152,8 +152,16 @@ const SEARCH_NOTE = "product-wide search — not part of this build";
  * 6px red spark beside it — the red says "live obligation" without shouting a number
  * that is already legible as text; the earlier full red pill at 16px/600 read as an
  * alarm bolted to the nav. Collapsed, there is no text left to carry the number, so it
- * becomes a small corner pill — 14px tall, medium weight — ringed in whatever it
- * overlaps: the plate under an idle row, the card under the selected one.
+ * becomes a corner pill — ringed in whatever it overlaps: the plate under an idle row,
+ * the card under the selected one.
+ *
+ * The pill's chunkiness was structural, not stylistic: caption numerals are 12px, so
+ * two digits in a 14px pill ran wall-to-wall and the mark read as a red blob half the
+ * size of the glyph it annotates. The numeral drops to 10px — below the DS's caption
+ * floor, which is why it carries the reviewed-exception marker: this is a two-digit
+ * annotation on a 20px icon, not screen copy, and the DS has no badge-numeral role yet
+ * (upstream feedback). The ring thins to 1px for the same reason: the halo was a third
+ * of the pill's own height.
  */
 function TasksCount() {
   const { state, people, cases, tasks, user } = useTasks();
@@ -180,8 +188,10 @@ function TasksCount() {
         aria-hidden
         className={[
           "absolute -top-0.5 -right-0.5 hidden h-3.5 min-w-3.5 items-center justify-center rounded-full px-1",
-          "bg-(--rail-badge) text-caption font-medium leading-none tabular-nums text-(--rail-badge-ink)",
-          "ring-2 ring-(--sidebar) group-data-[active=true]/menu-button:ring-(--rail-card)",
+          // 10px badge numeral, reviewed: an annotation on an icon, not screen copy —
+          // the caption size filled the pill and made it a blob. ds-typography-allow
+          "bg-(--rail-badge) text-[10px] font-medium leading-none tabular-nums text-(--rail-badge-ink)",
+          "ring-1 ring-(--sidebar) group-data-[active=true]/menu-button:ring-(--rail-card)",
           "group-data-[collapsible=icon]:flex",
         ].join(" ")}
       >
