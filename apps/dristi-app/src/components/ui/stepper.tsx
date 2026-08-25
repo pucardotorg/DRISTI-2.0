@@ -53,12 +53,25 @@ function StepperItem({
   step,
   title,
   children,
+  onActivate,
+  activateLabel,
   ...props
 }: React.ComponentProps<"li"> &
   VariantProps<typeof stepperItemVariants> & {
     step?: number | string
     title?: React.ReactNode
+    /**
+     * Makes the step navigable — the indicator and title become a button that jumps
+     * back to it. Leave unset for a static progress marker. Set it only on steps the
+     * user may actually return to; a flow that cannot go back should not offer it.
+     */
+    onActivate?: () => void
+    /** Accessible name for the navigable control; falls back to the title text. */
+    activateLabel?: string
   }) {
+  const indicator =
+    status === "complete" ? <CheckIcon className="size-4" aria-hidden /> : step
+  const label = activateLabel ?? (typeof title === "string" ? title : undefined)
   return (
     <li
       data-slot="stepper-item"
@@ -67,16 +80,27 @@ function StepperItem({
       {...props}
     >
       <div className="flex w-full items-center">
-        <div
-          data-slot="stepper-indicator"
-          className={cn(stepperIndicatorVariants({ status }))}
-        >
-          {status === "complete" ? (
-            <CheckIcon className="size-4" aria-hidden />
-          ) : (
-            step
-          )}
-        </div>
+        {onActivate ? (
+          <button
+            type="button"
+            data-slot="stepper-indicator"
+            onClick={onActivate}
+            aria-label={label}
+            className={cn(
+              stepperIndicatorVariants({ status }),
+              "cursor-pointer outline-none transition-[box-shadow,background-color] hover:brightness-95 focus-visible:ring-3 focus-visible:ring-ring/50 dark:hover:brightness-110"
+            )}
+          >
+            {indicator}
+          </button>
+        ) : (
+          <div
+            data-slot="stepper-indicator"
+            className={cn(stepperIndicatorVariants({ status }))}
+          >
+            {indicator}
+          </div>
+        )}
         <div
           aria-hidden
           data-slot="stepper-connector"
@@ -89,16 +113,32 @@ function StepperItem({
       {title || children ? (
         <div className="pr-4">
           {title ? (
-            <p
-              className={cn(
-                "text-sm font-medium",
-                status === "upcoming"
-                  ? "text-muted-foreground"
-                  : "text-foreground"
-              )}
-            >
-              {title}
-            </p>
+            onActivate ? (
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={onActivate}
+                className={cn(
+                  "cursor-pointer text-sm font-medium outline-none",
+                  status === "upcoming"
+                    ? "text-muted-foreground"
+                    : "text-foreground"
+                )}
+              >
+                {title}
+              </button>
+            ) : (
+              <p
+                className={cn(
+                  "text-sm font-medium",
+                  status === "upcoming"
+                    ? "text-muted-foreground"
+                    : "text-foreground"
+                )}
+              >
+                {title}
+              </p>
+            )
           ) : null}
           {children}
         </div>
