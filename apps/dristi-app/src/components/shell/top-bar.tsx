@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 
 import { useTasks } from "@/lib/tasks/store";
@@ -29,18 +30,24 @@ import {
  */
 function ChromeBreadcrumb() {
   const { crumbs } = useChrome();
+  const pathname = usePathname();
   const last = crumbs.length - 1;
+  // The trail's root names the area. Tasks is the default; areas the shell hosts
+  // without their own bar add themselves here.
+  const root = pathname.startsWith("/join-case")
+    ? { label: "Join a case", href: undefined }
+    : { label: "Tasks", href: TASKS_HOME };
 
   return (
     <Breadcrumb className="min-w-0 flex-1">
       <BreadcrumbList className="flex-nowrap">
         <BreadcrumbItem className="shrink-0">
-          {crumbs.length ? (
+          {crumbs.length && root.href ? (
             <BreadcrumbLink asChild>
-              <Link href={TASKS_HOME}>Tasks</Link>
+              <Link href={root.href}>{root.label}</Link>
             </BreadcrumbLink>
           ) : (
-            <BreadcrumbPage>Tasks</BreadcrumbPage>
+            <BreadcrumbPage>{root.label}</BreadcrumbPage>
           )}
         </BreadcrumbItem>
 
