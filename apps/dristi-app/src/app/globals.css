@@ -86,6 +86,11 @@
   --color-brand-canvas-deep: var(--brand-canvas-deep);
   --color-brand-canvas-foreground: var(--brand-canvas-foreground);
   --color-brand-canvas-muted-foreground: var(--brand-canvas-muted-foreground);
+  --color-paper: var(--paper);
+  --color-paper-foreground: var(--paper-foreground);
+  --color-paper-muted: var(--paper-muted);
+  --color-paper-muted-foreground: var(--paper-muted-foreground);
+  --color-paper-border: var(--paper-border);
 
   /* Interaction and accessibility primitives from Rajini 2.0. */
   --color-focus-ring: var(--focus-ring);
@@ -305,6 +310,19 @@
   --brand-canvas-foreground: #ffffff;
   --brand-canvas-muted-foreground: #a7d9d0;
 
+  /* Paper — the legal-document facsimile (court-document preview, the e-signed PDF).
+     Fixed cool-grey values, deliberately NOT the product neutral ramp and identical in
+     both modes: the complaint / affidavit is a print convention the reader recognises,
+     not a themed surface — a printed page does not go warm or dark. Locked to the
+     cool ramp's own pre-2026-08-25 values so the document reads exactly as it always
+     has, regardless of any future product palette change. Measured: paper-muted-foreground
+     5.94:1 on paper, 4.55:1 on paper-muted; paper-foreground 16.39:1 on paper. */
+  --paper: #ffffff;
+  --paper-foreground: #1c2024;
+  --paper-muted: #e0e1e6;
+  --paper-muted-foreground: #60646c;
+  --paper-border: #b9bbc6;
+
   /* Interaction fills kept at n5 / n6 after the page step-down so hover stays
      perceptible on both the sunken page and neutral-1 cards. */
   --secondary: var(--neutral-5);
@@ -513,6 +531,14 @@
   --brand-canvas-deep: #05221f;
   --brand-canvas-foreground: #ffffff;
   --brand-canvas-muted-foreground: #a7d9d0;
+
+  /* Paper — the legal-document facsimile (court-document preview, the e-signed PDF).
+     Identical to :root on purpose — see the note there. */
+  --paper: #ffffff;
+  --paper-foreground: #1c2024;
+  --paper-muted: #e0e1e6;
+  --paper-muted-foreground: #60646c;
+  --paper-border: #b9bbc6;
 
   --secondary: var(--neutral-4);
   --secondary-foreground: var(--neutral-12);
