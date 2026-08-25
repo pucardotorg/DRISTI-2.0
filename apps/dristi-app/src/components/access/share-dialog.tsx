@@ -1,0 +1,360 @@
+"use client";
+
+import * as React from "react";
+import { CheckCircle2Icon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
+
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { CaseAccessList, initials } from "@/components/access/access-list";
+import { formatPhone, useAccess, type InviteResult } from "@/components/access/access-state";
+import { pick, type Locale } from "@/lib/onboarding/content";
+import {
+  FREQUENT_COLLABORATORS,
+  PHONE_DIRECTORY,
+  fillCopy,
+  roleCopy,
+  shareCopy,
+  type AccessCase,
+} from "@/lib/access/content";
+
+/**
+ * The share-access modal — the single surface behind every entry point.
+ *
+ * Sharing only ever adds OFFICE STAFF: the vakalatnama is per-case and already
+ * carries its advocates, so there is no role choice anywhere. Bulk mode (2+
+ * cases) is additionally grant-only — no access list, no removal. "Already has
+ * access" is handled by granting idempotently and saying so in the
+ * confirmation, never by blocking upfront.
+ *
+ * The number field resolves against the DRISTI account directory the moment
+ * the tenth digit lands; recognised people stack as name-over-number chips,
+ * unknown numbers stack as just the number.
+ */
+
+type Chip = { phone: string; name?: string };
+
+export function ShareDialog({
+  open,
+  onOpenChange,
+  cases,
+  locale,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** One case = full share+manage surface; several = bulk grant-only. */
+  cases: AccessCase[];
+  locale: Locale;
+}) {
+  const { invite, removeGrant, personsOnCase } = useAccess();
+
+  const [chips, setChips] = React.useState<Chip[]>([]);
+  const [input, setInput] = React.useState("");
+  const [touched, setTouched] = React.useState(false);
+  const [focused, setFocused] = React.useState(false);
+  const [result, setResult] = React.useState<InviteResult | null>(null);
+  const [accessQuery, setAccessQuery] = React.useState("");
+
+  const bulk = cases.length > 1;
+  const single = cases.length === 1 ? cases[0] : null;
+  const onCase = single ? personsOnCase(single.id) : [];
+
+  const inputValid = /^\d{10}$/.test(input);
+  const lookup = inputValid ? (PHONE_DIRECTORY[input] ?? null) : null;
+
+  function handleOpenChange(nextOpen: boolean) {
+    // Closing clears transient invite state so reopening any case scope starts
+    // clean without synchronously cascading state updates from an effect.
+    if (!nextOpen) {
+      setChips([]);
+      setInput("");
+      setTouched(false);
+      setResult(null);
+      setAccessQuery("");
+    }
+    onOpenChange(nextOpen);
+  }
+
+  function stack(chip: Chip) {
+    setChips((current) =>
+      current.some((c) => c.phone === chip.phone) ? current : [...current, chip],
+    );
+  }
+
+  function addPhone() {
+    if (!inputValid) {
+      setTouched(true);
+      return;
+    }
+    stack({ phone: formatPhone(input), name: lookup?.name });
+    setInput("");
+    setTouched(false);
+  }
+
+  function send() {
+    // A number still sitting in the input counts — nobody should need to press +.
+    let batch = chips;
+    if (inputValid) {
+      const pretty = formatPhone(input);
+      if (!batch.some((c) => c.phone === pretty)) {
+        batch = [...batch, { phone: pretty, name: lookup?.name }];
+      }
+      setInput("");
+    }
+    if (!batch.length) {
+      setTouched(true);
+      return;
+    }
+    setResult(invite(batch.map((c) => c.phone), cases.map((c) => c.id)));
+    setChips([]);
+  }
+
+  // Suggest frequent collaborators not already stacked, and (single case) not
+  // already holding access — a suggestion you can't act on is just noise.
+  const suggestions = FREQUENT_COLLABORATORS.filter((collab) => {
+    if (chips.some((c) => c.phone === collab.phone)) return false;
+    if (single && onCase.some((p) => p.phone === collab.phone)) return false;
+    return true;
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="flex max-h-[calc(100dvh---spacing(12))] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+        {/* Header: what this is, then exactly what it applies to. */}
+        <DialogHeader className="gap-2.5 border-b border-hairline px-6 py-5 text-left">
+          <DialogTitle className="text-title-s font-semibold">
+            {pick(shareCopy.title, locale)}
+          </DialogTitle>
+          {single ? (
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <p className="truncate text-body-compact font-medium">{single.title}</p>
+              <p className="text-caption text-muted-foreground">{single.caseNumber}</p>
+            </div>
+          ) : (
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <p className="text-body-compact font-medium">
+                {fillCopy(shareCopy.scopeManyTitle, locale, { count: String(cases.length) })}
+              </p>
+              <p className="truncate text-caption text-muted-foreground">
+                {cases.map((c) => c.caseNumber).join(" · ")}
+              </p>
+            </div>
+          )}
+        </DialogHeader>
+
+        <div className="flex flex-col gap-5 overflow-y-auto px-6 py-5">
+          {/* ------------------------------------------------ invite controls */}
+          <div className="flex flex-col gap-3">
+            {chips.length ? (
+              <div className="flex flex-wrap gap-1.5">
+                {chips.map((chip) => (
+                  <span
+                    key={chip.phone}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-muted py-1 pr-1 pl-2.5 text-caption text-foreground"
+                  >
+                    {/* Recognised numbers carry the registered name over the number. */}
+                    {chip.name ? (
+                      <span className="flex flex-col">
+                        <span className="font-medium">{chip.name}</span>
+                        <span className="text-muted-foreground tabular-nums">{chip.phone}</span>
+                      </span>
+                    ) : (
+                      <span className="font-medium tabular-nums">{chip.phone}</span>
+                    )}
+                    <button
+                      type="button"
+                      aria-label={`${pick(shareCopy.removeChip, locale)} ${chip.name ?? chip.phone}`}
+                      className="flex size-5 items-center justify-center self-start rounded-sm text-muted-foreground hover:text-foreground"
+                      onClick={() =>
+                        setChips((current) => current.filter((c) => c.phone !== chip.phone))
+                      }
+                    >
+                      <XIcon className="size-3.5" aria-hidden />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
+            <Field data-invalid={touched && !inputValid}>
+              <FieldLabel htmlFor="share-phone" className="sr-only">
+                {pick(shareCopy.phonePlaceholder, locale)}
+              </FieldLabel>
+              <div className="flex items-start gap-2">
+                <div className="flex flex-1 flex-col gap-1">
+                  {/* The dropdown anchors to the input itself, not the field
+                      block, so it sits tight under the box. */}
+                  <div className="relative">
+                    <Input
+                      id="share-phone"
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      maxLength={10}
+                      placeholder={pick(shareCopy.phonePlaceholder, locale)}
+                      value={input}
+                      onFocus={() => setFocused(true)}
+                      onBlur={() => setFocused(false)}
+                      onChange={(event) => {
+                        setInput(event.target.value.replace(/\D/g, "").slice(0, 10));
+                        setTouched(false);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          addPhone();
+                        }
+                      }}
+                    />
+
+                    {/* The tenth digit resolves the number against DRISTI's
+                        accounts: registered users show their name (and past
+                        team members their designation); an unknown number is
+                        just the number. One tap stacks it. */}
+                    {inputValid && focused ? (
+                      <div className="absolute inset-x-0 top-full z-10 mt-1 overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-overlay">
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted"
+                          // Mousedown, not click — the input blurs first otherwise
+                          // and the dropdown vanishes before the click lands.
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            addPhone();
+                          }}
+                        >
+                          <Avatar className="size-8 shrink-0">
+                            <AvatarFallback className="text-caption font-medium">
+                              {lookup ? initials(lookup.name) : "#"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="flex min-w-0 flex-1 flex-col">
+                            <span className="truncate text-body-compact font-medium">
+                              {lookup ? lookup.name : `+91 ${formatPhone(input)}`}
+                            </span>
+                            {lookup ? (
+                              <span className="truncate text-caption text-muted-foreground">
+                                <span className="tabular-nums">{formatPhone(input)}</span>
+                                {lookup.designation
+                                  ? ` · ${pick(roleCopy[lookup.designation], locale)}`
+                                  : null}
+                              </span>
+                            ) : null}
+                          </span>
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                  <FieldError>
+                    {touched && !inputValid ? pick(shareCopy.phoneError, locale) : null}
+                  </FieldError>
+                  <p className="text-caption text-muted-foreground tabular-nums">
+                    {pick(shareCopy.demoProfiles, locale)}
+                  </p>
+                </div>
+                <Button type="button" disabled={!chips.length && !inputValid} onClick={send}>
+                  {pick(shareCopy.send, locale)}
+                </Button>
+              </div>
+            </Field>
+
+            {suggestions.length ? (
+              <div className="mt-2 flex flex-col gap-2">
+                <p className="text-caption font-medium text-muted-foreground">
+                  {pick(shareCopy.suggestionsLabel, locale)}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {suggestions.map((collab) => (
+                    <button
+                      key={collab.phone}
+                      type="button"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border py-1 pr-3 pl-2 text-caption font-medium text-foreground transition-colors hover:bg-muted"
+                      onClick={() => stack({ phone: collab.phone, name: collab.name })}
+                    >
+                      <PlusIcon className="size-3.5" aria-hidden />
+                      {collab.name}
+                      <span className="font-normal text-muted-foreground">
+                        · {pick(roleCopy[collab.role], locale)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {result ? (
+              <p className="flex items-start gap-1.5 rounded-lg border border-success bg-success-muted px-3 py-2 text-body-compact font-medium text-success-muted-foreground">
+                <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <span>
+                  {pick(shareCopy.sentNote, locale)} {result.names.join(", ")}
+                  {bulk ? (
+                    <>
+                      {" — "}
+                      {result.added === 0
+                        ? pick(shareCopy.alreadyHadAllNote, locale)
+                        : result.skipped === 0
+                          ? fillCopy(shareCopy.sentBulkAllNote, locale, {
+                              total: String(result.total),
+                            })
+                          : fillCopy(shareCopy.sentBulkNote, locale, {
+                              added: String(result.added),
+                              total: String(result.total),
+                              skipped: String(result.skipped),
+                            })}
+                    </>
+                  ) : null}
+                </span>
+              </p>
+            ) : null}
+          </div>
+
+          {/* --------------------------- who has access (single case only) */}
+          {single ? (
+            <>
+              <Separator />
+              <section className="flex flex-col gap-1" aria-label={pick(shareCopy.whoHasAccess, locale)}>
+                <div className="flex flex-col items-stretch gap-3 pb-2 sm:flex-row sm:items-center">
+                  <h3
+                    id="access-list-heading"
+                    className="min-w-0 flex-1 text-body-compact font-semibold"
+                  >
+                    {pick(shareCopy.whoHasAccess, locale)}
+                  </h3>
+                  <div className="relative w-full sm:w-56">
+                    <SearchIcon
+                      className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                      aria-hidden
+                    />
+                    <Input
+                      type="search"
+                      aria-labelledby="access-list-heading"
+                      className="h-9 pl-9"
+                      placeholder={pick(shareCopy.accessSearchPlaceholder, locale)}
+                      value={accessQuery}
+                      onChange={(event) => setAccessQuery(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <CaseAccessList
+                  caseId={single.id}
+                  people={onCase}
+                  locale={locale}
+                  query={accessQuery}
+                  onRemove={(personId) => removeGrant(personId, single.id)}
+                />
+              </section>
+            </>
+          ) : null}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
