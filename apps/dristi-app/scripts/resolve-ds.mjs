@@ -68,6 +68,46 @@ export function isAuthoritativeDs(root) {
   }
 }
 
+/** The pin file: the one DS version every branch builds against. */
+export const DS_LOCK_PATH = resolve(REPO_ROOT, "ds.lock.json");
+
+/**
+ * Read the pinned DS commit.
+ *
+ * The pin is what makes "are we all on the same design system" a fact recorded in the
+ * repo instead of a question about when each person last installed. Tracking a moving
+ * branch put four people on three versions; a commit id cannot drift.
+ *
+ * @returns {{remote: string, commit: string, bumpedOn?: string} | null}
+ */
+export function readDsLock() {
+  if (!existsSync(DS_LOCK_PATH)) return null;
+  let lock;
+  try {
+    lock = JSON.parse(readFileSync(DS_LOCK_PATH, "utf8"));
+  } catch {
+    console.error(`ds.lock.json is not valid JSON — fix it or restore it from git.`);
+    return null;
+  }
+  if (!lock?.commit || !/^[0-9a-f]{40}$/.test(lock.commit)) {
+    console.error("ds.lock.json has no valid 40-character `commit`.");
+    return null;
+  }
+  if (!String(lock.remote ?? "").includes(EXPECTED_DS_REMOTE)) {
+    console.error(
+      `ds.lock.json points at "${lock.remote}" — expected ${EXPECTED_DS_REMOTE}. Refusing it.`
+    );
+    return null;
+  }
+  return lock;
+}
+
+/** True when the DS in use came from the PUCAR_DS_ROOT escape hatch rather than the pin. */
+export function isLocalDsOverride(root) {
+  const override = process.env.PUCAR_DS_ROOT;
+  return Boolean(override && resolve(override) === resolve(root));
+}
+
 export function dsResolveHint() {
   return [
     `Could not resolve authoritative pucar-design-system (${EXPECTED_DS_REMOTE}).`,

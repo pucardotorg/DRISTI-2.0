@@ -3,7 +3,7 @@
 Dristi does **not** own UI rules. Before writing or changing any UI
 (`apps/dristi-app/**`, `*.tsx`, `*.css`, components, tokens, layouts):
 
-## 1. Locate the DS repo
+## 1. Locate the DS repo — and confirm it is current
 
 1. `vendor/pucar-design-system` inside this repo (created by `npm install`)
 2. `PUCAR_DS_ROOT` env only if the user explicitly set it
@@ -29,6 +29,40 @@ If none resolve or the remote does not match: **stop**. Ask the user to run
 when the folder name matches. Scripts enforce this via
 `apps/dristi-app/scripts/resolve-ds.mjs` — agents must follow the same rule.
 
+**Then check you are on the pinned version — every time, before reading a DS file:**
+
+```bash
+npm run check:ds-fresh
+```
+
+`ds.lock.json` at the repo root records the one DS commit this repo builds against.
+`npm install` checks it out; this gate fails if what you have is anything else. It
+needs no network — the pin is a fact in the repo, not a question about timing.
+
+The other gates cannot catch this. `check:ui-sync` diffs our primitives against
+whatever sits in `vendor/`, so the *wrong version* passes green. That is how four
+branches ended up on three different design systems with nothing complaining.
+
+If it fails: `npm install`, then `npm run check:ui-sync` and sync whatever it reports
+as drifting.
+
+**Never edit `ds.lock.json` by hand, and never bump it on a feature branch.** Moving
+the whole repo to a newer DS is `npm run ds:bump`, run on main, committed and
+reviewed like any other change — it changes how every screen looks. Adopting a DS
+change mid-feature without the team is the thing the pin exists to stop.
+
+`npm run check:ds-fresh -- --upstream` reports whether a newer DS exists. That is
+information for whoever owns the bump, never a failure: being deliberately behind is
+the point of a pin.
+
+Read `{DS}/CHANGELOG.md` for any range you adopt — a token whose *meaning* changed
+(`track` narrowing to marks-only, say) breaks no gate and shows up in no file diff,
+so the changelog is the only place it surfaces.
+
+Testing an unreleased DS change is the one sanctioned exception: point `PUCAR_DS_ROOT`
+at a local DS checkout. The gate then says **OFF PIN** loudly and passes. Nothing built
+that way gets committed.
+
 ## 2. Read exact DS files (do not paraphrase)
 
 - `{DS}/AGENTS.md`, `{DS}/ACCESSIBILITY.md`, `{DS}/RESPONSIVE.md` as needed
@@ -44,6 +78,7 @@ Micro steps inside controls only. No `p-5` / `gap-10` / arbitrary px. Controls `
 ## 3. Sync — never hand-write primitives
 
 ```bash
+npm run check:ds-fresh             # first — am I on the pinned DS?
 npm run sync:ui -- <component>     # copy from local DS
 npm run sync:ui -- --tokens-only   # refresh globals.css
 npm run check:tokens && npm run check:typography && npm run check:ui-sync
