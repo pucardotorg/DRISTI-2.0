@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 
 const documentSlotVariants = cva(
-  "flex w-full items-start gap-4 rounded-lg border p-4",
+  "flex w-full items-center gap-4 rounded-lg border p-4",
   {
     variants: {
       status: {
@@ -43,6 +43,8 @@ function DocumentSlot({
   quality,
   thumbnail,
   onChooseFile,
+  disabled = false,
+  copy,
   ...props
 }: React.ComponentProps<"div"> &
   VariantProps<typeof documentSlotVariants> & {
@@ -54,6 +56,14 @@ function DocumentSlot({
     quality?: "good" | "poor"
     thumbnail?: React.ReactNode
     onChooseFile?: () => void
+    disabled?: boolean
+    copy?: {
+      optional?: string
+      noFile?: string
+      goodScan?: string
+      poorScan?: string
+      chooseFile?: string
+    }
   }) {
   const isEmpty = status === "empty" || status === "empty-optional"
   const showOptional = optional || status === "empty-optional"
@@ -65,6 +75,7 @@ function DocumentSlot({
       data-slot="document-slot"
       data-status={status}
       data-media={media}
+      aria-disabled={disabled || undefined}
       className={cn(documentSlotVariants({ status, media }), className)}
       {...props}
     >
@@ -93,7 +104,7 @@ function DocumentSlot({
             </span>
           ) : null}
           {showOptional ? (
-            <Badge variant="secondary">Optional</Badge>
+            <Badge variant="secondary">{copy?.optional ?? "Optional"}</Badge>
           ) : null}
         </div>
         {(filename || meta) && !isEmpty ? (
@@ -103,24 +114,31 @@ function DocumentSlot({
         ) : null}
         {isEmpty ? (
           <p className="mt-0.5 text-sm text-muted-foreground">
-            No file chosen yet
+            {copy?.noFile ?? "No file chosen yet"}
           </p>
-        ) : null}
-        {qualityTone === "good" ? (
-          <Badge variant="success" className="mt-2">
-            Good scan
-          </Badge>
-        ) : null}
-        {qualityTone === "poor" ? (
-          <Badge variant="warning" className="mt-2">
-            Poor scan
-          </Badge>
         ) : null}
       </div>
 
+      {qualityTone === "good" ? (
+        <Badge variant="success" className="shrink-0 px-3 py-1 text-sm">
+          {copy?.goodScan ?? "Good scan"}
+        </Badge>
+      ) : null}
+      {qualityTone === "poor" ? (
+        <Badge variant="warning" className="shrink-0 px-3 py-1 text-sm">
+          {copy?.poorScan ?? "Poor scan"}
+        </Badge>
+      ) : null}
+
       {isEmpty ? (
-        <Button type="button" variant="outline" size="sm" onClick={onChooseFile}>
-          Choose file
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          onClick={onChooseFile}
+        >
+          {copy?.chooseFile ?? "Choose file"}
         </Button>
       ) : null}
     </div>
