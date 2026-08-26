@@ -113,7 +113,7 @@ type NavItem = { id: string; label: string; icon: LucideIcon; href?: string };
  */
 const GO: NavItem[] = [
   { id: "search", label: "Search", icon: SearchIcon },
-  { id: "home", label: "Home", icon: HouseIcon },
+  { id: "home", label: "Home", icon: HouseIcon, href: "/home" },
   { id: "cases", label: "Your Cases", icon: FolderClosedIcon },
   {
     id: "tasks",
