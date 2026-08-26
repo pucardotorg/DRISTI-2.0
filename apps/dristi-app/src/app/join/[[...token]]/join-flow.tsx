@@ -4,6 +4,7 @@ import * as React from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 import { OnboardingModal } from "@/components/onboarding/onboarding-modal";
+import { PROFILE_ROLE_KEY } from "@/components/shell/profile";
 import { SignInBlock } from "@/components/sign-in-block";
 import type { CaseSummary, Locale } from "@/lib/onboarding/content";
 
@@ -59,6 +60,12 @@ function JoinFlow() {
       role?: "litigant" | "advocate";
     }) => {
       const advocate = options?.role === "advocate";
+      // Session-lite: remember the role so the app shell opens in the profile the
+      // number signed in as (the ProfileProvider reads this on mount).
+      window.localStorage.setItem(
+        PROFILE_ROLE_KEY,
+        advocate ? "advocate" : "litigant",
+      );
 
       if (!token) {
         // Land on the role home, not the task list. Pending Tasks stays a nav

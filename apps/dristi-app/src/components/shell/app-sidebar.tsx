@@ -26,6 +26,8 @@ import { useTasks } from "@/lib/tasks/store";
 import { BrandGlyph } from "@/components/brand-lockup";
 import { ConfirmDialog } from "@/components/shell/confirm-dialog";
 import { useProfile } from "@/components/shell/profile";
+import { ADVOCATE_PROFILE_NAME } from "@/lib/advocate/content";
+import { DEMO_PROFILE_NAME } from "@/lib/join/content";
 import { RAIL_THEMES, useRailTheme } from "@/components/shell/rail-theme";
 import { Button } from "@/components/ui/button";
 import {
@@ -392,6 +394,15 @@ function ProfileFooter() {
   const router = useRouter();
   const roleLabel = profileRole === "advocate" ? "Advocate" : "Litigant";
 
+  // The identity mark follows the active profile, so it matches the home you are on
+  // (advocate → Anjali; litigant → Rajan) rather than a single fixed fixture name.
+  const displayName =
+    profileRole === "advocate" ? ADVOCATE_PROFILE_NAME : DEMO_PROFILE_NAME;
+  const nameParts = displayName.replace(/^Adv\.\s*/, "").trim().split(/\s+/);
+  const displayInitials = (
+    (nameParts[0]?.[0] ?? "") + (nameParts[nameParts.length - 1]?.[0] ?? "")
+  ).toUpperCase();
+
   // Switching profile re-frames the whole product, so it lands on that profile's home.
   function switchTo(role: "litigant" | "advocate") {
     if (role === profileRole) return;
@@ -410,15 +421,15 @@ function ProfileFooter() {
               <PopoverTrigger asChild>
                 <SidebarMenuButton
                   className={`${ROW} h-12 group-data-[collapsible=icon]:size-10!`}
-                  tooltip={`${user.name} · ${roleLabel}`}
-                  aria-label={`${user.name} · ${roleLabel} · Switch profile`}
+                  tooltip={`${displayName} · ${roleLabel}`}
+                  aria-label={`${displayName} · ${roleLabel} · Switch profile`}
                 >
                   <span className="relative shrink-0">
                     <span
                       aria-hidden
                       className="flex size-8 items-center justify-center rounded-full bg-primary text-caption font-semibold text-primary-foreground"
                     >
-                      {user.initials}
+                      {displayInitials}
                     </span>
                     {/* The chevron rides the avatar rather than the row's trailing edge,
                         so the affordance survives the collapse with the mark it belongs
@@ -432,7 +443,7 @@ function ProfileFooter() {
                   </span>
                   <span className="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
                     <span className="truncate text-body-compact font-medium">
-                      {user.name}
+                      {displayName}
                     </span>
                     <span className={`truncate text-caption ${MUTED}`}>
                       {roleLabel}
