@@ -4,7 +4,11 @@ import * as React from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 import { OnboardingModal } from "@/components/onboarding/onboarding-modal";
-import { ADVOCATE_AVAILABLE_KEY, PROFILE_ROLE_KEY } from "@/components/shell/profile";
+import {
+  ACCOUNT_NAME_KEY,
+  ADVOCATE_AVAILABLE_KEY,
+  PROFILE_ROLE_KEY,
+} from "@/components/shell/profile";
 import { SignInBlock } from "@/components/sign-in-block";
 import type { CaseSummary, Locale } from "@/lib/onboarding/content";
 
@@ -70,6 +74,12 @@ function JoinFlow() {
       window.localStorage.setItem(
         ADVOCATE_AVAILABLE_KEY,
         advocate ? "true" : "false",
+      );
+      // The account's name is fixed here; switching profile later changes the role,
+      // not the person. (Two demo accounts: advocate = Anjali, litigant = Rajan.)
+      window.localStorage.setItem(
+        ACCOUNT_NAME_KEY,
+        advocate ? "Anjali Nair" : "Rajan K. Nair",
       );
 
       if (!token) {

@@ -26,8 +26,6 @@ import { useTasks } from "@/lib/tasks/store";
 import { BrandGlyph } from "@/components/brand-lockup";
 import { ConfirmDialog } from "@/components/shell/confirm-dialog";
 import { useProfile } from "@/components/shell/profile";
-import { ADVOCATE_PROFILE_NAME } from "@/lib/advocate/content";
-import { DEMO_PROFILE_NAME } from "@/lib/join/content";
 import { RAIL_THEMES, useRailTheme } from "@/components/shell/rail-theme";
 import { Button } from "@/components/ui/button";
 import {
@@ -395,14 +393,14 @@ function RailThemePicker() {
  */
 function ProfileFooter() {
   const { state, people, user, setUser, resetSandbox } = useTasks();
-  const { profileRole, advocateProfileAvailable, switchProfile } = useProfile();
+  const { profileRole, advocateProfileAvailable, accountName, switchProfile } =
+    useProfile();
   const router = useRouter();
   const roleLabel = profileRole === "advocate" ? "Advocate" : "Litigant";
 
-  // The identity mark follows the active profile, so it matches the home you are on
-  // (advocate → Anjali; litigant → Rajan) rather than a single fixed fixture name.
-  const displayName =
-    profileRole === "advocate" ? ADVOCATE_PROFILE_NAME : DEMO_PROFILE_NAME;
+  // The name is the account's, fixed — switching profile changes the role label, not the
+  // person. So Anjali stays Anjali whether she is acting as advocate or litigant.
+  const displayName = accountName;
   const nameParts = displayName.replace(/^Adv\.\s*/, "").trim().split(/\s+/);
   const displayInitials = (
     (nameParts[0]?.[0] ?? "") + (nameParts[nameParts.length - 1]?.[0] ?? "")

@@ -25,6 +25,9 @@ export type ProfileValue = {
   /** Whether this account holds an advocate profile at all. A base litigant does NOT —
    *  the switcher offers no Advocate option until they elevate (Settings → request). */
   advocateProfileAvailable: boolean;
+  /** The person signed in. FIXED per account — switching profile changes the role, not
+   *  the name (the same human is advocate on one profile and litigant on the other). */
+  accountName: string;
   switchProfile: () => void;
   /** Grant the advocate profile — the elevation-approved path (from Settings). */
   enableAdvocateProfile: () => void;
@@ -35,6 +38,7 @@ const ProfileContext = React.createContext<ProfileValue | null>(null);
 /** Session-lite keys: sign-in stashes these so the shell opens as the account you are. */
 export const PROFILE_ROLE_KEY = "dristi-demo-profile-role";
 export const ADVOCATE_AVAILABLE_KEY = "dristi-demo-advocate-available";
+export const ACCOUNT_NAME_KEY = "dristi-demo-account-name";
 
 export function ProfileProvider({
   children,
@@ -50,9 +54,10 @@ export function ProfileProvider({
   const [advocateAvailable, setAdvocateAvailable] = React.useState(
     advocateProfileAvailable,
   );
+  const [accountName, setAccountName] = React.useState("Anjali Nair");
 
-  // Session-lite: read the role + advocate-availability the sign-in stashed, after mount
-  // (avoids a hydration mismatch). A base litigant has no advocate profile until elevated.
+  // Session-lite: read the role + advocate-availability + name the sign-in stashed, after
+  // mount (avoids a hydration mismatch). A base litigant has no advocate profile until elevated.
   React.useEffect(() => {
     const storedRole = window.localStorage.getItem(PROFILE_ROLE_KEY);
     if (storedRole === "litigant" || storedRole === "advocate") {
@@ -62,6 +67,8 @@ export function ProfileProvider({
     if (storedAvail === "true" || storedAvail === "false") {
       setAdvocateAvailable(storedAvail === "true");
     }
+    const storedName = window.localStorage.getItem(ACCOUNT_NAME_KEY);
+    if (storedName) setAccountName(storedName);
   }, []);
 
   const switchProfile = React.useCallback(() => {
@@ -81,10 +88,11 @@ export function ProfileProvider({
     () => ({
       profileRole,
       advocateProfileAvailable: advocateAvailable,
+      accountName,
       switchProfile,
       enableAdvocateProfile,
     }),
-    [profileRole, advocateAvailable, switchProfile, enableAdvocateProfile],
+    [profileRole, advocateAvailable, accountName, switchProfile, enableAdvocateProfile],
   );
 
   return (

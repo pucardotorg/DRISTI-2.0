@@ -10,8 +10,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { JoinCaseDialog, type JoinResult } from "@/components/join/join-case-dialog";
 import { useLocale } from "@/components/shell/locale";
+import { useProfile } from "@/components/shell/profile";
 import { pick, type Locale } from "@/lib/onboarding/content";
-import { DEMO_JOIN_CASE, DEMO_PROFILE_NAME, fill, home, shell, type JoinCase } from "@/lib/join/content";
+import { DEMO_JOIN_CASE, fill, home, shell, type JoinCase } from "@/lib/join/content";
 
 type HomeCase = { joinCase: JoinCase; status: "joined" | "approval" };
 type VisibleHomeCase = HomeCase | { joinCase: JoinCase; status: "summons" };
@@ -40,6 +41,7 @@ export function HomeScreen({
   initialLocale?: Locale;
 }) {
   const { locale } = useLocale();
+  const { accountName } = useProfile();
   const [dialogOpen, setDialogOpen] = React.useState(openManualJoin);
   const [dialogMode, setDialogMode] = React.useState<"summons" | "manual">("manual");
   const [autoOpened, setAutoOpened] = React.useState(openManualJoin);
@@ -80,7 +82,7 @@ export function HomeScreen({
     <>
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-8 md:px-6 md:py-10">
         <h1 className="text-title text-balance font-semibold sm:text-title-l">
-          {fill(home.welcome, locale, { name: DEMO_PROFILE_NAME })}
+          {fill(home.welcome, locale, { name: accountName })}
         </h1>
 
         <section className="flex flex-col gap-5" aria-label={pick(home.casesHeading, locale)}>

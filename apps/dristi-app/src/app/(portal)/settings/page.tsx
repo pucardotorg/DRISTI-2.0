@@ -9,8 +9,6 @@ import {
 } from "@/components/home/profile-settings";
 import { useLocale } from "@/components/shell/locale";
 import { useProfile } from "@/components/shell/profile";
-import { ADVOCATE_PROFILE_NAME } from "@/lib/advocate/content";
-import { DEMO_PROFILE_NAME } from "@/lib/join/content";
 
 /**
  * Settings on the new shell. Profile role + switch come from the shell's ProfileProvider;
@@ -19,16 +17,20 @@ import { DEMO_PROFILE_NAME } from "@/lib/join/content";
  */
 export default function Page() {
   const { locale } = useLocale();
-  const { profileRole, advocateProfileAvailable, switchProfile, enableAdvocateProfile } =
-    useProfile();
+  const {
+    profileRole,
+    advocateProfileAvailable,
+    accountName,
+    switchProfile,
+    enableAdvocateProfile,
+  } = useProfile();
 
   const [idSubmitted, setIdSubmitted] = React.useState(true);
   const [submittedId, setSubmittedId] = React.useState<SubmittedId | null>(null);
   const [advocateRequest, setAdvocateRequest] =
     React.useState<AdvocateRequestDetails | null>(null);
 
-  const profileName =
-    profileRole === "advocate" ? ADVOCATE_PROFILE_NAME : DEMO_PROFILE_NAME;
+  const profileName = accountName;
 
   return (
     <ProfileSettings
