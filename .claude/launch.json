@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dristi-app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "-w",
+        "@pucar/dristi-app"
+      ],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "pucar-ds-docs",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "vendor/pucar-design-system"
+      ],
+      "port": 3001,
+      "autoPort": true
+    }
+  ]
+}

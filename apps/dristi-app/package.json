@@ -3,28 +3,45 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/copy-runtime-assets.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/copy-runtime-assets.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint && npm run check:tokens && npm run check:typography && npm run check:ui-sync",
+    "test": "node --import tsx --test src/lib/tasks/*.test.ts src/lib/filing/*.test.ts",
     "check:tokens": "node scripts/check-tokens.mjs",
     "check:ds-fresh": "node scripts/check-ds-fresh.mjs",
     "check:typography": "node scripts/check-typography.mjs",
     "check:ui-sync": "node scripts/check-ui-sync.mjs",
-    "sync:ui": "node scripts/sync-ui-from-ds.mjs"
+    "sync:ui": "node scripts/sync-ui-from-ds.mjs",
+    "assets:runtime": "node scripts/copy-runtime-assets.mjs"
   },
   "dependencies": {
+    "@base-ui/react": "^1.7.0",
+    "@tesseract.js-data/eng": "^1.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "date-fns": "^4.4.0",
+    "idb": "^8.0.3",
+    "@fasterfixes/react": "^0.0.10",
+    "input-otp": "^1.4.2",
     "lucide-react": "^1.28.0",
     "next": "16.2.12",
     "next-themes": "^0.4.6",
+    "pdfjs-dist": "^6.2.108",
     "radix-ui": "^1.6.7",
     "react": "19.2.4",
+    "react-day-picker": "^10.0.1",
     "react-dom": "19.2.4",
+    "react-resizable-panels": "^4.12.3",
     "shadcn": "^4.16.0",
+    "sonner": "^2.0.8",
     "tailwind-merge": "^3.6.0",
-    "tw-animate-css": "^1.4.0"
+    "tesseract.js": "^7.0.0",
+    "tw-animate-css": "^1.4.0",
+    "vaul": "^1.1.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -34,6 +51,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5"
   }
 }

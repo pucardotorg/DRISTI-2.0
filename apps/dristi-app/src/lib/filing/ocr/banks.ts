@@ -1,0 +1,91 @@
+/**
+ * Indian banks the cheque parser recognises: display name, text aliases (matched fuzzily
+ * on the OCR text; short aliases only as whole tokens) and IFSC prefixes. Merged banks are
+ * kept — old cheque books are still in circulation.
+ */
+
+export type BankRef = { name: string; aliases: string[]; ifsc: string[] };
+
+export const BANKS: BankRef[] = [
+  { name: "State Bank of India", aliases: ["State Bank of India", "SBI"], ifsc: ["SBIN"] },
+  { name: "HDFC Bank", aliases: ["HDFC Bank", "HDFC"], ifsc: ["HDFC"] },
+  { name: "ICICI Bank", aliases: ["ICICI Bank", "ICICI"], ifsc: ["ICIC"] },
+  { name: "Axis Bank", aliases: ["Axis Bank", "AXIS"], ifsc: ["UTIB"] },
+  { name: "Kotak Mahindra Bank", aliases: ["Kotak Mahindra Bank", "Kotak"], ifsc: ["KKBK"] },
+  { name: "Punjab National Bank", aliases: ["Punjab National Bank", "PNB"], ifsc: ["PUNB"] },
+  { name: "Bank of Baroda", aliases: ["Bank of Baroda", "BOB"], ifsc: ["BARB"] },
+  { name: "Canara Bank", aliases: ["Canara Bank"], ifsc: ["CNRB"] },
+  { name: "Union Bank of India", aliases: ["Union Bank of India", "Union Bank"], ifsc: ["UBIN"] },
+  { name: "Bank of India", aliases: ["Bank of India"], ifsc: ["BKID"] },
+  { name: "IndusInd Bank", aliases: ["IndusInd Bank", "IndusInd"], ifsc: ["INDB"] },
+  { name: "Yes Bank", aliases: ["Yes Bank"], ifsc: ["YESB"] },
+  { name: "IDBI Bank", aliases: ["IDBI Bank", "IDBI"], ifsc: ["IBKL"] },
+  { name: "IDFC First Bank", aliases: ["IDFC First Bank", "IDFC Bank", "IDFC"], ifsc: ["IDFB"] },
+  { name: "Federal Bank", aliases: ["Federal Bank", "The Federal Bank"], ifsc: ["FDRL"] },
+  { name: "South Indian Bank", aliases: ["South Indian Bank"], ifsc: ["SIBL"] },
+  { name: "Karnataka Bank", aliases: ["Karnataka Bank"], ifsc: ["KARB"] },
+  { name: "Indian Bank", aliases: ["Indian Bank"], ifsc: ["IDIB"] },
+  { name: "Indian Overseas Bank", aliases: ["Indian Overseas Bank", "IOB"], ifsc: ["IOBA"] },
+  { name: "UCO Bank", aliases: ["UCO Bank", "UCO"], ifsc: ["UCBA"] },
+  { name: "Central Bank of India", aliases: ["Central Bank of India"], ifsc: ["CBIN"] },
+  { name: "Bank of Maharashtra", aliases: ["Bank of Maharashtra"], ifsc: ["MAHB"] },
+  { name: "RBL Bank", aliases: ["RBL Bank", "Ratnakar Bank", "RBL"], ifsc: ["RATN"] },
+  { name: "Bandhan Bank", aliases: ["Bandhan Bank"], ifsc: ["BDBL"] },
+  { name: "DCB Bank", aliases: ["DCB Bank", "Development Credit Bank"], ifsc: ["DCBL"] },
+  { name: "CSB Bank", aliases: ["CSB Bank", "Catholic Syrian Bank"], ifsc: ["CSBK"] },
+  { name: "Dhanlaxmi Bank", aliases: ["Dhanlaxmi Bank", "Dhanalakshmi Bank"], ifsc: ["DLXB"] },
+  { name: "Jammu & Kashmir Bank", aliases: ["Jammu and Kashmir Bank", "J&K Bank"], ifsc: ["JAKA"] },
+  { name: "Karur Vysya Bank", aliases: ["Karur Vysya Bank", "KVB"], ifsc: ["KVBL"] },
+  { name: "City Union Bank", aliases: ["City Union Bank", "CUB"], ifsc: ["CIUB"] },
+  { name: "Tamilnad Mercantile Bank", aliases: ["Tamilnad Mercantile Bank", "TMB"], ifsc: ["TMBL"] },
+  { name: "Nainital Bank", aliases: ["Nainital Bank"], ifsc: ["NTBL"] },
+  { name: "Punjab & Sind Bank", aliases: ["Punjab and Sind Bank", "Punjab & Sind Bank"], ifsc: ["PSIB"] },
+  { name: "ESAF Small Finance Bank", aliases: ["ESAF Small Finance Bank", "ESAF"], ifsc: ["ESMF"] },
+  { name: "Equitas Small Finance Bank", aliases: ["Equitas Small Finance Bank", "Equitas"], ifsc: ["ESFB"] },
+  { name: "AU Small Finance Bank", aliases: ["AU Small Finance Bank", "AU Bank"], ifsc: ["AUBL"] },
+  { name: "Ujjivan Small Finance Bank", aliases: ["Ujjivan Small Finance Bank", "Ujjivan"], ifsc: ["UJVN"] },
+  { name: "Jana Small Finance Bank", aliases: ["Jana Small Finance Bank"], ifsc: ["JSFB"] },
+  { name: "Utkarsh Small Finance Bank", aliases: ["Utkarsh Small Finance Bank"], ifsc: ["UTKS"] },
+  { name: "Suryoday Small Finance Bank", aliases: ["Suryoday Small Finance Bank"], ifsc: ["SURY"] },
+  { name: "Fincare Small Finance Bank", aliases: ["Fincare Small Finance Bank"], ifsc: ["FSFB"] },
+  { name: "Standard Chartered Bank", aliases: ["Standard Chartered"], ifsc: ["SCBL"] },
+  { name: "HSBC", aliases: ["HSBC", "Hongkong and Shanghai Banking"], ifsc: ["HSBC"] },
+  { name: "Citibank", aliases: ["Citibank", "Citi Bank"], ifsc: ["CITI"] },
+  { name: "Deutsche Bank", aliases: ["Deutsche Bank"], ifsc: ["DEUT"] },
+  { name: "DBS Bank", aliases: ["DBS Bank", "DBS"], ifsc: ["DBSS"] },
+  { name: "Saraswat Co-operative Bank", aliases: ["Saraswat Bank", "Saraswat Co-operative Bank"], ifsc: ["SRCB"] },
+  { name: "Cosmos Co-operative Bank", aliases: ["Cosmos Bank", "Cosmos Co-operative Bank"], ifsc: ["COSB"] },
+  { name: "SVC Co-operative Bank", aliases: ["SVC Bank", "Shamrao Vithal"], ifsc: ["SVCB"] },
+  { name: "Abhyudaya Co-operative Bank", aliases: ["Abhyudaya Bank"], ifsc: ["ABHY"] },
+  { name: "Kerala Gramin Bank", aliases: ["Kerala Gramin Bank"], ifsc: ["KLGB"] },
+  { name: "Kerala State Co-operative Bank", aliases: ["Kerala State Co-operative Bank", "Kerala Bank"], ifsc: ["KSBK"] },
+  { name: "Karnataka Gramin Bank", aliases: ["Karnataka Gramin Bank", "Karnataka Vikas Grameena Bank"], ifsc: ["PKGB", "KVGB"] },
+  { name: "Andhra Pradesh Grameena Vikas Bank", aliases: ["Andhra Pradesh Grameena Vikas Bank"], ifsc: ["APGV"] },
+  { name: "Baroda UP Bank", aliases: ["Baroda UP Bank", "Baroda Uttar Pradesh Gramin"], ifsc: ["BARB"] },
+  { name: "Paytm Payments Bank", aliases: ["Paytm Payments Bank"], ifsc: ["PYTM"] },
+  { name: "India Post Payments Bank", aliases: ["India Post Payments Bank"], ifsc: ["IPOS"] },
+  { name: "Airtel Payments Bank", aliases: ["Airtel Payments Bank"], ifsc: ["AIRP"] },
+  { name: "Fino Payments Bank", aliases: ["Fino Payments Bank"], ifsc: ["FINO"] },
+  // Merged banks — old cheque books still turn up.
+  { name: "Oriental Bank of Commerce", aliases: ["Oriental Bank of Commerce", "OBC"], ifsc: ["ORBC"] },
+  { name: "Andhra Bank", aliases: ["Andhra Bank"], ifsc: ["ANDB"] },
+  { name: "Syndicate Bank", aliases: ["Syndicate Bank"], ifsc: ["SYNB"] },
+  { name: "Allahabad Bank", aliases: ["Allahabad Bank"], ifsc: ["ALLA"] },
+  { name: "Corporation Bank", aliases: ["Corporation Bank"], ifsc: ["CORP"] },
+  { name: "United Bank of India", aliases: ["United Bank of India"], ifsc: ["UTBI"] },
+  { name: "Vijaya Bank", aliases: ["Vijaya Bank"], ifsc: ["VIJB"] },
+  { name: "Dena Bank", aliases: ["Dena Bank"], ifsc: ["BKDN"] },
+  { name: "Lakshmi Vilas Bank", aliases: ["Lakshmi Vilas Bank", "LVB"], ifsc: ["LAVB"] },
+  { name: "ING Vysya Bank", aliases: ["ING Vysya Bank"], ifsc: ["VYSA"] },
+  { name: "State Bank of Travancore", aliases: ["State Bank of Travancore", "SBT"], ifsc: ["SBTR"] },
+  { name: "State Bank of Mysore", aliases: ["State Bank of Mysore"], ifsc: ["SBMY"] },
+  { name: "State Bank of Hyderabad", aliases: ["State Bank of Hyderabad", "SBH"], ifsc: ["SBHY"] },
+  { name: "State Bank of Patiala", aliases: ["State Bank of Patiala"], ifsc: ["STBP"] },
+  { name: "State Bank of Bikaner and Jaipur", aliases: ["State Bank of Bikaner and Jaipur", "SBBJ"], ifsc: ["SBBJ"] },
+];
+
+/** Bank for an IFSC prefix (first four letters), if known. */
+export function bankForIfsc(ifsc: string): BankRef | undefined {
+  const p = ifsc.slice(0, 4).toUpperCase();
+  return BANKS.find((b) => b.ifsc.includes(p));
+}

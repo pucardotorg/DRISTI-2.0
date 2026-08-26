@@ -12,6 +12,10 @@ Orientation for this repo. Docs describe the product and how we design; they are
 |---|---|---|
 | **Product** | What DRISTI is — domain, journey, standards, open questions | [product/README.md](product/README.md) |
 | **Design** | How Dristi UI is built — always pull from pucar-design-system | [design/design-system.md](design/design-system.md) |
+| **Design → research** | Research memos that feed a brief (per feature: the verbatim ask, domain findings, UX findings). Inputs, not decisions — the brief in `design/proposals/` decides | [design/research/](design/research/) |
+| **Design → explorations** | Standalone interactive HTML prototypes for trying a direction before it is app code. **Untracked on purpose** — working material, not product; the decisions they settle go into the brief | [design/explorations/README.md](design/explorations/README.md) |
+| **Principles** | Cross-cutting PUCAR design principles — convictions that resolve conflicts between good outcomes. Org-wide, not DRISTI-specific | [principles/](principles/) |
+| **Feedback** | How reviewers comment on the running app; feedback → GitHub issues | [feedback-widget.md](feedback-widget.md) |
 
 ## Repo layers (outside `docs/`)
 
