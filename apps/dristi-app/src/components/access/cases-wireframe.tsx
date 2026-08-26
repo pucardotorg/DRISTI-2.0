@@ -1,22 +1,54 @@
 "use client";
 
 import * as React from "react";
-import { ArrowLeftIcon, PencilRulerIcon, Share2Icon } from "lucide-react";
+import { ArrowLeftIcon, ChevronDownIcon, PencilRulerIcon, Share2Icon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { ShareDialog } from "@/components/access/share-dialog";
+import {
+  BailApplicationDialog,
+  type BailApplicationResult,
+} from "@/components/filing/bail-application-dialog";
+import {
+  BailBondDialog,
+  type BailBondResult,
+  type BondMode,
+} from "@/components/filing/bail-bond-dialog";
+import {
+  BailBondStatusDialog,
+  buildBondSigners,
+} from "@/components/filing/bail-bond-status-dialog";
 import { pick, type Locale } from "@/lib/onboarding/content";
 import { ACCESS_CASES, casesCopy, fillCopy, type AccessCase } from "@/lib/access/content";
+import {
+  BOND_ID,
+  BOND_LITIGANT,
+  BOND_SURETIES,
+  BOND_TASK_DUE,
+  BOND_THIRD_SURETY,
+  bondCopy,
+  filingsMenu,
+} from "@/lib/filing/content";
+import { ADVOCATE_PROFILE_NAME } from "@/lib/advocate/content";
 import { cn } from "@/lib/utils";
 
 /**
  * Wireframes of the two screens that HOST access management but are not this
  * workstream's design: the all-cases list and the single case file. Both are
- * deliberately dashed-grey (the advocate-home convention) — only the Share and
- * Manage-access controls, and the surfaces they open, are real design.
+ * deliberately dashed-grey (the advocate-home convention) — only the Share,
+ * Manage-access and Make-filings controls, and the surfaces they open, are
+ * real design.
  *
  * All-cases: Share access sits permanently in the header — greyed out until a
  * row is ticked, never appearing out of nowhere — with a running count and a
@@ -49,15 +81,32 @@ export function CasesWireframe({
   locale,
   openCaseId,
   onOpenCase,
+  onApplicationSubmitted,
+  onBondSubmitted,
 }: {
   locale: Locale;
   /** Controlled: the case file currently open, or null for the list. */
   openCaseId: string | null;
   onOpenCase: (caseId: string | null) => void;
+  /** Lets the shell raise a notification when a filing goes through. */
+  onApplicationSubmitted?: (result: BailApplicationResult) => void;
+  onBondSubmitted?: (result: BailBondResult) => void;
 }) {
   const [selected, setSelected] = React.useState<string[]>([]);
   const [shareOpen, setShareOpen] = React.useState(false);
   const [shareCases, setShareCases] = React.useState<AccessCase[]>([]);
+  const [bailOpen, setBailOpen] = React.useState(false);
+  const [filingStub, setFilingStub] = React.useState(false);
+
+  // Bail bond demo state, on the fixture case only: the magistrate has
+  // approved the bail application and asked for a bond ("task"), the bond is
+  // out for signatures ("signing"), or a physically-signed copy is with the
+  // court ("review").
+  const [bondPhase, setBondPhase] = React.useState<"task" | "signing" | "review">("task");
+  const [bondMethod, setBondMethod] = React.useState<"esign" | "upload">("esign");
+  const [bondOpen, setBondOpen] = React.useState(false);
+  const [bondMode, setBondMode] = React.useState<BondMode>("task");
+  const [bondStatusOpen, setBondStatusOpen] = React.useState(false);
 
   const openCase = ACCESS_CASES.find((c) => c.id === openCaseId) ?? null;
 
@@ -107,21 +156,127 @@ export function CasesWireframe({
                 {openCase.caseNumber} · {openCase.court}
               </p>
             </div>
-            {/* The one real control on this wireframe — the dialog carries
-                both sharing and managing (they are the same surface). */}
-            <Button
-              type="button"
-              className="shrink-0"
-              onClick={() => shareSingle(openCase)}
-              data-icon="inline-start"
-            >
-              <Share2Icon aria-hidden />
-              {pick(casesCopy.shareAccess, locale)}
-            </Button>
+            {/* The two real controls on this wireframe. Make filings is the
+                case file's main action (one teal per view — the Ration-teal
+                law), so Share access steps down to outline. */}
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => shareSingle(openCase)}
+                data-icon="inline-start"
+              >
+                <Share2Icon aria-hidden />
+                {pick(casesCopy.shareAccess, locale)}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" data-icon="inline-end">
+                    {pick(filingsMenu.makeFilings, locale)}
+                    <ChevronDownIcon aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-64">
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setFilingStub(false);
+                      setBailOpen(true);
+                    }}
+                  >
+                    {pick(filingsMenu.raiseApplication, locale)}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setFilingStub(true)}>
+                    {pick(filingsMenu.submitDocuments, locale)}
+                  </DropdownMenuItem>
+                  {/* The second entry into the bond flow — no bail application
+                      first, everything editable. */}
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setFilingStub(false);
+                      setBondMode("direct");
+                      setBondOpen(true);
+                    }}
+                  >
+                    {pick(filingsMenu.generateBailBond, locale)}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </header>
 
           <WireframeNotice text={pick(casesCopy.caseWireframeNote, locale)} />
+
+          {filingStub ? (
+            <Banner variant="info">{pick(filingsMenu.stubNotice, locale)}</Banner>
+          ) : null}
         </div>
+
+        {/* Real design on the wireframe, fixture case only: the pending task
+            the magistrate's approval created, then the bond it becomes. */}
+        {openCase.id === "c-847" ? (
+          bondPhase === "task" ? (
+            <Card size="sm">
+              <CardContent className="flex flex-col gap-3">
+                <p className="text-body-compact font-semibold">
+                  {pick(bondCopy.pendingTitle, locale)}
+                </p>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  {/* The task itself is the link — legacy's plain-text row
+                      read as inert and got missed. */}
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="h-auto p-0"
+                    onClick={() => {
+                      setBondMode("task");
+                      setBondOpen(true);
+                    }}
+                  >
+                    {pick(bondCopy.taskRaiseBond, locale)}
+                  </Button>
+                  <span className="text-caption text-muted-foreground tabular-nums">
+                    {fillCopy(bondCopy.taskDue, locale, { date: BOND_TASK_DUE })}
+                  </span>
+                </div>
+                <p className="text-caption text-pretty text-muted-foreground">
+                  {pick(bondCopy.taskNote, locale)}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card size="sm">
+              <CardContent className="flex flex-col gap-3">
+                <p className="text-body-compact font-semibold">
+                  {pick(bondCopy.bondsTitle, locale)}
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <p className="text-body-compact font-medium">
+                      {pick(bondCopy.bondTypeSurety, locale)}
+                    </p>
+                    <p className="font-mono text-caption text-muted-foreground">{BOND_ID}</p>
+                  </div>
+                  <Badge variant="warning">
+                    {pick(
+                      bondPhase === "signing"
+                        ? bondCopy.statusPendingSign
+                        : bondCopy.statusPendingReview,
+                      locale,
+                    )}
+                  </Badge>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setBondStatusOpen(true)}
+                  >
+                    {pick(casesCopy.open, locale)}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        ) : null}
 
         {/* Dashed stand-ins for the case file's real content. */}
         <div className="flex flex-col gap-3">
@@ -141,6 +296,47 @@ export function CasesWireframe({
         </div>
 
         <ShareDialog open={shareOpen} onOpenChange={setShareOpen} cases={shareCases} locale={locale} />
+        <BailApplicationDialog
+          open={bailOpen}
+          onOpenChange={setBailOpen}
+          accessCase={openCase}
+          locale={locale}
+          onSubmitted={onApplicationSubmitted}
+        />
+        {/* Remount per mode — each entry starts from its own clean state. */}
+        <BailBondDialog
+          key={bondMode}
+          open={bondOpen}
+          onOpenChange={setBondOpen}
+          accessCase={openCase}
+          locale={locale}
+          mode={bondMode}
+          onSubmitted={(result) => {
+            setBondPhase(result.method === "esign" ? "signing" : "review");
+            setBondMethod(result.method);
+            onBondSubmitted?.(result);
+          }}
+        />
+        <BailBondStatusDialog
+          open={bondStatusOpen}
+          onOpenChange={setBondStatusOpen}
+          accessCase={openCase}
+          locale={locale}
+          signers={buildBondSigners({
+            advocateName: ADVOCATE_PROFILE_NAME,
+            litigantName: BOND_LITIGANT.name,
+            suretyNames: [...BOND_SURETIES, BOND_THIRD_SURETY].map((entry) => entry.name),
+            locale,
+            advocateSigned: true,
+            allSigned: bondMethod === "upload",
+          })}
+          suretyNames={[...BOND_SURETIES, BOND_THIRD_SURETY].map((entry) => entry.name)}
+          onEdit={() => {
+            setBondStatusOpen(false);
+            setBondMode("edit");
+            setBondOpen(true);
+          }}
+        />
       </main>
     );
   }
