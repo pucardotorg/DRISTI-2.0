@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { ScaleIcon } from "lucide-react";
 
 import { CasesScreen } from "@/components/cases/cases-screen";
+import { ProfileScopedEmpty } from "@/components/shell/profile-scoped-empty";
 import { CASES, FIXTURE_TODAY } from "@/lib/cases/fixtures";
 import {
   buildCasesHref,
@@ -22,11 +24,17 @@ export default async function CasesPage(props: PageProps<"/cases">) {
   const cases = query.demo === "empty" ? [] : CASES;
 
   return (
-    <CasesScreen
-      query={query}
-      cases={cases}
-      initialBookmarks={initialBookmarks(cases)}
-      now={new Date(FIXTURE_TODAY).getTime()}
-    />
+    <ProfileScopedEmpty
+      title="No cases yet"
+      description="Cases you file or are named a party to will appear here."
+      icon={<ScaleIcon aria-hidden />}
+    >
+      <CasesScreen
+        query={query}
+        cases={cases}
+        initialBookmarks={initialBookmarks(cases)}
+        now={new Date(FIXTURE_TODAY).getTime()}
+      />
+    </ProfileScopedEmpty>
   );
 }

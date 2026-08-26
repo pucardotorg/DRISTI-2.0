@@ -20,6 +20,7 @@ import { caseOf, tasksInView } from "@/lib/tasks/selectors";
 import { compareUrgency, daysUntil, isOverdue } from "@/lib/tasks/urgency";
 import { useChrome } from "@/components/shell/chrome";
 import { useLocale } from "@/components/shell/locale";
+import { useProfile } from "@/components/shell/profile";
 import {
   NotificationsBell,
   type ShellNotification,
@@ -210,6 +211,9 @@ function LanguageToggle() {
 
 export function TopBar() {
   const notifications = useTaskNotifications();
+  const { profileRole } = useProfile();
+  // A litigant's notifications are their own (empty in this demo) — no advocate alerts.
+  const items = profileRole === "litigant" ? [] : notifications.items;
 
   return (
     // `sticky` is positioned, so the phone search row can hang under it, full width.
@@ -221,7 +225,7 @@ export function TopBar() {
           the same thing twice and put two account controls on one screen. What stays is
           the one thing this bar owes you that the rail cannot give: what changed. */}
       <NotificationsBell
-        notifications={notifications.items}
+        notifications={items}
         onRead={notifications.markAllRead}
         onClearAll={notifications.clearStale}
       />

@@ -182,7 +182,10 @@ const SEARCH_NOTE = "product-wide search — not part of this build";
  */
 function TasksCount() {
   const { state, people, cases, tasks, user } = useTasks();
+  const { profileRole } = useProfile();
   if (state !== "ready") return null;
+  // A litigant's task list is their own (empty in this demo), so no advocate count.
+  if (profileRole === "litigant") return null;
   const { action } = summaryOf({ people, cases, tasks, user, now: new Date() });
   if (!action) return null;
   return (
@@ -221,7 +224,9 @@ function TasksCount() {
 /** What the count says out loud. The marks themselves are bare numerals. */
 function TasksCountLabel() {
   const { state, people, cases, tasks, user } = useTasks();
+  const { profileRole } = useProfile();
   if (state !== "ready") return null;
+  if (profileRole === "litigant") return null;
   const { action } = summaryOf({ people, cases, tasks, user, now: new Date() });
   if (!action) return null;
   return <span className="sr-only">, {action} need action</span>;
