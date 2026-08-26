@@ -336,7 +336,7 @@ export function CasesScreen({
         enabled: showing === "list",
       }}
     >
-      <div className="flex flex-col gap-8 p-6 md:p-8">
+      <div className="flex min-w-0 flex-col gap-8 p-6 md:p-8">
         <header>
           <h1 className="text-title-l font-semibold">Cases</h1>
         </header>
@@ -406,7 +406,7 @@ export function CasesScreen({
           <TabsContent
             key={view.value}
             value={view.value}
-            className="text-body outline-none"
+            className="min-w-0 text-body outline-none"
           >
             {view.value === query.view ? viewPanel : null}
           </TabsContent>

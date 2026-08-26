@@ -73,9 +73,13 @@ export function CasesListResults({
   hideLongPendingFlag?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-4">
       <div
         className={cn(
+          // min-w-0 lets this flex item shrink below the table's content width, so a
+          // wide table (e.g. with the select column) scrolls inside the card instead
+          // of pushing the page horizontally.
+          "min-w-0",
           framed && "overflow-x-auto rounded-xl border border-border bg-card",
           !framed && "overflow-x-auto"
         )}

@@ -209,7 +209,13 @@ export function CasesTable({
             >
               {selectable ? (
                 <TableCell className={cn(cellClass, "w-10 px-1")}>
-                  <div className="flex justify-center">
+                  {/* z-10 lifts the control above the case-number button's
+                      `after:inset-0` overlay, so a click selects instead of
+                      opening the peek. */}
+                  <div
+                    className="relative z-10 flex justify-center"
+                    onClick={(event) => event.stopPropagation()}
+                  >
                     <Checkbox
                       checked={selected.has(record.id)}
                       onCheckedChange={() => toggle(record.id)}
