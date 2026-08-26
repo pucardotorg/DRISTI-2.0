@@ -19,7 +19,8 @@ import { DEMO_PROFILE_NAME } from "@/lib/join/content";
  */
 export default function Page() {
   const { locale } = useLocale();
-  const { profileRole, advocateProfileAvailable, switchProfile } = useProfile();
+  const { profileRole, advocateProfileAvailable, switchProfile, enableAdvocateProfile } =
+    useProfile();
 
   const [idSubmitted, setIdSubmitted] = React.useState(true);
   const [submittedId, setSubmittedId] = React.useState<SubmittedId | null>(null);
@@ -43,7 +44,12 @@ export default function Page() {
         setIdSubmitted(true);
       }}
       onProfileCompleted={() => {}}
-      onAdvocateRequest={(details) => setAdvocateRequest(details)}
+      onAdvocateRequest={(details) => {
+        setAdvocateRequest(details);
+        // Demo: the approval lands a moment later, and the advocate profile becomes
+        // switchable. In production this waits on the Bar Council verification.
+        window.setTimeout(() => enableAdvocateProfile(), 3000);
+      }}
       onSwitchProfile={switchProfile}
     />
   );

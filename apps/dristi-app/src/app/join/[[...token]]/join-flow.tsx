@@ -4,7 +4,7 @@ import * as React from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 import { OnboardingModal } from "@/components/onboarding/onboarding-modal";
-import { PROFILE_ROLE_KEY } from "@/components/shell/profile";
+import { ADVOCATE_AVAILABLE_KEY, PROFILE_ROLE_KEY } from "@/components/shell/profile";
 import { SignInBlock } from "@/components/sign-in-block";
 import type { CaseSummary, Locale } from "@/lib/onboarding/content";
 
@@ -60,11 +60,16 @@ function JoinFlow() {
       role?: "litigant" | "advocate";
     }) => {
       const advocate = options?.role === "advocate";
-      // Session-lite: remember the role so the app shell opens in the profile the
-      // number signed in as (the ProfileProvider reads this on mount).
+      // Session-lite: remember the role + whether an advocate profile exists, so the
+      // shell opens as this account. A base litigant has no advocate profile until they
+      // elevate (Settings); an advocate account has one.
       window.localStorage.setItem(
         PROFILE_ROLE_KEY,
         advocate ? "advocate" : "litigant",
+      );
+      window.localStorage.setItem(
+        ADVOCATE_AVAILABLE_KEY,
+        advocate ? "true" : "false",
       );
 
       if (!token) {

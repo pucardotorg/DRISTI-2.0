@@ -22,16 +22,19 @@ export type ProfileRole = "litigant" | "advocate";
 
 export type ProfileValue = {
   profileRole: ProfileRole;
-  /** Whether this account holds an advocate profile at all. A litigant-only account
-   *  keeps the switcher's position in the rail but has nothing to switch to. */
+  /** Whether this account holds an advocate profile at all. A base litigant does NOT —
+   *  the switcher offers no Advocate option until they elevate (Settings → request). */
   advocateProfileAvailable: boolean;
   switchProfile: () => void;
+  /** Grant the advocate profile — the elevation-approved path (from Settings). */
+  enableAdvocateProfile: () => void;
 };
 
 const ProfileContext = React.createContext<ProfileValue | null>(null);
 
-/** Where sign-in stashes the role, so the shell opens in the profile you signed in as. */
+/** Session-lite keys: sign-in stashes these so the shell opens as the account you are. */
 export const PROFILE_ROLE_KEY = "dristi-demo-profile-role";
+export const ADVOCATE_AVAILABLE_KEY = "dristi-demo-advocate-available";
 
 export function ProfileProvider({
   children,
@@ -44,13 +47,21 @@ export function ProfileProvider({
 }) {
   const [profileRole, setProfileRole] =
     React.useState<ProfileRole>(initialRole);
+  const [advocateAvailable, setAdvocateAvailable] = React.useState(
+    advocateProfileAvailable,
+  );
 
-  // Session-lite: sign-in stashes the role the number registered under (see the
-  // join flow), so the shell opens in the profile you signed in as rather than a
-  // fixed default. Read after mount to avoid a hydration mismatch.
+  // Session-lite: read the role + advocate-availability the sign-in stashed, after mount
+  // (avoids a hydration mismatch). A base litigant has no advocate profile until elevated.
   React.useEffect(() => {
-    const stored = window.localStorage.getItem(PROFILE_ROLE_KEY);
-    if (stored === "litigant" || stored === "advocate") setProfileRole(stored);
+    const storedRole = window.localStorage.getItem(PROFILE_ROLE_KEY);
+    if (storedRole === "litigant" || storedRole === "advocate") {
+      setProfileRole(storedRole);
+    }
+    const storedAvail = window.localStorage.getItem(ADVOCATE_AVAILABLE_KEY);
+    if (storedAvail === "true" || storedAvail === "false") {
+      setAdvocateAvailable(storedAvail === "true");
+    }
   }, []);
 
   const switchProfile = React.useCallback(() => {
@@ -61,9 +72,19 @@ export function ProfileProvider({
     });
   }, []);
 
+  const enableAdvocateProfile = React.useCallback(() => {
+    setAdvocateAvailable(true);
+    window.localStorage.setItem(ADVOCATE_AVAILABLE_KEY, "true");
+  }, []);
+
   const value = React.useMemo<ProfileValue>(
-    () => ({ profileRole, advocateProfileAvailable, switchProfile }),
-    [profileRole, advocateProfileAvailable, switchProfile],
+    () => ({
+      profileRole,
+      advocateProfileAvailable: advocateAvailable,
+      switchProfile,
+      enableAdvocateProfile,
+    }),
+    [profileRole, advocateAvailable, switchProfile, enableAdvocateProfile],
   );
 
   return (
