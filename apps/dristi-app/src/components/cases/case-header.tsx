@@ -149,7 +149,15 @@ export function CaseHeader({
           ) : null}
         </dl>
 
-        <CaseHeaderActions caseId={record.id} />
+        <CaseHeaderActions
+          accessCase={{
+            id: record.id,
+            title,
+            caseNumber: record.caseNumber,
+            court: record.court,
+            nextHearing: record.nextHearing?.on ?? "—",
+          }}
+        />
       </div>
     </header>
   );
