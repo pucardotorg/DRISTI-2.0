@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { ArrowRightIcon, UserPlusIcon } from "lucide-react";
 
 import { advJoinPage } from "@/lib/advocate/content";
@@ -25,8 +26,17 @@ import { Card, CardContent } from "@/components/ui/card";
  * the strings themselves are already bilingual.
  */
 export function JoinCasePage() {
-  const { switchProfile } = useProfile();
+  const { profileRole, switchProfile } = useProfile();
+  const router = useRouter();
   const [dialogOpen, setDialogOpen] = React.useState(false);
+
+  // This landing is the advocate join journey. A litigant joins from their own home,
+  // so send them there rather than showing the advocate flow.
+  React.useEffect(() => {
+    if (profileRole === "litigant") router.replace("/home?join=manual");
+  }, [profileRole, router]);
+
+  if (profileRole === "litigant") return null;
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-4 py-8 md:px-6 md:py-10">
@@ -73,7 +83,11 @@ export function JoinCasePage() {
         }}
         onJoinAsLitigant={() => {
           setDialogOpen(false);
-          switchProfile();
+          // Become the litigant and continue the join from the litigant home's own
+          // flow. Navigating away also unmounts this advocate dialog, so its transient
+          // "switching…" state cannot linger and loop on the next open.
+          if (profileRole === "advocate") switchProfile();
+          router.push("/home?join=manual");
         }}
       />
     </main>
