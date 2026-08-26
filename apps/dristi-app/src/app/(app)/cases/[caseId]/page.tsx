@@ -13,6 +13,10 @@ import {
   CaseDocuments,
   DocumentsLoading,
 } from "@/components/cases/case-documents";
+import {
+  BondLifecycleCard,
+  CaseBailProvider,
+} from "@/components/cases/case-bail-flow";
 import { CaseFile } from "@/components/cases/case-file";
 import { CaseHeader } from "@/components/cases/case-header";
 import {
@@ -35,6 +39,7 @@ import {
   parseComplaintPart,
 } from "@/lib/cases/complaint";
 import { CASES, FIXTURE_TODAY } from "@/lib/cases/fixtures";
+import { partiesLabel } from "@/lib/cases/types";
 import { parseSelectedId } from "@/lib/cases/parties";
 import {
   CASE_SECTIONS,
@@ -86,21 +91,32 @@ export default async function CaseDetailPage(
      `?tab=` and `?side=` are simply unread. */
   const participantId = parseSelectedId(searchParams.selected);
 
-  return (
-    <div className="flex min-w-0 flex-1 flex-col gap-8 p-6 md:p-8">
-      <div>
-        <Button variant="ghost" asChild>
-          <Link href="/cases">
-            <ArrowLeftIcon data-icon="inline-start" aria-hidden />
-            Back to cases
-          </Link>
-        </Button>
-      </div>
+  const accessCase = {
+    id: record.id,
+    title: partiesLabel(record),
+    caseNumber: record.caseNumber,
+    court: record.court,
+    nextHearing: record.nextHearing?.on ?? "—",
+  };
 
-      <CaseHeader
-        record={record}
-        hideLongPendingFlag={origin === "long-pending"}
-      />
+  return (
+    <CaseBailProvider accessCase={accessCase}>
+      <div className="flex min-w-0 flex-1 flex-col gap-8 p-6 md:p-8">
+        <div>
+          <Button variant="ghost" asChild>
+            <Link href="/cases">
+              <ArrowLeftIcon data-icon="inline-start" aria-hidden />
+              Back to cases
+            </Link>
+          </Button>
+        </div>
+
+        <CaseHeader
+          record={record}
+          hideLongPendingFlag={origin === "long-pending"}
+        />
+
+        <BondLifecycleCard />
 
       <CaseSectionTabs caseId={caseId} section={section}>
         {section === "overview" ? (
@@ -143,6 +159,7 @@ export default async function CaseDetailPage(
           />
         )}
       </CaseSectionTabs>
-    </div>
+      </div>
+    </CaseBailProvider>
   );
 }

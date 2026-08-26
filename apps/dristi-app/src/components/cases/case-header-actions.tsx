@@ -19,40 +19,19 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ShareDialog } from "@/components/access/share-dialog";
-import { BailApplicationDialog } from "@/components/filing/bail-application-dialog";
-import {
-  BailBondDialog,
-  type BondMode,
-} from "@/components/filing/bail-bond-dialog";
-import {
-  BailBondStatusDialog,
-  buildBondSigners,
-} from "@/components/filing/bail-bond-status-dialog";
-import { useProfile } from "@/components/shell/profile";
+import { useCaseBail } from "@/components/cases/case-bail-flow";
 import type { AccessCase } from "@/lib/access/content";
-import {
-  BOND_LITIGANT,
-  BOND_SURETIES,
-  BOND_THIRD_SURETY,
-} from "@/lib/filing/content";
 
 /**
- * Case-file header actions. Beyond Neer's own filings, this is where Mohit's Case-Access
- * integrations hang off the case (the wiring map's hub): Share access (this one case),
- * and the full bail flow — bail application → generate bail bond → bond status — that his
- * original all-cases design orchestrated. Sureties sign the bond from the /bond link.
+ * Case-file header actions. Beyond Neer's own filings, this is the case-access hub:
+ * Share access (this one case) and the entries into Mohit's bail flow (application,
+ * generate bond, status). The bail lifecycle + dialogs live in <CaseBailProvider>, which
+ * wraps the page, so the in-page bond-task card and these entries share one state.
  */
 export function CaseHeaderActions({ accessCase }: { accessCase: AccessCase }) {
-  const { accountName } = useProfile();
+  const bail = useCaseBail();
   const [shareOpen, setShareOpen] = React.useState(false);
-  const [bailOpen, setBailOpen] = React.useState(false);
-  const [bondOpen, setBondOpen] = React.useState(false);
-  const [bondMode, setBondMode] = React.useState<BondMode>("direct");
-  const [bondStatusOpen, setBondStatusOpen] = React.useState(false);
-  const [bondMethod, setBondMethod] = React.useState<"esign" | "upload">("esign");
   const caseId = accessCase.id;
-
-  const suretyNames = [...BOND_SURETIES, BOND_THIRD_SURETY].map((s) => s.name);
 
   return (
     <TooltipProvider>
@@ -113,7 +92,7 @@ export function CaseHeaderActions({ accessCase }: { accessCase: AccessCase }) {
             <DropdownMenuItem
               onSelect={(event) => {
                 event.preventDefault();
-                setBailOpen(true);
+                bail.openApplication();
               }}
             >
               Raise bail application
@@ -121,8 +100,7 @@ export function CaseHeaderActions({ accessCase }: { accessCase: AccessCase }) {
             <DropdownMenuItem
               onSelect={(event) => {
                 event.preventDefault();
-                setBondMode("direct");
-                setBondOpen(true);
+                bail.openBondDirect();
               }}
             >
               Generate bail bond
@@ -130,7 +108,7 @@ export function CaseHeaderActions({ accessCase }: { accessCase: AccessCase }) {
             <DropdownMenuItem
               onSelect={(event) => {
                 event.preventDefault();
-                setBondStatusOpen(true);
+                bail.openStatus();
               }}
             >
               Bond status
@@ -144,45 +122,6 @@ export function CaseHeaderActions({ accessCase }: { accessCase: AccessCase }) {
         onOpenChange={setShareOpen}
         cases={[accessCase]}
         locale="en"
-      />
-
-      <BailApplicationDialog
-        open={bailOpen}
-        onOpenChange={setBailOpen}
-        accessCase={accessCase}
-        locale="en"
-      />
-
-      {/* Remount per mode so each entry starts from its own clean state. */}
-      <BailBondDialog
-        key={bondMode}
-        open={bondOpen}
-        onOpenChange={setBondOpen}
-        accessCase={accessCase}
-        locale="en"
-        mode={bondMode}
-        onSubmitted={(result) => setBondMethod(result.method)}
-      />
-
-      <BailBondStatusDialog
-        open={bondStatusOpen}
-        onOpenChange={setBondStatusOpen}
-        accessCase={accessCase}
-        locale="en"
-        signers={buildBondSigners({
-          advocateName: accountName,
-          litigantName: BOND_LITIGANT.name,
-          suretyNames,
-          locale: "en",
-          advocateSigned: true,
-          allSigned: bondMethod === "upload",
-        })}
-        suretyNames={suretyNames}
-        onEdit={() => {
-          setBondStatusOpen(false);
-          setBondMode("edit");
-          setBondOpen(true);
-        }}
       />
     </TooltipProvider>
   );
