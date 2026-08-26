@@ -1,0 +1,22 @@
+---
+description: Never start, restart, or kill the Dristi Next.js dev server — it is detached on purpose
+alwaysApply: true
+---
+
+# Dristi local dev server
+
+`npm run dev` starts Next.js **detached** on `http://127.0.0.1:3000`. The
+process is supposed to outlive agent shells and terminal tabs. Chrome `-102`
+happens when agents kill that process or start a second `next dev`.
+
+## Do not
+
+- Run `npm run dev`, `next dev`, or any restart of the app server
+- `kill` node / next PIDs, or `rm -rf` `apps/dristi-app/.next` while it is up
+- Start a second copy (Next.js will refuse, then someone kills the first)
+
+## Do
+
+- If `http://127.0.0.1:3000` responds: use it. Do not restart it.
+- If it does not respond: tell the user to run `npm run dev` in **their**
+  Terminal panel (not via the agent). Stop is `npm run dev:stop`.
