@@ -1,5 +1,6 @@
 "use client";
 
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Item,
   ItemActions,
@@ -14,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { BookmarkButton } from "./bookmark-button";
 import { CaseField, caseFieldIsEmpty } from "./case-field";
 import { useCasePeek } from "./use-case-peek";
+import { useCasesSelection } from "./use-cases-selection";
 import { useCasesTableColumns } from "./use-cases-table-columns";
 
 type ListProps = {
@@ -40,6 +42,7 @@ export function CasesItemList({
 }: ListProps) {
   const { isVisible, order } = useCasesTableColumns();
   const { record: openRecord } = useCasePeek();
+  const { selected, toggle, enabled: selectable } = useCasesSelection();
   const columns = listTableColumns(isVisible, { hideStage, order });
 
   return (
@@ -54,6 +57,18 @@ export function CasesItemList({
             openRecord?.id === record.id && "bg-accent-strong"
           )}
         >
+          {selectable ? (
+            <div
+              className="relative z-10 flex shrink-0 items-center pt-0.5"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <Checkbox
+                checked={selected.has(record.id)}
+                onCheckedChange={() => toggle(record.id)}
+                aria-label={`Select ${partiesLabel(record)}`}
+              />
+            </div>
+          ) : null}
           <ItemContent className="min-w-0 flex-1 gap-4">
             <ItemTitle className="sr-only">
               {partiesLabel(record)}

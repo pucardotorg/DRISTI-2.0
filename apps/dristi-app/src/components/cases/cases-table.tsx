@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -22,6 +23,7 @@ import { BookmarkButton } from "./bookmark-button";
 import { CaseField } from "./case-field";
 import { CasesStageColumnFilter } from "./cases-stage-column-filter";
 import { useCasePeek } from "./use-case-peek";
+import { useCasesSelection } from "./use-cases-selection";
 import { useCasesTableColumns } from "./use-cases-table-columns";
 
 const headClass =
@@ -71,6 +73,7 @@ export function CasesTable({
 }) {
   const { isVisible, order, reorder, shift } = useCasesTableColumns();
   const { record: openRecord } = useCasePeek();
+  const { selected, toggle, enabled: selectable } = useCasesSelection();
   const columns = listTableColumns(isVisible, { hideStage, order });
   const [dragging, setDragging] = React.useState<TableColumnId | null>(null);
   const [over, setOver] = React.useState<TableColumnId | null>(null);
@@ -147,6 +150,11 @@ export function CasesTable({
       >
         <TableHeader>
           <TableRow className="hover:bg-transparent">
+            {selectable ? (
+              <TableHead className={cn(headClass, "w-10 px-1")}>
+                <span className="sr-only">Select</span>
+              </TableHead>
+            ) : null}
             {columns.map((column) => {
               const stageFilterHead = column.id === "stage" && stageFilter;
               return (
@@ -199,6 +207,17 @@ export function CasesTable({
               className="relative"
               data-state={openRecord?.id === record.id ? "selected" : undefined}
             >
+              {selectable ? (
+                <TableCell className={cn(cellClass, "w-10 px-1")}>
+                  <div className="flex justify-center">
+                    <Checkbox
+                      checked={selected.has(record.id)}
+                      onCheckedChange={() => toggle(record.id)}
+                      aria-label={`Select ${partiesLabel(record)}`}
+                    />
+                  </div>
+                </TableCell>
+              ) : null}
               {columns.map((column) => (
                 <TableCell
                   key={column.id}

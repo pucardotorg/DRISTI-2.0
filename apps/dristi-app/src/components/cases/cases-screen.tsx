@@ -8,6 +8,7 @@ import {
   FolderOpenIcon,
   ListIcon,
   SearchIcon,
+  Share2Icon,
 } from "lucide-react";
 
 import { Banner } from "@/components/ui/banner";
@@ -33,7 +34,10 @@ import {
   summariseCases,
   type CasesQuery,
 } from "@/lib/cases/query";
-import { CASES_VIEWS, type BucketKey, type CaseRecord, type CasesView } from "@/lib/cases/types";
+import { CASES_VIEWS, partiesLabel, type BucketKey, type CaseRecord, type CasesView } from "@/lib/cases/types";
+import { ShareDialog } from "@/components/access/share-dialog";
+import { type AccessCase } from "@/lib/access/content";
+import { useLocale } from "@/components/shell/locale";
 
 import { CasesBucketFolders } from "./cases-bucket-folders";
 import { CasesFoldersHint } from "./cases-folders-hint";
@@ -46,6 +50,7 @@ import {
 } from "./use-cases-landing-view";
 import { useCasesNavigation } from "./use-cases-navigation";
 import { CasePeekProvider } from "./use-case-peek";
+import { CasesSelectionProvider } from "./use-cases-selection";
 
 const EMPTY_VIEW: Record<CasesView, { title: string; description: string }> = {
   ongoing: {
@@ -84,6 +89,34 @@ export function CasesScreen({
   const [landingView, setLandingView] = useCasesLandingView();
   const [bookmarks, setBookmarks] = React.useState<ReadonlySet<string>>(
     () => new Set(initialBookmarks)
+  );
+  const { locale } = useLocale();
+
+  // Bulk share: select cases in the list, then Share access adds staff to all at once.
+  const [selectedCases, setSelectedCases] = React.useState<Set<string>>(
+    () => new Set()
+  );
+  const [shareOpen, setShareOpen] = React.useState(false);
+  const toggleSelected = React.useCallback((id: string) => {
+    setSelectedCases((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+  const shareCases: AccessCase[] = React.useMemo(
+    () =>
+      cases
+        .filter((record) => selectedCases.has(record.id))
+        .map((record) => ({
+          id: record.id,
+          title: partiesLabel(record),
+          caseNumber: record.caseNumber,
+          court: record.court,
+          nextHearing: record.nextHearing?.on ?? "—",
+        })),
+    [cases, selectedCases]
   );
 
   /** Search always finds cases, so a query temporarily shows the list. */
@@ -241,6 +274,18 @@ export function CasesScreen({
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-4">
             <h2 className="text-title-s font-semibold">Your cases</h2>
             <div className="flex min-w-0 flex-wrap items-center justify-end gap-3">
+              {showing === "list" ? (
+                <Button
+                  variant="outline"
+                  disabled={selectedCases.size === 0}
+                  onClick={() => setShareOpen(true)}
+                  className="shrink-0"
+                >
+                  <Share2Icon data-icon="inline-start" aria-hidden />
+                  Share access
+                  {selectedCases.size ? ` (${selectedCases.size})` : ""}
+                </Button>
+              ) : null}
               <ToggleGroup
                 type="single"
                 variant="outline"
@@ -284,10 +329,17 @@ export function CasesScreen({
     );
 
   return (
-    <div className="flex flex-col gap-8 p-6 md:p-8">
-      <header>
-        <h1 className="text-title-l font-semibold">Cases</h1>
-      </header>
+    <CasesSelectionProvider
+      value={{
+        selected: selectedCases,
+        toggle: toggleSelected,
+        enabled: showing === "list",
+      }}
+    >
+      <div className="flex flex-col gap-8 p-6 md:p-8">
+        <header>
+          <h1 className="text-title-l font-semibold">Cases</h1>
+        </header>
 
       {/*
         Ongoing and LPR partition live cases. Bookmarked is a personal
@@ -360,6 +412,13 @@ export function CasesScreen({
           </TabsContent>
         ))}
       </Tabs>
-    </div>
+      </div>
+      <ShareDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        cases={shareCases}
+        locale={locale}
+      />
+    </CasesSelectionProvider>
   );
 }
