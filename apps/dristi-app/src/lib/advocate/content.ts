@@ -23,7 +23,7 @@ const t = (en: string, ml: string): Copy => ({ en, ml });
 
 /* ------------------------------------------------------------------- demo data */
 
-export const ADVOCATE_PROFILE_NAME = "Adv. Devika Suresh";
+export const ADVOCATE_PROFILE_NAME = "Adv. Anjali Nair";
 
 /** Same demo case as the litigant flow — the advocate joins the other side of it. */
 export const ADVOCATE_JOIN_CASE: JoinCase = DEMO_JOIN_CASE;
@@ -77,7 +77,7 @@ export const VAKALATNAMAS: Vakalatnama[] = [
     parties: "Rajan Krishnan Nair and Suresh Babu P",
     caseRef: "CC 847 / 2026",
     generatedOn: "12-08-2026",
-    advocates: ["Adv. Devika Suresh", "Adv. Anil George"],
+    advocates: ["Adv. Anjali Nair", "Adv. Anil George"],
   },
   {
     id: "vk-2",
@@ -85,7 +85,7 @@ export const VAKALATNAMAS: Vakalatnama[] = [
     parties: "Anitha Joseph",
     caseRef: "ST 112 / 2026",
     generatedOn: "08-08-2026",
-    advocates: ["Adv. Devika Suresh"],
+    advocates: ["Adv. Anjali Nair"],
   },
   {
     id: "vk-3",
@@ -93,7 +93,7 @@ export const VAKALATNAMAS: Vakalatnama[] = [
     parties: "Fathima Beevi",
     caseRef: "CMP 210 / 2026",
     generatedOn: "01-08-2026",
-    advocates: ["Adv. Devika Suresh"],
+    advocates: ["Adv. Anjali Nair"],
   },
   {
     id: "vk-4",
@@ -101,7 +101,7 @@ export const VAKALATNAMAS: Vakalatnama[] = [
     parties: "Vismaya Traders",
     caseRef: "CC 412 / 2025",
     generatedOn: "28-07-2026",
-    advocates: ["Adv. Devika Suresh", "Adv. Joseph Mathew"],
+    advocates: ["Adv. Anjali Nair", "Adv. Joseph Mathew"],
   },
   {
     id: "vk-5",
@@ -109,7 +109,7 @@ export const VAKALATNAMAS: Vakalatnama[] = [
     parties: "Latheef M.",
     caseRef: "ST 198 / 2026",
     generatedOn: "24-07-2026",
-    advocates: ["Adv. Devika Suresh"],
+    advocates: ["Adv. Anjali Nair"],
   },
   {
     id: "vk-6",
@@ -117,7 +117,7 @@ export const VAKALATNAMAS: Vakalatnama[] = [
     parties: "Naveen Chandra",
     caseRef: "CMP 176 / 2026",
     generatedOn: "19-07-2026",
-    advocates: ["Adv. Devika Suresh"],
+    advocates: ["Adv. Anjali Nair"],
   },
   {
     id: "vk-7",
@@ -125,7 +125,7 @@ export const VAKALATNAMAS: Vakalatnama[] = [
     parties: "Amina Rahman and Sameer Rahman",
     caseRef: "CC 365 / 2026",
     generatedOn: "14-07-2026",
-    advocates: ["Adv. Devika Suresh", "Adv. Anil George"],
+    advocates: ["Adv. Anjali Nair", "Adv. Anil George"],
   },
 ];
 
