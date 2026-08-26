@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { JoinCaseDialog, type JoinResult } from "@/components/join/join-case-dialog";
+import { useLocale } from "@/components/shell/locale";
 import { pick, type Locale } from "@/lib/onboarding/content";
 import { DEMO_JOIN_CASE, DEMO_PROFILE_NAME, fill, home, shell, type JoinCase } from "@/lib/join/content";
 
@@ -30,16 +31,15 @@ export function HomeScreen({
   summoned,
   hasCase,
   openManualJoin = false,
-  initialLocale,
 }: {
   summoned: boolean;
   hasCase: boolean;
   idSkipped?: boolean;
   profileIncomplete?: boolean;
   openManualJoin?: boolean;
-  initialLocale: Locale;
+  initialLocale?: Locale;
 }) {
-  const [locale] = React.useState<Locale>(initialLocale);
+  const { locale } = useLocale();
   const [dialogOpen, setDialogOpen] = React.useState(openManualJoin);
   const [dialogMode, setDialogMode] = React.useState<"summons" | "manual">("manual");
   const [autoOpened, setAutoOpened] = React.useState(openManualJoin);
@@ -51,10 +51,6 @@ export function HomeScreen({
   const visibleCases: VisibleHomeCase[] = summonsCase && !hasJoinedSummons
     ? [{ joinCase: summonsCase, status: "summons" }, ...cases]
     : cases;
-
-  React.useEffect(() => {
-    document.documentElement.lang = locale;
-  }, [locale]);
 
   React.useEffect(() => {
     if (!summonsCase || autoOpened || cases.length) return;

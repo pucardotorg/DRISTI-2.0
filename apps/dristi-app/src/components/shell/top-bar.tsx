@@ -19,10 +19,16 @@ import { TASKS_HOME } from "@/lib/tasks/routes";
 import { caseOf, tasksInView } from "@/lib/tasks/selectors";
 import { compareUrgency, daysUntil, isOverdue } from "@/lib/tasks/urgency";
 import { useChrome } from "@/components/shell/chrome";
+import { useLocale } from "@/components/shell/locale";
 import {
   NotificationsBell,
   type ShellNotification,
 } from "@/components/shell/notifications";
+import {
+  SegmentedControl,
+  SegmentedControlItem,
+} from "@/components/ui/segmented-control";
+import { LOCALES, pick, ui, type Locale } from "@/lib/onboarding/content";
 
 /**
  * The one breadcrumb in the app. Route-aware: Tasks › the task › the action. The task
@@ -180,6 +186,27 @@ function useTaskNotifications() {
  * your attention, and your account. The court identity lives in the nav rail's header
  * instead — it is the page origin, and it should not move when this bar's contents change.
  */
+/** The app-wide language switch. Citizen screens render bilingual; the rest ignore it. */
+function LanguageToggle() {
+  const { locale, setLocale } = useLocale();
+  return (
+    <SegmentedControl
+      size="compact"
+      type="single"
+      value={locale}
+      onValueChange={(value) => value && setLocale(value as Locale)}
+      aria-label={pick(ui.language, locale)}
+      className="ml-auto shrink-0"
+    >
+      {LOCALES.map((l) => (
+        <SegmentedControlItem key={l.value} value={l.value}>
+          {l.label}
+        </SegmentedControlItem>
+      ))}
+    </SegmentedControl>
+  );
+}
+
 export function TopBar() {
   const notifications = useTaskNotifications();
 
@@ -188,6 +215,7 @@ export function TopBar() {
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-hairline bg-card px-4 sm:px-6">
       <NavTrigger />
       <ChromeBreadcrumb />
+      <LanguageToggle />
       {/* The person is named once, at the foot of the rail. A second avatar here said
           the same thing twice and put two account controls on one screen. What stays is
           the one thing this bar owes you that the rail cannot give: what changed. */}

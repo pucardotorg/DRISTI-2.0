@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { CasesWireframe } from "@/components/access/cases-wireframe";
+import { useLocale } from "@/components/shell/locale";
 
 /**
  * Your Cases — a placeholder list/file (Mohit's access wireframe). The open case is in
@@ -13,11 +14,12 @@ import { CasesWireframe } from "@/components/access/cases-wireframe";
 function CasesInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { locale } = useLocale();
   const openCaseId = searchParams.get("case");
 
   return (
     <CasesWireframe
-      locale="en"
+      locale={locale}
       openCaseId={openCaseId}
       onOpenCase={(caseId) => {
         const params = new URLSearchParams();

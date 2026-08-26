@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { FeedbackProvider } from "@/components/feedback-provider";
+import { LocaleProvider } from "@/components/shell/locale";
 import { ThemeProvider } from "@/components/theme-provider";
 
 import "./globals.css";
@@ -33,7 +34,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <FeedbackProvider>{children}</FeedbackProvider>
+          <LocaleProvider>
+            <FeedbackProvider>{children}</FeedbackProvider>
+          </LocaleProvider>
         </ThemeProvider>
       </body>
     </html>
