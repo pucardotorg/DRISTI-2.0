@@ -114,7 +114,7 @@ type NavItem = { id: string; label: string; icon: LucideIcon; href?: string };
 const GO: NavItem[] = [
   { id: "search", label: "Search", icon: SearchIcon },
   { id: "home", label: "Home", icon: HouseIcon, href: "/home" },
-  { id: "cases", label: "Your Cases", icon: FolderClosedIcon },
+  { id: "cases", label: "Your Cases", icon: FolderClosedIcon, href: "/cases" },
   {
     id: "tasks",
     label: "Pending Tasks",
@@ -145,7 +145,7 @@ const START: NavItem[] = [
   },
 ];
 
-const WITH: NavItem[] = [{ id: "people", label: "People", icon: UsersIcon }];
+const WITH: NavItem[] = [{ id: "people", label: "People", icon: UsersIcon, href: "/people" }];
 
 /**
  * The row's label. It has to leave the layout on collapse, not merely be clipped by the
@@ -558,6 +558,15 @@ function ProfileFooter() {
 /** Main navigation for the whole app. Icon rail from `md`, sheet below it. */
 export function AppSidebar() {
   const { theme } = useRailTheme();
+  const { profileRole } = useProfile();
+
+  // Home is role-aware: the advocate's home and the litigant's home are different
+  // screens on the same shell. The rest of the nav is shared.
+  const mainItems = GO.map((item) =>
+    item.id === "home"
+      ? { ...item, href: profileRole === "advocate" ? "/advocate" : "/home" }
+      : item,
+  );
 
   return (
     /*
@@ -596,7 +605,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        <NavGroup items={GO} label="Main" />
+        <NavGroup items={mainItems} label="Main" />
         <NavGroup items={START} label="Start something" separated />
         <NavGroup items={WITH} label="People" separated />
       </SidebarContent>

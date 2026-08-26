@@ -34,8 +34,16 @@ function ChromeBreadcrumb() {
   const last = crumbs.length - 1;
   // The trail's root names the area. Tasks is the default; areas the shell hosts
   // without their own bar add themselves here.
-  const root = pathname.startsWith("/join-case")
-    ? { label: "Join a case", href: undefined }
+  const AREA_ROOTS: { prefix: string; label: string; href?: string }[] = [
+    { prefix: "/join-case", label: "Join a case" },
+    { prefix: "/home", label: "Home" },
+    { prefix: "/advocate", label: "Home" },
+    { prefix: "/cases", label: "Your Cases", href: "/cases" },
+    { prefix: "/people", label: "People", href: "/people" },
+  ];
+  const match = AREA_ROOTS.find((area) => pathname.startsWith(area.prefix));
+  const root = match
+    ? { label: match.label, href: match.href }
     : { label: "Tasks", href: TASKS_HOME };
 
   return (
