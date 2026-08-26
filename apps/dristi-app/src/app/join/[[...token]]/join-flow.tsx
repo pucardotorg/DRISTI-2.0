@@ -61,7 +61,9 @@ function JoinFlow() {
       const advocate = options?.role === "advocate";
 
       if (!token) {
-        router.push("/tasks");
+        // Land on the role home, not the task list. Pending Tasks stays a nav
+        // destination; a fresh sign-in belongs on a home.
+        router.push(advocate ? "/advocate" : "/home");
         return;
       }
 
