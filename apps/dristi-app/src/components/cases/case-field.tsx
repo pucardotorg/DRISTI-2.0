@@ -37,7 +37,7 @@ export function CaseField({
     case "caseName":
       return <CaseTitle record={record} />;
     case "advocates":
-      return <CaseAdvocatesPair record={record} />;
+      return <CaseAdvocatesPair record={record} dense={!list} />;
     case "stage":
       return <CaseStage record={record} detail={list} />;
     case "nextHearing":

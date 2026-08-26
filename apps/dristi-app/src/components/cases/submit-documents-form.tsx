@@ -133,7 +133,6 @@ export function SubmitDocumentsForm({ caseId }: { caseId: string }) {
         onExit={exit.requestExit}
         showPrototypeBanner={false}
         showCaseContext={false}
-        showStepper={false}
       >
         <form
           ref={formRef}

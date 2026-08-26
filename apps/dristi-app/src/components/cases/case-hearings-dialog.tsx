@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useSidebar } from "@/components/ui/sidebar";
 import { hearingsFile } from "@/lib/cases/hearings";
 import type { CaseRecord } from "@/lib/cases/types";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,20 @@ import { cn } from "@/lib/utils";
  * miss — without it a wheel that reaches the end of this list keeps going
  * into the document underneath.
  *
+ * No `scrollbar-color`. It used to be `var(--border) transparent`, and that
+ * one declaration is what made the bar ugly twice over. `--border` is
+ * `neutral-8`, the loudest non-text mark the palette has and the one reserved
+ * for panel edges and structural frames; on this warm ramp it renders
+ * `#c0b9af`, so the thumb arrived as a tan stripe parked beside the filter
+ * row. Worse, naming a `scrollbar-color` at all opts the element out of the
+ * platform's overlay scrollbars, so that stripe is painted for the whole life
+ * of the overlay rather than fading with the scroll.
+ *
+ * Dropping it restores the scrollbar the reader's own OS draws — the one
+ * every other window on their machine uses. `scrollbar-width: thin` stays,
+ * because it narrows a classic scrollbar without opting out of an overlay
+ * one, so nothing is invented on either platform.
+ *
  * `overflow-x-hidden` is the one addition, and it earns its place at phone
  * width: the vertical scrollbar takes its gutter out of the content box while
  * the filter row's `w-full` control still measures itself against the full
@@ -35,7 +50,28 @@ import { cn } from "@/lib/utils";
  * gutter (RESPONSIVE 5).
  */
 const scrollClass =
-  "min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]";
+  "min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:thin]";
+
+/**
+ * The panel's measure, capped twice over.
+ *
+ * The named DS width is what the panel wants — 5xl for the register, 2xl for
+ * the record. `--nav-w` is what the rail has already taken. Centring inside
+ * the case rather than inside the window means the panel has that much less
+ * room, so the cap has to know about it: a 5xl panel pushed right by half a
+ * 256px rail runs off the right edge of anything narrower than a 1280px
+ * window, which is an ordinary laptop. `min()` takes the smaller of the two,
+ * so the panel keeps its DS measure where there is room and shrinks to the
+ * case column where there is not.
+ *
+ * Both are needed because they are separate breakpoints: the unprefixed cap
+ * governs phone, where the rail is an offcanvas Sheet and `--nav-w` is 0, so
+ * it collapses back to the primitive's own `calc(100% - 2rem)`.
+ */
+const registerWidthClass =
+  "max-w-[calc(100%_-_2rem_-_var(--nav-w,0px))] sm:max-w-[min(var(--container-5xl),calc(100%_-_2rem_-_var(--nav-w,0px)))]";
+const recordWidthClass =
+  "max-w-[calc(100%_-_2rem_-_var(--nav-w,0px))] sm:max-w-[min(var(--container-2xl),calc(100%_-_2rem_-_var(--nav-w,0px)))]";
 
 /**
  * The hearings register as an overlay over the case, opened from Overview's
@@ -91,6 +127,51 @@ export function CaseHearingsDialog({
   triggerRef: RefObject<HTMLAnchorElement | null>;
 }) {
   const [openRecord, setOpenRecord] = useState<HearingRecordOpen | null>(null);
+
+  /* How much room the left rail has taken, published to `:root` as `--nav-w`
+     so the panel can be centred on the case instead of on the window.
+
+     Written to the DOM rather than held in React state on purpose. This
+     dialog is portalled to `<body>`, outside the `SidebarProvider` that
+     defines `--sidebar-width`, so that variable is not in scope here and the
+     value has to arrive some other way. A custom property on the document is
+     the cheap one: it inherits down to the portal, it costs no render, and
+     updating an external system from an effect is what effects are for —
+     mirroring the same number into state would re-render the whole register
+     on every frame of the rail's 200ms transition.
+
+     Measured off the rail's own gap element rather than derived from the two
+     widths, because the gap is the one value that already accounts for
+     expanded vs icon vs offcanvas. `ResizeObserver` rather than a read on
+     open, because the DS registers a window-level Cmd/Ctrl+B that toggles the
+     rail even while this overlay holds focus; observing follows the width
+     transition so the panel glides with the rail instead of jumping after it.
+
+     `isMobile` is a dependency, not a guard, because crossing that breakpoint
+     unmounts the gap entirely — the rail becomes a Sheet that occupies no
+     layout width. Re-running re-queries it and lands `--nav-w` at 0, which is
+     what leaves phone centring exactly as the DS ships it. */
+  const { isMobile } = useSidebar();
+  useEffect(() => {
+    const root = document.documentElement;
+    const write = (width: number) =>
+      root.style.setProperty("--nav-w", `${width}px`);
+    const gap = isMobile
+      ? null
+      : document.querySelector<HTMLElement>('[data-slot="sidebar-gap"]');
+    if (!gap) {
+      write(0);
+      return () => root.style.removeProperty("--nav-w");
+    }
+    const observer = new ResizeObserver(() =>
+      write(gap.getBoundingClientRect().width)
+    );
+    observer.observe(gap);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--nav-w");
+    };
+  }, [isMobile]);
 
   /* What asked for the record, so leaving the step puts the reader back on
      the row they left rather than at the top of the register. Null when the
@@ -159,10 +240,24 @@ export function CaseHearingsDialog({
       <DialogContent
         className={cn(
           "flex max-h-[90svh] flex-col gap-6 overflow-hidden",
+          /* Centred on the case, not on the window. Viewport centring put the
+             panel's left edge 12px inside the rail at 1512px — close enough
+             to the seam to read as a misalignment rather than as an overlay
+             deliberately covering the nav. Shifting the centre by half the
+             rail lands the panel in the middle of the column the reader was
+             already looking at, and leaves the rail fully uncovered.
+
+             This is a deliberate deviation from the DS, which centres Dialog
+             on the viewport (`left-1/2 -translate-x-1/2` in the primitive).
+             The scrim still covers the rail, so the modal still reads as
+             owning the whole screen — only the panel moved. Flagged for
+             review; if it should hold app-wide it belongs upstream in the DS,
+             not repeated per dialog. */
+          "left-[calc(50%_+_var(--nav-w,0px)_/_2)]",
           /* The register wants the width of a screen; the record is a
              document and keeps the measure it has on the routed page, so it
              reads the same in both places. */
-          openRecord ? "sm:max-w-2xl" : "sm:max-w-5xl"
+          openRecord ? recordWidthClass : registerWidthClass
         )}
         showCloseButton={!openRecord}
         /* Radix focuses the first tabbable thing it finds, which here is the

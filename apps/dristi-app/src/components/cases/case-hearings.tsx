@@ -104,6 +104,27 @@ const cellClass =
   "border-b border-border px-4 py-3 align-middle text-left text-body-compact";
 const filterBarClass =
   "flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end";
+/**
+ * The filter region, pinned — but only inside the overlay.
+ *
+ * In the dialog the whole register is one scroll box, so the filter row rode
+ * the list: scroll to the fifth hearing and Type, Clear filters and the
+ * timeline/table switch were all a thousand pixels above the reader. That is
+ * bad on its own, and it also broke the Type menu outright. The menu is
+ * portalled to `<body>`, so the dialog's `overflow-hidden` cannot clip it,
+ * while its anchor is inside the scroll box — scrolling 900px with the menu
+ * open dragged the anchor to y=-721 and the menu followed to y=-675, leaving
+ * an open, clickable listbox floating over the app chrome above the dialog.
+ * Pinning the row is the fix at source: the anchor never leaves, so the menu
+ * has nowhere to be dragged to.
+ *
+ * `contents` on the routed page because there the scroll box is the window,
+ * and a row pinned to `top-0` there would stick under the 56px app header
+ * rather than to anything meaningful. `display: contents` removes the wrapper
+ * from layout entirely, so that page keeps the exact box tree it had.
+ */
+const filterRegionClass =
+  "sticky top-0 z-20 flex flex-col gap-6 bg-popover";
 const filterFieldClass = "min-w-0 w-full md:w-72";
 const detailsButtonClass =
   "min-h-10 rounded-lg text-left focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -272,39 +293,44 @@ function HearingsReady({
   return (
     <>
     <HearingsPanel bare={bare}>
-      <div className={filterBarClass}>
-        <Field className={filterFieldClass}>
-          <FieldLabel htmlFor="hearings-type" className="text-body font-medium">
-            Type
-          </FieldLabel>
-          <FilterCombobox
-            id="hearings-type"
-            items={typeOptions}
-            value={typeId}
-            placeholder="All types"
-            empty="No type found."
-            onChange={(next) => {
-              setTypeId(next && isHearingTypeId(next) ? next : null);
-              resetPage();
-            }}
-          />
-        </Field>
+      <div className={bare ? filterRegionClass : "contents"}>
+        <div className={filterBarClass}>
+          <Field className={filterFieldClass}>
+            <FieldLabel
+              htmlFor="hearings-type"
+              className="text-body font-medium"
+            >
+              Type
+            </FieldLabel>
+            <FilterCombobox
+              id="hearings-type"
+              items={typeOptions}
+              value={typeId}
+              placeholder="All types"
+              empty="No type found."
+              onChange={(next) => {
+                setTypeId(next && isHearingTypeId(next) ? next : null);
+                resetPage();
+              }}
+            />
+          </Field>
 
-        <Button
-          type="button"
-          variant="ghost"
-          className="shrink-0"
-          disabled={!filtered}
-          onClick={clearFilters}
-        >
-          Clear filters
-        </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className="shrink-0"
+            disabled={!filtered}
+            onClick={clearFilters}
+          >
+            Clear filters
+          </Button>
 
-        <div className="shrink-0 md:ml-auto">
-          <HearingsViewSwitch view={view} onViewChange={setView} />
+          <div className="shrink-0 md:ml-auto">
+            <HearingsViewSwitch view={view} onViewChange={setView} />
+          </div>
         </div>
+        <Separator />
       </div>
-      <Separator />
 
       {selection.total === 0 ? (
         <HearingsEmpty
@@ -544,9 +570,65 @@ function FilterCombobox({
       autoComplete="off"
     >
       <ComboboxInput id={id} placeholder={placeholder} className="w-full" />
-      <ComboboxContent>
+      {/* `pointer-events-auto` is what makes the menu clickable inside the
+          hearings overlay, and it is not decoration. Radix's modal Dialog
+          parks `pointer-events: none` on `<body>` and re-enables it on
+          `DialogContent` alone, so the whole page behind the panel stops
+          taking clicks. This menu is a Base UI portal that lands on `<body>`,
+          outside `DialogContent` — so it inherits the `none` and every option
+          goes transparent to hit-testing: `elementFromPoint` over "Admission"
+          returns the dialog section behind it, and the filter looks dead
+          while looking perfectly normal. Re-enabling it on the popup is legal
+          CSS (a descendant may take pointer events back from an ancestor that
+          gave them up) and is scoped to the menu, so the scrim keeps
+          swallowing clicks everywhere else.
+
+          Portalling into `DialogContent` instead would fix the inheritance
+          but trade it for clipping: the panel is `overflow-hidden` and the
+          register scrolls inside it, so the menu would be cut off by both.
+
+          Upstream DS feedback: every Combobox raised inside a Dialog has
+          this, not just this one. It belongs in the primitive.
+
+          `ring-border` for the second reason the menu looked wrong — "cut
+          out", like a hole punched in the panel rather than a card over it.
+          `--popover`, `--card` and `--background` are all `#ffffff`, so this
+          is a white surface on a white surface, and the DS holds them apart
+          with `ring-foreground/10` (1px at 10%) plus `--shadow-overlay`,
+          whose two layers are `0 4px 8px -2px` and `0 2px 4px -2px` — both
+          offset downward with negative spread, so there is no shadow above
+          the menu at all. Its top edge was resting on a 10% hairline and
+          nothing else. Widening or insetting the menu does not help: a
+          narrower white box on white still has the same invisible edge.
+          `border` is the DS's panel-edge role, which is what this is.
+
+          Same escalation: the ring opacity and the missing upward component
+          in `--shadow-overlay` are token values, so the real fix is in the DS
+          and would lift all 24 popup surfaces at once. This override is the
+          stopgap for one menu. */}
+      <ComboboxContent className="pointer-events-auto ring-border">
         <ComboboxEmpty>{empty}</ComboboxEmpty>
-        <ComboboxList>
+        {/* The DS caps the list at 252px, which is not a multiple of the 44px
+            item pitch: 6px of padding plus five whole rows is 226, so the
+            sixth row is sliced at 26 of its 44 pixels — straight through the
+            label. A row cut through its own text reads as a rendering fault
+            rather than as "more below", which is what makes an 18-type filter
+            look broken before anyone tries to scroll it.
+
+            20rem lands the cut in the padding instead: the seven 44px rows
+            that open the list total 308, so 6 + 308 leaves the eighth row
+            showing a 6px sliver at the padding edge — a peek that says "more
+            below" rather than a severed label. Rows are not all one height
+            (labels that wrap run to 68px), so this is the common case made
+            clean, not a guarantee; only the primitive can measure. The
+            `--available-height` arm is the DS's own and is kept, so a short
+            viewport still wins over the preferred height.
+
+            Upstream DS feedback: the 252px cap in `ComboboxList` mis-aligns
+            with the item pitch for every combobox in the app, not just this
+            one. The durable fix is for the primitive to land on a row
+            boundary; this override only rescues the hearings filter. */}
+        <ComboboxList className="max-h-[min(--spacing(80),calc(var(--available-height)---spacing(9)))]">
           {(item: Option) => (
             <ComboboxItem key={item.value} value={item}>
               <span className="text-body">{item.label}</span>

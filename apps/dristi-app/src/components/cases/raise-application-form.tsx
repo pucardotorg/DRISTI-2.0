@@ -16,21 +16,26 @@ import {
   useDraftExit,
 } from "@/components/cases/filing-form-shared";
 import { GeneratedApplicationDialog } from "@/components/cases/generated-application-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { applicationTypeGuide } from "@/lib/cases/application-type-guide";
 import {
   EMPTY_APPLICATION_DRAFT,
   EMPTY_APPLICATION_ERRORS,
+  applicationDraftFrom,
   hasApplicationErrors,
   isApplicationDirty,
   validateApplication,
   type ApplicationDraft,
   type ApplicationErrors,
 } from "@/lib/cases/application-draft";
-import { type ApplicationTypeId } from "@/lib/cases/applications";
+import {
+  type ApplicationTypeId,
+  type Submission,
+} from "@/lib/cases/applications";
 import { caseSectionHref } from "@/lib/cases/sections";
-import { type CaseRecord } from "@/lib/cases/types";
+import { formatCaseDate, type CaseRecord } from "@/lib/cases/types";
 
 /**
  * Raise application.
@@ -58,16 +63,29 @@ import { type CaseRecord } from "@/lib/cases/types";
  */
 export function RaiseApplicationForm({
   record,
+  resume = null,
 }: {
   record: CaseRecord;
+  /** A saved draft reopened from the register; null starts a new filing. */
+  resume?: Submission | null;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
-  const [draft, setDraft] = useState<ApplicationDraft>(EMPTY_APPLICATION_DRAFT);
+  /*
+    A resumed draft arrives with its type already chosen, so it opens on the
+    fields — asking someone to re-pick the type they picked yesterday is the
+    whole reason "Continue draft" was worth wiring. The picker is still one
+    click away on the Change type button.
+  */
+  const [draft, setDraft] = useState<ApplicationDraft>(() =>
+    resume ? applicationDraftFrom(resume) : EMPTY_APPLICATION_DRAFT
+  );
   const [errors, setErrors] = useState<ApplicationErrors>(
     EMPTY_APPLICATION_ERRORS
   );
   /** Choosing the type is step one; its fields are step two. */
-  const [stage, setStage] = useState<"type" | "details">("type");
+  const [stage, setStage] = useState<"type" | "details">(
+    resume && draft.type ? "details" : "type"
+  );
   const [generatedOpen, setGeneratedOpen] = useState(false);
   const [signatureOpen, setSignatureOpen] = useState(false);
   const chosen = applicationTypeGuide(
@@ -167,15 +185,14 @@ export function RaiseApplicationForm({
         description={
           stage === "type"
             ? "Choose what you are asking the court for. Each type asks for different details."
-            : `Fill in what ${chosen.label.toLowerCase()} needs. You can change the type at any point.`
+            : resume
+              ? `Picking up where this ${chosen.label.toLowerCase()} draft was left. Nothing has been filed yet.`
+              : `Fill in what ${chosen.label.toLowerCase()} needs. You can change the type at any point.`
         }
         // The cards want the room; a form field 1150px wide does not.
         contentWidth={stage === "type" ? "wide" : "default"}
         showPrototypeBanner={false}
         showCaseContext={false}
-        step={stage === "type" ? 1 : 2}
-        detailStepTitle="Application type"
-        reviewStepTitle="Details"
         onExit={exit.requestExit}
       >
         {stage === "type" ? (
@@ -186,6 +203,7 @@ export function RaiseApplicationForm({
               <ChosenType
                 label={chosen.label}
                 description={chosen.description}
+                savedOn={resume?.addedOn}
                 onChange={() => setStage("type")}
               />
 
@@ -264,10 +282,13 @@ function clearRow(
 function ChosenType({
   label,
   description,
+  savedOn,
   onChange,
 }: {
   label: string;
   description: string;
+  /** Set only when a saved draft was reopened, never on a new filing. */
+  savedOn?: string;
   onChange: () => void;
 }) {
   return (
@@ -277,7 +298,19 @@ function ChosenType({
           <p className="text-caption font-medium text-muted-foreground">
             Application type
           </p>
-          <p className="text-body font-semibold">{label}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-body font-semibold">{label}</p>
+            {/*
+              The same Draft chip the register uses, so the row you clicked
+              and the screen you landed on are recognisably one filing.
+            */}
+            {savedOn ? <Badge variant="warning">Draft</Badge> : null}
+          </div>
+          {savedOn ? (
+            <p className="mt-1 text-body-compact text-muted-foreground">
+              Started {formatCaseDate(savedOn)}
+            </p>
+          ) : null}
           <p className="mt-1 max-w-prose text-body-compact text-muted-foreground">
             {description}
           </p>

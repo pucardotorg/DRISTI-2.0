@@ -48,7 +48,6 @@ import {
   useFieldControlProps,
 } from "@/components/ui/field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Stepper, StepperItem } from "@/components/ui/stepper";
 import { cn } from "@/lib/utils";
 
 export const MAX_FILING_FILE_SIZE = 10 * 1024 * 1024;
@@ -56,8 +55,6 @@ const ACCEPTED_FILE_EXTENSIONS = ["pdf", "jpg", "jpeg", "png"];
 const PREVIEWABLE_IMAGE_EXTENSIONS = ["jpg", "jpeg", "png"];
 const ACCEPTED_FILE_TYPES =
   ".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png";
-
-export type FilingStep = 1 | 2;
 
 function fileExtension(file: File): string {
   return file.name.split(".").pop()?.toLowerCase() ?? "";
@@ -141,22 +138,23 @@ export function useDraftExit(dirty: boolean, href: string) {
 }
 
 /**
- * Shared shell for the filing flows. The prototype banner, case context card
- * and stepper default to on so Raise application keeps the chrome it shipped
- * with; Submit documents opts each one out rather than deleting it globally.
+ * Shared shell for the filing flows: the way back, the title and description,
+ * and an optional prototype banner and case context card that default to on
+ * so each flow opts out rather than opting in.
+ *
+ * There is no step indicator. Raise application was the last flow carrying
+ * one, and a two-step counter was never what oriented anybody: on the second
+ * step the chosen-type card names the type and offers the way back to the
+ * choice, which says the same thing and does something about it.
  */
 export function FilingFrame({
   title,
   description,
   caseNumber,
   complainantName,
-  step,
-  detailStepTitle,
-  reviewStepTitle,
   onExit,
   showPrototypeBanner = true,
   showCaseContext = true,
-  showStepper = true,
   /** "wide" gives a two-column body room; single-column forms stay default. */
   contentWidth = "default",
   children,
@@ -165,14 +163,9 @@ export function FilingFrame({
   description: string;
   caseNumber?: string;
   complainantName?: string;
-  step?: FilingStep;
-  detailStepTitle?: string;
-  /** Raise application's second step is its fields, not a review. */
-  reviewStepTitle?: string;
   onExit: () => void;
   showPrototypeBanner?: boolean;
   showCaseContext?: boolean;
-  showStepper?: boolean;
   contentWidth?: "default" | "wide";
   children: ReactNode;
 }) {
@@ -218,25 +211,6 @@ export function FilingFrame({
             </div>
           </CardContent>
         </Card>
-      ) : null}
-
-      {showStepper && step ? (
-        <nav aria-label={`${title} progress`}>
-          <Stepper className="mx-auto w-full max-w-xl">
-            <StepperItem
-              step={1}
-              title={detailStepTitle ?? "Details"}
-              status={step === 1 ? "current" : "complete"}
-              aria-current={step === 1 ? "step" : undefined}
-            />
-            <StepperItem
-              step={2}
-              title={reviewStepTitle ?? "Review"}
-              status={step === 2 ? "current" : "upcoming"}
-              aria-current={step === 2 ? "step" : undefined}
-            />
-          </Stepper>
-        </nav>
       ) : null}
 
       {children}

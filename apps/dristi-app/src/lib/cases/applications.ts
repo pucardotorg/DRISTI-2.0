@@ -493,6 +493,39 @@ export function applicationsFile(record: CaseRecord): ApplicationsFile {
   };
 }
 
+/**
+ * Where a draft resumes. Applications reopen in the Raise application form
+ * with the draft named in the URL; document submissions have their own flow
+ * and no per-draft resume, so they get the flow itself.
+ *
+ * Anything that is not a draft has no form to go back to — it has been filed
+ * — and belongs on the record instead, which is what the null tells callers.
+ */
+export function resumeDraftHref(
+  caseId: string,
+  submission: Submission
+): string | null {
+  if (submission.status !== "draft") return null;
+  const base = `/cases/${caseId}/filings`;
+  return submission.kind === "application"
+    ? `${base}/application?draft=${encodeURIComponent(submission.id)}`
+    : `${base}/documents`;
+}
+
+/**
+ * The draft named by ?draft=. A stale or hand-edited id resolves to null and
+ * the flow simply starts fresh at the type picker — a filing screen should
+ * not 404 over a query parameter.
+ */
+export function findDraftSubmission(
+  file: ApplicationsFile,
+  id: string | undefined
+): Submission | null {
+  if (!id) return null;
+  const match = file.submissions.find((item) => item.id === id);
+  return match && match.status === "draft" ? match : null;
+}
+
 export const APPLICATIONS_PAGE_SIZES = [10, 20, 30, 40, 50] as const;
 export type ApplicationsPageSize = (typeof APPLICATIONS_PAGE_SIZES)[number];
 export const APPLICATIONS_PAGE_SIZE: ApplicationsPageSize = 10;

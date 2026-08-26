@@ -103,7 +103,7 @@ export function CasesListScreen({
       </header>
 
       <CasePeekProvider now={now}>
-        <CasePeekSurface className="flex flex-col gap-6 rounded-xl border border-border bg-card p-6">
+        <CasePeekSurface className="flex flex-col gap-6 rounded-xl border border-hairline bg-card shadow-raised p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="flex w-full max-w-lg flex-col gap-2">
             <Label htmlFor="cases-search" className="w-fit text-body">

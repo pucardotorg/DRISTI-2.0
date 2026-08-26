@@ -14,7 +14,12 @@
  * selected type is validated, reviewed and filed.
  */
 import { EMPTY_RICH_TEXT, type RichTextValue } from "@/components/cases/rich-text-field";
-import { type ApplicationTypeId } from "./applications";
+import {
+  isApplicationTypeId,
+  submissionTypeLabel,
+  type ApplicationTypeId,
+  type Submission,
+} from "./applications";
 import { CASES } from "./fixtures";
 
 /** The portal caps the party's proposed availability at five dates. */
@@ -160,6 +165,96 @@ export function transferCourtOptions(currentCourt: string): string[] {
   return [...new Set(CASES.map((record) => record.court))]
     .filter((court) => court !== currentCourt)
     .sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * A saved draft, reopened as the form that wrote it.
+ *
+ * The register keeps a draft as a Submission — which type it is and the
+ * prayer in the filer's own words — not as a field-by-field snapshot of the
+ * form. So resuming restores the two things that survive that shape: the
+ * type, and the ask already written. Everything else the type needs is still
+ * blank, which is precisely what makes the draft unfinished.
+ *
+ * The ask does not land in the same field for every type. Each form carries
+ * it in the field that *is* the ask — Settlement in Comments, Bail in
+ * Grounds, Withdrawal in Reason — so the mapping is per type rather than one
+ * shared "notes" box that none of the eight forms actually has.
+ */
+/** Others' title rule, shared so seeding cannot disagree with validation. */
+const TITLE_PATTERN = /^[\p{L}\p{N} ]+$/u;
+
+export function applicationDraftFrom(submission: Submission): ApplicationDraft {
+  // A document submission has no application form to resume into, and the
+  // caller routes it elsewhere; returning the empty draft keeps this total.
+  if (
+    submission.kind !== "application" ||
+    !isApplicationTypeId(submission.type)
+  ) {
+    return EMPTY_APPLICATION_DRAFT;
+  }
+
+  const type = submission.type;
+  const draft: ApplicationDraft = { ...EMPTY_APPLICATION_DRAFT, type };
+  const ask = submission.request?.trim() ?? "";
+  if (!ask) return draft;
+
+  const rich: RichTextValue = { html: richTextFromPlain(ask), text: ask };
+
+  switch (type) {
+    case "advancement-reschedule":
+      draft.requestReason = ask;
+      break;
+    case "bail":
+      draft.bailGrounds = rich;
+      break;
+    case "condonation-of-delay":
+      draft.delayReason = rich;
+      break;
+    case "production-of-documents":
+      draft.applicationReason = rich;
+      break;
+    case "settlement":
+      draft.comments = rich;
+      break;
+    case "transfer":
+      draft.transferGrounds = ask;
+      break;
+    case "withdrawal":
+      draft.withdrawalReason = rich;
+      break;
+    case "application-others": {
+      draft.details = rich;
+      // Others is the one type that also names itself. A row that was never
+      // titled carries the type label, which is not a title; and the field
+      // rejects punctuation, so a title that could only fail validation is
+      // left blank for the filer rather than seeded pre-broken.
+      const title = submission.title.trim();
+      if (
+        title &&
+        title !== submissionTypeLabel(type) &&
+        TITLE_PATTERN.test(title)
+      ) {
+        draft.title = title;
+      }
+      break;
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * The editor renders `html` through dangerouslySetInnerHTML, so stored plain
+ * text is escaped rather than trusted — fixture copy today, a server's copy
+ * tomorrow, and the difference should not be what keeps this safe.
+ */
+function richTextFromPlain(value: string): string {
+  const escaped = value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return `<p>${escaped}</p>`;
 }
 
 export function isApplicationDirty(draft: ApplicationDraft): boolean {
@@ -317,7 +412,7 @@ export function validateApplication(
       const title = draft.title.trim();
       if (!title) {
         errors.fields.title = "Enter an application title.";
-      } else if (!/^[\p{L}\p{N} ]+$/u.test(title)) {
+      } else if (!TITLE_PATTERN.test(title)) {
         errors.fields.title = "Use letters, numbers and spaces only.";
       }
       if (!rich(draft.details)) {
