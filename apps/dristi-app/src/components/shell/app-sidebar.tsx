@@ -524,18 +524,18 @@ function ProfileFooter() {
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
+                asChild
                 variant="ghost"
                 size="icon"
-                aria-disabled="true"
                 aria-label="Profile settings"
                 className={`size-10 shrink-0 [&_svg]:size-5 group-data-[collapsible=icon]:hidden ${MUTED} hover:bg-sidebar-accent hover:text-sidebar-accent-foreground`}
               >
-                <SettingsIcon aria-hidden />
+                <Link href="/settings">
+                  <SettingsIcon aria-hidden />
+                </Link>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top">
-              Settings — {UNBUILT_NOTE}
-            </TooltipContent>
+            <TooltipContent side="top">Settings</TooltipContent>
           </Tooltip>
         </SidebarMenuItem>
       </SidebarMenu>

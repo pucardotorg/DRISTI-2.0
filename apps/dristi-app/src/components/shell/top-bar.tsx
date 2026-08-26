@@ -46,6 +46,7 @@ function ChromeBreadcrumb() {
     { prefix: "/advocate", label: "Home" },
     { prefix: "/cases", label: "Your Cases", href: "/cases" },
     { prefix: "/people", label: "People", href: "/people" },
+    { prefix: "/settings", label: "Settings" },
   ];
   const match = AREA_ROOTS.find((area) => pathname.startsWith(area.prefix));
   const root = match
