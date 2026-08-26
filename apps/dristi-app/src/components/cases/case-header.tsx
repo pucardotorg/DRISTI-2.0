@@ -103,7 +103,7 @@ export function CaseHeader({
       {/* Facts and actions share the row. The buttons anchor its right end,
           so the strip has two edges instead of trailing off — and they align
           to the values, not the labels, which is why this is items-end. */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <dl className="flex min-w-0 flex-wrap gap-x-8 gap-y-4">
           {/* Only when the lede above could not carry it. */}
           {hasParties ? null : (

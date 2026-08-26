@@ -87,7 +87,7 @@ export default async function CaseDetailPage(
   const participantId = parseSelectedId(searchParams.selected);
 
   return (
-    <div className="flex flex-1 flex-col gap-8 p-6 md:p-8">
+    <div className="flex min-w-0 flex-1 flex-col gap-8 p-6 md:p-8">
       <div>
         <Button variant="ghost" asChild>
           <Link href="/cases">
