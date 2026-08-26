@@ -69,7 +69,7 @@ export function CasesItemList({
               />
             </div>
           ) : null}
-          <ItemContent className="min-w-0 flex-1 gap-4">
+          <ItemContent className="min-w-0 flex-1 gap-6">
             <ItemTitle className="sr-only">
               {partiesLabel(record)}
             </ItemTitle>

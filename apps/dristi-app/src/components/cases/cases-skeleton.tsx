@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export function CasesSkeleton() {
   return (
-    <main className="flex flex-col gap-8 p-6 md:p-8" aria-busy>
+    <main className="flex min-w-0 flex-1 flex-col gap-8 p-6 md:p-8" aria-busy>
       <span className="sr-only" role="status">
         Loading cases
       </span>
@@ -25,7 +25,7 @@ export function CasesSkeleton() {
           <Skeleton className="h-10 w-full max-w-xl lg:w-96 lg:max-w-none" />
         </div>
 
-        <div className="flex flex-col gap-6 rounded-xl border border-border bg-card p-6">
+        <div className="flex flex-col gap-6 rounded-xl border border-hairline bg-card shadow-raised p-6">
           <div className="flex flex-col gap-4">
             <Skeleton className="h-6 w-28" />
             <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-center md:justify-between">
@@ -40,7 +40,7 @@ export function CasesSkeleton() {
             {Array.from({ length: 6 }, (_, index) => (
               <div
                 key={index}
-                className="flex items-center gap-4 border-b border-border py-3 last:border-b-0"
+                className="flex items-center gap-4 border-b border-hairline py-3 last:border-b-0"
               >
                 <Skeleton className="h-5 w-1/3" />
                 <Skeleton className="hidden h-5 w-1/4 md:block" />

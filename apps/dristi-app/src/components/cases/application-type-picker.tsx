@@ -3,6 +3,7 @@
 import { useId, useMemo, useState } from "react";
 import { ArrowRightIcon, SearchIcon, XIcon } from "lucide-react";
 
+import { PANEL_CLASS } from "@/components/shell/panel";
 import { Badge } from "@/components/ui/badge";
 import {
   Field,
@@ -17,7 +18,6 @@ import {
 } from "@/components/ui/input-group";
 import {
   Item,
-  ItemActions,
   ItemContent,
   ItemDescription,
   ItemTitle,
@@ -28,6 +28,7 @@ import {
   type ApplicationTypeGuide,
 } from "@/lib/cases/application-type-guide";
 import { type ApplicationTypeId } from "@/lib/cases/applications";
+import { cn } from "@/lib/utils";
 
 /**
  * Step one of Raise application: pick what you are asking the court for.
@@ -39,7 +40,9 @@ import { type ApplicationTypeId } from "@/lib/cases/applications";
  *
  * The search reads a plain sentence and ranks the cards against it, rather
  * than filtering: it re-orders, it never hides. A wrong guess would otherwise
- * take a type off the screen with no way to tell it had.
+ * take a type off the screen with no way to tell it had. It sits centred above
+ * the grid because it is the screen's one entry point — everything below it is
+ * the same eight cards in a different order.
  */
 export function ApplicationTypePicker({
   value,
@@ -64,8 +67,11 @@ export function ApplicationTypePicker({
 
   return (
     <div className="flex flex-col gap-8">
-      <Field className="max-w-2xl">
-        <FieldLabel htmlFor={searchId} className="text-body">
+      <Field className="mx-auto max-w-2xl">
+        <FieldLabel
+          htmlFor={searchId}
+          className="w-full justify-center text-center text-body"
+        >
           What do you need from the court?
         </FieldLabel>
         <InputGroup>
@@ -91,7 +97,7 @@ export function ApplicationTypePicker({
             </InputGroupAddon>
           ) : null}
         </InputGroup>
-        <FieldDescription className="text-body-compact">
+        <FieldDescription className="text-center text-body-compact">
           Say it in your own words. The closest application type moves to the
           top — every type stays listed.
         </FieldDescription>
@@ -126,8 +132,9 @@ export function ApplicationTypePicker({
         </>
       ) : (
         <div className="flex flex-col gap-4">
+          {/* Centred with the search: this is the search answering back. */}
           {typed ? (
-            <p className="text-body text-muted-foreground">
+            <p className="mx-auto max-w-2xl text-center text-body text-muted-foreground">
               Nothing matched that. Pick a type below — Others takes anything
               the seven before it do not cover.
             </p>
@@ -174,6 +181,14 @@ function TypeSection({
   );
 }
 
+/**
+ * Three up, two, then one — measured against the column the cards actually
+ * get, not the viewport. The nav rail takes 256px off this screen and folds
+ * on its own schedule, so a viewport breakpoint reads the wrong number: at a
+ * 900px tablet the rail is still open and the cards have 672px, which a `md:`
+ * rule would call desktop. The thresholds below are the widths at which a card
+ * still holds its title on one line.
+ */
 function TypeGrid({
   guides,
   value,
@@ -186,23 +201,35 @@ function TypeGrid({
   onChoose: (type: ApplicationTypeId) => void;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      {guides.map((guide) => (
-        <TypeCard
-          key={guide.id}
-          guide={guide}
-          chosen={guide.id === value}
-          lead={guide.id === leadId}
-          onChoose={onChoose}
-        />
-      ))}
+    <div className="@container">
+      <div className="grid gap-4 @xl:grid-cols-2 @4xl:grid-cols-3">
+        {guides.map((guide) => (
+          <TypeCard
+            key={guide.id}
+            guide={guide}
+            chosen={guide.id === value}
+            lead={guide.id === leadId}
+            onChoose={onChoose}
+          />
+        ))}
+      </div>
     </div>
   );
 }
 
 /**
- * One card, one chip at most: which type you already chose outranks which one
- * the search liked, since only the first is a fact about your filing.
+ * One card: the ask pictured, then named, then explained.
+ *
+ * The whole card is the button, so the top line carries no second control —
+ * only marks. The icon says which ask this is before the title is read; the
+ * arrow says the card goes somewhere, at rest rather than on hover, since a
+ * filer on a phone has no hover to discover it with. Between them sits at most
+ * one chip: which type you already chose outranks which one the search liked,
+ * since only the first is a fact about your filing.
+ *
+ * Cards lift off the page — hairline edge, raised shadow — rather than sitting
+ * as bordered white boxes on white. Height comes from the grid row, so a long
+ * label and a short one still square up beside each other.
  */
 function TypeCard({
   guide,
@@ -215,31 +242,43 @@ function TypeCard({
   lead: boolean;
   onChoose: (type: ApplicationTypeId) => void;
 }) {
+  const Icon = guide.icon;
+
   return (
-    <Item asChild variant="outline" className="h-full items-start gap-3 p-4">
+    <Item
+      asChild
+      variant="outline"
+      className={cn(
+        PANEL_CLASS,
+        "h-full flex-col flex-nowrap items-start gap-3 rounded-xl p-6"
+      )}
+    >
       <button
         type="button"
         aria-label={`${guide.label}: ${guide.description}`}
         onClick={() => onChoose(guide.id)}
       >
-        <ItemContent className="min-w-0 gap-1.5 text-left">
-          <div className="flex flex-wrap items-center gap-2">
-            <ItemTitle className="line-clamp-none text-body font-semibold text-foreground">
-              {guide.label}
-            </ItemTitle>
-            {chosen ? (
-              <Badge variant="outline">Chosen</Badge>
-            ) : lead ? (
-              <Badge variant="secondary">Closest match</Badge>
-            ) : null}
-          </div>
-          <ItemDescription className="line-clamp-none text-body-compact text-muted-foreground">
+        <div className="flex w-full items-center gap-2">
+          <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+          {chosen ? (
+            <Badge variant="outline">Chosen</Badge>
+          ) : lead ? (
+            <Badge variant="secondary">Closest match</Badge>
+          ) : null}
+          <ArrowRightIcon
+            className="ml-auto size-4 shrink-0 text-muted-foreground"
+            aria-hidden
+          />
+        </div>
+
+        <ItemContent className="w-full min-w-0 gap-2 text-left">
+          <ItemTitle className="line-clamp-none w-full text-body font-semibold break-words text-foreground">
+            {guide.label}
+          </ItemTitle>
+          <ItemDescription className="line-clamp-none text-body text-muted-foreground">
             {guide.description}
           </ItemDescription>
         </ItemContent>
-        <ItemActions className="self-center">
-          <ArrowRightIcon className="size-4 text-muted-foreground" aria-hidden />
-        </ItemActions>
       </button>
     </Item>
   );

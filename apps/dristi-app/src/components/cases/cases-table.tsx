@@ -26,10 +26,13 @@ import { useCasePeek } from "./use-case-peek";
 import { useCasesSelection } from "./use-cases-selection";
 import { useCasesTableColumns } from "./use-cases-table-columns";
 
+/* Header separates by fill, not a second stroke; rows by hairline. The panel edge
+ * is the only full-strength `border-border` on the table (ui-craft §1.1). Matches
+ * the pending-tasks table, which is the reference for surface and row state. */
 const headClass =
-  "h-10 border-b border-border px-4 py-3 text-caption font-medium text-muted-foreground";
+  "h-10 bg-surface-sunken px-4 py-3 text-caption font-semibold text-muted-foreground";
 const cellClass =
-  "border-b border-border px-4 py-3 align-middle text-left text-body-compact";
+  "border-b border-hairline px-4 py-3 align-middle text-left text-body-compact";
 
 /** Keep scannable fields on one line. Case name (and long notes) wrap, but
  *  only after a floor width so extra columns scroll instead of stacking. */
@@ -75,6 +78,7 @@ export function CasesTable({
   const { record: openRecord } = useCasePeek();
   const { selected, toggle, enabled: selectable } = useCasesSelection();
   const columns = listTableColumns(isVisible, { hideStage, order });
+  const columnCount = columns.length + (selectable ? 1 : 0) + 1;
   const [dragging, setDragging] = React.useState<TableColumnId | null>(null);
   const [over, setOver] = React.useState<TableColumnId | null>(null);
 
@@ -145,11 +149,16 @@ export function CasesTable({
         the columns menu.
       </p>
       <Table
-        className="min-w-full w-max border-separate border-spacing-0 text-body-compact"
+        className="w-full border-separate border-spacing-0 text-body-compact"
         aria-describedby={COLUMNS_HINT_ID}
       >
         <TableHeader>
-          <TableRow className="hover:bg-transparent">
+          {/* The panel insets this table by p-6, so the header strip is a well, not a
+              full-bleed band — it rounds itself (ui-craft §4). The tasks table gets the
+              same corners from its Card's `overflow-clip`, having no inset to answer to.
+              `border-separate` means each cell paints its own fill, so the radius goes on
+              the end cells rather than the row. */}
+          <TableRow className="hover:bg-transparent [&>th:first-child]:rounded-l-lg [&>th:last-child]:rounded-r-lg">
             {selectable ? (
               <TableHead className={cn(headClass, "w-10 px-1")}>
                 <span className="sr-only">Select</span>
@@ -195,17 +204,40 @@ export function CasesTable({
                 </TableHead>
               );
             })}
-            <TableHead className={cn(headClass, "w-12 px-1")}>
+            <TableHead
+              className={cn(
+                headClass,
+                "sticky right-0 z-20 w-12 bg-surface-sunken px-1"
+              )}
+            >
               <span className="sr-only">Bookmark</span>
             </TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody>
+        {/* `border-separate` (needed by the sticky bookmark column) puts the row
+            stroke on the cell, so the DS TableBody rule that clears the last row
+            targets the wrong element. Reach the cells directly, or the final row
+            doubles its line against the panel edge. */}
+        <TableBody className="[&_tr:last-child_td]:border-b-0">
+          {/* The header is a well, not a band welded to the rows — it needs the
+              panel's fill under it or its rounded bottom corners read as cut off
+              (ui-craft §4). `border-separate` has no per-edge row gap and
+              `border-spacing-y` would space every row, so the gap is one inert
+              row, held out of the accessibility tree. */}
+          <tr aria-hidden="true">
+            <td colSpan={columnCount} className="h-2 p-0" />
+          </tr>
           {rows.map((record) => (
             <TableRow
               key={record.id}
-              className="relative"
-              data-state={openRecord?.id === record.id ? "selected" : undefined}
+              className={cn(
+                "relative bg-card",
+                openRecord?.id === record.id &&
+                  !selected.has(record.id) &&
+                  "bg-accent"
+              )}
+              data-state={selected.has(record.id) ? "selected" : undefined}
+              aria-current={openRecord?.id === record.id ? "true" : undefined}
             >
               {selectable ? (
                 <TableCell className={cn(cellClass, "w-10 px-1")}>
@@ -237,7 +269,12 @@ export function CasesTable({
                   />
                 </TableCell>
               ))}
-              <TableCell className={cn(cellClass, "w-12 px-1")}>
+              <TableCell
+                className={cn(
+                  cellClass,
+                  "sticky right-0 z-20 w-12 bg-inherit px-1"
+                )}
+              >
                 <div className="flex justify-center">
                   <BookmarkButton
                     caseLabel={partiesLabel(record)}

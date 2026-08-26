@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type MouseEvent, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import {
   CircleAlertIcon,
   FileSearchIcon,
@@ -86,6 +87,7 @@ import {
   isFilingStatus,
   isSubmissionTypeId,
   personIdentity,
+  resumeDraftHref,
   selectApplications,
   submissionTypeLabel,
   submittedByName,
@@ -394,6 +396,7 @@ function ApplicationsReady({ file }: { file: ApplicationsFile }) {
           <div className="flex flex-col gap-6">
             {hasAttention ? (
               <ApplicationsAttention
+                caseId={file.caseId}
                 entries={attentionEntries}
                 peopleById={peopleById}
                 onOpenRecord={setRecordOpen}
@@ -546,6 +549,7 @@ function ApplicationsPanel({
  * the register below, so this is the only route to the record.
  */
 function ApplicationsAttention({
+  caseId,
   entries,
   peopleById,
   onOpenRecord,
@@ -583,6 +587,7 @@ function ApplicationsAttention({
           ) : (
             <AttentionSubmission
               key={entry.key}
+              caseId={caseId}
               submission={entry.submission}
               peopleById={peopleById}
               onOpenRecord={onOpenRecord}
@@ -596,24 +601,34 @@ function ApplicationsAttention({
 }
 
 function AttentionSubmission({
+  caseId,
   submission,
   peopleById,
   onOpenRecord,
   onCompletePayment,
 }: {
+  caseId: string;
   submission: Submission;
   peopleById: Map<string, SubmissionPerson>;
   onOpenRecord: (submission: Submission) => void;
   onCompletePayment: (submission: Submission) => void;
 }) {
+  const router = useRouter();
   /*
     The CTA is the step the filing owes, so it has to start that step:
     Complete payment opens the fee dialog, the same one Raise application
-    shows after signing. The rest still open the record, which is where the
-    filing's own document and the court's answer live.
+    shows after signing. Continue draft reopens the filing form itself —
+    a draft's next step is finishing it, and the record dialog shows the
+    filed packet and the court's answer, neither of which a draft has yet.
+    The rest still open the record, which is where those two live.
   */
+  const resumeHref = resumeDraftHref(caseId, submission);
   const start =
-    submission.status === "pending-payment" ? onCompletePayment : onOpenRecord;
+    submission.status === "pending-payment"
+      ? onCompletePayment
+      : resumeHref
+        ? () => router.push(resumeHref)
+        : onOpenRecord;
   return (
     <Item
       role="listitem"
@@ -960,6 +975,8 @@ function TypeFilterCombobox({
 }
 
 type AttentionListProps = {
+  /** A draft's resume link is case-scoped, so the well needs the case. */
+  caseId: string;
   entries: AttentionEntry[];
   peopleById: Map<string, SubmissionPerson>;
   onOpenRecord: (submission: Submission) => void;

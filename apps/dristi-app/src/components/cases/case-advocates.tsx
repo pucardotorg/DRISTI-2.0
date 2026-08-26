@@ -1,7 +1,8 @@
 "use client";
 
+import * as React from "react";
+
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -43,28 +44,99 @@ const SIDE_COPY: Record<
  * A side with no vakalat on record is left out rather than shown empty: the
  * mark on the surviving line already says which side is present.
  */
-export function CaseAdvocatesPair({ record }: { record: CaseRecord }) {
+export function CaseAdvocatesPair({
+  record,
+  dense = false,
+}: {
+  record: CaseRecord;
+  /** Dense table row — see `dense` on CaseAdvocates. */
+  dense?: boolean;
+}) {
   const sides = SIDES.filter((side) => counselFor(record, side).length > 0);
   if (sides.length === 0) return null;
 
+  /* Comfortable surfaces expand each chip to a 40px-tall target, so the two
+     lines need a 40px pitch or the two targets overlap. min-h-6 + gap-4 is
+     exactly that. The dense table's chips are their own 24px box and stay
+     tight. */
   return (
-    <div className="flex flex-col gap-1">
+    <div className={cn("flex flex-col", dense ? "gap-1" : "gap-4")}>
       {sides.map((side) => (
-        <CaseAdvocates key={side} record={record} side={side} markSide />
+        <CaseAdvocates
+          key={side}
+          record={record}
+          side={side}
+          markSide
+          dense={dense}
+        />
       ))}
     </div>
   );
 }
 
 /**
+ * Hover opens the +N list on pointer devices; click, tap and Enter keep working
+ * exactly as before. Hover is strictly additive — ACCESSIBILITY.md §7 forbids
+ * hover being the only path to information, which is why this stays a Popover
+ * rather than becoming a HoverCard (a HoverCard would show a touch user nothing).
+ * The close is delayed so the pointer can travel from the chip onto the list, and
+ * a hover-open does not steal focus the way a click-open should.
+ */
+function useHoverPopover() {
+  const [open, setOpen] = React.useState(false);
+  const closeTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openedByHover = React.useRef(false);
+
+  const canHover = () =>
+    typeof window !== "undefined" &&
+    window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+  const cancelClose = () => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  };
+
+  React.useEffect(() => cancelClose, []);
+
+  return {
+    open,
+    openedByHover,
+    onOpenChange: (next: boolean) => {
+      cancelClose();
+      if (!next) openedByHover.current = false;
+      setOpen(next);
+    },
+    hoverProps: {
+      onMouseEnter: () => {
+        if (!canHover()) return;
+        cancelClose();
+        openedByHover.current = true;
+        setOpen(true);
+      },
+      onMouseLeave: () => {
+        if (!canHover()) return;
+        cancelClose();
+        closeTimer.current = setTimeout(() => {
+          openedByHover.current = false;
+          setOpen(false);
+        }, 150);
+      },
+    },
+  };
+}
+
+/**
  * First name on the row; remaining count as +N. The popover lists only the
- * names that are not already on the row — available without hover.
+ * names that are not already on the row — open on hover, click, tap or Enter.
  */
 export function CaseAdvocates({
   record,
   side,
   className,
   markSide = false,
+  dense = false,
 }: {
   record: CaseRecord;
   side: CounselSide;
@@ -72,16 +144,24 @@ export function CaseAdvocates({
   /** Append `(C)` / `(A)`. On for the merged column, off where a label names
    *  the side already (case header). */
   markSide?: boolean;
+  /** Dense table row: the chip keeps its own 24px box instead of expanding to
+   *  a 40x40 target. Two chips stacked 4px apart would overlap each other's
+   *  hit area, and a 40px trigger sets the row height for the whole table. */
+  dense?: boolean;
 }) {
+  /* Above the early return — hooks run on every render or not at all. */
+  const { open, openedByHover, onOpenChange, hoverProps } = useHoverPopover();
   const names = counselFor(record, side);
   if (names.length === 0) return null;
 
   const extra = names.length - 1;
   const copy = SIDE_COPY[side];
 
-  /* z-10 keeps the +N trigger above the row's peek overlay. */
+  /* z-10 keeps the +N trigger above the row's peek overlay. min-h-6 holds the
+     line to the chip's own height, so a side with a +N and a side without one
+     occupy the same band and the table keeps one row rhythm. */
   return (
-    <div className="relative z-10 flex min-w-0 items-center gap-1">
+    <div className="relative z-10 flex min-h-6 min-w-0 items-center gap-1">
       <span
         className={cn("truncate text-body-compact text-foreground", className)}
       >
@@ -98,29 +178,51 @@ export function CaseAdvocates({
           <span className="sr-only">{`, ${copy.one}`}</span>
         </>
       ) : null}
+      {/*
+        The chip is the trigger. Wrapping a Badge in a 40px Button made the
+        cell the tallest thing in the row (109px against 65px for rows with no
+        +N) and pushed the bookmark column out of the panel. Chip-sized, the
+        row keeps its rhythm. Comfortable surfaces still expand to a 40x40
+        target with an `after:` inset (ACCESSIBILITY.md, minimum interactive
+        target); the dense table opts out — the 24px chip already clears WCAG
+        2.2's 24x24, and inset targets would overlap the line below.
+      */}
       {extra > 0 ? (
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
+        <Popover open={open} onOpenChange={onOpenChange}>
+          <PopoverTrigger asChild {...hoverProps}>
+            <Badge
+              asChild
               variant="ghost"
-              /* min-w-10 so the chip's hit area clears 40×40 (ACCESSIBILITY.md
-                 §"Minimum interactive target"); the badge stays chip-sized. */
-              className="h-10 min-w-10 shrink-0 px-1"
-              aria-label={`${names[0]} and ${extra} more ${
-                extra === 1 ? copy.one : copy.many
-              }`}
-              onClick={(event) => event.stopPropagation()}
+              className={cn(
+                "relative shrink-0 cursor-pointer bg-brand-muted text-brand-muted-foreground transition-colors hover:bg-brand-muted-hover hover:text-brand-muted-foreground",
+                /* overflow-visible: the primitive clips to the pill, which
+                   would swallow the `after:` target. Nothing but text is in
+                   the chip, so there is nothing left to clip. */
+                !dense &&
+                  "overflow-visible after:absolute after:-inset-x-1.5 after:-inset-y-2"
+              )}
             >
-              <Badge
-                variant="ghost"
-                className="bg-brand-muted text-brand-muted-foreground hover:bg-brand-muted-hover hover:text-brand-muted-foreground group-hover/button:bg-brand-muted-hover"
+              <button
+                type="button"
+                aria-label={`${names[0]} and ${extra} more ${
+                  extra === 1 ? copy.one : copy.many
+                }`}
+                onClick={(event) => event.stopPropagation()}
               >
                 +{extra}
-              </Badge>
-            </Button>
+              </button>
+            </Badge>
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-64 text-body-compact">
+          <PopoverContent
+            align="start"
+            className="w-64 text-body-compact"
+            {...hoverProps}
+            onOpenAutoFocus={(event) => {
+              /* A click or Enter should land focus in the list; a pointer merely
+                 passing over the chip should not yank it out of the table. */
+              if (openedByHover.current) event.preventDefault();
+            }}
+          >
             <PopoverHeader>
               <PopoverTitle className="text-body-compact font-medium">
                 {copy.list}

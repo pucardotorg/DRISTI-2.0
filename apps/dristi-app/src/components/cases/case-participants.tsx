@@ -5,12 +5,20 @@ import { AddWitnessDialog } from "@/components/cases/add-witness-form";
 import { RestingCard } from "@/components/cases/case-overview-card";
 import { Badge } from "@/components/ui/badge";
 import { CardContent } from "@/components/ui/card";
+import {
+  DescriptionDetails,
+  DescriptionList,
+  DescriptionRow,
+  DescriptionTerm,
+} from "@/components/ui/description-list";
 import { Separator } from "@/components/ui/separator";
 import {
   ADDED_BY_LABEL,
   PARTY_INLINE_LABEL,
   PARTY_ROLE_LABEL,
   participantHref,
+  type PartySideId,
+  type WitnessSideId,
   witnessesForLitigant,
   type CaseWitness,
   type Litigant,
@@ -36,8 +44,18 @@ import { cn } from "@/lib/utils";
  * wells. Selection is a single quiet cue — `accent-strong`, the DS's
  * documented selected fill — never fill *and* border *and* bar stacked.
  *
- * **No categorical colour** (ds-requests #1, open and blocking): side chips
- * and witness-number chips render neutral.
+ * **The pane's facts go two up**, keyed to the pane's own width rather than the
+ * viewport's: the pane is a grid track, so at 1024px the master rail leaves it
+ * a phone's width while a `lg:` rule would call it desktop. An odd number of
+ * sections gives the last one the whole row and lets its wells go two up
+ * inside it, so a well is about half a pane wide whatever the participant
+ * carries and no section is stranded beside a hole. Stacked full-bleed, each
+ * well was one short name on a field of grey four times its width.
+ *
+ * **The master list codes side by colour, on the owner's call** — see
+ * `SIDE_PILL`. ds-requests #1 (no token family for categorical marks) is still
+ * open, so this borrows the status families rather than closing it: the
+ * request stands, and a `tag-*` family would be the honest home for these.
  *
  * ## Three things the mockup drew that are not here
  *
@@ -197,7 +215,11 @@ function MasterList({
               <MasterRow
                 href={participantHref(caseId, row.id)}
                 name={row.name}
-                subline={PARTY_ROLE_LABEL[row.side]}
+                badge={
+                  <SidePill side={row.side}>
+                    {PARTY_ROLE_LABEL[row.side]}
+                  </SidePill>
+                }
                 selected={row.id === selectedId}
               />
             </li>
@@ -214,12 +236,15 @@ function MasterList({
                 <MasterRow
                   href={participantHref(caseId, row.id)}
                   name={row.name}
-                  subline={row.number}
-                  /* A witness number is an identifier the registry assigns,
-                     and this screen shows it in three places — here, the
-                     detail badge, and the linked-witness rows. One data type,
-                     one presentation (ui-craft). */
-                  sublineMono
+                  /* The number carries the side already — `PW` is the
+                     complainant's, `DW` the accused's, `CW` the court's — so
+                     colouring the number itself needs no second label, and
+                     the side is never colour alone. */
+                  badge={
+                    <SidePill side={row.side} mono>
+                      {row.number}
+                    </SidePill>
+                  }
                   selected={row.id === selectedId}
                 />
               </li>
@@ -233,6 +258,67 @@ function MasterList({
         )}
       </nav>
     </div>
+  );
+}
+
+/**
+ * Which side a participant is on, as a pill in the master list — the label for
+ * a litigant, the registry's number for a witness.
+ *
+ * **Status families carrying a role, on the owner's call (2026-08-26).** The DS
+ * closes `success` / `destructive` at three treatments each and means them as
+ * status — so on this screen the accused wears the colour the system otherwise
+ * spends on errors, before any court has decided anything. Asked, and the
+ * answer was the green/red pair; the alternatives offered were a filled-vs-
+ * outlined neutral pair and grouping the list under side headings. Recorded
+ * here because the next person to read `destructive` on this screen will
+ * reasonably assume it means what it means everywhere else.
+ *
+ * The pill always says in words what the colour says, so the side is never
+ * colour alone (Laws, rule 7) — the role for a litigant, and for a witness the
+ * number, whose prefix already names the side it belongs to.
+ *
+ * Every pill carries its own solid as a stroke in every state: a `-muted` fill
+ * measures 1.07–1.25:1 on the selected row's `accent-strong`, which is no edge
+ * at all, and rule 6a names the solid — an existing treatment, not an invented
+ * fourth — as the fix. Applied at rest too, so a pill does not change shape
+ * when its row is picked. Measured, both themes: strokes land 3.90–4.85:1 on
+ * the selected row and labels 4.54–7.91:1 on their own fill.
+ *
+ * Master list only. The detail pane's badges stay neutral: one pane shows one
+ * participant, so there is nothing there to tell apart.
+ */
+const SIDE_PILL: Record<
+  WitnessSideId,
+  { variant: "success" | "destructive" | "info"; stroke: string }
+> = {
+  complainant: { variant: "success", stroke: "border-success" },
+  accused: { variant: "destructive", stroke: "border-destructive" },
+  /* The court's own witness. Filled like its two siblings rather than left
+     hollow: `outline` was the first try, and `border-border` — the loudest
+     neutral stroke there is — measures 1.59:1 on the selected row, so the one
+     pill that was not a status tint was also the only one without an edge.
+     Same data type, same treatment (ui-craft). */
+  neither: { variant: "info", stroke: "border-info" },
+};
+
+function SidePill({
+  side,
+  mono = false,
+  children,
+}: {
+  side: WitnessSideId;
+  mono?: boolean;
+  children: ReactNode;
+}) {
+  const { variant, stroke } = SIDE_PILL[side];
+  return (
+    <Badge
+      variant={variant}
+      className={cn(stroke, mono && "font-mono tabular-nums")}
+    >
+      {children}
+    </Badge>
   );
 }
 
@@ -251,19 +337,22 @@ function MasterList({
 function MasterRow({
   href,
   name,
-  subline,
-  sublineMono = false,
+  badge,
   selected,
 }: {
   href: string;
   name: string;
-  subline: string;
-  sublineMono?: boolean;
+  badge: ReactNode;
   selected: boolean;
 }) {
   return (
     <Link
       href={href}
+      /* Selection is a query param on the page the reader is already on, so
+         the router's default scroll-to-top throws them to the top of the case
+         on every pick — and the list they are picking from sits well below
+         that. Switching section keeps the reset; moving within one does not. */
+      scroll={false}
       aria-current={selected ? "page" : undefined}
       className={cn(
         "flex min-h-12 min-w-0 items-center gap-3 rounded-md px-3 py-2 transition-colors",
@@ -271,18 +360,11 @@ function MasterRow({
         selected ? "bg-accent-strong" : "hover:bg-accent"
       )}
     >
-      <span className="min-w-0 flex-1">
-        <span className="block text-body font-semibold text-foreground">
+      <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
+        <span className="block max-w-full text-body font-semibold text-foreground">
           {name}
         </span>
-        <span
-          className={cn(
-            "block text-body text-muted-foreground",
-            sublineMono && "font-mono tabular-nums"
-          )}
-        >
-          {subline}
-        </span>
+        {badge}
       </span>
     </Link>
   );
@@ -320,25 +402,30 @@ function DetailHeader({
 }
 
 /**
- * An eyebrow-labelled run of rows in the detail pane.
+ * An eyebrow-labelled run of wells in the detail pane.
  *
  * A `div` with an `h4`, not a labelled `section`. As landmarks these were
  * noise — one pane emitted four regions, several of them a single row tall,
  * on top of the two master navs — while the heading outline stopped at the
  * detail `h3`, so none of them was reachable the way a reader actually moves
  * through a pane. Headings give the navigation; the landmark gave the count.
+ *
+ * `wide` hands the section the whole row of the detail grid — see
+ * `LitigantDetail` for when that happens.
  */
 function DetailSection({
   id,
   title,
+  wide = false,
   children,
 }: {
   id: string;
   title: string;
+  wide?: boolean;
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-2">
+    <div className={cn("flex min-w-0 flex-col gap-2", wide && "@lg:col-span-2")}>
       <h4
         id={id}
         className="text-caption font-semibold text-muted-foreground"
@@ -350,26 +437,92 @@ function DetailSection({
   );
 }
 
-/**
- * One fact in its own well — `surface-sunken`, borderless, `rounded-md`
- * because an inset is not a control.
- */
-function FactRow({
+/** The wells under one eyebrow — two up only when the section has the row. */
+function FactList({
+  wide = false,
   children,
-  className,
 }: {
+  wide?: boolean;
   children: ReactNode;
-  className?: string;
 }) {
   return (
     <div
       className={cn(
-        "flex min-w-0 items-center gap-3 rounded-md bg-surface-sunken px-3 py-2 text-body text-foreground",
-        className
+        "grid min-w-0 items-start gap-2",
+        wide && "@lg:grid-cols-2"
       )}
     >
       {children}
     </div>
+  );
+}
+
+/**
+ * The well a fact sits in — `surface-sunken`, `rounded-md` because an inset is
+ * not a control, and borderless because depth is fill.
+ *
+ * Two lines stacked in the master row's own grammar, at its `min-h-12`: a well
+ * is the row it came from, half a pane wide. `justify-between` pushed the
+ * supporting half to the far edge, where at full width it read as belonging to
+ * the pane rather than to the name it qualifies, and at half width the two met
+ * in the middle.
+ */
+const WELL_CLASS =
+  "flex min-h-12 min-w-0 flex-col justify-center gap-1 rounded-md bg-surface-sunken px-3 py-2";
+
+/**
+ * What a well that holds a link adds: the hairline the DS asks of an
+ * interactive well, which doubles as the only mark separating the wells a
+ * reader can open from the wells they cannot.
+ *
+ * Hover is `accent-strong`, one past the named hover fill. `accent` is
+ * neutral-3 and the well is already the tuned 2½ step, so an `accent` hover
+ * moves half a ramp step and disappears; `accent-strong` is the same
+ * perceptual distance off a well that `accent` is off the card's white.
+ */
+const WELL_LINK_CLASS =
+  "border border-hairline transition-colors hover:bg-accent-strong focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:outline-1 focus-visible:outline-ring";
+
+function FactWell({
+  primary,
+  secondary,
+  secondaryMono = false,
+  href,
+}: {
+  primary: string;
+  secondary?: string;
+  secondaryMono?: boolean;
+  href?: string;
+}) {
+  const lines = (
+    <>
+      <span className="block text-body font-medium text-foreground">
+        {primary}
+      </span>
+      {secondary ? (
+        <span
+          className={cn(
+            "block text-body text-muted-foreground",
+            secondaryMono && "font-mono tabular-nums"
+          )}
+        >
+          {secondary}
+        </span>
+      ) : null}
+    </>
+  );
+
+  return href ? (
+    <Link
+      href={href}
+      /* Same selection navigation as a master row — see `MasterRow`. */
+      scroll={false}
+      className={cn(WELL_CLASS, WELL_LINK_CLASS)}
+    >
+      {lines}
+    </Link>
+  ) : (
+    <div className={WELL_CLASS}>{lines}</div>
   );
 }
 
@@ -380,6 +533,10 @@ function FactRow({
  * complainant gets one, a partnership firm with officers and a PoA-holder gets
  * four. Padding every pane out to the same shape with "None" rows would make
  * the exceptions harder to spot, which is the opposite of the point.
+ *
+ * Collected into a list rather than written as four conditional blocks,
+ * because the layout needs the count before it can place any of them: an odd
+ * number of sections gives the last one the whole row.
  */
 function LitigantDetail({
   file,
@@ -391,9 +548,72 @@ function LitigantDetail({
   caseId: string;
 }) {
   const linkedWitnesses = witnessesForLitigant(file, litigant.id);
+  const sections: { id: string; title: string; facts: ReactNode }[] = [];
+
+  /* "Representation", not the mockup's "Assigned advocates": the section has
+     to head a party-in-person and a no-advocate pane too, and a heading naming
+     advocates over neither is a contradiction. */
+  sections.push({
+    id: "participant-representation",
+    title: "Representation",
+    facts: litigant.partyInPerson ? (
+      <FactWell primary="Party in person" />
+    ) : litigant.advocates.length > 0 ? (
+      litigant.advocates.map((advocate) => (
+        <FactWell key={advocate} primary={advocate} />
+      ))
+    ) : (
+      <SectionNote>No advocate on record</SectionNote>
+    ),
+  });
+
+  if (litigant.powerOfAttorneyHolder) {
+    sections.push({
+      id: "participant-poa",
+      title: "Power of attorney",
+      facts: <FactWell primary={litigant.powerOfAttorneyHolder} />,
+    });
+  }
+
+  /* §141: the officers whose liability derives from this company. The subline
+     names only the one who speaks for it, so this is the only place the rest
+     of them appear on this pane. */
+  if (litigant.personsInCharge.length > 0) {
+    sections.push({
+      id: "participant-officers",
+      title: "Persons in charge",
+      facts: litigant.personsInCharge.map((officer) => (
+        <FactWell
+          key={officer.id}
+          primary={officer.name}
+          secondary={officer.designation ?? officer.role}
+        />
+      )),
+    });
+  }
+
+  /* What replaced the mockup's "Case timeline associations" — see the honesty
+     notes at the head of this file. These are links, so a reader on a party
+     can jump straight to the person giving evidence about them; it is the one
+     cross-reference that connects the two groups of the master list. */
+  if (linkedWitnesses.length > 0) {
+    sections.push({
+      id: "participant-linked-witnesses",
+      title: "Linked witnesses",
+      facts: linkedWitnesses.map((witness) => (
+        <FactWell
+          key={witness.id}
+          primary={witness.name}
+          secondary={witness.number}
+          secondaryMono
+          href={participantHref(caseId, witness.id)}
+        />
+      )),
+    });
+  }
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
+    <div className="@container flex min-w-0 flex-col gap-6">
       <DetailHeader
         name={litigant.name}
         subline={litigantSubline(litigant)}
@@ -404,71 +624,22 @@ function LitigantDetail({
         }
       />
 
-      {/* "Representation", not the mockup's "Assigned advocates": the section
-          has to head a party-in-person and a no-advocate pane too, and a
-          heading naming advocates over neither is a contradiction. */}
-      <DetailSection id="participant-representation" title="Representation">
-        {litigant.partyInPerson ? (
-          <FactRow>Party in person</FactRow>
-        ) : litigant.advocates.length > 0 ? (
-          <div className="flex min-w-0 flex-col gap-2">
-            {litigant.advocates.map((advocate) => (
-              <FactRow key={advocate}>{advocate}</FactRow>
-            ))}
-          </div>
-        ) : (
-          <SectionNote>No advocate on record</SectionNote>
-        )}
-      </DetailSection>
-
-      {litigant.powerOfAttorneyHolder ? (
-        <DetailSection id="participant-poa" title="Power of attorney">
-          <FactRow>{litigant.powerOfAttorneyHolder}</FactRow>
-        </DetailSection>
-      ) : null}
-
-      {/* §141: the officers whose liability derives from this company. The
-          subline names only the one who speaks for it, so this is the only
-          place the rest of them appear on this pane. */}
-      {litigant.personsInCharge.length > 0 ? (
-        <DetailSection id="participant-officers" title="Persons in charge">
-          <div className="flex min-w-0 flex-col gap-2">
-            {litigant.personsInCharge.map((officer) => (
-              <FactRow key={officer.id} className="justify-between">
-                <span className="min-w-0">{officer.name}</span>
-                <span className="shrink-0 text-body-compact text-muted-foreground">
-                  {officer.designation ?? officer.role}
-                </span>
-              </FactRow>
-            ))}
-          </div>
-        </DetailSection>
-      ) : null}
-
-      {/* What replaced the mockup's "Case timeline associations" — see the
-          honesty notes at the foot of this file. These are links, so a reader
-          on a party can jump straight to the person giving evidence about
-          them; it is the one cross-reference that connects the two groups of
-          the master list. */}
-      {linkedWitnesses.length > 0 ? (
-        <DetailSection id="participant-linked-witnesses" title="Linked witnesses">
-          <div className="flex min-w-0 flex-col gap-2">
-            {linkedWitnesses.map((witness) => (
-              <FactRow key={witness.id} className="p-0">
-                <Link
-                  href={participantHref(caseId, witness.id)}
-                  className="flex min-h-10 min-w-0 flex-1 items-center justify-between gap-3 rounded-md px-3 py-2 transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:outline-1 focus-visible:outline-ring"
-                >
-                  <span className="min-w-0">{witness.name}</span>
-                  <span className="shrink-0 font-mono text-body-compact tabular-nums text-muted-foreground">
-                    {witness.number}
-                  </span>
-                </Link>
-              </FactRow>
-            ))}
-          </div>
-        </DetailSection>
-      ) : null}
+      <div className="grid min-w-0 items-start gap-6 @lg:grid-cols-2">
+        {sections.map((section, index) => {
+          const wide =
+            sections.length % 2 === 1 && index === sections.length - 1;
+          return (
+            <DetailSection
+              key={section.id}
+              id={section.id}
+              title={section.title}
+              wide={wide}
+            >
+              <FactList wide={wide}>{section.facts}</FactList>
+            </DetailSection>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -506,7 +677,7 @@ function litigantSubline(litigant: Litigant): string {
 /** A witness, in the same grammar as a litigant. */
 function WitnessDetail({ witness }: { witness: CaseWitness }) {
   return (
-    <div className="flex min-w-0 flex-col gap-6">
+    <div className="@container flex min-w-0 flex-col gap-6">
       <DetailHeader
         name={witness.name}
         /* Never `${witness.side}`: interpolating the union reads correctly
@@ -529,41 +700,47 @@ function WitnessDetail({ witness }: { witness: CaseWitness }) {
       />
 
       <DetailSection id="participant-witness-record" title="On the record">
-        <div className="flex min-w-0 flex-col gap-2">
-          <FactRow className="justify-between">
-            <span className="shrink-0 text-body text-muted-foreground">
-              Side
-            </span>
-            <span className="min-w-0 text-right">
-              {witness.side === "neither"
+        {/* Three facts across rather than three bars down: this is the whole
+            of what the record holds about a witness, and a label with a
+            one-word value wants a third of this pane, not all of it. */}
+        <DescriptionList className="grid min-w-0 items-start gap-2 @sm:grid-cols-2 @lg:grid-cols-3">
+          <WitnessFact
+            term="Side"
+            value={
+              witness.side === "neither"
                 ? "Neither party"
-                : PARTY_ROLE_LABEL[witness.side]}
-            </span>
-          </FactRow>
-          <FactRow className="justify-between">
-            <span className="shrink-0 text-body text-muted-foreground">
-              Added by
-            </span>
-            {/* The noun form. This is a value in a label→value row, sitting
-                directly under "Side | Complainant" — the inline register
-                would put two forms of one word on adjacent rows. */}
-            <span className="min-w-0 text-right">
-              {ADDED_BY_LABEL[witness.addedBy]}
-            </span>
-          </FactRow>
-          <FactRow className="justify-between">
-            <span className="shrink-0 text-body text-muted-foreground">
-              Linked party
-            </span>
-            <span className="min-w-0 text-right">
-              {witness.linkedParty?.name ?? (
-                <span className="text-muted-foreground">None</span>
-              )}
-            </span>
-          </FactRow>
-        </div>
+                : PARTY_ROLE_LABEL[witness.side]
+            }
+          />
+          {/* The noun form. This is a value in a label→value well sitting
+              beside "Side | Complainant" — the inline register would put two
+              forms of one word on adjacent facts. */}
+          <WitnessFact term="Added by" value={ADDED_BY_LABEL[witness.addedBy]} />
+          <WitnessFact term="Linked party" value={witness.linkedParty?.name} />
+        </DescriptionList>
       </DetailSection>
     </div>
   );
 }
 
+/**
+ * One field of the witness's record, in the same well a litigant's facts sit
+ * in — label over value, because one eyebrow cannot name three different
+ * things. A real `dl` rather than a hand-rolled grid: the Laws name Description
+ * list for exactly this, and a term stays a `dt` whatever it is wearing.
+ */
+function WitnessFact({ term, value }: { term: string; value?: string }) {
+  return (
+    <DescriptionRow className={cn(WELL_CLASS, "grid-cols-1 border-b-0")}>
+      {/* Body, not caption: typography names Body Medium as the role for field
+          labels, and caption is 12px — chrome weight for a label the reader is
+          here to read. The same term treatment the service pane uses. */}
+      <DescriptionTerm className="text-body text-muted-foreground">
+        {term}
+      </DescriptionTerm>
+      <DescriptionDetails className="min-w-0 text-body font-medium text-foreground">
+        {value ?? <span className="text-muted-foreground">None</span>}
+      </DescriptionDetails>
+    </DescriptionRow>
+  );
+}

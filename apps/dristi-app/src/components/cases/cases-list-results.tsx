@@ -80,7 +80,7 @@ export function CasesListResults({
           // wide table (e.g. with the select column) scrolls inside the card instead
           // of pushing the page horizontally.
           "min-w-0",
-          framed && "overflow-x-auto rounded-xl border border-border bg-card",
+          framed && "overflow-x-auto rounded-xl border border-hairline bg-card shadow-raised",
           !framed && "overflow-x-auto"
         )}
       >

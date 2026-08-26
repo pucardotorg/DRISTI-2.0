@@ -174,7 +174,7 @@ export function CaseDate({
   return (
     <span
       className={cn(
-        "text-body-compact text-foreground",
+        "text-body-compact tabular-nums text-foreground",
         emphasize && "font-medium"
       )}
     >

@@ -91,6 +91,20 @@ export function CasesScreen({
     () => new Set(initialBookmarks)
   );
   const { locale } = useLocale();
+  const tabsListRef = React.useRef<HTMLDivElement>(null);
+
+  /* The tab track scrolls when the pills do not fit (see TabsList). Radix does
+     not bring the active pill into view, so a narrow viewport could open on
+     Disposed with Disposed sitting off the right edge. Move the track itself
+     rather than scrollIntoView, which would also scroll the page. */
+  React.useEffect(() => {
+    const list = tabsListRef.current;
+    const active = list?.querySelector<HTMLElement>('[data-state="active"]');
+    if (!list || !active) return;
+    const centred =
+      active.offsetLeft - (list.clientWidth - active.offsetWidth) / 2;
+    list.scrollLeft = Math.max(0, centred);
+  }, [query.view]);
 
   // Bulk share: select cases in the list, then Share access adds staff to all at once.
   const [selectedCases, setSelectedCases] = React.useState<Set<string>>(
@@ -264,7 +278,7 @@ export function CasesScreen({
       </Banner>
     ) : (
       <CasePeekProvider now={now}>
-        <CasePeekSurface className="flex flex-col gap-6 rounded-xl border border-border bg-card p-6">
+        <CasePeekSurface className="flex flex-col gap-6 rounded-xl border border-hairline bg-card shadow-raised p-6">
         <div className="flex flex-col gap-4">
           {/*
             Folders/List and Columns share the header row with the section
@@ -336,7 +350,7 @@ export function CasesScreen({
         enabled: showing === "list",
       }}
     >
-      <div className="flex min-w-0 flex-col gap-8 p-6 md:p-8">
+      <div className="flex min-w-0 flex-1 flex-col gap-8 p-6 md:p-8">
         <header>
           <h1 className="text-title-l font-semibold">Cases</h1>
         </header>
@@ -352,8 +366,11 @@ export function CasesScreen({
         own a TabsContent panel (WAI-ARIA 1.2) — the cases card is that panel.
         Height only on TabsList (h-10). Triggers keep DS h-[calc(100%-1px)] —
         forcing h-10 on both overflows the padded track and breaks the pill.
-        Labels stay on one line; the track sizes to the pills — no overflow
-        scroll on the list.
+        Labels stay on one line and w-max keeps the track hugging its pills
+        rather than stretching. max-w-full caps it at the column: without that
+        the track is a fixed-width trap that scrolled the whole page sideways
+        below ~1100px (RESPONSIVE: tabs may scroll when there are many
+        triggers; a layout may not force horizontal page scroll).
       */}
       <Tabs
         value={query.view}
@@ -386,9 +403,21 @@ export function CasesScreen({
           </div>
 
           <TabsList
+            ref={tabsListRef}
             variant="default"
             aria-label="Case views"
-            className="h-10 w-max group-data-horizontal/tabs:h-10"
+            /* justify-start, not the primitive's justify-center: once the
+               track can scroll, centring splits the overflow across both
+               ends and the left half is unreachable — scrollLeft cannot go
+               negative. At full width w-max still hugs the pills, so this
+               changes nothing on desktop. */
+            /* The track scrolls but shows no scrollbar. Two reasons it needs
+               saying: setting overflow-x alone forces the computed overflow-y
+               to auto, and the padded track is 2px taller than its own h-10
+               box — enough to raise a vertical scrollbar over the pills. And
+               a classic horizontal bar would eat 17px of a 40px track at
+               phone widths. A part-shown pill is the affordance instead. */
+            className="h-10 w-max max-w-full justify-start overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden group-data-horizontal/tabs:h-10"
           >
             {CASES_VIEWS.map((view) => (
               <TabsTrigger
