@@ -1,0 +1,452 @@
+{
+  "fixtureId": "DRISTI-S138-COMPLAINT-TAB-001",
+  "isDummyData": true,
+  "legalEffect": "None",
+  "caseReference": {
+    "caseTitle": "Sunil Varghese v. Anand Traders",
+    "caseNumber": "ST/412/2025",
+    "complaintCaseNumber": "CMP/1842/2025",
+    "filingNumber": "KL-DUMMY-001386-2025",
+    "court": "Judicial First Class Magistrate Court-I, Kollam",
+    "dateOfFiling": {
+      "value": "2025-06-12",
+      "display": "12 June 2025"
+    }
+  },
+  "sections": [
+    {
+      "order": 1,
+      "id": "litigantDetails",
+      "label": "1. Litigant Details",
+      "groups": [
+        {
+          "id": "complainantDetails",
+          "label": "Complainant Details",
+          "parties": [
+            {
+              "partyId": "PTY-COM-001",
+              "name": "Sunil Varghese",
+              "partyType": "Individual",
+              "role": "Complainant",
+              "mobileNumber": "+91-00000-00001",
+              "emailId": "sunil.varghese@example.test",
+              "age": 42,
+              "idProof": {
+                "type": "Driving Licence",
+                "maskedNumber": "KL-DUMMY-****-0184",
+                "status": "Uploaded"
+              },
+              "companyDocuments": {
+                "applicable": false,
+                "documents": []
+              },
+              "address": {
+                "line1": "14 Example Lane",
+                "locality": "Asramam",
+                "district": "Kollam",
+                "state": "Kerala",
+                "pincode": "691002",
+                "isFictional": true
+              },
+              "currentResidentialAddress": {
+                "sameAsAddress": true
+              },
+              "powerOfAttorneyTransferred": false,
+              "documents": [
+                {
+                  "documentId": "DOC-LIT-001",
+                  "name": "Masked identity proof",
+                  "status": "Accepted",
+                  "file": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "accusedDetails",
+          "label": "Accused Details",
+          "parties": [
+            {
+              "partyId": "PTY-ACC-001",
+              "name": "Anand Traders",
+              "partyType": "Sole Proprietorship",
+              "role": "Accused",
+              "representedBy": {
+                "name": "Arun Das",
+                "capacity": "Proprietor",
+                "age": 39
+              },
+              "appearanceMode": "Through advocate",
+              "mobileNumber": "+91-00000-00002",
+              "emailId": "anand.traders@example.test",
+              "address": {
+                "line1": "25 Sample Market Road",
+                "locality": "Chinnakada",
+                "district": "Kollam",
+                "state": "Kerala",
+                "pincode": "691001",
+                "isFictional": true
+              },
+              "policeStation": "Kollam East Police Station",
+              "powerOfAttorneyTransferred": false,
+              "companyDocuments": {
+                "applicable": true,
+                "documents": [
+                  {
+                    "documentId": "DOC-LIT-002",
+                    "name": "Proprietorship declaration",
+                    "status": "Accepted"
+                  },
+                  {
+                    "documentId": "DOC-LIT-003",
+                    "name": "Masked business registration record",
+                    "status": "Accepted"
+                  }
+                ]
+              },
+              "documents": [
+                {
+                  "documentId": "DOC-AFF-002",
+                  "name": "Affidavit supporting inquiry under Section 225 BNSS",
+                  "status": "Accepted",
+                  "file": "../output/pdf/03-affidavits.pdf"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "edgeCaseDeltas": [
+        "Support more than one complainant or accused without merging their contact, service or representation status.",
+        "Allow Individual, Sole Proprietorship, Partnership, Company and other supported party types.",
+        "Show Not provided or Not uploaded instead of removing a field whose value is missing.",
+        "Show Party in Person, Through advocate and Power of Attorney as distinct representation states.",
+        "Retain the previous address and representation record when either is corrected."
+      ]
+    },
+    {
+      "order": 2,
+      "id": "caseSpecificDetails",
+      "label": "2. Case Specific Details",
+      "groups": [
+        {
+          "id": "chequeDetails",
+          "label": "Cheque Details",
+          "cheques": [
+            {
+              "chequeId": "CHQ-001",
+              "chequeNumber": "000184",
+              "nameOfSignatoryOfDishonouredCheque": "Arun Das",
+              "payeeNameOnCheque": "Sunil Varghese",
+              "payeeBankName": "Example Cooperative Bank (Fictional)",
+              "payeeBankBranchName": "Asramam Branch",
+              "payeeIfscCode": "EXAM0000421",
+              "dateOfCheque": {
+                "value": "2025-04-15",
+                "display": "15 April 2025"
+              },
+              "payerBankName": "Kerala Mercantile Bank (Fictional)",
+              "payerBankBranchName": "Kollam Market Branch",
+              "payerIfscCode": "KMBK0000184",
+              "chequeAmount": {
+                "value": 450000,
+                "currency": "INR",
+                "display": "Rs. 4,50,000"
+              },
+              "policeStationWithJurisdictionOverChequeDepositBank": "Kollam East Police Station",
+              "dateOfDeposit": {
+                "value": "2025-04-16",
+                "display": "16 April 2025"
+              },
+              "dateOfReturnAsPerChequeReturnMemo": {
+                "value": "2025-04-17",
+                "display": "17 April 2025"
+              },
+              "reasonForReturn": "Funds Insufficient",
+              "additionalDetails": "Cheque was presented once through the complainant's account.",
+              "confirmations": [
+                {
+                  "statement": "Cheque was deposited within three months from the date of cheque",
+                  "confirmed": true
+                },
+                {
+                  "statement": "Cheque was returned unpaid for the reason recorded in the cheque return memo",
+                  "confirmed": true
+                }
+              ],
+              "documents": [
+                {
+                  "documentId": "DOC-INI-003",
+                  "name": "Dishonoured Cheque",
+                  "status": "Available",
+                  "file": "../output/pdf/02-initial-filings.pdf"
+                },
+                {
+                  "documentId": "DOC-CS-001",
+                  "name": "Proof of deposit of Cheque",
+                  "status": "Available",
+                  "file": null
+                },
+                {
+                  "documentId": "DOC-INI-004",
+                  "name": "Cheque Return Memo",
+                  "status": "Available",
+                  "file": "../output/pdf/02-initial-filings.pdf"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "debtLiabilityDetails",
+          "label": "Debt/ Liability Details",
+          "natureOfDebtLiability": "Price payable for office furniture and fixtures supplied to the accused",
+          "underlyingTransaction": "Invoice INV-DUMMY-2025-021 dated 10 February 2025; delivery acknowledged on 14 February 2025.",
+          "liabilityCoverage": "Full Liability",
+          "amountCoveredByCheque": {
+            "value": 450000,
+            "currency": "INR",
+            "display": "Rs. 4,50,000"
+          },
+          "additionalDetails": "The complainant states that no amount was paid before institution of the complaint.",
+          "documents": [
+            {
+              "documentId": "DOC-CS-002",
+              "name": "Invoice and delivery acknowledgement",
+              "status": "Available",
+              "file": null
+            },
+            {
+              "documentId": "DOC-COM-001",
+              "name": "Complaint describing debt and liability",
+              "status": "Available",
+              "file": "../output/pdf/01-complaint.pdf"
+            }
+          ]
+        },
+        {
+          "id": "legalDemandNoticeDetails",
+          "label": "Legal Demand Notice Details",
+          "notices": [
+            {
+              "noticeId": "LDN-001",
+              "dateOfNotice": {
+                "value": "2025-04-23",
+                "display": "23 April 2025"
+              },
+              "dateOfDispatch": {
+                "value": "2025-04-24",
+                "display": "24 April 2025"
+              },
+              "dateOfServiceOrDeemedService": {
+                "value": "2025-04-28",
+                "display": "28 April 2025"
+              },
+              "dateOfReply": {
+                "value": "2025-05-02",
+                "display": "2 May 2025"
+              },
+              "dateWhenFifteenDaysFromServiceWasComplete": {
+                "value": "2025-05-13",
+                "display": "13 May 2025"
+              },
+              "replySummary": "Liability disputed; signatory acknowledged issuing the cheque but alleged that accounts required adjustment.",
+              "documents": [
+                {
+                  "documentId": "DOC-INI-001",
+                  "name": "Legal Demand Notice",
+                  "status": "Available",
+                  "file": "../output/pdf/02-initial-filings.pdf"
+                },
+                {
+                  "documentId": "DOC-INI-002",
+                  "name": "Proof of Dispatch",
+                  "status": "Available",
+                  "file": "../output/pdf/02-initial-filings.pdf"
+                },
+                {
+                  "documentId": "DOC-CS-003",
+                  "name": "Proof of service of Legal Demand Notice",
+                  "status": "Available",
+                  "file": null
+                },
+                {
+                  "documentId": "DOC-CS-004",
+                  "name": "Reply to Legal Demand Notice",
+                  "status": "Available",
+                  "file": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "delayCondonationApplication",
+          "label": "Delay Condonation Application",
+          "filedWithinOneMonthOfAccrualOfCauseOfAction": true,
+          "applicationRequired": false,
+          "application": null,
+          "displayState": "Complaint stated to be within limitation; no delay-condonation application filed."
+        },
+        {
+          "id": "additionalInformation",
+          "label": "Additional Information",
+          "value": "No other cheque is included in this complaint. No settlement was recorded at the time of filing."
+        }
+      ],
+      "edgeCaseDeltas": [
+        "Support multiple cheques as separate numbered records with their own dates, amounts, return reasons and documents.",
+        "Support Full Liability and Partial Liability without changing the section structure.",
+        "Display the exact return reason recorded in each cheque return memo.",
+        "Support more than one demand notice or service attempt as separate records.",
+        "When filing is stated to be delayed, show the delay-condonation application, reasons, supporting affidavit and current application status.",
+        "Do not calculate or assert limitation in the interface; display the filed dates and the recorded application state."
+      ]
+    },
+    {
+      "order": 3,
+      "id": "additionalDetails",
+      "label": "3. Additional Details",
+      "groups": [
+        {
+          "id": "witnessDetails",
+          "label": "Witness Details",
+          "witnesses": [
+            {
+              "witnessId": "WIT-PW1",
+              "sequence": 1,
+              "name": "Sunil Varghese",
+              "witnessType": "Complainant witness",
+              "description": "Complainant with personal knowledge of the transaction, cheque, dishonour and demand notice.",
+              "summonsRequired": false
+            },
+            {
+              "witnessId": "WIT-PW2",
+              "sequence": 2,
+              "name": "Priya Nair",
+              "witnessType": "Bank witness",
+              "description": "Fictional authorised bank official proposed to prove the cheque return record.",
+              "summonsRequired": true
+            }
+          ]
+        },
+        {
+          "id": "complaintNarrative",
+          "label": "Complaint",
+          "synopsis": "The complainant states that office furniture worth Rs. 4,50,000 was supplied to Anand Traders. Cheque number 000184 was issued towards the stated liability, returned unpaid for Funds Insufficient, and remained unpaid after service of the legal demand notice.",
+          "complaint": "The complaint relies on the transaction records, cheque, return memo, demand notice and service records. The complainant requests that the court take cognizance and decide the complaint in accordance with law.",
+          "affidavitUnderSection223Bnss": {
+            "documentId": "DOC-AFF-001",
+            "name": "Affidavit relating to examination of complainant under Section 223 BNSS",
+            "status": "Accepted",
+            "file": "../output/pdf/03-affidavits.pdf"
+          },
+          "prayer": "Take cognizance of the complaint, issue process to the accused, and grant such relief, compensation and costs as the court considers appropriate in accordance with law.",
+          "additionalDetails": "All names, facts and records are fictional fixtures for interface design and testing.",
+          "documents": [
+            {
+              "documentId": "DOC-COM-001",
+              "name": "Complaint under Section 138 of the Negotiable Instruments Act, 1881",
+              "status": "Accepted",
+              "file": "../output/pdf/01-complaint.pdf"
+            }
+          ]
+        },
+        {
+          "id": "advocateDetails",
+          "label": "Advocate Details",
+          "forParty": "Sunil Varghese",
+          "numberOfAdvocates": 2,
+          "advocates": [
+            {
+              "advocateId": "ADV-COM-001",
+              "name": "Adv. Ramesh Menon",
+              "barRegistration": "DUMMY/KL/2011/0042",
+              "emailId": "adv.ramesh.menon@example.test",
+              "isLeadAdvocate": true,
+              "idProofStatus": "Uploaded"
+            },
+            {
+              "advocateId": "ADV-COM-002",
+              "name": "Adv. Suresh Menon",
+              "barRegistration": "DUMMY/KL/2014/0061",
+              "emailId": "adv.suresh.menon@example.test",
+              "isLeadAdvocate": false,
+              "idProofStatus": "Uploaded"
+            }
+          ],
+          "vakalatnama": {
+            "documentId": "DOC-VAK-002",
+            "name": "Vakalatnama 1 - Complainant",
+            "status": "Active",
+            "file": "../output/pdf/04-vakalats.pdf"
+          }
+        }
+      ],
+      "edgeCaseDeltas": [
+        "Show No witness added when the witness list is empty.",
+        "Support additional witnesses and distinguish whether court summons is required.",
+        "Support Party in Person by showing no advocate and the operative party-in-person affidavit.",
+        "Retain withdrawn or replaced vakalatnamas as historical representation records.",
+        "If complaint text or an affidavit is unavailable, preserve the field with a clear unavailable state."
+      ]
+    },
+    {
+      "order": 4,
+      "id": "submissionsFromAccused",
+      "label": "4. Submissions from Accused",
+      "info": "These submissions were made when the accused joined the case. Later submissions are available through the relevant filings and document records.",
+      "submissions": [
+        {
+          "submissionId": "SUB-ACC-001",
+          "submittedBy": "Arun Das for Anand Traders",
+          "submittedOn": {
+            "value": "2025-08-12",
+            "display": "12 August 2025"
+          },
+          "status": "Accepted",
+          "appearanceMode": "Through advocate",
+          "partyDetailsConfirmed": true,
+          "serviceAddressConfirmed": true,
+          "authorisedRepresentative": "Arun Das, Proprietor",
+          "documents": [
+            {
+              "documentId": "DOC-VAK-003",
+              "name": "Vakalatnama 2 - Accused",
+              "status": "Active",
+              "file": "../output/pdf/04-vakalats.pdf"
+            },
+            {
+              "documentId": "DOC-LIT-002",
+              "name": "Proprietorship declaration",
+              "status": "Accepted",
+              "file": null
+            },
+            {
+              "documentId": "DOC-SUB-001",
+              "name": "Masked identity proof of authorised representative",
+              "status": "Accepted",
+              "file": null
+            }
+          ]
+        }
+      ],
+      "edgeCaseDeltas": [
+        "Before the accused joins, show No submissions have been received from the accused.",
+        "For a party appearing in person, show the Party in Person affidavit instead of a vakalatnama.",
+        "For multiple accused, maintain a separate submission and representation state for each accused.",
+        "Show Sent back with the defect list when onboarding documents require correction.",
+        "Do not mix later applications, evidence or written arguments into this section."
+      ]
+    }
+  ],
+  "displayRules": [
+    "Preserve the four section names and their order.",
+    "Treat the Complaint tab as structured read-only case information linked to source documents.",
+    "Do not replace an accepted value silently; retain corrected or superseded records in history.",
+    "Use exact court and statutory terminology already adopted by DRISTI.",
+    "Mark missing, not uploaded, unavailable and not applicable as different states.",
+    "All values in this fixture are fictional."
+  ]
+}

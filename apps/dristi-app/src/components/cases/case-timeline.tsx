@@ -1,0 +1,161 @@
+import Link from "next/link";
+import { ChevronRightIcon, HistoryIcon } from "lucide-react";
+
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemGroup,
+  ItemTitle,
+} from "@/components/ui/item";
+import { Timeline, TimelineItem } from "@/components/ui/timeline";
+import {
+  caseTimelineModel,
+  type CaseTimelineEvent,
+} from "@/lib/cases/timeline";
+import {
+  CASE_SECTIONS,
+  caseSectionHref,
+  type CaseSection,
+} from "@/lib/cases/sections";
+import { FIXTURE_TODAY } from "@/lib/cases/fixtures";
+import { type CaseRecord } from "@/lib/cases/types";
+
+export function CaseTimeline({ record }: { record: CaseRecord }) {
+  const model = caseTimelineModel(
+    record,
+    new Date(`${FIXTURE_TODAY}T23:59:59`).getTime()
+  );
+
+  return (
+    <section
+      aria-labelledby={
+        model.days.length === 0
+          ? "case-history-empty-heading"
+          : "all-case-events-heading"
+      }
+      className="flex min-w-0 flex-col gap-6"
+    >
+      {model.days.length === 0 ? (
+        <Empty className="border border-dashed border-border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <HistoryIcon aria-hidden />
+            </EmptyMedia>
+            <EmptyTitle
+              id="case-history-empty-heading"
+              className="text-title-s font-semibold"
+            >
+              No case history yet
+            </EmptyTitle>
+            <EmptyDescription className="text-body">
+              Events that have already taken place on this case will appear
+              here.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <Card className="hover:bg-card">
+          <CardHeader className="border-b">
+            <div className="flex min-w-0 flex-col gap-1">
+              <h3
+                id="all-case-events-heading"
+                className="text-title-s font-semibold"
+              >
+                All case events
+              </h3>
+              <p className="text-body text-muted-foreground">
+                {model.firstDateLabel} to {model.latestDateLabel}
+              </p>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Timeline aria-label="Case History, newest first">
+              {model.days.map((day) => (
+                <TimelineItem
+                  key={day.on}
+                  status={day.status}
+                  aria-current={day.status === "current" ? "true" : undefined}
+                >
+                  <div className="flex min-w-0 flex-col gap-4">
+                    <time
+                      dateTime={day.on}
+                      className="text-title-s font-semibold text-foreground"
+                    >
+                      {day.dateLabel}
+                    </time>
+
+                    <ItemGroup>
+                      {day.events.map((event) => (
+                        <TimelineEvent
+                          key={event.id}
+                          caseId={record.id}
+                          event={event}
+                        />
+                      ))}
+                    </ItemGroup>
+                  </div>
+                </TimelineItem>
+              ))}
+            </Timeline>
+          </CardContent>
+        </Card>
+      )}
+    </section>
+  );
+}
+
+function TimelineEvent({
+  caseId,
+  event,
+}: {
+  caseId: string;
+  event: CaseTimelineEvent;
+}) {
+  /* line-clamp-none: the label is the whole event, and a Malayalam or Gujarati
+     translation of it will wrap rather than fit the DS one-line default. */
+  const title = (
+    <ItemContent className="min-w-0">
+      <ItemTitle className="line-clamp-none text-body font-medium text-foreground">
+        {event.label}
+      </ItemTitle>
+    </ItemContent>
+  );
+
+  if (!event.ref) {
+    return (
+      <Item size="sm" role="listitem" className="hover:bg-transparent">
+        {title}
+      </Item>
+    );
+  }
+
+  return (
+    <Item asChild size="sm">
+      <Link
+        href={caseSectionHref(caseId, event.ref)}
+        role="listitem"
+        aria-label={`${event.label}, open ${sectionLabel(event.ref)}`}
+      >
+        {title}
+        <ItemActions aria-hidden>
+          <ChevronRightIcon className="size-4 text-muted-foreground" />
+        </ItemActions>
+      </Link>
+    </Item>
+  );
+}
+
+function sectionLabel(section: CaseSection): string {
+  return (
+    CASE_SECTIONS.find((entry) => entry.value === section)?.label ?? section
+  );
+}
