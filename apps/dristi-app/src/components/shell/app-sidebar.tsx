@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   CalendarDaysIcon,
   CheckIcon,
@@ -389,7 +389,15 @@ function RailThemePicker() {
 function ProfileFooter() {
   const { state, people, user, setUser, resetSandbox } = useTasks();
   const { profileRole, advocateProfileAvailable, switchProfile } = useProfile();
+  const router = useRouter();
   const roleLabel = profileRole === "advocate" ? "Advocate" : "Litigant";
+
+  // Switching profile re-frames the whole product, so it lands on that profile's home.
+  function switchTo(role: "litigant" | "advocate") {
+    if (role === profileRole) return;
+    switchProfile();
+    router.push(role === "advocate" ? "/advocate" : "/home");
+  }
   const [confirmReset, setConfirmReset] = React.useState(false);
   const onResetSandbox = React.useCallback(() => setConfirmReset(true), []);
 
@@ -445,9 +453,7 @@ function ProfileFooter() {
                 <Button
                   variant="ghost"
                   className="w-full justify-start"
-                  onClick={
-                    profileRole === "advocate" ? switchProfile : undefined
-                  }
+                  onClick={() => switchTo("litigant")}
                 >
                   <span
                     aria-hidden
@@ -464,9 +470,7 @@ function ProfileFooter() {
                   <Button
                     variant="ghost"
                     className="w-full justify-start"
-                    onClick={
-                      profileRole === "litigant" ? switchProfile : undefined
-                    }
+                    onClick={() => switchTo("advocate")}
                   >
                     <span
                       aria-hidden
