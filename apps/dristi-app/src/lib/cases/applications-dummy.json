@@ -1,0 +1,313 @@
+{
+  "fixtureId": "DRISTI-APPLICATIONS-SECTION138-001",
+  "isDummyData": true,
+  "case": {
+    "caseTitle": "Sunil Varghese v. Anand Traders",
+    "complaintCaseNumber": "CMP/1842/2025",
+    "caseNumber": "ST/412/2025",
+    "filingNumber": "KL-DUMMY-001386-2025",
+    "court": "Judicial First Class Magistrate Court-I, Kollam"
+  },
+  "people": [
+    {
+      "id": "PARTY-C-001",
+      "label": "Sunil Varghese — Complainant"
+    },
+    {
+      "id": "PARTY-A-001",
+      "label": "Arun Das, proprietor of Anand Traders — Accused"
+    },
+    {
+      "id": "ADV-C-001",
+      "label": "Adv. Ramesh Menon — Complainant counsel"
+    },
+    {
+      "id": "ADV-A-001",
+      "label": "Adv. P. Balachandran — Accused counsel"
+    }
+  ],
+  "submissions": [
+    {
+      "id": "sub-1001-settlement-draft",
+      "kind": "Application",
+      "type": "Settlement",
+      "title": "Settlement",
+      "status": "Draft",
+      "addedOn": "2025-09-26",
+      "submittedById": "ADV-A-001",
+      "submissionId": null,
+      "request": "Record the settlement reached between the parties and permit the offence to be compounded on payment of Rs. 4,50,000 in three monthly instalments.",
+      "courtResult": null,
+      "linkedOrder": null,
+      "defects": [],
+      "documents": []
+    },
+    {
+      "id": "sub-1001-objections-advancement-signature",
+      "kind": "Document submission",
+      "type": "Objections",
+      "title": "Objections to the advancement/reschedule application",
+      "status": "Pending signature",
+      "addedOn": "2025-09-25",
+      "submittedById": "ADV-C-001",
+      "submissionId": null,
+      "request": null,
+      "courtResult": null,
+      "linkedOrder": null,
+      "defects": [],
+      "documents": [
+        {
+          "label": "Draft objections",
+          "href": "/case-file/18-objections-to-process.pdf"
+        }
+      ]
+    },
+    {
+      "id": "sub-1001-memo-signature",
+      "kind": "Document submission",
+      "type": "Memos",
+      "title": "Memo of calculation of cheque amount and interest",
+      "status": "Pending signature",
+      "addedOn": "2025-09-24",
+      "submittedById": "ADV-C-001",
+      "submissionId": null,
+      "request": null,
+      "courtResult": null,
+      "linkedOrder": null,
+      "defects": [],
+      "documents": [
+        {
+          "label": "Draft memo",
+          "href": "/case-file/10-memo-cheque-calculation.pdf"
+        }
+      ]
+    },
+    {
+      "id": "sub-1001-affidavit-return-memo-signature",
+      "kind": "Document submission",
+      "type": "Affidavits",
+      "title": "Affidavit of the complainant on the cheque return memo",
+      "status": "Pending signature",
+      "addedOn": "2025-09-23",
+      "submittedById": "ADV-C-001",
+      "submissionId": null,
+      "request": null,
+      "courtResult": null,
+      "linkedOrder": null,
+      "defects": [],
+      "documents": [
+        {
+          "label": "Draft affidavit",
+          "href": "/case-file/03-affidavits.pdf"
+        }
+      ]
+    },
+    {
+      "id": "sub-1001-reschedule-expired",
+      "kind": "Application",
+      "type": "Advancement/reschedule",
+      "title": "Advancement/reschedule — early listing request",
+      "status": "Expired",
+      "addedOn": "2025-09-15",
+      "submittedById": "ADV-A-001",
+      "submissionId": null,
+      "request": "Advance the hearing listed for 13 October 2025 to an earlier date; the accused is away from Kollam from the first week of October.",
+      "courtResult": null,
+      "linkedOrder": null,
+      "defects": [],
+      "documents": [
+        {
+          "label": "Draft application",
+          "href": "/case-file/11-application-early-listing.pdf"
+        }
+      ]
+    },
+    {
+      "id": "sub-1001-pay",
+      "kind": "Application",
+      "type": "Production of documents",
+      "title": "Production of documents — PW-2 account records",
+      "status": "Pending payment",
+      "addedOn": "2025-09-22",
+      "submittedById": "ADV-C-001",
+      "submissionId": null,
+      "request": "Direct Kerala Mercantile Bank, Kollam Market Branch to produce the April and May 2025 account records for the cheque, so PW-2 can be examined on them.",
+      "courtResult": null,
+      "linkedOrder": null,
+      "defects": [],
+      "documents": [
+        {
+          "label": "Draft application",
+          "href": "/case-file/12-application-production-pw2-records.pdf"
+        }
+      ]
+    },
+    {
+      "id": "sub-1001-affidavit-pw2",
+      "kind": "Document submission",
+      "type": "Affidavits",
+      "title": "Chief affidavit of PW-2",
+      "status": "Completed",
+      "addedOn": "2025-09-11",
+      "submittedById": "ADV-C-001",
+      "submissionId": "KL-DUMMY-001386-2025-DS3",
+      "request": null,
+      "courtResult": null,
+      "linkedOrder": null,
+      "defects": [],
+      "documents": [
+        {
+          "label": "Filed affidavit",
+          "href": "/case-file/13-affidavit-pw2.pdf"
+        }
+      ]
+    },
+    {
+      "id": "sub-1001-reschedule",
+      "kind": "Application",
+      "type": "Advancement/reschedule",
+      "title": "Advancement/reschedule",
+      "status": "Completed",
+      "addedOn": "2025-09-08",
+      "submittedById": "ADV-C-001",
+      "submissionId": "KL-DUMMY-001386-2025-AP2",
+      "request": "Advance the hearing listed for 29 September 2025 to an earlier date; PW-2 can attend court only until the middle of September.",
+      "courtResult": null,
+      "linkedOrder": null,
+      "defects": [],
+      "documents": [
+        {
+          "label": "Filed application",
+          "href": "/case-file/14-application-advancement.pdf"
+        }
+      ]
+    },
+    {
+      "id": "sub-1001-draft",
+      "kind": "Application",
+      "type": "Others",
+      "title": "Application for adding witnesses",
+      "status": "Completed",
+      "addedOn": "2025-08-11",
+      "submittedById": "ADV-C-001",
+      "submissionId": "KL-DUMMY-001386-2025-AP3",
+      "request": "Permit the complainant to add two witnesses — the accountant who presented the cheque and the supervisor who took the delivery acknowledgement.",
+      "courtResult": null,
+      "linkedOrder": null,
+      "defects": [],
+      "documents": [
+        {
+          "label": "Filed application",
+          "href": "/case-file/15-application-additional-witnesses.pdf"
+        }
+      ]
+    },
+    {
+      "id": "sub-1001-withdrawal",
+      "kind": "Application",
+      "type": "Withdrawal",
+      "title": "Withdrawal",
+      "status": "Completed",
+      "addedOn": "2025-08-10",
+      "submittedById": "ADV-C-001",
+      "submissionId": "KL-DUMMY-001386-2025-AP4",
+      "request": "Permit the complainant to withdraw the application for production of the cheque return memo; the memo is already on record with the complaint.",
+      "courtResult": null,
+      "linkedOrder": null,
+      "defects": [],
+      "documents": [
+        {
+          "label": "Filed application",
+          "href": "/case-file/16-application-withdrawal.pdf"
+        }
+      ]
+    },
+    {
+      "id": "sub-1001-returned",
+      "kind": "Application",
+      "type": "Production of documents",
+      "title": "Production of documents — bank return memo",
+      "status": "Rejected",
+      "addedOn": "2025-08-08",
+      "submittedById": "ADV-C-001",
+      "submissionId": null,
+      "request": "Direct Kerala Mercantile Bank, Kollam Market Branch to produce the original cheque return memo dated 17 April 2025 and the related dishonour records.",
+      "courtResult": null,
+      "linkedOrder": null,
+      "defects": [
+        "Court fee is short by ₹200.",
+        "Application is not accompanied by an affidavit."
+      ],
+      "documents": [
+        {
+          "label": "Filed application",
+          "href": "/case-file/17-application-production-return-memo.pdf"
+        }
+      ]
+    },
+    {
+      "id": "sub-1001-objection",
+      "kind": "Document submission",
+      "type": "Objections",
+      "title": "Objections to process",
+      "status": "Completed",
+      "addedOn": "2025-08-02",
+      "submittedById": "ADV-A-001",
+      "submissionId": "KL-DUMMY-001386-2025-DS2",
+      "request": null,
+      "courtResult": null,
+      "linkedOrder": null,
+      "defects": [],
+      "documents": [
+        {
+          "label": "Filed objections",
+          "href": "/case-file/18-objections-to-process.pdf"
+        }
+      ]
+    },
+    {
+      "id": "sub-1001-bail",
+      "kind": "Application",
+      "type": "Bail",
+      "title": "Bail",
+      "status": "Completed",
+      "addedOn": "2025-08-01",
+      "submittedById": "ADV-A-001",
+      "submissionId": "KL-DUMMY-001386-2025-AP1",
+      "request": "Release Arun Das, proprietor of Anand Traders, on bail on his appearance before the court in answer to the summons in this complaint.",
+      "courtResult": "Allowed",
+      "linkedOrder": {
+        "id": "KL-DUMMY-001386-2025-OR4",
+        "label": "Bail order"
+      },
+      "defects": [],
+      "documents": [
+        {
+          "label": "Filed application",
+          "href": "/case-file/02-initial-filings.pdf"
+        }
+      ]
+    },
+    {
+      "id": "sub-1001-affidavit-pw1",
+      "kind": "Document submission",
+      "type": "Affidavits",
+      "title": "PW-1 chief affidavit under section 145 of the Negotiable Instruments Act",
+      "status": "Completed",
+      "addedOn": "2025-06-16",
+      "submittedById": "ADV-C-001",
+      "submissionId": "KL-DUMMY-001386-2025-DS1",
+      "request": null,
+      "courtResult": null,
+      "linkedOrder": null,
+      "defects": [],
+      "documents": [
+        {
+          "label": "Filed affidavit",
+          "href": "/case-file/03-affidavits.pdf",
+          "page": 4
+        }
+      ]
+    }
+  ]
+}

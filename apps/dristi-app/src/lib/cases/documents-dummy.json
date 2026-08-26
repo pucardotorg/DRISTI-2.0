@@ -1,0 +1,326 @@
+{
+  "fixtureId": "DRISTI-DOCUMENTS-SECTION138-001",
+  "isDummyData": true,
+  "case": {
+    "caseTitle": "Sunil Varghese v. Anand Traders",
+    "complaintCaseNumber": "CMP/1842/2025",
+    "caseNumber": "ST/412/2025",
+    "filingNumber": "KL-DUMMY-001386-2025",
+    "court": "Judicial First Class Magistrate Court-I, Kollam"
+  },
+  "people": [
+    {
+      "id": "PARTY-C-001",
+      "label": "Sunil Varghese — Complainant"
+    },
+    {
+      "id": "PARTY-A-001",
+      "label": "Arun Das, proprietor of Anand Traders — Accused"
+    },
+    {
+      "id": "ADV-C-001",
+      "label": "Adv. Ramesh Menon — Complainant counsel"
+    },
+    {
+      "id": "ADV-A-001",
+      "label": "Adv. P. Balachandran — Accused counsel"
+    }
+  ],
+  "documents": [
+    {
+      "filingId": "KL-DUMMY-001386-2026-AR20",
+      "title": "Surety bail bond of K. Radhakrishnan",
+      "type": "Bail bond",
+      "submissionStatus": "Pending review",
+      "submittedOn": "2026-08-14",
+      "submittedById": "ADV-A-001",
+      "source": "Court",
+      "evidenceNumber": null,
+      "evidenceStatus": null,
+      "href": "/case-file/08-examination-of-accused.pdf",
+      "page": 1
+    },
+    {
+      "filingId": "KL-DUMMY-001386-2026-AR19",
+      "title": "Personal bail bond of Arun Das",
+      "type": "Bail bond",
+      "submissionStatus": "Completed",
+      "submittedOn": "2025-08-18",
+      "submittedById": "PARTY-A-001",
+      "source": "Court",
+      "evidenceNumber": null,
+      "evidenceStatus": null,
+      "href": "/case-file/08-examination-of-accused.pdf",
+      "page": 1
+    },
+    {
+      "filingId": "KL-DUMMY-001386-2026-AR18",
+      "title": "PW-2 account records",
+      "type": "Account records",
+      "submissionStatus": "Completed",
+      "submittedOn": "2026-07-24",
+      "submittedById": "ADV-C-001",
+      "source": "Application",
+      "linkedApplication": {
+        "id": "KL-DUMMY-001386-2025-AP3",
+        "label": "Production of documents — PW-2 account records"
+      },
+      "evidenceNumber": "P6",
+      "evidenceStatus": "Marked",
+      "href": "/case-file/05-evidence-of-complainant.pdf",
+      "page": 4
+    },
+    {
+      "filingId": "KL-DUMMY-001386-2026-AR17",
+      "title": "Proof of debt or liability",
+      "type": "Proof of debt or liability",
+      "submissionStatus": "Completed",
+      "submittedOn": "2026-07-22",
+      "submittedById": "ADV-C-001",
+      "source": "Application",
+      "linkedApplication": {
+        "id": "KL-DUMMY-001386-2025-AP2",
+        "label": "Production of documents — proof of debt"
+      },
+      "evidenceNumber": null,
+      "evidenceStatus": null,
+      "href": "/case-file/01-complaint.pdf"
+    },
+    {
+      "filingId": "KL-DUMMY-001386-2026-AR16",
+      "title": "Proof of deposit of cheque",
+      "type": "Proof of deposit of cheque",
+      "submissionStatus": "Completed",
+      "submittedOn": "2026-07-21",
+      "submittedById": "ADV-C-001",
+      "source": "Application",
+      "linkedApplication": {
+        "id": "KL-DUMMY-001386-2025-AP2",
+        "label": "Production of documents — proof of debt"
+      },
+      "evidenceNumber": null,
+      "evidenceStatus": "Void",
+      "href": "/case-file/02-initial-filings.pdf",
+      "page": 3
+    },
+    {
+      "filingId": "KL-DUMMY-001386-2026-AR15",
+      "title": "Complainant exhibit index P1–P6",
+      "type": "Exhibit index",
+      "submissionStatus": "Completed",
+      "submittedOn": "2026-07-20",
+      "submittedById": "ADV-C-001",
+      "source": "Application",
+      "linkedApplication": {
+        "id": "KL-DUMMY-001386-2025-AP4",
+        "label": "Production of documents — exhibit index"
+      },
+      "evidenceNumber": null,
+      "evidenceStatus": null,
+      "href": "/case-file/05-evidence-of-complainant.pdf",
+      "page": 4
+    },
+    {
+      "filingId": "KL-DUMMY-001386-2026-AR14",
+      "title": "Defence exhibit index D1–D3",
+      "type": "Exhibit index",
+      "submissionStatus": "Completed",
+      "submittedOn": "2026-07-18",
+      "submittedById": "ADV-A-001",
+      "source": "Application",
+      "linkedApplication": {
+        "id": "KL-DUMMY-001386-2025-AP5",
+        "label": "Production of documents — defence exhibits"
+      },
+      "evidenceNumber": null,
+      "evidenceStatus": null,
+      "href": "/case-file/06-evidence-of-accused.pdf",
+      "page": 4
+    },
+    {
+      "filingId": "KL-DUMMY-001386-2026-AR13",
+      "title": "DW-1 deposition",
+      "type": "Witness deposition",
+      "submissionStatus": "Completed",
+      "submittedOn": "2025-10-20",
+      "submittedById": "ADV-A-001",
+      "source": "Hearing",
+      "linkedHearing": {
+        "id": "KL-DUMMY-001386-2025-HR3",
+        "label": "Evidence of accused — 20 October 2025"
+      },
+      "evidenceNumber": null,
+      "evidenceStatus": null,
+      "href": "/case-file/06-evidence-of-accused.pdf",
+      "page": 3
+    },
+    {
+      "filingId": "KL-DUMMY-001386-2026-AR12",
+      "title": "PW-1 deposition",
+      "type": "Witness deposition",
+      "submissionStatus": "Completed",
+      "submittedOn": "2025-09-15",
+      "submittedById": "ADV-C-001",
+      "source": "Hearing",
+      "linkedHearing": {
+        "id": "KL-DUMMY-001386-2025-HR6",
+        "label": "Evidence of complainant — 15 September 2025"
+      },
+      "evidenceNumber": null,
+      "evidenceStatus": null,
+      "href": "/case-file/05-evidence-of-complainant.pdf",
+      "page": 2
+    },
+    {
+      "filingId": "KL-DUMMY-001386-2026-AR11",
+      "title": "Party-in-person affidavit 1",
+      "type": "Party-in-person affidavit",
+      "submissionStatus": "Completed",
+      "submittedOn": "2025-08-12",
+      "submittedById": "PARTY-A-001",
+      "source": "Case filing",
+      "evidenceNumber": null,
+      "evidenceStatus": null,
+      "href": "/case-file/04-vakalats.pdf",
+      "page": 2
+    },
+    {
+      "filingId": "KL-DUMMY-001386-2026-AR10",
+      "title": "Affidavit supporting inquiry under section 225 BNSS",
+      "type": "Affidavit under section 225 BNSS",
+      "submissionStatus": "Completed",
+      "submittedOn": "2025-07-28",
+      "submittedById": "ADV-C-001",
+      "source": "Case filing",
+      "evidenceNumber": null,
+      "evidenceStatus": null,
+      "href": "/case-file/03-affidavits.pdf",
+      "page": 3
+    },
+    {
+      "filingId": "KL-DUMMY-001386-2026-AR9",
+      "title": "Cheque return memo",
+      "type": "Cheque return memo",
+      "submissionStatus": "Completed",
+      "submittedOn": "2025-07-18",
+      "submittedById": "ADV-C-001",
+      "source": "Case filing",
+      "evidenceNumber": "P2",
+      "evidenceStatus": "Marked",
+      "href": "/case-file/02-initial-filings.pdf",
+      "page": 5
+    },
+    {
+      "filingId": "KL-DUMMY-001386-2026-AR8",
+      "title": "Vakalatnama 1 (complainant)",
+      "type": "Vakalatnama",
+      "submissionStatus": "Completed",
+      "submittedOn": "2025-07-16",
+      "submittedById": "ADV-C-001",
+      "source": "Case filing",
+      "evidenceNumber": null,
+      "evidenceStatus": null,
+      "href": "/case-file/04-vakalats.pdf",
+      "page": 3
+    },
+    {
+      "filingId": "KL-DUMMY-001386-2026-AR7",
+      "title": "Dishonoured cheque",
+      "type": "Dishonoured cheque",
+      "submissionStatus": "Completed",
+      "submittedOn": "2025-07-16",
+      "submittedById": "ADV-C-001",
+      "source": "Case filing",
+      "evidenceNumber": "P1",
+      "evidenceStatus": "Marked",
+      "href": "/case-file/02-initial-filings.pdf",
+      "page": 4
+    },
+    {
+      "filingId": "KL-DUMMY-001386-2026-AR6",
+      "title": "Affidavit relating to examination of complainant under section 223 BNSS",
+      "type": "Affidavit under section 223 BNSS",
+      "submissionStatus": "Completed",
+      "submittedOn": "2025-07-16",
+      "submittedById": "ADV-C-001",
+      "source": "Case filing",
+      "evidenceNumber": null,
+      "evidenceStatus": null,
+      "href": "/case-file/03-affidavits.pdf",
+      "page": 2
+    },
+    {
+      "filingId": "KL-DUMMY-001386-2026-AR5",
+      "title": "Legal demand notice",
+      "type": "Legal demand notice",
+      "submissionStatus": "Completed",
+      "submittedOn": "2025-06-20",
+      "submittedById": "ADV-C-001",
+      "source": "Case filing",
+      "evidenceNumber": null,
+      "evidenceStatus": null,
+      "href": "/case-file/02-initial-filings.pdf",
+      "page": 2
+    },
+    {
+      "filingId": "KL-DUMMY-001386-2026-AR4",
+      "title": "Proof of dispatch of legal demand notice",
+      "type": "Proof of dispatch of legal demand notice",
+      "submissionStatus": "Completed",
+      "submittedOn": "2025-06-20",
+      "submittedById": "ADV-C-001",
+      "source": "Case filing",
+      "evidenceNumber": null,
+      "evidenceStatus": null,
+      "href": "/case-file/02-initial-filings.pdf",
+      "page": 3
+    },
+    {
+      "filingId": "KL-DUMMY-001386-2026-AR3",
+      "title": "PW-1 chief affidavit under section 145 of the Negotiable Instruments Act",
+      "type": "Affidavit under section 145 of the Negotiable Instruments Act",
+      "submissionStatus": "Completed",
+      "submittedOn": "2026-07-20",
+      "submittedById": "ADV-C-001",
+      "source": "Application",
+      "linkedApplication": {
+        "id": "KL-DUMMY-001386-2025-DS1",
+        "label": "PW-1 chief affidavit under section 145 of the Negotiable Instruments Act"
+      },
+      "evidenceNumber": null,
+      "evidenceStatus": null,
+      "href": "/case-file/03-affidavits.pdf",
+      "page": 4
+    },
+    {
+      "filingId": "KL-DUMMY-001386-2026-AR2",
+      "title": "Plea record",
+      "type": "Plea record",
+      "submissionStatus": "Completed",
+      "submittedOn": "2025-08-18",
+      "submittedById": "PARTY-A-001",
+      "source": "Court",
+      "evidenceNumber": null,
+      "evidenceStatus": null,
+      "href": "/case-file/08-examination-of-accused.pdf",
+      "page": 2
+    },
+    {
+      "filingId": "KL-DUMMY-001386-2026-AR1",
+      "title": "Questionnaire under section 351 BNSS",
+      "type": "Questionnaire under section 351 BNSS",
+      "submissionStatus": "Completed",
+      "submittedOn": "2025-10-13",
+      "submittedById": "PARTY-A-001",
+      "source": "Court",
+      "linkedHearing": {
+        "id": "KL-DUMMY-001386-2025-HR4",
+        "label": "Examination of accused under S. 351 BNSS — 13 October 2025"
+      },
+      "evidenceNumber": null,
+      "evidenceStatus": null,
+      "href": "/case-file/08-examination-of-accused.pdf",
+      "page": 3
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   CalendarDaysIcon,
   CheckIcon,
@@ -113,8 +113,8 @@ type NavItem = { id: string; label: string; icon: LucideIcon; href?: string };
  */
 const GO: NavItem[] = [
   { id: "search", label: "Search", icon: SearchIcon },
-  { id: "home", label: "Home", icon: HouseIcon },
-  { id: "cases", label: "Your Cases", icon: FolderClosedIcon },
+  { id: "home", label: "Home", icon: HouseIcon, href: "/home" },
+  { id: "cases", label: "Your Cases", icon: FolderClosedIcon, href: "/cases" },
   {
     id: "tasks",
     label: "Pending Tasks",
@@ -145,7 +145,7 @@ const START: NavItem[] = [
   },
 ];
 
-const WITH: NavItem[] = [{ id: "people", label: "People", icon: UsersIcon }];
+const WITH: NavItem[] = [{ id: "people", label: "People", icon: UsersIcon, href: "/people" }];
 
 /**
  * The row's label. It has to leave the layout on collapse, not merely be clipped by the
@@ -180,7 +180,10 @@ const SEARCH_NOTE = "product-wide search — not part of this build";
  */
 function TasksCount() {
   const { state, people, cases, tasks, user } = useTasks();
+  const { profileRole } = useProfile();
   if (state !== "ready") return null;
+  // A litigant's task list is their own (empty in this demo), so no advocate count.
+  if (profileRole === "litigant") return null;
   const { action } = summaryOf({ people, cases, tasks, user, now: new Date() });
   if (!action) return null;
   return (
@@ -219,7 +222,9 @@ function TasksCount() {
 /** What the count says out loud. The marks themselves are bare numerals. */
 function TasksCountLabel() {
   const { state, people, cases, tasks, user } = useTasks();
+  const { profileRole } = useProfile();
   if (state !== "ready") return null;
+  if (profileRole === "litigant") return null;
   const { action } = summaryOf({ people, cases, tasks, user, now: new Date() });
   if (!action) return null;
   return <span className="sr-only">, {action} need action</span>;
@@ -388,8 +393,25 @@ function RailThemePicker() {
  */
 function ProfileFooter() {
   const { state, people, user, setUser, resetSandbox } = useTasks();
-  const { profileRole, advocateProfileAvailable, switchProfile } = useProfile();
+  const { profileRole, advocateProfileAvailable, accountName, switchProfile } =
+    useProfile();
+  const router = useRouter();
   const roleLabel = profileRole === "advocate" ? "Advocate" : "Litigant";
+
+  // The name is the account's, fixed — switching profile changes the role label, not the
+  // person. So Anjali stays Anjali whether she is acting as advocate or litigant.
+  const displayName = accountName;
+  const nameParts = displayName.replace(/^Adv\.\s*/, "").trim().split(/\s+/);
+  const displayInitials = (
+    (nameParts[0]?.[0] ?? "") + (nameParts[nameParts.length - 1]?.[0] ?? "")
+  ).toUpperCase();
+
+  // Switching profile re-frames the whole product, so it lands on that profile's home.
+  function switchTo(role: "litigant" | "advocate") {
+    if (role === profileRole) return;
+    switchProfile();
+    router.push(role === "advocate" ? "/advocate" : "/home");
+  }
   const [confirmReset, setConfirmReset] = React.useState(false);
   const onResetSandbox = React.useCallback(() => setConfirmReset(true), []);
 
@@ -402,15 +424,15 @@ function ProfileFooter() {
               <PopoverTrigger asChild>
                 <SidebarMenuButton
                   className={`${ROW} h-12 group-data-[collapsible=icon]:size-10!`}
-                  tooltip={`${user.name} · ${roleLabel}`}
-                  aria-label={`${user.name} · ${roleLabel} · Switch profile`}
+                  tooltip={`${displayName} · ${roleLabel}`}
+                  aria-label={`${displayName} · ${roleLabel} · Switch profile`}
                 >
                   <span className="relative shrink-0">
                     <span
                       aria-hidden
                       className="flex size-8 items-center justify-center rounded-full bg-primary text-caption font-semibold text-primary-foreground"
                     >
-                      {user.initials}
+                      {displayInitials}
                     </span>
                     {/* The chevron rides the avatar rather than the row's trailing edge,
                         so the affordance survives the collapse with the mark it belongs
@@ -424,7 +446,7 @@ function ProfileFooter() {
                   </span>
                   <span className="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
                     <span className="truncate text-body-compact font-medium">
-                      {user.name}
+                      {displayName}
                     </span>
                     <span className={`truncate text-caption ${MUTED}`}>
                       {roleLabel}
@@ -445,9 +467,7 @@ function ProfileFooter() {
                 <Button
                   variant="ghost"
                   className="w-full justify-start"
-                  onClick={
-                    profileRole === "advocate" ? switchProfile : undefined
-                  }
+                  onClick={() => switchTo("litigant")}
                 >
                   <span
                     aria-hidden
@@ -464,9 +484,7 @@ function ProfileFooter() {
                   <Button
                     variant="ghost"
                     className="w-full justify-start"
-                    onClick={
-                      profileRole === "litigant" ? switchProfile : undefined
-                    }
+                    onClick={() => switchTo("advocate")}
                   >
                     <span
                       aria-hidden
@@ -524,18 +542,18 @@ function ProfileFooter() {
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
+                asChild
                 variant="ghost"
                 size="icon"
-                aria-disabled="true"
                 aria-label="Profile settings"
                 className={`size-10 shrink-0 [&_svg]:size-5 group-data-[collapsible=icon]:hidden ${MUTED} hover:bg-sidebar-accent hover:text-sidebar-accent-foreground`}
               >
-                <SettingsIcon aria-hidden />
+                <Link href="/settings">
+                  <SettingsIcon aria-hidden />
+                </Link>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top">
-              Settings — {UNBUILT_NOTE}
-            </TooltipContent>
+            <TooltipContent side="top">Settings</TooltipContent>
           </Tooltip>
         </SidebarMenuItem>
       </SidebarMenu>
@@ -558,6 +576,15 @@ function ProfileFooter() {
 /** Main navigation for the whole app. Icon rail from `md`, sheet below it. */
 export function AppSidebar() {
   const { theme } = useRailTheme();
+  const { profileRole } = useProfile();
+
+  // Home is role-aware: the advocate's home and the litigant's home are different
+  // screens on the same shell. The rest of the nav is shared.
+  const mainItems = GO.map((item) =>
+    item.id === "home"
+      ? { ...item, href: profileRole === "advocate" ? "/advocate" : "/home" }
+      : item,
+  );
 
   return (
     /*
@@ -596,7 +623,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        <NavGroup items={GO} label="Main" />
+        <NavGroup items={mainItems} label="Main" />
         <NavGroup items={START} label="Start something" separated />
         <NavGroup items={WITH} label="People" separated />
       </SidebarContent>

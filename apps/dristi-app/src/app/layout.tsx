@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { FeedbackProvider } from "@/components/feedback-provider";
+import { LocaleProvider } from "@/components/shell/locale";
 import { ThemeProvider } from "@/components/theme-provider";
 
 import "./globals.css";
@@ -29,11 +30,13 @@ export default function RootLayout({
       <body className="flex min-h-full flex-col bg-background text-foreground">
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="light"
           enableSystem
           disableTransitionOnChange
         >
-          <FeedbackProvider>{children}</FeedbackProvider>
+          <LocaleProvider>
+            <FeedbackProvider>{children}</FeedbackProvider>
+          </LocaleProvider>
         </ThemeProvider>
       </body>
     </html>

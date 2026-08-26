@@ -1,0 +1,889 @@
+{
+  "fixtureId": "DRISTI-HEARINGS-SECTION138-001",
+  "isDummyData": true,
+  "case": {
+    "caseTitle": "Sunil Varghese v. Anand Traders",
+    "complaintCaseNumber": "CMP/1842/2025",
+    "caseNumber": "ST/412/2025",
+    "filingNumber": "KL-DUMMY-001386-2025",
+    "court": "Judicial First Class Magistrate Court-I, Kollam",
+    "filingDate": "2025-06-12",
+    "stage": "Post-Disposal",
+    "caseStatus": "Disposed \u2014 Convicted",
+    "chequeAmount": {
+      "value": 450000,
+      "currency": "INR",
+      "display": "\u20b94,50,000"
+    }
+  },
+  "filters": {
+    "parties": [
+      {
+        "id": "PARTY-C-001",
+        "label": "Sunil Varghese \u2014 Complainant"
+      },
+      {
+        "id": "PARTY-A-001",
+        "label": "Arun Das, proprietor of Anand Traders \u2014 Accused"
+      },
+      {
+        "id": "ADV-C-001",
+        "label": "Adv. Ramesh Menon \u2014 Complainant counsel"
+      },
+      {
+        "id": "ADV-A-001",
+        "label": "Adv. P. Balachandran \u2014 Accused counsel"
+      },
+      {
+        "id": "WIT-PW2-001",
+        "label": "Priya Nair \u2014 PW-2, bank witness"
+      },
+      {
+        "id": "WIT-DW1-001",
+        "label": "Ajith Kumar \u2014 DW-1, defence witness"
+      }
+    ],
+    "types": [
+      "Admission",
+      "Appearance",
+      "Application Review",
+      "Arguments",
+      "Bail",
+      "Cognizance",
+      "Delay Condonation",
+      "Delay Condonation and Admission",
+      "Evidence of Accused",
+      "Evidence of Complainant",
+      "Examination of accused under S. 351 BNSS",
+      "Execution",
+      "For Reports (to be received from Forensics, ADR, etc)",
+      "Judgement",
+      "Plea",
+      "Referral to ADR",
+      "To Issue Order",
+      "Warrant"
+    ]
+  },
+  "tableColumns": [
+    "Date",
+    "Hearing ID",
+    "Hearing Type",
+    "Parties",
+    "Status"
+  ],
+  "hearings": [
+    {
+      "hearingId": "HRG-015",
+      "hearingType": "Execution",
+      "date": "2026-01-12",
+      "dateDisplay": "12 January 2026",
+      "status": "Completed",
+      "participantIds": [
+        "PARTY-C-001",
+        "PARTY-A-001",
+        "ADV-C-001",
+        "ADV-A-001"
+      ],
+      "partiesDisplay": "Sunil Varghese, Arun Das +2",
+      "summary": "Partial payment was recorded and time for the balance was considered.",
+      "statusReason": null,
+      "transcriptAvailability": "available",
+      "transcriptId": "TRN-015",
+      "depositionIds": []
+    },
+    {
+      "hearingId": "HRG-014",
+      "hearingType": "Judgement",
+      "date": "2025-12-15",
+      "dateDisplay": "15 December 2025",
+      "status": "Completed",
+      "participantIds": [
+        "PARTY-C-001",
+        "PARTY-A-001",
+        "ADV-C-001",
+        "ADV-A-001"
+      ],
+      "partiesDisplay": "Sunil Varghese, Arun Das +2",
+      "summary": "Judgment was pronounced. The accused was convicted; the operative directions are contained in the formal judgment and sentence order.",
+      "statusReason": null,
+      "transcriptAvailability": "available",
+      "transcriptId": "TRN-014",
+      "depositionIds": []
+    },
+    {
+      "hearingId": "HRG-013",
+      "hearingType": "Arguments",
+      "date": "2025-12-01",
+      "dateDisplay": "1 December 2025",
+      "status": "Completed",
+      "participantIds": [
+        "PARTY-C-001",
+        "PARTY-A-001",
+        "ADV-C-001",
+        "ADV-A-001"
+      ],
+      "partiesDisplay": "Sunil Varghese, Arun Das +2",
+      "summary": "Arguments concluded and written submissions were taken on record. Judgment was reserved.",
+      "statusReason": null,
+      "transcriptAvailability": "available",
+      "transcriptId": "TRN-013",
+      "depositionIds": []
+    },
+    {
+      "hearingId": "HRG-012",
+      "hearingType": "Arguments",
+      "date": "2025-11-24",
+      "dateDisplay": "24 November 2025",
+      "status": "Completed",
+      "participantIds": [
+        "PARTY-C-001",
+        "PARTY-A-001",
+        "ADV-C-001",
+        "ADV-A-001"
+      ],
+      "partiesDisplay": "Sunil Varghese, Arun Das +2",
+      "summary": "Complainant's arguments were heard. Accused's arguments commenced and remained part-heard.",
+      "statusReason": null,
+      "transcriptAvailability": "available",
+      "transcriptId": "TRN-012",
+      "depositionIds": []
+    },
+    {
+      "hearingId": "HRG-011",
+      "hearingType": "Evidence of Accused",
+      "date": "2025-11-10",
+      "dateDisplay": "10 November 2025",
+      "status": "Completed",
+      "participantIds": [
+        "PARTY-A-001",
+        "WIT-DW1-001",
+        "ADV-A-001",
+        "ADV-C-001"
+      ],
+      "partiesDisplay": "Arun Das, Ajith Kumar +2",
+      "summary": "DW-1 was examined and cross-examined. Defence evidence was closed.",
+      "statusReason": null,
+      "transcriptAvailability": "available",
+      "transcriptId": "TRN-011",
+      "depositionIds": [
+        "DEP-DW1-001"
+      ]
+    },
+    {
+      "hearingId": "HRG-010",
+      "hearingType": "Evidence of Accused",
+      "date": "2025-10-27",
+      "dateDisplay": "27 October 2025",
+      "status": "Abandoned",
+      "participantIds": [
+        "PARTY-A-001",
+        "WIT-DW1-001",
+        "ADV-A-001"
+      ],
+      "partiesDisplay": "Arun Das, Ajith Kumar +1",
+      "summary": "No evidence was recorded because DW-1 was not present.",
+      "statusReason": "Hearing did not proceed; defence evidence was fixed for 10 November 2025.",
+      "nextOn": "2025-11-10",
+      "transcriptAvailability": "not_available",
+      "transcriptId": null,
+      "depositionIds": []
+    },
+    {
+      "hearingId": "HRG-009",
+      "hearingType": "Examination of accused under S. 351 BNSS",
+      "date": "2025-10-13",
+      "dateDisplay": "13 October 2025",
+      "status": "Completed",
+      "participantIds": [
+        "PARTY-A-001",
+        "ADV-A-001"
+      ],
+      "partiesDisplay": "Arun Das, Adv. P. Balachandran",
+      "summary": "The accused was examined regarding the circumstances appearing in evidence and elected to adduce defence evidence.",
+      "statusReason": null,
+      "transcriptAvailability": "available",
+      "transcriptId": "TRN-009",
+      "depositionIds": []
+    },
+    {
+      "hearingId": "HRG-008",
+      "hearingType": "Evidence of Complainant",
+      "date": "2025-09-29",
+      "dateDisplay": "29 September 2025",
+      "status": "Completed",
+      "participantIds": [
+        "PARTY-C-001",
+        "WIT-PW2-001",
+        "ADV-C-001",
+        "ADV-A-001"
+      ],
+      "partiesDisplay": "Sunil Varghese, Priya Nair +2",
+      "summary": "Cross-examination of PW-2 concluded and complainant evidence was closed.",
+      "statusReason": null,
+      "transcriptAvailability": "available",
+      "transcriptId": "TRN-008",
+      "depositionIds": [
+        "DEP-PW2-001"
+      ]
+    },
+    {
+      "hearingId": "HRG-007",
+      "hearingType": "Evidence of Complainant",
+      "date": "2025-09-15",
+      "dateDisplay": "15 September 2025",
+      "status": "Completed",
+      "participantIds": [
+        "PARTY-C-001",
+        "WIT-PW2-001",
+        "ADV-C-001",
+        "ADV-A-001"
+      ],
+      "partiesDisplay": "Sunil Varghese, Priya Nair +2",
+      "summary": "Cross-examination of PW-1 concluded and PW-2 was examined in chief.",
+      "statusReason": null,
+      "transcriptAvailability": "available",
+      "transcriptId": "TRN-007",
+      "depositionIds": [
+        "DEP-PW1-002",
+        "DEP-PW2-001"
+      ]
+    },
+    {
+      "hearingId": "HRG-006",
+      "hearingType": "Evidence of Complainant",
+      "date": "2025-09-01",
+      "dateDisplay": "1 September 2025",
+      "status": "Completed",
+      "participantIds": [
+        "PARTY-C-001",
+        "ADV-C-001",
+        "PARTY-A-001",
+        "ADV-A-001"
+      ],
+      "partiesDisplay": "Sunil Varghese, Adv. Ramesh Menon +2",
+      "summary": "PW-1 was examined in chief, exhibits P1 to P5 were marked and cross-examination commenced.",
+      "statusReason": null,
+      "transcriptAvailability": "available",
+      "transcriptId": "TRN-006",
+      "depositionIds": [
+        "DEP-PW1-001"
+      ]
+    },
+    {
+      "hearingId": "HRG-005",
+      "hearingType": "Application Review",
+      "date": "2025-08-18",
+      "dateDisplay": "18 August 2025",
+      "status": "Completed",
+      "participantIds": [
+        "PARTY-C-001",
+        "PARTY-A-001",
+        "ADV-C-001",
+        "ADV-A-001"
+      ],
+      "partiesDisplay": "Sunil Varghese, Arun Das +2",
+      "summary": "Application seeking production of the bank return record was allowed.",
+      "statusReason": null,
+      "transcriptAvailability": "temporarily_unavailable",
+      "transcriptId": "TRN-005",
+      "depositionIds": []
+    },
+    {
+      "hearingId": "HRG-004",
+      "hearingType": "Plea",
+      "date": "2025-08-04",
+      "dateDisplay": "4 August 2025",
+      "status": "Completed",
+      "participantIds": [
+        "PARTY-A-001",
+        "ADV-A-001"
+      ],
+      "partiesDisplay": "Arun Das, Adv. P. Balachandran",
+      "summary": "The accused pleaded not guilty and claimed trial.",
+      "statusReason": null,
+      "transcriptAvailability": "available",
+      "transcriptId": "TRN-004",
+      "depositionIds": []
+    },
+    {
+      "hearingId": "HRG-003",
+      "hearingType": "Appearance",
+      "date": "2025-08-04",
+      "dateDisplay": "4 August 2025",
+      "status": "Completed",
+      "participantIds": [
+        "PARTY-C-001",
+        "PARTY-A-001",
+        "ADV-C-001",
+        "ADV-A-001"
+      ],
+      "partiesDisplay": "Sunil Varghese, Arun Das +2",
+      "summary": "The accused appeared through counsel and bail was granted subject to conditions.",
+      "statusReason": null,
+      "transcriptAvailability": "available",
+      "transcriptId": "TRN-003",
+      "depositionIds": []
+    },
+    {
+      "hearingId": "HRG-002",
+      "hearingType": "Appearance",
+      "date": "2025-07-21",
+      "dateDisplay": "21 July 2025",
+      "status": "Abandoned",
+      "participantIds": [
+        "PARTY-C-001",
+        "ADV-C-001"
+      ],
+      "partiesDisplay": "Sunil Varghese, Adv. Ramesh Menon",
+      "summary": "The hearing did not proceed because service on the accused was incomplete.",
+      "statusReason": "Fresh summons directed; appearance fixed for 4 August 2025.",
+      "nextOn": "2025-08-04",
+      "transcriptAvailability": "not_available",
+      "transcriptId": null,
+      "depositionIds": []
+    },
+    {
+      "hearingId": "HRG-001",
+      "hearingType": "Cognizance",
+      "date": "2025-06-23",
+      "dateDisplay": "23 June 2025",
+      "status": "Completed",
+      "participantIds": [
+        "PARTY-C-001",
+        "ADV-C-001"
+      ],
+      "partiesDisplay": "Sunil Varghese, Adv. Ramesh Menon",
+      "summary": "The complaint and verification materials were considered; cognizance was taken and process was directed.",
+      "statusReason": null,
+      "transcriptAvailability": "restricted",
+      "transcriptId": "TRN-001",
+      "depositionIds": []
+    },
+    {
+      "hearingId": "HRG-M01",
+      "hearingType": "Appearance",
+      "date": "2025-07-07",
+      "dateDisplay": "7 July 2025",
+      "status": "Completed",
+      "participantIds": [],
+      "partiesDisplay": "",
+      "summary": "",
+      "statusReason": null,
+      "migrated": true,
+      "transcriptAvailability": "not_available",
+      "transcriptId": null,
+      "depositionIds": []
+    }
+  ],
+  "transcripts": [
+    {
+      "transcriptId": "TRN-015",
+      "hearingId": "HRG-015",
+      "title": "Execution \u2014 12 January 2026",
+      "recordType": "Hearing transcript summary",
+      "isVerbatim": false,
+      "status": "available",
+      "startTime": "11:20",
+      "endTime": "11:40",
+      "summary": "Partial payment was recorded. The accused sought time for payment of the balance and the court recorded a compliance direction.",
+      "entries": [
+        {
+          "time": "11:20",
+          "speaker": "Court",
+          "text": "Matter called for compliance."
+        },
+        {
+          "time": "11:25",
+          "speaker": "Accused counsel",
+          "text": "Reported partial payment and requested time for the balance."
+        },
+        {
+          "time": "11:40",
+          "speaker": "Court",
+          "text": "Compliance direction recorded in the formal order."
+        }
+      ]
+    },
+    {
+      "transcriptId": "TRN-014",
+      "hearingId": "HRG-014",
+      "title": "Judgement \u2014 15 December 2025",
+      "recordType": "Hearing transcript summary",
+      "isVerbatim": false,
+      "status": "available",
+      "startTime": "15:10",
+      "endTime": "15:30",
+      "summary": "Judgment was pronounced in open court. The accused was convicted and the operative sentence and compensation directions were recorded in the formal judgment and sentence order.",
+      "entries": [
+        {
+          "time": "15:10",
+          "speaker": "Court",
+          "text": "Matter called for pronouncement of judgment."
+        },
+        {
+          "time": "15:15",
+          "speaker": "Court",
+          "text": "Judgment pronounced; accused convicted."
+        },
+        {
+          "time": "15:30",
+          "speaker": "Court record",
+          "text": "Operative directions recorded in the formal judgment and sentence order."
+        }
+      ]
+    },
+    {
+      "transcriptId": "TRN-013",
+      "hearingId": "HRG-013",
+      "title": "Arguments \u2014 1 December 2025",
+      "recordType": "Hearing transcript summary",
+      "isVerbatim": false,
+      "status": "available",
+      "startTime": "14:10",
+      "endTime": "15:00",
+      "summary": "Arguments for both sides concluded, written submissions were taken on record and judgment was reserved for 15 December 2025.",
+      "entries": [
+        {
+          "time": "14:10",
+          "speaker": "Court",
+          "text": "Matter called for further arguments."
+        },
+        {
+          "time": "14:15",
+          "speaker": "Complainant counsel",
+          "text": "Completed submissions on liability, dishonour and service of notice."
+        },
+        {
+          "time": "14:32",
+          "speaker": "Accused counsel",
+          "text": "Completed submissions on the security-cheque defence and disputed accounts."
+        },
+        {
+          "time": "14:50",
+          "speaker": "Court record",
+          "text": "Written submissions from both sides taken on record."
+        },
+        {
+          "time": "15:00",
+          "speaker": "Court",
+          "text": "Judgment reserved for 15 December 2025."
+        }
+      ]
+    },
+    {
+      "transcriptId": "TRN-012",
+      "hearingId": "HRG-012",
+      "title": "Arguments \u2014 24 November 2025",
+      "recordType": "Hearing transcript summary",
+      "isVerbatim": false,
+      "status": "available",
+      "startTime": "14:05",
+      "endTime": "14:50",
+      "summary": "The complainant completed oral arguments. The accused commenced arguments, which remained part-heard.",
+      "entries": [
+        {
+          "time": "14:05",
+          "speaker": "Court",
+          "text": "Matter called for arguments."
+        },
+        {
+          "time": "14:10",
+          "speaker": "Complainant counsel",
+          "text": "Addressed the court on the transaction, dishonour and statutory notice."
+        },
+        {
+          "time": "14:35",
+          "speaker": "Accused counsel",
+          "text": "Commenced submissions on the defence case."
+        },
+        {
+          "time": "14:50",
+          "speaker": "Court",
+          "text": "Further arguments fixed for 1 December 2025."
+        }
+      ]
+    },
+    {
+      "transcriptId": "TRN-011",
+      "hearingId": "HRG-011",
+      "title": "Evidence of Accused \u2014 10 November 2025",
+      "recordType": "Hearing transcript summary",
+      "isVerbatim": false,
+      "status": "available",
+      "startTime": "11:30",
+      "endTime": "12:20",
+      "summary": "DW-1 Ajith Kumar was examined and cross-examined. Exhibits D1 and D2 were referred to and defence evidence was closed.",
+      "entries": [
+        {
+          "time": "11:30",
+          "speaker": "Court",
+          "text": "DW-1 tendered for defence evidence."
+        },
+        {
+          "time": "11:35",
+          "speaker": "Accused counsel",
+          "text": "Examination in chief commenced regarding the defence account records."
+        },
+        {
+          "time": "11:55",
+          "speaker": "Complainant counsel",
+          "text": "Cross-examined DW-1 regarding the adjustment note and supporting acknowledgement."
+        },
+        {
+          "time": "12:20",
+          "speaker": "Court",
+          "text": "Defence reported no further evidence; defence evidence closed."
+        }
+      ]
+    },
+    {
+      "transcriptId": "TRN-009",
+      "hearingId": "HRG-009",
+      "title": "Examination of accused under S. 351 BNSS \u2014 13 October 2025",
+      "recordType": "Hearing transcript summary",
+      "isVerbatim": false,
+      "status": "available",
+      "startTime": "11:10",
+      "endTime": "11:35",
+      "summary": "The accused was examined regarding the circumstances appearing in evidence. The accused disputed the liability and elected to adduce defence evidence.",
+      "entries": [
+        {
+          "time": "11:10",
+          "speaker": "Court",
+          "text": "Accused present for examination under S. 351 BNSS."
+        },
+        {
+          "time": "11:15",
+          "speaker": "Court record",
+          "text": "Relevant circumstances appearing in evidence were put to the accused."
+        },
+        {
+          "time": "11:30",
+          "speaker": "Accused",
+          "text": "Disputed the liability and elected to adduce defence evidence."
+        },
+        {
+          "time": "11:35",
+          "speaker": "Court",
+          "text": "Defence evidence fixed for 27 October 2025."
+        }
+      ]
+    },
+    {
+      "transcriptId": "TRN-008",
+      "hearingId": "HRG-008",
+      "title": "Evidence of Complainant \u2014 29 September 2025",
+      "recordType": "Hearing transcript summary",
+      "isVerbatim": false,
+      "status": "available",
+      "startTime": "11:05",
+      "endTime": "11:35",
+      "summary": "Cross-examination of PW-2 concluded. The complainant reported no further evidence and complainant evidence was closed.",
+      "entries": [
+        {
+          "time": "11:05",
+          "speaker": "Court",
+          "text": "PW-2 present for further evidence."
+        },
+        {
+          "time": "11:10",
+          "speaker": "Accused counsel",
+          "text": "Cross-examined PW-2 regarding the scope of the bank record."
+        },
+        {
+          "time": "11:28",
+          "speaker": "Complainant counsel",
+          "text": "Reported no further complainant evidence."
+        },
+        {
+          "time": "11:35",
+          "speaker": "Court",
+          "text": "Complainant evidence closed; S. 351 BNSS examination fixed for 13 October 2025."
+        }
+      ]
+    },
+    {
+      "transcriptId": "TRN-007",
+      "hearingId": "HRG-007",
+      "title": "Evidence of Complainant \u2014 15 September 2025",
+      "recordType": "Hearing transcript summary",
+      "isVerbatim": false,
+      "status": "available",
+      "startTime": "11:00",
+      "endTime": "12:10",
+      "summary": "Further cross-examination of PW-1 concluded. PW-2 was examined in chief and Exhibit P6 was marked.",
+      "entries": [
+        {
+          "time": "11:00",
+          "speaker": "Court",
+          "text": "PW-1 present for further cross-examination."
+        },
+        {
+          "time": "11:05",
+          "speaker": "Accused counsel",
+          "text": "Further cross-examined PW-1 regarding delivery and invoicing."
+        },
+        {
+          "time": "11:35",
+          "speaker": "Court record",
+          "text": "Cross-examination of PW-1 concluded."
+        },
+        {
+          "time": "11:45",
+          "speaker": "Complainant counsel",
+          "text": "PW-2 tendered and examined in chief."
+        },
+        {
+          "time": "12:10",
+          "speaker": "Court",
+          "text": "Cross-examination of PW-2 fixed for 29 September 2025."
+        }
+      ]
+    },
+    {
+      "transcriptId": "TRN-006",
+      "hearingId": "HRG-006",
+      "title": "Evidence of Complainant \u2014 1 September 2025",
+      "recordType": "Hearing transcript",
+      "isVerbatim": true,
+      "status": "available",
+      "startTime": "11:15",
+      "endTime": "12:05",
+      "summary": "PW-1 was examined in chief. Exhibits P1 to P5 were marked. Cross-examination commenced and further cross-examination was fixed for 15 September 2025.",
+      "entries": [
+        {
+          "time": "11:15",
+          "speaker": "Court",
+          "text": "Matter called. Parties and counsel present."
+        },
+        {
+          "time": "11:18",
+          "speaker": "Complainant counsel",
+          "text": "PW-1 tendered for examination in chief."
+        },
+        {
+          "time": "11:25",
+          "speaker": "PW-1",
+          "text": "Identified the transaction, cheque and cheque-return record."
+        },
+        {
+          "time": "11:38",
+          "speaker": "Court record",
+          "text": "Exhibits P1 to P5 marked subject to the record."
+        },
+        {
+          "time": "11:42",
+          "speaker": "Accused counsel",
+          "text": "Cross-examination commenced regarding supply and delivery."
+        },
+        {
+          "time": "12:05",
+          "speaker": "Court",
+          "text": "Further cross-examination fixed for 15 September 2025."
+        }
+      ]
+    },
+    {
+      "transcriptId": "TRN-005",
+      "hearingId": "HRG-005",
+      "title": "Application Review \u2014 18 August 2025",
+      "recordType": "Hearing transcript summary",
+      "isVerbatim": false,
+      "status": "temporarily_unavailable",
+      "startTime": "11:45",
+      "endTime": "12:05",
+      "summary": "The application seeking production of the bank return record was considered and allowed.",
+      "entries": [
+        {
+          "time": "11:45",
+          "speaker": "Court",
+          "text": "Application taken up for consideration."
+        },
+        {
+          "time": "11:50",
+          "speaker": "Complainant counsel",
+          "text": "Requested production of the bank return record through the proposed bank witness."
+        },
+        {
+          "time": "12:05",
+          "speaker": "Court",
+          "text": "Application allowed; bank witness permitted to produce the record."
+        }
+      ]
+    },
+    {
+      "transcriptId": "TRN-004",
+      "hearingId": "HRG-004",
+      "title": "Plea \u2014 4 August 2025",
+      "recordType": "Hearing transcript summary",
+      "isVerbatim": false,
+      "status": "available",
+      "startTime": "12:10",
+      "endTime": "12:20",
+      "summary": "The substance of accusation was stated to the accused, who pleaded not guilty and claimed trial.",
+      "entries": [
+        {
+          "time": "12:10",
+          "speaker": "Court",
+          "text": "Matter taken up for plea."
+        },
+        {
+          "time": "12:15",
+          "speaker": "Accused",
+          "text": "Pleaded not guilty and claimed trial."
+        },
+        {
+          "time": "12:20",
+          "speaker": "Court",
+          "text": "Complainant evidence fixed for 1 September 2025."
+        }
+      ]
+    },
+    {
+      "transcriptId": "TRN-003",
+      "hearingId": "HRG-003",
+      "title": "Appearance \u2014 4 August 2025",
+      "recordType": "Hearing transcript summary",
+      "isVerbatim": false,
+      "status": "available",
+      "startTime": "11:40",
+      "endTime": "12:05",
+      "summary": "The accused appeared through counsel. Bail was granted subject to the conditions contained in the formal bail order.",
+      "entries": [
+        {
+          "time": "11:40",
+          "speaker": "Court",
+          "text": "Accused appeared through counsel."
+        },
+        {
+          "time": "11:45",
+          "speaker": "Accused counsel",
+          "text": "Moved the bail application and tendered bond."
+        },
+        {
+          "time": "12:05",
+          "speaker": "Court",
+          "text": "Bail granted subject to conditions recorded in the formal order."
+        }
+      ]
+    },
+    {
+      "transcriptId": "TRN-001",
+      "hearingId": "HRG-001",
+      "title": "Cognizance \u2014 23 June 2025",
+      "recordType": "Hearing transcript summary",
+      "isVerbatim": false,
+      "status": "restricted",
+      "startTime": "11:10",
+      "endTime": "11:25",
+      "summary": "The complaint and verification materials were considered. Cognizance was taken and process was directed.",
+      "entries": [
+        {
+          "time": "11:10",
+          "speaker": "Court",
+          "text": "Complaint and verification materials taken up for consideration."
+        },
+        {
+          "time": "11:20",
+          "speaker": "Court record",
+          "text": "Cognizance taken; process directed."
+        },
+        {
+          "time": "11:25",
+          "speaker": "Court",
+          "text": "Appearance fixed for 21 July 2025."
+        }
+      ]
+    }
+  ],
+  "witnessDepositions": [
+    {
+      "depositionId": "DEP-PW1-001",
+      "hearingIds": [
+        "HRG-006"
+      ],
+      "witnessNumber": "PW-1",
+      "witnessName": "Benny Alexander",
+      "witnessType": "Complainant witness",
+      "examinationStage": "Examination in chief and part cross-examination",
+      "status": "Partly recorded",
+      "summary": "The witness identified the transaction, cheque, return memo, legal demand notice and service records and denied that the cheque was retained only as security.",
+      "exhibits": [
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5"
+      ],
+      "continuationDate": "2025-09-15"
+    },
+    {
+      "depositionId": "DEP-PW1-002",
+      "hearingIds": [
+        "HRG-007"
+      ],
+      "witnessNumber": "PW-1",
+      "witnessName": "Benny Alexander",
+      "witnessType": "Complainant witness",
+      "examinationStage": "Further cross-examination",
+      "status": "Completed",
+      "summary": "Further cross-examination regarding delivery, invoicing and the alleged security-cheque arrangement was completed.",
+      "exhibits": [
+        "P1",
+        "P2",
+        "P3"
+      ],
+      "continuationDate": null
+    },
+    {
+      "depositionId": "DEP-PW2-001",
+      "hearingIds": [
+        "HRG-007",
+        "HRG-008"
+      ],
+      "witnessNumber": "PW-2",
+      "witnessName": "Priya Nair",
+      "witnessType": "Bank witness",
+      "examinationStage": "Examination in chief and cross-examination",
+      "status": "Completed",
+      "summary": "The witness identified the bank cheque-return record and stated that the testimony was limited to the bank record.",
+      "exhibits": [
+        "P6"
+      ],
+      "continuationDate": null
+    },
+    {
+      "depositionId": "DEP-DW1-001",
+      "hearingIds": [
+        "HRG-011"
+      ],
+      "witnessNumber": "DW-1",
+      "witnessName": "Ajith Kumar",
+      "witnessType": "Defence witness",
+      "examinationStage": "Examination in chief and cross-examination",
+      "status": "Completed",
+      "summary": "The witness described the defence account records and accepted that the adjustment note did not contain an acknowledgement signed by the complainant.",
+      "exhibits": [
+        "D1",
+        "D2"
+      ],
+      "continuationDate": null
+    }
+  ],
+  "interactionRules": {
+    "sortOrder": "date_descending",
+    "defaultRowsPerPage": 10,
+    "rowsPerPageOptions": [
+      10,
+      20,
+      30,
+      40,
+      50
+    ],
+    "filterMode": "party_type_and_status",
+    "transcriptActionLabel": "View transcript",
+    "depositionActionLabel": "View witness deposition",
+    "hideUnavailableActions": true,
+    "multipleDepositionsOpenSelectionList": true
+  }
+}

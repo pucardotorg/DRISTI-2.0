@@ -1,0 +1,509 @@
+{
+  "fixtureId": "DRISTI-PARTIES-SECTION138-001",
+  "isDummyData": true,
+  "partyRegister": {
+    "Abdul Salam": {
+      "kind": "individual"
+    },
+    "Aggarwal Motors": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Ambala Paper Mills": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
+    "Amit Khurana": {
+      "kind": "individual"
+    },
+    "Anand Traders": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
+    "Anil Kumar T": {
+      "kind": "individual"
+    },
+    "Aster Pharma Retail": {
+      "kind": "entity",
+      "entityType": "Private limited company"
+    },
+    "Ayesha Rahman": {
+      "kind": "individual"
+    },
+    "Backwater Logistics LLP": {
+      "kind": "entity",
+      "entityType": "Limited liability partnership"
+    },
+    "Balan Nair": {
+      "kind": "individual"
+    },
+    "Bhaskaran Nair": {
+      "kind": "individual"
+    },
+    "Bindu Rajan": {
+      "kind": "individual"
+    },
+    "Capitol Stationery": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Cardamom Hills Estate": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
+    "Coastal Agro Exports Pvt Ltd": {
+      "kind": "entity",
+      "entityType": "Private limited company"
+    },
+    "Copper Leaf Cafe": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Crescent Hardware": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Deepa Pillai": {
+      "kind": "individual"
+    },
+    "Deepa Suresh": {
+      "kind": "individual"
+    },
+    "Devi Enterprises": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Elite Tyres": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Elsa Thomas": {
+      "kind": "individual"
+    },
+    "Fathima Beevi": {
+      "kind": "individual"
+    },
+    "Ferns Interiors": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Ganesh Iyer": {
+      "kind": "individual"
+    },
+    "Geetha Mohan": {
+      "kind": "individual"
+    },
+    "Gill Steel Fabricators": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
+    "Greenfield Nurseries": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Gurpreet Ahuja": {
+      "kind": "individual"
+    },
+    "Harbour Line Shipping": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
+    "Hari Govind": {
+      "kind": "individual"
+    },
+    "Highland Rubber Works": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
+    "Ibrahim Kutty": {
+      "kind": "individual"
+    },
+    "Jaspreet Bedi": {
+      "kind": "individual"
+    },
+    "Jayaprakash Nambiar": {
+      "kind": "individual"
+    },
+    "Jomon Sebastian": {
+      "kind": "individual"
+    },
+    "Joseph Antony": {
+      "kind": "individual"
+    },
+    "Karun Malhotra": {
+      "kind": "individual"
+    },
+    "Kerala Spice Traders Association": {
+      "kind": "entity",
+      "entityType": "Registered association"
+    },
+    "Kiran Auto Works": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Kiran Mathew": {
+      "kind": "individual"
+    },
+    "Kohli Electricals": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Lakshmi Priya R": {
+      "kind": "individual"
+    },
+    "Latha Krishnan": {
+      "kind": "individual"
+    },
+    "Mandeep Kaur": {
+      "kind": "individual"
+    },
+    "Manoj Pillai": {
+      "kind": "individual"
+    },
+    "Mathew Philip": {
+      "kind": "individual"
+    },
+    "Meenakshi Nair": {
+      "kind": "individual"
+    },
+    "Metro Glass Works": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
+    "Muhammed Ashraf": {
+      "kind": "individual"
+    },
+    "Nazeer Hussain": {
+      "kind": "individual"
+    },
+    "Nithin Jose": {
+      "kind": "individual"
+    },
+    "Noushad M": {
+      "kind": "individual"
+    },
+    "Nova Print House": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Orchid Builders": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
+    "Palm Grove Resorts": {
+      "kind": "entity",
+      "entityType": "Private limited company"
+    },
+    "Panchkula Print Hub": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Pearl Aqua Farms": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
+    "Prakash Chandran": {
+      "kind": "individual"
+    },
+    "Prasad Kumar": {
+      "kind": "individual"
+    },
+    "Radhika Menon": {
+      "kind": "individual"
+    },
+    "Rajeev Menon": {
+      "kind": "individual"
+    },
+    "Rapid Freight Movers": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
+    "Ravi Sankar": {
+      "kind": "individual"
+    },
+    "Remya S": {
+      "kind": "individual"
+    },
+    "Reshma Pillai": {
+      "kind": "individual"
+    },
+    "Rithika Textiles": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Ritu Bansal": {
+      "kind": "individual"
+    },
+    "Sagar Fisheries": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Sajeev Kumar": {
+      "kind": "individual"
+    },
+    "Salim Traders": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Seaside Marine Foods": {
+      "kind": "entity",
+      "entityType": "Private limited company"
+    },
+    "Sethi Cold Storage": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Shanmugam V": {
+      "kind": "individual"
+    },
+    "Sheeba Varghese": {
+      "kind": "individual"
+    },
+    "Shivalik Agro Mart": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Shubhreet Singh": {
+      "kind": "individual"
+    },
+    "Silverline Motors": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Sreekumar P": {
+      "kind": "individual"
+    },
+    "Standard Chit Funds Ltd": {
+      "kind": "entity",
+      "entityType": "Private limited company"
+    },
+    "Sunil Varghese": {
+      "kind": "individual"
+    },
+    "Sunlit Solar Systems": {
+      "kind": "entity",
+      "entityType": "Private limited company"
+    },
+    "Sunrise Tours": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Susan Jacob": {
+      "kind": "individual"
+    },
+    "Thomas Kurian": {
+      "kind": "individual"
+    },
+    "Tricity Constructions": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
+    "Trivandrum Tile Works": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
+    "Unnikrishnan K": {
+      "kind": "individual"
+    },
+    "Vasanth Kumar S": {
+      "kind": "individual"
+    },
+    "Vijayan Pillai": {
+      "kind": "individual"
+    },
+    "Vinod Sharma": {
+      "kind": "individual"
+    },
+    "Western Ghats Timber": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
+    "Zenith Publishers": {
+      "kind": "entity",
+      "entityType": "Private limited company"
+    }
+  },
+  "cases": {
+    "c-1001": {
+      "parties": [
+        {
+          "id": "pty-1001-c1",
+          "side": "complainant",
+          "name": "Sunil Varghese",
+          "powerOfAttorneyHolder": "Thomas Varghese"
+        },
+        {
+          "id": "pty-1001-a1",
+          "side": "accused",
+          "name": "Anand Traders",
+          "entityRepresentative": {
+            "name": "Manoj Pillai",
+            "designation": "Managing partner",
+            "partyId": "pty-1001-a2"
+          }
+        },
+        {
+          "id": "pty-1001-a2",
+          "side": "accused",
+          "name": "Manoj Pillai",
+          "designation": "Managing partner",
+          "representsPartyId": "pty-1001-a1"
+        },
+        {
+          "id": "pty-1001-a3",
+          "side": "accused",
+          "name": "Deepa Pillai",
+          "designation": "Partner",
+          "representsPartyId": "pty-1001-a1",
+          "powerOfAttorneyHolder": "Manoj Pillai"
+        }
+      ],
+      "legalTeams": [
+        {
+          "id": "team-1001-1",
+          "advocate": "Adv. Ramesh Menon",
+          "side": "complainant",
+          "clientPartyIds": [
+            "pty-1001-c1"
+          ],
+          "juniors": [
+            "Adv. Anjali Nair"
+          ],
+          "clerks": [
+            "Suresh Kumar"
+          ]
+        },
+        {
+          "id": "team-1001-2",
+          "advocate": "Adv. Suresh Menon",
+          "side": "complainant",
+          "clientPartyIds": [
+            "pty-1001-c1"
+          ],
+          "juniors": [
+            "Adv. Joel Mathew"
+          ],
+          "clerks": [
+            "Latha S."
+          ]
+        },
+        {
+          "id": "team-1001-3",
+          "advocate": "Adv. P. Balachandran",
+          "side": "accused",
+          "clientPartyIds": [
+            "pty-1001-a1",
+            "pty-1001-a2",
+            "pty-1001-a3"
+          ],
+          "juniors": [
+            "Adv. Nikhil Raj"
+          ],
+          "clerks": [
+            "Binu George"
+          ]
+        },
+        {
+          "id": "team-1001-4",
+          "advocate": "Adv. Asha Nair",
+          "side": "accused",
+          "clientPartyIds": [
+            "pty-1001-a1",
+            "pty-1001-a2"
+          ],
+          "juniors": [
+            "Adv. Devika Menon"
+          ],
+          "clerks": [
+            "Reji K."
+          ]
+        }
+      ],
+      "witnesses": [
+        {
+          "id": "wit-1001-pw1",
+          "name": "Benny Alexander",
+          "side": "complainant",
+          "numberPrefix": "PW",
+          "numberIndex": 1,
+          "description": "Accountant to the complainant",
+          "linkedPartyId": "pty-1001-c1",
+          "addedBy": "complainant"
+        },
+        {
+          "id": "wit-1001-pw2",
+          "name": "Priya Nair",
+          "side": "complainant",
+          "numberPrefix": "PW",
+          "numberIndex": 2,
+          "description": "Assistant manager, South Kerala Bank",
+          "linkedPartyId": "pty-1001-c1",
+          "addedBy": "complainant"
+        },
+        {
+          "id": "wit-1001-dw1",
+          "name": "Ajith Kumar",
+          "side": "accused",
+          "numberPrefix": "DW",
+          "numberIndex": 1,
+          "description": "Former procurement manager",
+          "linkedPartyId": "pty-1001-a2",
+          "addedBy": "accused"
+        },
+        {
+          "id": "wit-1001-dw2",
+          "name": "Rajan Kuriakose",
+          "side": "accused",
+          "numberPrefix": "DW",
+          "numberIndex": 2,
+          "description": "Supplier",
+          "linkedPartyId": "pty-1001-a1",
+          "addedBy": "accused"
+        },
+        {
+          "id": "wit-1001-cw1",
+          "name": "Dr. Susan Kurian",
+          "side": "neither",
+          "numberPrefix": "CW",
+          "numberIndex": 1,
+          "description": "Court-appointed handwriting expert",
+          "addedBy": "court"
+        }
+      ]
+    },
+    "c-1005": {
+      "parties": [
+        {
+          "id": "pty-1005-c1",
+          "side": "complainant",
+          "name": "Ayesha Rahman"
+        },
+        {
+          "id": "pty-1005-a1",
+          "side": "accused",
+          "name": "Sreekumar P",
+          "partyInPerson": true
+        }
+      ]
+    },
+    "c-1010": {
+      "parties": [
+        {
+          "id": "pty-1010-c1",
+          "side": "complainant",
+          "name": "Standard Chit Funds Ltd",
+          "entityRepresentative": {
+            "name": "Anil Varghese",
+            "designation": "Branch manager"
+          }
+        },
+        {
+          "id": "pty-1010-a1",
+          "side": "accused",
+          "name": "Prakash Chandran",
+          "powerOfAttorneyHolder": "Suma Chandran"
+        }
+      ]
+    }
+  }
+}

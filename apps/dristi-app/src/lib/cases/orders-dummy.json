@@ -1,0 +1,161 @@
+{
+  "fixtureId": "DRISTI-ORDERS-SECTION138-001",
+  "isDummyData": true,
+  "case": {
+    "caseTitle": "Sunil Varghese v. Anand Traders",
+    "complaintCaseNumber": "CMP/1842/2025",
+    "caseNumber": "ST/412/2025",
+    "filingNumber": "KL-DUMMY-001386-2025",
+    "court": "Judicial First Class Magistrate Court-I, Kollam"
+  },
+  "filters": {
+    "parties": [
+      {
+        "id": "PARTY-C-001",
+        "label": "Sunil Varghese — Complainant"
+      },
+      {
+        "id": "PARTY-A-001",
+        "label": "Arun Das, proprietor of Anand Traders — Accused"
+      },
+      {
+        "id": "ADV-C-001",
+        "label": "Adv. Ramesh Menon — Complainant counsel"
+      },
+      {
+        "id": "ADV-A-001",
+        "label": "Adv. P. Balachandran — Accused counsel"
+      }
+    ]
+  },
+  "orders": [
+    {
+      "orderId": "KL-DUMMY-001386-2025-OR10",
+      "type": "Schedule of hearing date",
+      "status": "Pending signature",
+      "issuedOn": "2026-01-05",
+      "botd": "The case was posted for reporting compliance with the payment directed and the date of hearing was notified to both sides.",
+      "participantIds": ["PARTY-C-001", "PARTY-A-001"],
+      "partiesDisplay": "Sunil Varghese (Complainant), Arun Das (Accused)",
+      "issuedDocument": null
+    },
+    {
+      "orderId": "KL-DUMMY-001386-2025-OR9",
+      "type": "Execution of sentence and compensation",
+      "status": "Published",
+      "issuedOn": "2025-12-20",
+      "botd": "The compensation awarded on conviction was directed to be paid within the time allowed and the matter was taken up for execution.",
+      "participantIds": ["PARTY-C-001", "PARTY-A-001"],
+      "partiesDisplay": "Sunil Varghese (Complainant), Arun Das (Accused)",
+      "issuedDocument": null
+    },
+    {
+      "orderId": "KL-DUMMY-001386-2025-OR8",
+      "type": "Judgement",
+      "status": "Published",
+      "issuedOn": "2025-12-15",
+      "botd": "Judgment was pronounced in open court and the operative portion was read out to the parties present.",
+      "participantIds": ["PARTY-C-001", "PARTY-A-001"],
+      "partiesDisplay": "Sunil Varghese (Complainant), Arun Das (Accused)",
+      "issuedDocument": {
+        "label": "Issued order",
+        "href": "/case-file/09-orders.pdf",
+        "page": 10
+      }
+    },
+    {
+      "orderId": "KL-DUMMY-001386-2025-OR7",
+      "type": "Witness batta",
+      "status": "Published",
+      "issuedOn": "2025-11-18",
+      "botd": "Batta payable to the defence witness examined on 10 November 2025 was sanctioned and ordered to be disbursed.",
+      "participantIds": ["PARTY-A-001"],
+      "partiesDisplay": "Arun Das (Accused)",
+      "issuedDocument": null
+    },
+    {
+      "orderId": "KL-DUMMY-001386-2025-OR6",
+      "type": "Schedule of hearing date",
+      "status": "Published",
+      "issuedOn": "2025-10-02",
+      "botd": "The case was posted for examination of the accused and the date of hearing was notified to both sides.",
+      "participantIds": ["PARTY-C-001", "PARTY-A-001"],
+      "partiesDisplay": "Sunil Varghese (Complainant), Arun Das (Accused)",
+      "issuedDocument": null
+    },
+    {
+      "orderId": "KL-DUMMY-001386-2025-NT1",
+      "type": "Notification for bulk reschedule",
+      "status": "Published",
+      "issuedOn": "2025-10-02",
+      "botd": "Sittings listed for the day were rescheduled and the revised dates were notified to all parties on record.",
+      "participantIds": [],
+      "partiesDisplay": "",
+      "issuedDocument": null
+    },
+    {
+      "orderId": "KL-DUMMY-001386-2025-OR4",
+      "type": "Bail",
+      "status": "Published",
+      "issuedOn": "2025-08-04",
+      "botd": "The accused was released on bail on executing a bond with one surety for the like sum.",
+      "participantIds": ["PARTY-C-001", "PARTY-A-001"],
+      "partiesDisplay": "Sunil Varghese (Complainant), Arun Das (Accused)",
+      "issuedDocument": {
+        "label": "Issued order",
+        "href": "/case-file/09-orders.pdf",
+        "page": 4
+      }
+    },
+    {
+      "orderId": "KL-DUMMY-001386-2025-OR5",
+      "type": "Summons",
+      "title": "Fresh summons",
+      "status": "Published",
+      "issuedOn": "2025-07-21",
+      "botd": "Service on the accused was reported incomplete and fresh summons was ordered for appearance on the date fixed.",
+      "participantIds": ["PARTY-A-001"],
+      "partiesDisplay": "Arun Das (Accused)",
+      "issuedDocument": null
+    },
+    {
+      "orderId": "KL-DUMMY-001386-2025-OR3",
+      "type": "Schedule of hearing date",
+      "title": "Schedule of hearing date and other items",
+      "status": "Published",
+      "issuedOn": "2025-06-23",
+      "botd": "The case was posted for appearance of the accused and directions were issued on the pending items.",
+      "participantIds": ["PARTY-C-001", "PARTY-A-001"],
+      "partiesDisplay": "Sunil Varghese (Complainant), Arun Das (Accused)",
+      "issuedDocument": null
+    },
+    {
+      "orderId": "KL-DUMMY-001386-2025-OR2",
+      "type": "Summons",
+      "status": "Published",
+      "issuedOn": "2025-06-23",
+      "botd": "Summons was ordered to the accused for appearance on the date fixed.",
+      "participantIds": ["PARTY-A-001"],
+      "partiesDisplay": "Arun Das (Accused)",
+      "issuedDocument": {
+        "label": "Issued summons",
+        "href": "/case-file/09-orders.pdf",
+        "page": 3
+      }
+    },
+    {
+      "orderId": "KL-DUMMY-001386-2025-OR1",
+      "type": "Order for taking cognizance",
+      "status": "Published",
+      "issuedOn": "2025-06-23",
+      "botd": "Cognizance was taken of the offence alleged and the complaint was taken on file.",
+      "participantIds": ["PARTY-C-001", "PARTY-A-001"],
+      "partiesDisplay": "Sunil Varghese (Complainant), Arun Das (Accused)",
+      "issuedDocument": {
+        "label": "Issued order",
+        "href": "/case-file/09-orders.pdf",
+        "page": 2
+      }
+    }
+  ]
+}
