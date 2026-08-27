@@ -1,0 +1,245 @@
+/**
+ * Table columns for the Cases list. Case number and case name are separate.
+ * Every row has a name. Next hearing is the date; purpose is optional.
+ *
+ * Counsel is one column, not one per side: two advocate columns cost a third
+ * of the table's width to carry one name each, and the side is a two-letter
+ * fact. Advocates stacks both sides in a single cell, each name marked (C) or
+ * (A) — see `case-advocates.tsx`.
+ *
+ * Case number is locked — it opens the case peek. Bookmark is an action, not
+ * in this list. Everything else can be shown, hidden, or reordered.
+ */
+export const TABLE_COLUMNS = [
+  { id: "caseNumber", label: "Case number", locked: true, defaultVisible: true },
+  { id: "caseName", label: "Case name", locked: false, defaultVisible: true },
+  { id: "stage", label: "Stage", locked: false, defaultVisible: true },
+  {
+    id: "advocates",
+    label: "Advocates",
+    locked: false,
+    defaultVisible: true,
+  },
+  {
+    id: "nextHearing",
+    label: "Next hearing",
+    locked: false,
+    defaultVisible: true,
+  },
+  {
+    id: "hearingPurpose",
+    label: "Hearing purpose",
+    locked: false,
+    defaultVisible: false,
+  },
+  {
+    id: "previousHearing",
+    label: "Previous hearing",
+    locked: false,
+    defaultVisible: false,
+  },
+  {
+    id: "latestUpdate",
+    label: "Latest update",
+    locked: false,
+    defaultVisible: false,
+  },
+] as const;
+
+export type TableColumnId = (typeof TABLE_COLUMNS)[number]["id"];
+
+export type ToggleableTableColumnId = Exclude<TableColumnId, "caseNumber">;
+
+export const DEFAULT_COLUMN_ORDER: readonly TableColumnId[] = TABLE_COLUMNS.map(
+  (column) => column.id
+);
+
+export const DEFAULT_TOGGLEABLE_VISIBLE: readonly ToggleableTableColumnId[] = [
+  "caseName",
+  "stage",
+  "advocates",
+  "nextHearing",
+];
+
+/** Advocates sat before Stage. Same columns, old sequence — treat as default. */
+const LEGACY_DEFAULT_COLUMN_ORDER: readonly TableColumnId[] = [
+  "caseNumber",
+  "caseName",
+  "advocates",
+  "stage",
+  "nextHearing",
+  "hearingPurpose",
+  "previousHearing",
+  "latestUpdate",
+];
+
+/**
+ * Counsel used to be two columns. A stored preference still names them, so
+ * both ids resolve to the merged column — the first one in the stored order
+ * takes its slot, the second dedupes away. Dropping them instead would hide
+ * Advocates from everyone who had ever touched the columns menu.
+ */
+const MERGED_COLUMN_IDS: Record<string, TableColumnId> = {
+  complainantAdvocate: "advocates",
+  accusedAdvocate: "advocates",
+};
+
+function resolveStoredId(value: string): string {
+  return MERGED_COLUMN_IDS[value] ?? value;
+}
+
+const COLUMN_IDS: ReadonlySet<string> = new Set(
+  TABLE_COLUMNS.map((column) => column.id)
+);
+
+const TOGGLEABLE_IDS: ReadonlySet<string> = new Set(
+  TABLE_COLUMNS.filter((column) => !column.locked).map((column) => column.id)
+);
+
+export function isTableColumnId(value: string): value is TableColumnId {
+  return COLUMN_IDS.has(value);
+}
+
+export function isToggleableTableColumn(
+  value: string
+): value is ToggleableTableColumnId {
+  return TOGGLEABLE_IDS.has(value);
+}
+
+export function canonicalToggleable(
+  ids: readonly string[]
+): readonly ToggleableTableColumnId[] {
+  const stored = ids.map(resolveStoredId);
+  return TABLE_COLUMNS.map((column) => column.id).filter(
+    (id): id is ToggleableTableColumnId =>
+      isToggleableTableColumn(id) && stored.includes(id)
+  );
+}
+
+export function canonicalOrder(ids: readonly string[]): TableColumnId[] {
+  const seen = new Set<TableColumnId>();
+  const ordered: TableColumnId[] = [];
+  for (const value of ids) {
+    const id = resolveStoredId(value);
+    if (isTableColumnId(id) && !seen.has(id)) {
+      ordered.push(id);
+      seen.add(id);
+    }
+  }
+  for (const id of DEFAULT_COLUMN_ORDER) {
+    if (!seen.has(id)) ordered.push(id);
+  }
+  return ordered;
+}
+
+/** Stored order from before Stage sat third. Custom orders are left alone. */
+export function migrateStoredColumnOrder(
+  ids: readonly TableColumnId[]
+): TableColumnId[] {
+  if (ids.length !== LEGACY_DEFAULT_COLUMN_ORDER.length) return [...ids];
+  if (LEGACY_DEFAULT_COLUMN_ORDER.every((id, index) => ids[index] === id)) {
+    return [...DEFAULT_COLUMN_ORDER];
+  }
+  return [...ids];
+}
+
+export function isDefaultToggleableVisible(
+  ids: readonly ToggleableTableColumnId[]
+): boolean {
+  if (ids.length !== DEFAULT_TOGGLEABLE_VISIBLE.length) return false;
+  return DEFAULT_TOGGLEABLE_VISIBLE.every((id, index) => ids[index] === id);
+}
+
+export function isDefaultColumnOrder(ids: readonly TableColumnId[]): boolean {
+  if (ids.length !== DEFAULT_COLUMN_ORDER.length) return false;
+  return DEFAULT_COLUMN_ORDER.every((id, index) => ids[index] === id);
+}
+
+function columnById(id: TableColumnId) {
+  return TABLE_COLUMNS.find((column) => column.id === id)!;
+}
+
+/**
+ * A folder *is* the stage (or outcome), so that column repeats the page
+ * title. Landing list still shows it — and can filter on it.
+ */
+export function listTableColumns(
+  isVisible: (id: TableColumnId) => boolean,
+  options: {
+    hideStage?: boolean;
+    defaultsOnly?: boolean;
+    order?: readonly TableColumnId[];
+  } = {}
+) {
+  const sequence = options.order
+    ? canonicalOrder(options.order).map(columnById)
+    : TABLE_COLUMNS;
+  return sequence.filter((column) => {
+    if (options.hideStage && column.id === "stage") return false;
+    if (options.defaultsOnly) return column.defaultVisible;
+    return isVisible(column.id);
+  });
+}
+
+function showInDisplay(
+  id: TableColumnId,
+  isVisible: (id: TableColumnId) => boolean,
+  hideStage?: boolean
+) {
+  if (hideStage && id === "stage") return false;
+  return isVisible(id);
+}
+
+/**
+ * Reorder among columns currently on screen. Hidden columns keep their
+ * place in the stored order so showing them again does not jump them.
+ */
+export function moveVisibleColumn(
+  order: readonly TableColumnId[],
+  from: TableColumnId,
+  to: TableColumnId,
+  isVisible: (id: TableColumnId) => boolean,
+  hideStage?: boolean
+): TableColumnId[] {
+  const full = canonicalOrder(order);
+  const visible = full.filter((id) => showInDisplay(id, isVisible, hideStage));
+  const fromIndex = visible.indexOf(from);
+  const toIndex = visible.indexOf(to);
+  if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return full;
+  const nextVisible = [...visible];
+  nextVisible.splice(fromIndex, 1);
+  nextVisible.splice(toIndex, 0, from);
+  let index = 0;
+  return full.map((id) =>
+    showInDisplay(id, isVisible, hideStage) ? nextVisible[index++] : id
+  );
+}
+
+export function shiftVisibleColumn(
+  order: readonly TableColumnId[],
+  id: TableColumnId,
+  delta: -1 | 1,
+  isVisible: (id: TableColumnId) => boolean,
+  hideStage?: boolean
+): TableColumnId[] {
+  const visible = canonicalOrder(order).filter((columnId) =>
+    showInDisplay(columnId, isVisible, hideStage)
+  );
+  const fromIndex = visible.indexOf(id);
+  const to = visible[fromIndex + delta];
+  if (fromIndex < 0 || !to) return canonicalOrder(order);
+  return moveVisibleColumn(order, id, to, isVisible, hideStage);
+}
+
+/**
+ * Reorder in the columns menu — every listed column, including hidden ones,
+ * so showing a column later puts it where the user placed it.
+ */
+export function shiftListedColumn(
+  order: readonly TableColumnId[],
+  id: TableColumnId,
+  delta: -1 | 1,
+  hideStage?: boolean
+): TableColumnId[] {
+  return shiftVisibleColumn(order, id, delta, () => true, hideStage);
+}

@@ -65,7 +65,7 @@ export type AccessPerson = {
 /** The signed-in advocate — rendered as "(you)" atop per-case access lists. */
 export const SELF = {
   id: "self",
-  name: "Adv. Devika Suresh",
+  name: "Adv. Anjali Nair",
   phone: "98460 00000",
 } as const;
 

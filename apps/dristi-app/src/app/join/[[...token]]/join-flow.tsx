@@ -4,6 +4,11 @@ import * as React from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 import { OnboardingModal } from "@/components/onboarding/onboarding-modal";
+import {
+  ACCOUNT_NAME_KEY,
+  ADVOCATE_AVAILABLE_KEY,
+  PROFILE_ROLE_KEY,
+} from "@/components/shell/profile";
 import { SignInBlock } from "@/components/sign-in-block";
 import type { CaseSummary, Locale } from "@/lib/onboarding/content";
 
@@ -59,9 +64,28 @@ function JoinFlow() {
       role?: "litigant" | "advocate";
     }) => {
       const advocate = options?.role === "advocate";
+      // Session-lite: remember the role + whether an advocate profile exists, so the
+      // shell opens as this account. A base litigant has no advocate profile until they
+      // elevate (Settings); an advocate account has one.
+      window.localStorage.setItem(
+        PROFILE_ROLE_KEY,
+        advocate ? "advocate" : "litigant",
+      );
+      window.localStorage.setItem(
+        ADVOCATE_AVAILABLE_KEY,
+        advocate ? "true" : "false",
+      );
+      // The account's name is fixed here; switching profile later changes the role,
+      // not the person. (Two demo accounts: advocate = Anjali, litigant = Rajan.)
+      window.localStorage.setItem(
+        ACCOUNT_NAME_KEY,
+        advocate ? "Anjali Nair" : "Rajan K. Nair",
+      );
 
       if (!token) {
-        router.push("/tasks");
+        // Land on the role home, not the task list. Pending Tasks stays a nav
+        // destination; a fresh sign-in belongs on a home.
+        router.push(advocate ? "/advocate" : "/home");
         return;
       }
 
