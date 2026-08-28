@@ -17,7 +17,7 @@ import {
   viewCounts,
   type World,
 } from "@/lib/tasks/selectors";
-import { headerDate } from "@/lib/tasks/format";
+import { headerDate, rupees } from "@/lib/tasks/format";
 import { ACTIONABLE, canArchive } from "@/lib/tasks/permissions";
 import { useTasks } from "@/lib/tasks/store";
 import { archive, markDone, unarchive } from "@/lib/tasks/transitions";
@@ -447,6 +447,27 @@ export function TasksScreen() {
             }
           />
         )}
+
+        {/* Sticky batch action — sign or pay the selected tasks in one go. Shows only
+            when the "To sign" or "To pay" card is pressed; disabled until at least one
+            task is checked. The label counts what is selected: "Sign 3 documents" or
+            "Pay ₹540". */}
+        {(filters.kind === "sign" || filters.kind === "pay") && state === "ready" ? (
+          <BatchKindBar
+            kind={filters.kind}
+            tasks={selectedTasks}
+            disabled={!online || !!busy}
+            onAct={(batch) => {
+              if (filters.kind === "sign") {
+                // Signing leaves this screen — confirm via the flow dialog for the first.
+                if (batch.length) setFlowNotice({ task: batch[0], flow: "sign" });
+              } else {
+                // Pay the first selected — the modal handles one at a time.
+                if (batch.length) openAct(batch[0], actModeOf(batch[0]));
+              }
+            }}
+          />
+        ) : null}
       </div>
 
       <TaskDetailPanel
@@ -526,6 +547,49 @@ export function TasksScreen() {
         }}
       />
     </main>
+  );
+}
+
+/**
+ * Sticky bottom bar for batch sign / pay. Shows a single primary button whose label
+ * reflects what is selected: "Sign 3 documents" (count) or "Pay ₹540" (sum). Greyed
+ * out when nothing is selected or the user is offline.
+ */
+function BatchKindBar({
+  kind,
+  tasks,
+  disabled,
+  onAct,
+}: {
+  kind: "sign" | "pay";
+  tasks: Task[];
+  disabled: boolean;
+  onAct: (tasks: Task[]) => void;
+}) {
+  const none = tasks.length === 0;
+  const label = React.useMemo(() => {
+    if (kind === "sign") {
+      return none
+        ? "Sign"
+        : `Sign ${tasks.length} document${tasks.length === 1 ? "" : "s"}`;
+    }
+    // Pay: sum the amounts of the selected tasks.
+    const totalPaise = tasks.reduce((sum, t) => sum + (t.amountPaise ?? 0), 0);
+    return none ? "Pay" : `Pay ${rupees(totalPaise)}`;
+  }, [kind, tasks, none]);
+
+  return (
+    <div className="sticky bottom-0 z-10 -mx-4 mt-auto border-t border-hairline bg-surface/80 px-4 py-3 backdrop-blur-sm md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
+      <div className="flex justify-end">
+        <Button
+          disabled={disabled || none}
+          onClick={() => onAct(tasks)}
+          className="min-w-36 tabular-nums"
+        >
+          {label}
+        </Button>
+      </div>
+    </div>
   );
 }
 
