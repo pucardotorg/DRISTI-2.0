@@ -9,8 +9,10 @@ import {
   courtRooms,
   dayKeyOf,
   hearingsOn,
+  holdsVakalatnama,
   matterCountOn,
   nextHearingDayAfter,
+  railGroups,
   railTasks,
   weekOf,
 } from "./home";
@@ -159,6 +161,54 @@ describe("nextHearingDayAfter", () => {
     const next = nextHearingDayAfter(w, dayKeyOf(at(0, 12)));
     assert.deepEqual(next, { key: dayKeyOf(at(3, 12)), count: 2 });
     assert.equal(nextHearingDayAfter(w, dayKeyOf(at(9, 12))), null);
+  });
+});
+
+describe("weekOf anchor", () => {
+  it("pages to another week while today stays in this one", () => {
+    const w = world([kase]);
+    const nextWeek = weekOf(w, NOW_MS, NOW_MS + 7 * 24 * 60 * 60 * 1000);
+    assert.equal(nextWeek.length, 7);
+    assert.equal(nextWeek[0].at.getDay(), 1);
+    assert.equal(nextWeek.filter((c) => c.today).length, 0);
+    assert.equal(nextWeek[0].key > dayKeyOf(NOW_MS), true);
+  });
+});
+
+describe("railGroups", () => {
+  it("buckets the coming week by day and leaves the rest to /tasks", () => {
+    const w = world(
+      [kase],
+      [
+        makeTask({ id: "t-over", dueAt: at(-2, 17), status: "open" }),
+        makeTask({ id: "t-today", dueAt: at(0, 17), status: "open" }),
+        makeTask({ id: "t-tomorrow", dueAt: at(1, 17), status: "open" }),
+        makeTask({ id: "t-day3", dueAt: at(3, 17), status: "open" }),
+        makeTask({ id: "t-beyond", dueAt: at(12, 17), status: "open" }),
+        makeTask({ id: "t-undated", dueKind: "none", dueAt: undefined, status: "open" }),
+      ]
+    );
+    const groups = railGroups(w, NOW_MS);
+    assert.deepEqual(
+      groups.map((g) => [g.key === "overdue" || g.key === "today" || g.key === "tomorrow" ? g.key : "day", g.tasks.map((t) => t.id)]),
+      [
+        ["overdue", ["t-over"]],
+        ["today", ["t-today"]],
+        ["tomorrow", ["t-tomorrow"]],
+        ["day", ["t-day3"]],
+      ]
+    );
+  });
+});
+
+describe("holdsVakalatnama", () => {
+  it("is true only for signatories", () => {
+    const w = world([kase]);
+    assert.equal(holdsVakalatnama(w, kase), true);
+    assert.equal(
+      holdsVakalatnama(w, { ...kase, signatories: ["p-sen2"] }),
+      false
+    );
   });
 });
 

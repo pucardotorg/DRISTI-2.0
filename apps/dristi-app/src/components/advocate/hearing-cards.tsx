@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ChevronDown, CircleCheck } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,7 @@ import type { Locale } from "@/lib/onboarding/content";
 import { pick } from "@/lib/onboarding/content";
 import { advHome, fillCopy } from "@/lib/advocate/content";
 import type { HomeHearing } from "@/lib/advocate/home";
+import type { Task } from "@/lib/tasks/types";
 import type { World } from "@/lib/tasks/selectors";
 import { personOf } from "@/lib/tasks/selectors";
 import { mainAdvocateOf } from "@/lib/tasks/permissions";
@@ -49,15 +51,18 @@ export function NowHearingCard({
   locale,
   hearing,
   selected,
+  viewOnly,
   onOpenCase,
-  onOpenTask,
+  onAct,
 }: {
   world: World;
   locale: Locale;
   hearing: HomeHearing;
   selected: boolean;
+  /** The user is not on this case's vakalatnama — watching, not acting. */
+  viewOnly?: boolean;
   onOpenCase: () => void;
-  onOpenTask: (taskId: string) => void;
+  onAct: (task: Task) => void;
 }) {
   return (
     <section className="flex flex-col gap-3">
@@ -93,7 +98,14 @@ export function NowHearingCard({
               {hearing.kase.stNumber} · {timeOf(hearing.at)}
             </p>
           </div>
-          <MainAvatar world={world} hearing={hearing} onBrand />
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <MainAvatar world={world} hearing={hearing} onBrand />
+            {viewOnly ? (
+              <span className="text-caption text-brand-muted-foreground">
+                {pick(advHome.viewOnly, locale)}
+              </span>
+            ) : null}
+          </div>
         </div>
 
         {hearing.blockers.length ? (
@@ -104,7 +116,7 @@ export function NowHearingCard({
                 task={task}
                 now={world.now}
                 action={verbFor(world.user, task, hearing.kase)}
-                onOpen={() => onOpenTask(task.id)}
+                onOpen={() => onAct(task)}
                 className="rounded-sm"
               />
             ))}
@@ -121,15 +133,18 @@ export function HearingCard({
   locale,
   hearing,
   selected,
+  viewOnly,
   onOpenCase,
-  onOpenTask,
+  onAct,
 }: {
   world: World;
   locale: Locale;
   hearing: HomeHearing;
   selected: boolean;
+  /** The user is not on this case's vakalatnama — watching, not acting. */
+  viewOnly?: boolean;
   onOpenCase: () => void;
-  onOpenTask: (taskId: string) => void;
+  onAct: (task: Task) => void;
 }) {
   const blocker = hearing.blockers[0];
   return (
@@ -157,7 +172,11 @@ export function HearingCard({
               <span className="font-mono">{hearing.kase.cnr}</span>
             </p>
           </div>
-          {hearing.ready ? (
+          {viewOnly ? (
+            <span className="text-caption text-muted-foreground">
+              {pick(advHome.viewOnly, locale)}
+            </span>
+          ) : hearing.ready ? (
             <Badge variant="success">
               <CircleCheck aria-hidden="true" />
               {pick(advHome.ready, locale)}
@@ -172,7 +191,7 @@ export function HearingCard({
               task={blocker}
               now={world.now}
               action={verbFor(world.user, blocker, hearing.kase)}
-              onOpen={() => onOpenTask(blocker.id)}
+              onOpen={() => onAct(blocker)}
               className="rounded-md"
             />
           </div>
@@ -194,16 +213,26 @@ export function ConcludedStrip({
   locale: Locale;
   concluded: HomeHearing[];
 }) {
+  const [open, setOpen] = useState(false);
   return (
-    <Collapsible className="flex flex-col gap-2">
-      {/* The stack illusion: a second card's rounded top edge peeking out behind
-          the strip, saying "there are more of these underneath". */}
+    <Collapsible open={open} onOpenChange={setOpen} className="flex flex-col">
       <div className="relative">
-        <span
-          aria-hidden="true"
-          className="absolute inset-x-4 -top-2 h-4 rounded-t-xl bg-surface-sunken"
-        />
-        <CollapsibleTrigger className="group/concluded relative flex w-full items-center gap-2.5 rounded-xl bg-surface-sunken px-4 py-3 text-muted-foreground transition-colors hover:bg-accent">
+        {/* The stack illusion — a second card's rounded top edge peeking out
+            behind the strip — is the *closed* state's promise. Opened, the pile
+            lies flat: the peek goes, and the strip becomes the flat sheet's
+            header row. */}
+        {open ? null : (
+          <span
+            aria-hidden="true"
+            className="absolute inset-x-4 -top-2 h-4 rounded-t-xl bg-surface-sunken"
+          />
+        )}
+        <CollapsibleTrigger
+          className={cn(
+            "group/concluded relative flex w-full items-center gap-2.5 bg-surface-sunken px-4 py-3 text-muted-foreground transition-colors hover:bg-accent",
+            open ? "rounded-t-xl" : "rounded-xl"
+          )}
+        >
           <CircleCheck aria-hidden="true" className="size-4" />
           <span className="flex-1 text-left text-body-compact">
             {fillCopy(advHome.concludedStrip, locale, {
@@ -218,11 +247,11 @@ export function ConcludedStrip({
         </CollapsibleTrigger>
       </div>
       <CollapsibleContent>
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col divide-y divide-hairline rounded-b-xl bg-surface-sunken">
           {concluded.map((h) => (
             <li
               key={h.kase.id}
-              className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-surface-sunken px-4 py-3"
+              className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3"
             >
               <span className="w-12 shrink-0 font-mono text-caption text-muted-foreground">
                 item {h.item}

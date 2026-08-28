@@ -45,9 +45,17 @@ export type WeekCell = {
   due: number;
 };
 
-/** Monday-to-Sunday of the week containing `now`, with the day dots filled in. */
-export function weekOf(world: World, now: number | Date = Date.now()): WeekCell[] {
-  const base = new Date(now);
+/**
+ * Monday-to-Sunday of the week containing `anchor` (today's week by default),
+ * with the day dots filled in. `now` only decides which cell is "today", so the
+ * strip can page to other weeks without moving the today marker.
+ */
+export function weekOf(
+  world: World,
+  now: number | Date = Date.now(),
+  anchor: number | Date = now
+): WeekCell[] {
+  const base = new Date(anchor);
   base.setHours(12, 0, 0, 0);
   // getDay(): Sunday 0 — the week here runs Monday to Sunday, as courts do.
   const monday = base.getTime() - ((base.getDay() + 6) % 7) * DAY_MS;
@@ -240,4 +248,69 @@ export function railTasks(world: World): Task[] {
 /** The matter line under a rail task — the case it belongs to. */
 export function railCaseLineOf(world: World, task: Task): string {
   return caseOf(world, task)?.parties ?? "";
+}
+
+/**
+ * The rail's week view: needs-action tasks bucketed by when their consequence
+ * lands — overdue, today, tomorrow, then one bucket per day for the rest of the
+ * coming week. The bucket header carries the date, so the cards inside do not
+ * repeat it. Tasks due beyond the week (or with no date) are left to /tasks;
+ * the rail's footer names the full count.
+ */
+export type RailGroup = {
+  key: "overdue" | "today" | "tomorrow" | string;
+  /** Set for the per-day buckets — noon local, safe to format. */
+  at?: Date;
+  tasks: Task[];
+};
+
+export function railGroups(world: World, now: number = Date.now()): RailGroup[] {
+  const todayKey = dayKeyOf(now);
+  const tomorrowKey = dayKeyOf(now + DAY_MS);
+  const weekEnd = dayKeyOf(now + 7 * DAY_MS);
+
+  const buckets = new Map<string, RailGroup>();
+  for (const task of railTasks(world)) {
+    const at = consequenceAt(task);
+    if (!at) continue;
+    const key = dayKeyOf(at);
+    if (key > weekEnd) continue;
+    const bucketKey =
+      key < todayKey
+        ? "overdue"
+        : key === todayKey
+          ? "today"
+          : key === tomorrowKey
+            ? "tomorrow"
+            : key;
+    let bucket = buckets.get(bucketKey);
+    if (!bucket) {
+      bucket = {
+        key: bucketKey,
+        at:
+          bucketKey === "overdue" || bucketKey === "today" || bucketKey === "tomorrow"
+            ? undefined
+            : new Date(`${key}T12:00:00`),
+        tasks: [],
+      };
+      buckets.set(bucketKey, bucket);
+    }
+    bucket.tasks.push(task);
+  }
+
+  const order = (g: RailGroup) =>
+    g.key === "overdue" ? "0" : g.key === "today" ? "1" : g.key === "tomorrow" ? "2" : g.key;
+  return [...buckets.values()].sort((a, b) => order(a).localeCompare(order(b)));
+}
+
+/* ───────────────────────────── access ───────────────────────────── */
+
+/**
+ * Whether the user holds the vakalatnama on a case — the line between matters
+ * they act in and matters they can only watch. Signatories may sign, pay and
+ * file; everyone else on the case prepares and follows.
+ */
+export function holdsVakalatnama(world: World, kase: Case): boolean {
+  const id = typeof world.user === "string" ? world.user : world.user.id;
+  return kase.signatories.includes(id);
 }

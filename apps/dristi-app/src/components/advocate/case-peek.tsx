@@ -30,14 +30,10 @@ import type { Locale } from "@/lib/onboarding/content";
 import { pick } from "@/lib/onboarding/content";
 import { advHome } from "@/lib/advocate/content";
 import type { HomeHearing } from "@/lib/advocate/home";
+import type { Task } from "@/lib/tasks/types";
 import { personOf, sortTasks, type World } from "@/lib/tasks/selectors";
 import { dateTime } from "@/lib/tasks/format";
-import {
-  ACTIONABLE,
-  mainAdvocateOf,
-  signatoriesOf,
-  verbFor,
-} from "@/lib/tasks/permissions";
+import { ACTIONABLE, signatoriesOf, verbFor } from "@/lib/tasks/permissions";
 import { cn } from "@/lib/utils";
 import { HomeTaskRow, TeamAvatar } from "@/components/advocate/home-bits";
 
@@ -69,12 +65,12 @@ function PeekBody({
   world,
   locale,
   hearing,
-  onOpenTask,
+  onAct,
 }: {
   world: World;
   locale: Locale;
   hearing: HomeHearing;
-  onOpenTask: (taskId: string) => void;
+  onAct: (task: Task) => void;
 }) {
   const userId = typeof world.user === "string" ? world.user : world.user.id;
   const kase = hearing.kase;
@@ -130,7 +126,7 @@ function PeekBody({
               task={task}
               now={world.now}
               action={verbFor(world.user, task, kase)}
-              onOpen={() => onOpenTask(task.id)}
+              onOpen={() => onAct(task)}
               className="bg-surface-sunken"
             />
           ))
@@ -169,7 +165,7 @@ function Peek({
   locale,
   hearing,
   close,
-  onOpenTask,
+  onAct,
   Title = "h2",
   Description = "p",
 }: {
@@ -177,7 +173,7 @@ function Peek({
   locale: Locale;
   hearing: HomeHearing;
   close: ReactNode;
-  onOpenTask: (taskId: string) => void;
+  onAct: (task: Task) => void;
   Title?: ElementType;
   Description?: ElementType;
 }) {
@@ -211,7 +207,7 @@ function Peek({
           world={world}
           locale={locale}
           hearing={hearing}
-          onOpenTask={onOpenTask}
+          onAct={onAct}
         />
       </div>
     </div>
@@ -233,7 +229,7 @@ export function CasePeek({
   open,
   topOffset,
   onOpenChange,
-  onOpenTask,
+  onAct,
 }: {
   world: World;
   locale: Locale;
@@ -242,7 +238,7 @@ export function CasePeek({
   /** The shell top bar's height — the push panel hangs below it. */
   topOffset: string;
   onOpenChange: (open: boolean) => void;
-  onOpenTask: (taskId: string) => void;
+  onAct: (task: Task) => void;
 }) {
   const pushes = useIsDesktop();
 
@@ -273,7 +269,7 @@ export function CasePeek({
               world={world}
               locale={locale}
               hearing={hearing}
-              onOpenTask={onOpenTask}
+              onAct={onAct}
               close={
                 <Button
                   variant="ghost"
@@ -303,7 +299,7 @@ export function CasePeek({
             world={world}
             locale={locale}
             hearing={hearing}
-            onOpenTask={onOpenTask}
+            onAct={onAct}
             Title={SheetTitle}
             Description={SheetDescription}
             close={

@@ -1,6 +1,11 @@
 "use client";
 
+import * as React from "react";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { Locale } from "@/lib/onboarding/content";
 import { advHome, fillCopy } from "@/lib/advocate/content";
 import { pick } from "@/lib/onboarding/content";
@@ -10,8 +15,9 @@ import { cn } from "@/lib/utils";
 /**
  * Greeting and the week strip. The strip is the board's day control: brand tint
  * marks *today*, a chosen other day gets the quiet sunken cue — the two never
- * read alike. Dots under a day: amber for a task consequence, grey for a listed
- * hearing. Dates format through `Intl` in the active locale.
+ * read alike. Chevrons page the strip a week at a time, and the calendar
+ * popover jumps straight to a date, so the board is not fenced into one week.
+ * Dots under a day: amber for a task consequence, grey for a listed hearing.
  */
 
 function greetingCopy(hour: number) {
@@ -41,6 +47,8 @@ export function HomeGreeting({
   selectedDay,
   matterCount,
   onSelectDay,
+  onShiftWeek,
+  onPickDate,
 }: {
   locale: Locale;
   firstName: string;
@@ -50,16 +58,19 @@ export function HomeGreeting({
   /** Listed matters on the selected day, across courts. */
   matterCount: number;
   onSelectDay: (key: string) => void;
+  /** Page the strip by whole weeks; ±1. */
+  onShiftWeek: (delta: number) => void;
+  onPickDate: (date: Date) => void;
 }) {
   const nowDate = new Date(now);
   const intl = locale === "ml" ? "ml-IN" : "en-IN";
-  const todayKey = week.find((c) => c.today)?.key ?? selectedDay;
   const selected = week.find((c) => c.key === selectedDay);
+  const [pickerOpen, setPickerOpen] = React.useState(false);
   const dateLine = new Intl.DateTimeFormat(intl, {
     weekday: "long",
     day: "numeric",
     month: "long",
-  }).format(selected?.at ?? nowDate);
+  }).format(selected?.at ?? new Date(`${selectedDay}T12:00:00`));
   const weekdayFmt = new Intl.DateTimeFormat(intl, { weekday: "short" });
 
   return (
@@ -75,14 +86,23 @@ export function HomeGreeting({
         </p>
       </div>
 
-      <div className="flex max-w-full items-center gap-2 overflow-x-auto">
+      <div className="flex max-w-full items-center gap-1.5 overflow-x-auto">
         <Button
           variant="outline"
           size="xs"
-          disabled={selectedDay === todayKey}
-          onClick={() => onSelectDay(todayKey)}
+          onClick={() => onPickDate(nowDate)}
+          className="mr-0.5"
         >
           {pick(advHome.today, locale)}
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label={pick(advHome.prevWeek, locale)}
+          onClick={() => onShiftWeek(-1)}
+        >
+          <ChevronLeft aria-hidden="true" />
         </Button>
         <ul className="flex items-center gap-0.5">
           {week.map((cell) => {
@@ -134,6 +154,37 @@ export function HomeGreeting({
             );
           })}
         </ul>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label={pick(advHome.nextWeek, locale)}
+          onClick={() => onShiftWeek(1)}
+        >
+          <ChevronRight aria-hidden="true" />
+        </Button>
+
+        <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label={pick(advHome.pickDate, locale)}
+            >
+              <CalendarDays aria-hidden="true" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-auto p-0">
+            <Calendar
+              mode="single"
+              selected={selected?.at ?? new Date(`${selectedDay}T12:00:00`)}
+              onSelect={(date) => {
+                if (!date) return;
+                setPickerOpen(false);
+                onPickDate(date);
+              }}
+            />
+          </PopoverContent>
+        </Popover>
       </div>
     </div>
   );

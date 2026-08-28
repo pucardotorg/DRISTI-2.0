@@ -14,7 +14,7 @@ import { SCRUTINY_DEFECTS, SCRUTINY_DRAFT_ID } from "./scrutiny-return";
 import type { Case, Defect, Person, Task } from "./types";
 
 /** Bump when the seed's shape changes; a browser holding an older seed is re-seeded. */
-export const SEED_VERSION = 5;
+export const SEED_VERSION = 6;
 
 /**
  * A defect on a filing that was made outside this app, so there is no draft to open and
@@ -106,6 +106,21 @@ export const CASES: Case[] = [
   { id: "c-702", stNumber: "ST 702/2025", cnr: "KLKL02-000702-2025", parties: "Manoj Kurian v. Highrange Estates", court: JMFC1, stage: "Evidence of the complainant", nextHearingAt: hearing(3), signatories: ["p-an"], advocates: ["p-an", "p-ri"] },
   { id: "c-815", stNumber: "ST 815/2025", cnr: "KLKL04-000815-2025", parties: "Vinod Chandran v. Sabari Traders", court: CJM, stage: "Arguments", nextHearingAt: hearing(10), signatories: ["p-an", "p-dv"], advocates: ["p-an", "p-dv"] },
   { id: "c-1044", stNumber: "ST 1044/2026", cnr: "KLKL03-001044-2026", parties: "Beena Thomas v. A. Salim", court: JMFC2, stage: "Appearance", nextHearingAt: hearing(22), signatories: ["p-dv"], advocates: ["p-dv", "p-an"] },
+  // ── Today's cause list ───────────────────────────────────────────
+  // Ten matters listed today across three courts (ON 5 · JMFC 1 3 · CJM 2), at
+  // staggered hours so the board has concluded, live and upcoming items through a
+  // working day. Anjali is a signatory on eight; two (c-hd4, c-hd7) she can see
+  // but not act on — the vakalatnama access split the home screen must show.
+  { id: "c-hd1", stNumber: "ST 268/2025", cnr: "KLKL01-000268-2025", parties: "Prakash Kumar v. Malabar Traders", court: ON, stage: "Evidence of the complainant", nextHearingAt: at(0, 9, 0), signatories: ["p-an"], advocates: ["p-an", "p-sp"] },
+  { id: "c-hd2", stNumber: "ST 743/2025", cnr: "KLKL01-000743-2025", parties: "Divya Suresh v. K. Salim", court: ON, stage: "Plea", nextHearingAt: at(0, 10, 30), signatories: ["p-an", "p-rm"], advocates: ["p-an", "p-rm"] },
+  { id: "c-hd3", stNumber: "ST 512/2025", cnr: "KLKL01-000512-2025", parties: "Gopinathan Nair v. Chaithanya Agencies", court: ON, stage: "Evidence of the complainant", nextHearingAt: at(0, 12, 30), signatories: ["p-an"], advocates: ["p-an", "p-sp"] },
+  { id: "c-hd4", stNumber: "ST 391/2026", cnr: "KLKL01-000391-2026", parties: "Mariyam Bee v. Anwar Sadath", court: ON, stage: "Appearance", nextHearingAt: at(0, 14, 30), signatories: ["p-dv"], advocates: ["p-dv", "p-an"] },
+  { id: "c-hd5", stNumber: "ST 129/2026", cnr: "KLKL01-000129-2026", parties: "Ravi Chandran v. Sea Pearl Exports", court: ON, stage: "Evidence of the complainant", nextHearingAt: at(0, 16, 0), signatories: ["p-an", "p-dv"], advocates: ["p-an", "p-dv", "p-sp"] },
+  { id: "c-hd6", stNumber: "ST 84/2026", cnr: "KLKL02-000084-2026", parties: "Salini Mohan v. Grand Textiles", court: JMFC1, stage: "Plea", nextHearingAt: at(0, 11, 0), signatories: ["p-an"], advocates: ["p-an", "p-ri"] },
+  { id: "c-hd7", stNumber: "ST 610/2025", cnr: "KLKL02-000610-2025", parties: "Peter Varghese v. Nila Finance", court: JMFC1, stage: "Arguments", nextHearingAt: at(0, 15, 0), signatories: ["p-rm"], advocates: ["p-rm", "p-an"] },
+  { id: "c-hd8", stNumber: "ST 233/2025", cnr: "KLKL02-000233-2025", parties: "Asha Kumari v. Vel Murugan Stores", court: JMFC1, stage: "Evidence of the complainant", nextHearingAt: at(0, 16, 30), signatories: ["p-an"], advocates: ["p-an", "p-sp"] },
+  { id: "c-hd9", stNumber: "ST 47/2025", cnr: "KLKL04-000047-2025", parties: "Krishnan Kutty v. Sree Devi Traders", court: CJM, stage: "Arguments", nextHearingAt: at(0, 10, 0), signatories: ["p-an"], advocates: ["p-an"] },
+  { id: "c-hd10", stNumber: "ST 902/2025", cnr: "KLKL04-000902-2025", parties: "Noor Jahan v. Kadavil Motors", court: CJM, stage: "Appearance", nextHearingAt: at(0, 15, 30), signatories: ["p-dv", "p-an"], advocates: ["p-dv", "p-an"] },
   // Matters before filing — no ST number, no CNR yet; the statutory clocks live here.
   { id: "c-sainaba", stNumber: "", cnr: "", parties: "Sainaba K. v. Riyas M.", court: ON, stage: "Pre-filing", signatories: ["p-an"], advocates: ["p-an", "p-sp"] },
   { id: "c-arun", stNumber: "", cnr: "", parties: "Arun K. v. Meera Enterprises", court: ON, stage: "Pre-filing", signatories: ["p-rm"], advocates: ["p-rm", "p-sp"] },
@@ -831,6 +846,103 @@ export function buildTasks(): Task[] {
         { at: at(-2, 11), text: "Created — application to recall PW-1 started" },
         { at: at(-2, 17, 30), by: "p-dv", text: "Deepa Varghese saved a draft" },
       ],
+    }),
+
+    /* ── Today's cause list — blockers and the week's dues ───────── */
+    task({
+      id: "t-fee-hd3",
+      caseId: "c-hd3",
+      kind: "pay",
+      title: "Pay the process fee for the summons to the accused",
+      why: created(-6, order(-6)),
+      whatToDo: "Pay the process fee so the summons can issue before today's posting.",
+      amountPaise: 8 * RUPEE,
+      feeHead: "Process fee",
+      closesWhen: "Closes on payment, or when the hearing passes",
+      dueAt: at(0, 12, 0),
+      dueKind: "court-set",
+      deadlineNote: "Registry: before today's posting",
+      hearingAt: at(0, 12, 30),
+      status: "open",
+    }),
+    task({
+      id: "t-aff-hd5",
+      caseId: "c-hd5",
+      kind: "file",
+      title: "File the chief affidavit of PW-1 before today's evidence posting",
+      why: created(-4, order(-4)),
+      whatToDo: "Upload the sworn chief affidavit of PW-1; the evidence posting is this afternoon.",
+      documentsNeeded: ["Chief affidavit of PW-1"],
+      dueAt: at(0, 14, 0),
+      dueKind: "before-hearing",
+      deadlineNote: "Before today's evidence posting",
+      hearingAt: at(0, 16, 0),
+      status: "open",
+    }),
+    task({
+      id: "t-post-hd8",
+      caseId: "c-hd8",
+      kind: "file",
+      title: "Produce the postal acknowledgement of the demand notice",
+      why: created(-3, order(-3)),
+      whatToDo: "Upload the postal acknowledgement the court called for; the posting is today.",
+      documentsNeeded: ["Postal acknowledgement (demand notice)"],
+      dueAt: at(0, 15, 0),
+      dueKind: "court-set",
+      deadlineNote: "Order: to be produced at today's posting",
+      hearingAt: at(0, 16, 30),
+      status: "open",
+    }),
+    task({
+      id: "t-sign-hd2",
+      caseId: "c-hd2",
+      kind: "sign",
+      title: "Sign the memo of appearance for the second accused",
+      why: created(-2, "The second accused entered appearance through counsel"),
+      whatToDo: "Read the memo of appearance and e-sign it for filing.",
+      documentsNeeded: ["Memo of appearance"],
+      dueAt: at(1, 17),
+      dueKind: "court-set",
+      deadlineNote: "To be filed before tomorrow's board closes",
+      status: "open",
+    }),
+    task({
+      id: "t-pay-hd6",
+      caseId: "c-hd6",
+      kind: "pay",
+      title: "Pay the copying charges for the certified order copy",
+      why: created(-1, "Certified copy application allowed"),
+      whatToDo: "Pay the copying charges so the certified copy can be prepared.",
+      amountPaise: 46 * RUPEE,
+      feeHead: "Copying charges",
+      closesWhen: "Closes on payment",
+      dueAt: at(2, 17),
+      dueKind: "court-set",
+      status: "open",
+    }),
+    task({
+      id: "t-file-hd10",
+      caseId: "c-hd10",
+      kind: "file",
+      title: "File the affidavit of assets of the complainant",
+      why: created(-2, order(-2)),
+      whatToDo: "Upload the affidavit of assets the court directed at the last posting.",
+      documentsNeeded: ["Affidavit of assets"],
+      dueAt: at(3, 17),
+      dueKind: "court-set",
+      status: "open",
+    }),
+    task({
+      id: "t-sign-hd9",
+      caseId: "c-hd9",
+      kind: "sign",
+      title: "Sign the written arguments for filing",
+      why: created(-1, "Written arguments drafted after the last posting"),
+      whatToDo: "Read the written arguments and e-sign them for filing before the next posting.",
+      documentsNeeded: ["Written arguments"],
+      dueAt: at(5, 17),
+      dueKind: "court-set",
+      status: "open",
     }),
   ];
 }

@@ -10,14 +10,14 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { Locale } from "@/lib/onboarding/content";
 import { pick } from "@/lib/onboarding/content";
 import { advHome, fillCopy } from "@/lib/advocate/content";
-import type { Board } from "@/lib/advocate/home";
-import type { PersonId } from "@/lib/tasks/types";
+import { holdsVakalatnama, type Board } from "@/lib/advocate/home";
+import type { Task } from "@/lib/tasks/types";
 import type { World } from "@/lib/tasks/selectors";
-import { cn } from "@/lib/utils";
 import {
   ConcludedStrip,
   HearingCard,
@@ -27,51 +27,7 @@ import { HearingList } from "@/components/advocate/hearing-list";
 
 export type BoardView = "cards" | "list";
 
-function AdvocateFilter({
-  world,
-  selected,
-  onToggle,
-}: {
-  world: World;
-  selected: PersonId[];
-  onToggle: (id: PersonId) => void;
-}) {
-  const userId = typeof world.user === "string" ? world.user : world.user.id;
-  return (
-    <div className="flex items-center gap-2">
-      <span
-        id="advocate-filter-label"
-        className="text-caption font-semibold text-muted-foreground"
-      >
-        View cases
-      </span>
-      <ul aria-labelledby="advocate-filter-label" className="flex items-center gap-1">
-        {world.people.map((person) => {
-          const on = selected.includes(person.id);
-          return (
-            <li key={person.id}>
-              <button
-                type="button"
-                aria-pressed={on}
-                onClick={() => onToggle(person.id)}
-                title={person.id === userId ? `${person.name} (you)` : person.name}
-                className={cn(
-                  "flex size-10 items-center justify-center rounded-full text-caption font-semibold transition-colors",
-                  on
-                    ? "bg-brand-muted text-brand-muted-foreground ring-2 ring-brand-accent ring-inset"
-                    : "bg-surface-sunken text-foreground hover:bg-accent"
-                )}
-              >
-                {person.initials}
-                <span className="sr-only"> — {person.name}</span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
+export type AccessFilter = "all" | "mine";
 
 /**
  * Everything below the court tabs for one court on one day.
@@ -86,40 +42,56 @@ export function CourtBoard({
   world,
   locale,
   board,
-  filtered,
+  access,
+  onAccessChange,
   view,
   onViewChange,
-  advocates,
-  onToggleAdvocate,
   selectedCaseId,
   onOpenCase,
-  onOpenTask,
+  onAct,
   jump,
   onJump,
 }: {
   world: World;
   locale: Locale;
   board: Board;
-  /** An advocate chip is narrowing the list. */
-  filtered: boolean;
+  /** All matters, or only those where the user holds the vakalatnama. */
+  access: AccessFilter;
+  onAccessChange: (access: AccessFilter) => void;
   view: BoardView;
   onViewChange: (view: BoardView) => void;
-  advocates: PersonId[];
-  onToggleAdvocate: (id: PersonId) => void;
   selectedCaseId: string | null;
   onOpenCase: (caseId: string) => void;
-  onOpenTask: (taskId: string) => void;
+  onAct: (task: Task) => void;
   /** The next day with anything listed, when this one is empty. */
   jump: { key: string; label: string; count: number } | null;
   onJump: (key: string) => void;
 }) {
   const { now, upcoming, concluded } = board;
   const active = [...(now ? [now] : []), ...upcoming];
+  const filtered = access === "mine";
 
   return (
     <div className="flex flex-col gap-6 pt-4 pb-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <AdvocateFilter world={world} selected={advocates} onToggle={onToggleAdvocate} />
+        {/* Not a people filter: access. A matter is either one you act in — you
+            hold the vakalatnama — or one you watch; the split decides the verbs
+            everywhere else on this screen, so it is the one cut worth a control. */}
+        <SegmentedControl
+          type="single"
+          size="compact"
+          value={access}
+          onValueChange={(next) => next && onAccessChange(next as AccessFilter)}
+          aria-label={pick(advHome.filterLabel, locale)}
+        >
+          <SegmentedControlItem value="all">
+            {pick(advHome.filterAll, locale)}
+          </SegmentedControlItem>
+          <SegmentedControlItem value="mine">
+            {pick(advHome.filterMine, locale)}
+          </SegmentedControlItem>
+        </SegmentedControl>
+
         <ToggleGroup
           type="single"
           value={view}
@@ -154,12 +126,12 @@ export function CourtBoard({
             </EmptyMedia>
             <EmptyTitle>
               {filtered
-                ? pick(advHome.emptyFilterTitle, locale)
+                ? pick(advHome.emptyMineTitle, locale)
                 : pick(advHome.emptyDayTitle, locale)}
             </EmptyTitle>
             <EmptyDescription>
               {filtered
-                ? pick(advHome.emptyFilterBody, locale)
+                ? pick(advHome.emptyMineBody, locale)
                 : pick(advHome.emptyDayBody, locale)}
             </EmptyDescription>
           </EmptyHeader>
@@ -181,8 +153,9 @@ export function CourtBoard({
               locale={locale}
               hearing={now}
               selected={now.kase.id === selectedCaseId}
+              viewOnly={!holdsVakalatnama(world, now.kase)}
               onOpenCase={() => onOpenCase(now.kase.id)}
-              onOpenTask={onOpenTask}
+              onAct={onAct}
             />
           ) : null}
 
@@ -201,8 +174,9 @@ export function CourtBoard({
                     locale={locale}
                     hearing={hearing}
                     selected={hearing.kase.id === selectedCaseId}
+                    viewOnly={!holdsVakalatnama(world, hearing.kase)}
                     onOpenCase={() => onOpenCase(hearing.kase.id)}
-                    onOpenTask={onOpenTask}
+                    onAct={onAct}
                   />
                 ))}
               </ul>

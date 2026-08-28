@@ -200,9 +200,29 @@ export const advHome = {
   ),
   jumpNext: t("Next hearing day: {day} — {n} listed", "അടുത്ത ഹിയറിംഗ് ദിവസം: {day} — {n} ഇനം"),
 
+  /* Week strip */
+  prevWeek: t("Previous week", "കഴിഞ്ഞ ആഴ്ച"),
+  nextWeek: t("Next week", "അടുത്ത ആഴ്ച"),
+  pickDate: t("Pick a date", "തീയതി തിരഞ്ഞെടുക്കുക"),
+
+  /* Access */
+  filterAll: t("All matters", "എല്ലാ വിഷയങ്ങളും"),
+  filterMine: t("My vakalatnama", "എന്റെ വക്കാലത്ത്"),
+  filterLabel: t("Which matters", "ഏതെല്ലാം വിഷയങ്ങൾ"),
+  viewOnly: t("View only", "കാണാൻ മാത്രം"),
+  emptyMineTitle: t("No matters on your vakalatnama", "നിങ്ങളുടെ വക്കാലത്തിൽ വിഷയങ്ങളില്ല"),
+  emptyMineBody: t(
+    "Nothing listed this day where you hold the vakalatnama. Switch to all matters to see the full cause list.",
+    "ഈ ദിവസം നിങ്ങളുടെ വക്കാലത്തിലുള്ള വിഷയങ്ങളില്ല. മുഴുവൻ പട്ടികയ്ക്ക് എല്ലാ വിഷയങ്ങളിലേക്കും മാറുക.",
+  ),
+
   /* Pending-tasks rail */
   railTitle: t("Pending tasks", "ബാക്കിയുള്ള ജോലികൾ"),
-  railCaption: t("Most urgent first", "ഏറ്റവും അടിയന്തിരം ആദ്യം"),
+  groupOverdue: t("Overdue", "സമയം കഴിഞ്ഞു"),
+  groupToday: t("Due today", "ഇന്ന് അവസാനം"),
+  groupTomorrow: t("Due tomorrow", "നാളെ അവസാനം"),
+  groupOn: t("Due {day}", "{day} അവസാനം"),
+  railResize: t("Resize the pending tasks rail", "പാനലിന്റെ വീതി ക്രമീകരിക്കുക"),
   railOpen: t("Open pending tasks, {n} need action", "ബാക്കിയുള്ള ജോലികൾ തുറക്കുക, {n} എണ്ണം"),
   railCollapse: t("Collapse pending tasks", "ജോലികളുടെ പാനൽ ചുരുക്കുക"),
   railViewAll: t("View all {n} tasks", "എല്ലാ {n} ജോലികളും കാണുക"),

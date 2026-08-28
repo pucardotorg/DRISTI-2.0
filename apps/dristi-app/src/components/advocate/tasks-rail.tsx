@@ -1,71 +1,127 @@
 "use client";
 
-import { ChevronRight, ListChecks } from "lucide-react";
+import * as React from "react";
+import {
+  ChevronRight,
+  FileClock,
+  FileUp,
+  Gavel,
+  IndianRupee,
+  ListChecks,
+  PenLine,
+  Undo2,
+  type LucideIcon,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { Locale } from "@/lib/onboarding/content";
 import { pick } from "@/lib/onboarding/content";
 import { advHome, fillCopy } from "@/lib/advocate/content";
-import { railCaseLineOf, railTasks } from "@/lib/advocate/home";
+import { railCaseLineOf, railGroups, type RailGroup } from "@/lib/advocate/home";
 import { caseOf, summaryOf, type World } from "@/lib/tasks/selectors";
 import { verbFor } from "@/lib/tasks/permissions";
-import { dueCueOf } from "@/lib/tasks/format";
-import type { Task } from "@/lib/tasks/types";
+import { daysUntil } from "@/lib/tasks/urgency";
+import { consequenceAt } from "@/lib/tasks/urgency";
+import type { Task, TaskKind } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
-import { DueCue, TaskAction } from "@/components/advocate/home-bits";
+
+/** What the task asks for, at a glance — one icon per kind, all muted. */
+const KIND_ICON: Record<TaskKind, LucideIcon> = {
+  sign: PenLine,
+  pay: IndianRupee,
+  file: FileUp,
+  returned: Undo2,
+  hearing: Gavel,
+  draft: FileClock,
+};
+
+const MIN_WIDTH = 280;
+const MAX_WIDTH = 460;
+export const RAIL_DEFAULT_WIDTH = 320;
+
+function groupLabel(locale: Locale, group: RailGroup): string {
+  if (group.key === "overdue") return pick(advHome.groupOverdue, locale);
+  if (group.key === "today") return pick(advHome.groupToday, locale);
+  if (group.key === "tomorrow") return pick(advHome.groupTomorrow, locale);
+  const day = new Intl.DateTimeFormat(locale === "ml" ? "ml-IN" : "en-IN", {
+    weekday: "long",
+  }).format(group.at!);
+  return fillCopy(advHome.groupOn, locale, { day });
+}
 
 /**
- * A task in the rail: two calm lines — title and due cue, then the matter it
- * belongs to. The action swaps into the due cue's slot on hover / focus-within,
- * so at rest the card carries no buttons at all.
+ * One task, two calm lines under a dated header. The header carries the date, so
+ * the card does not repeat it — only the overdue group keeps a per-card count,
+ * because "overdue" alone does not say by how much. The kind icon does the
+ * scanning work; the verb appears in place on hover / focus (always on touch).
  */
 function RailTaskCard({
   world,
   locale,
   task,
-  onOpen,
+  overdueGroup,
+  onAct,
 }: {
   world: World;
   locale: Locale;
   task: Task;
-  onOpen: () => void;
+  overdueGroup: boolean;
+  onAct: (task: Task) => void;
 }) {
-  const due = dueCueOf(task, new Date(world.now));
   const kase = caseOf(world, task);
+  const Icon = KIND_ICON[task.kind];
+  const at = consequenceAt(task);
+  const days = overdueGroup && at ? -daysUntil(at, world.now) : 0;
+
   return (
     <div
       className={cn(
         // Flat tiles: a card on the neutral-2 rail is only ~1.01:1, so a
         // hairline — not a shadow — is what makes each task a unit.
-        "group/task relative flex flex-col gap-1 rounded-lg border border-hairline bg-card p-3 outline-none",
+        "group/task relative flex items-start gap-3 rounded-lg border border-hairline bg-card p-3",
         "transition-colors hover:bg-accent has-focus-visible:bg-accent"
       )}
     >
-      <div className="flex min-h-8 items-center gap-2">
+      <span
+        aria-hidden="true"
+        className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-muted-foreground"
+      >
+        <Icon className="size-4" />
+      </span>
+
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <button
           type="button"
-          onClick={onOpen}
-          className="min-w-0 flex-1 text-left text-body-compact font-medium after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
+          onClick={() => onAct(task)}
+          className="text-left text-body-compact font-medium after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
         >
           {task.title}
         </button>
-        <div className="relative z-10 flex shrink-0 items-center justify-end gap-2">
-          <DueCue overdue={due.overdue}>{due.primary}</DueCue>
-          <TaskAction
-            label={kase ? verbFor(world.user, task, kase) : pick(advHome.open, locale)}
-            onOpen={onOpen}
-          />
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="min-w-0 flex-1 truncate text-caption text-muted-foreground">
-          {railCaseLineOf(world, task)}
+        <span className="flex items-center gap-1.5 text-caption text-muted-foreground">
+          <span className="min-w-0 truncate">{railCaseLineOf(world, task)}</span>
+          {task.isBlocking ? (
+            <span className="shrink-0 text-brand-muted-foreground">
+              · {pick(advHome.blocksHearing, locale)}
+            </span>
+          ) : null}
         </span>
-        {task.isBlocking ? (
-          <span className="shrink-0 text-caption text-brand-muted-foreground">
-            {pick(advHome.blocksHearing, locale)}
+      </div>
+
+      <div className="relative z-10 flex shrink-0 items-center gap-2 self-center">
+        {overdueGroup ? (
+          <span className="text-caption font-medium tabular-nums text-destructive-ink group-hover/task:hidden group-focus-within/task:hidden">
+            {days}d
           </span>
         ) : null}
+        <div className="hidden group-hover/task:flex group-focus-within/task:flex pointer-coarse:flex">
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => onAct(task)}
+          >
+            {kase ? verbFor(world.user, task, kase) : pick(advHome.open, locale)}
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -105,10 +161,12 @@ function RailStrip({
 }
 
 /**
- * The pending-tasks rail — the Needs-action tab of /tasks, in its exact order,
- * standing beside the board. Two widths on a desktop viewport, a 64px strip or a
- * 320px panel, expanding in place; it never leaves the layout. Below `md` the
- * strip stands down — the nav rail's Pending Tasks entry is the phone's door.
+ * The pending-tasks rail — the coming week of the Needs-action tab, bucketed
+ * under dated headers so each card stays quiet; everything beyond the week
+ * lives behind "View all". Open by default, resizable by its left-edge handle
+ * (drag, or arrow keys on the handle), collapsing to a 64px strip that never
+ * leaves the layout. Below `md` the strip stands down — the nav rail's Pending
+ * Tasks entry is the phone's door.
  */
 export function TasksRail({
   world,
@@ -117,7 +175,7 @@ export function TasksRail({
   topOffset,
   onOpen,
   onClose,
-  onOpenTask,
+  onAct,
   onViewAll,
 }: {
   world: World;
@@ -127,23 +185,67 @@ export function TasksRail({
   topOffset: string;
   onOpen: () => void;
   onClose: () => void;
-  onOpenTask: (taskId: string) => void;
+  onAct: (task: Task) => void;
   onViewAll: () => void;
 }) {
-  const tasks = railTasks(world);
+  const groups = railGroups(world, Number(new Date(world.now)));
   const count = summaryOf(world).action;
+  const [width, setWidth] = React.useState(RAIL_DEFAULT_WIDTH);
+  const dragFrom = React.useRef<{ x: number; width: number } | null>(null);
+
+  const clamp = (w: number) => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, w));
+
+  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    dragFrom.current = { x: e.clientX, width };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!dragFrom.current) return;
+    // The rail sits on the right, so dragging left grows it.
+    setWidth(clamp(dragFrom.current.width + (dragFrom.current.x - e.clientX)));
+  }
+  function onPointerUp() {
+    dragFrom.current = null;
+  }
+  function onHandleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key === "ArrowLeft") setWidth((w) => clamp(w + 16));
+    if (e.key === "ArrowRight") setWidth((w) => clamp(w - 16));
+  }
 
   return (
     <aside
       aria-label={pick(advHome.railTitle, locale)}
-      style={{ top: topOffset, height: `calc(100svh - ${topOffset})` }}
+      style={{
+        top: topOffset,
+        height: `calc(100svh - ${topOffset})`,
+        width: open ? width : undefined,
+      }}
       className={cn(
-        "sticky hidden shrink-0 flex-col self-start overflow-hidden border-l border-hairline bg-sidebar transition-[width] duration-200 ease-out md:flex",
-        open ? "w-80" : "w-16"
+        "sticky hidden shrink-0 flex-col self-start overflow-hidden border-l border-hairline bg-sidebar md:flex",
+        open ? "" : "w-16 transition-[width] duration-200 ease-out"
       )}
     >
       {open ? (
-        <div className="flex h-full w-80 flex-col">
+        <div className="relative flex h-full flex-col">
+          {/* The resize handle: an invisible grab strip on the rail's edge with a
+              visible thumb on hover — drag, or arrows when focused. */}
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={pick(advHome.railResize, locale)}
+            tabIndex={0}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onKeyDown={onHandleKeyDown}
+            className="group/handle absolute inset-y-0 left-0 z-10 w-2 cursor-col-resize outline-none"
+          >
+            <span
+              aria-hidden="true"
+              className="absolute inset-y-0 left-0 w-0.5 bg-transparent transition-colors group-hover/handle:bg-brand-accent group-focus-visible/handle:bg-brand-accent"
+            />
+          </div>
+
           <div className="flex items-center gap-2 px-4 pt-4 pb-3">
             <ListChecks aria-hidden="true" className="size-4 text-warning-ink" />
             <h2 className="flex-1 text-title-s font-semibold">
@@ -159,24 +261,42 @@ export function TasksRail({
               <ChevronRight aria-hidden="true" />
             </Button>
           </div>
-          {tasks.length ? (
-            <>
-              <p className="px-4 pb-2 text-caption font-semibold text-warning-ink">
-                {pick(advHome.railCaption, locale)}
-              </p>
-              <ul className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto px-3 pb-3">
-                {tasks.map((task) => (
-                  <li key={task.id}>
-                    <RailTaskCard
-                      world={world}
-                      locale={locale}
-                      task={task}
-                      onOpen={() => onOpenTask(task.id)}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </>
+
+          {groups.length ? (
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-3 pb-3">
+              {groups.map((group) => (
+                <section key={group.key} className="flex flex-col gap-2">
+                  <h3
+                    className={cn(
+                      "px-1 text-caption font-semibold",
+                      group.key === "overdue"
+                        ? "text-destructive-ink"
+                        : group.key === "today"
+                          ? "text-warning-ink"
+                          : "text-muted-foreground"
+                    )}
+                  >
+                    {groupLabel(locale, group)}
+                    <span className="ml-1.5 font-medium tabular-nums text-muted-foreground">
+                      {group.tasks.length}
+                    </span>
+                  </h3>
+                  <ul className="flex flex-col gap-2">
+                    {group.tasks.map((task) => (
+                      <li key={task.id}>
+                        <RailTaskCard
+                          world={world}
+                          locale={locale}
+                          task={task}
+                          overdueGroup={group.key === "overdue"}
+                          onAct={onAct}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
           ) : (
             <div className="flex flex-1 flex-col justify-center gap-1 px-6 pb-8 text-center">
               <p className="text-body-compact font-medium">
@@ -187,6 +307,7 @@ export function TasksRail({
               </p>
             </div>
           )}
+
           <div className="border-t border-hairline px-4 py-3">
             <Button variant="link" size="sm" className="px-0" onClick={onViewAll}>
               {fillCopy(advHome.railViewAll, locale, { n: String(count) })}
