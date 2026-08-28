@@ -34,6 +34,13 @@ Also load the `ui-craft` skill and audit the **render** against it: the layering
 pre-flight checklist. A screen that passes every gate but reads as a wireframe is a
 Critical finding, not a nit.
 
+Then read `../skills/propose-ui-brief/references/staff-ux-thinking.md` and run its eight
+passes — walk the Tuesday, domain layout, control vocabulary, real weather, exception
+vs. norm, pattern census, sibling sweep, render judgment. A review that only rule-checks
+tokens and typography without the systems passes is incomplete: the misses that embarrass
+a team are never token violations, they are claims nobody tested. Say in the report
+which passes ran.
+
 Foundations at `{DS}/src/app/(docs)/foundations/<name>/page.tsx` — eight: `laws`,
 `typography`, `spacing`, `colors`, `elevation`, `radius`, `icons`, `accessibility`. Read
 `colors` before ruling on any status or state token, `elevation` before ruling on a

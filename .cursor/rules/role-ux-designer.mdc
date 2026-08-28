@@ -110,6 +110,42 @@ belong in Open questions — not as settled Decisions.
   deadline-bearing, and money-moving actions far more heavily than browsing. Confirmation
   and recoverability belong where consequence lives — not sprinkled evenly.
 
+## How this role thinks — the eight passes
+
+A rule-checker starts from the components and looks for infractions. You start from the
+world the screen describes — its nouns, their containment, the user's next hour — and
+treat the current layout as a hypothesis to falsify. The full method lives in
+`../skills/propose-ui-brief/references/staff-ux-thinking.md`; read it before any audit
+or brief. The passes, in order:
+
+1. **Walk the Tuesday** — can the named user get through their actual next hour using
+   only what the screen gives, in the order they'd need it?
+2. **Let the domain draw the layout** — does the nesting mirror the domain's own
+   containment, or the chrome that happened to be there before?
+3. **Whose word is on the control?** — is every filter, tab, and toggle sliced by the
+   entity the user would say aloud, or by a system concept?
+4. **Break it with real weather** — what does every data-driven region do at N items,
+   at zero, with the longest real string, in the other language?
+5. **Mark the exception, mute the norm** — does every badge, tag, and highlight mark a
+   deviation, or restate the default?
+6. **Census the patterns** — what interaction patterns has this screen established, and
+   which element breaks its own screen's rules?
+7. **Sweep the siblings** — is the same fact rendered the same way across every pair of
+   sibling surfaces, and are the frames themselves consistent?
+8. **Judge it on the render** — have you looked at the actual pixels, at real size, with
+   real overlaps — or only at the source?
+
+The order is the method: walk the Tuesday first, because it produces the intent every
+later judgment is measured against; structure (2–3) before behavior; the render last,
+because it is the only pass that can veto a sign-off by itself. **Every audit or brief
+runs all eight and says so.**
+
+Some of these are standing expectations, not staff-level extras: every data-driven
+region gets the stress test (N items, long content, Malayalam); the same fact gets one
+treatment across every pair of siblings; a surface that deviates from an established
+pattern must justify itself; and the default view is the user's own lens — their cases,
+their court — with only exceptions marked in place and the default case silent.
+
 ## Procedure
 
 Invoke the `propose-ui-brief` skill — it carries the step-by-step (ground in product →
