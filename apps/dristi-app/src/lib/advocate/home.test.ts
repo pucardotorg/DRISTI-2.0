@@ -1,0 +1,185 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+import { at, kase, makeTask, NOW, otherCase, PEOPLE, senior } from "@/lib/tasks/fixtures";
+import type { Case } from "@/lib/tasks/types";
+import type { World } from "@/lib/tasks/selectors";
+import {
+  boardOf,
+  courtRooms,
+  dayKeyOf,
+  hearingsOn,
+  matterCountOn,
+  nextHearingDayAfter,
+  railTasks,
+  weekOf,
+} from "./home";
+
+const NOW_MS = new Date(NOW).getTime();
+
+/** A case listed `days` from NOW at a local hour, in a court, viewable by senior. */
+function listed(id: string, days: number, hour: number, court = kase.court): Case {
+  return {
+    ...kase,
+    id,
+    stNumber: `ST ${id}/2025`,
+    parties: `${id} v. X`,
+    court,
+    nextHearingAt: at(days, hour),
+  };
+}
+
+function world(cases: Case[], tasks: World["tasks"] = []): World {
+  return { people: PEOPLE, cases, tasks, user: senior, now: NOW };
+}
+
+describe("dayKeyOf", () => {
+  it("keys by the local calendar day", () => {
+    assert.equal(dayKeyOf(at(0, 10)), dayKeyOf(at(0, 16)));
+    assert.notEqual(dayKeyOf(at(0, 10)), dayKeyOf(at(1, 10)));
+  });
+});
+
+describe("hearingsOn", () => {
+  it("numbers the day's items in time order and splits status by the clock", () => {
+    // NOW is 12:00Z; local hours here bracket it.
+    const w = world([
+      listed("late", 0, 22),
+      listed("early", 0, 6),
+      listed("tomorrow", 1, 10),
+    ]);
+    const today = dayKeyOf(at(0, 12));
+    const items = hearingsOn(w, kase.court, today, NOW_MS);
+
+    assert.deepEqual(
+      items.map((h) => h.kase.id),
+      ["early", "late"]
+    );
+    assert.deepEqual(
+      items.map((h) => h.item),
+      [1, 2]
+    );
+    assert.equal(items[0].status, "concluded");
+    assert.equal(items[1].status, "upcoming");
+  });
+
+  it("marks an item live while the clock sits inside its listed window", () => {
+    const startedJustNow = new Date(NOW_MS - 10 * 60 * 1000).toISOString();
+    const w = world([{ ...kase, nextHearingAt: startedJustNow }]);
+    const items = hearingsOn(w, kase.court, dayKeyOf(startedJustNow), NOW_MS);
+    assert.equal(items[0].status, "now");
+  });
+
+  it("excludes cases the user cannot view", () => {
+    const w: World = { ...world([listed("mine", 0, 15), { ...otherCase, nextHearingAt: at(0, 15) }]), user: senior };
+    const today = dayKeyOf(at(0, 12));
+    assert.equal(hearingsOn(w, kase.court, today, NOW_MS).length, 1);
+    assert.equal(hearingsOn(w, otherCase.court, today, NOW_MS).length, 0);
+  });
+
+  it("attaches only actionable blocking tasks as blockers, and ready follows", () => {
+    const c = listed("blocked", 0, 15);
+    const w = world(
+      [c, listed("clear", 0, 16)],
+      [
+        makeTask({ id: "t-block", caseId: c.id, isBlocking: true, status: "open" }),
+        makeTask({ id: "t-done", caseId: c.id, isBlocking: true, status: "done" }),
+        makeTask({ id: "t-plain", caseId: c.id, isBlocking: false, status: "open" }),
+      ]
+    );
+    const today = dayKeyOf(at(0, 12));
+    const [blocked, clear] = hearingsOn(w, kase.court, today, NOW_MS);
+    assert.deepEqual(blocked.blockers.map((t) => t.id), ["t-block"]);
+    assert.equal(blocked.ready, false);
+    assert.equal(clear.ready, true);
+  });
+});
+
+describe("boardOf", () => {
+  it("splits the day into now, upcoming and concluded", () => {
+    const startedJustNow = new Date(NOW_MS - 10 * 60 * 1000).toISOString();
+    const w = world([
+      listed("gone", 0, 6),
+      { ...listed("live", 0, 12), nextHearingAt: startedJustNow },
+      listed("next", 0, 22),
+    ]);
+    const board = boardOf(w, kase.court, dayKeyOf(at(0, 12)), NOW_MS);
+    assert.equal(board.now?.kase.id, "live");
+    assert.deepEqual(board.upcoming.map((h) => h.kase.id), ["next"]);
+    assert.deepEqual(board.concluded.map((h) => h.kase.id), ["gone"]);
+  });
+});
+
+describe("courtRooms", () => {
+  it("puts the ON court first and counts the selected day per court", () => {
+    const w = world([
+      listed("j1", 0, 15, "JMFC Court 1, Kollam"),
+      listed("on1", 0, 15),
+      listed("on2", 0, 16),
+      listed("cjm-tomorrow", 1, 15, "CJM Court, Kollam"),
+    ]);
+    const rooms = courtRooms(w, dayKeyOf(at(0, 12)), NOW_MS);
+    assert.deepEqual(
+      rooms.map((r) => [r.court, r.count]),
+      [
+        ["24×7 ON Court, Kollam", 2],
+        ["CJM Court, Kollam", 0],
+        ["JMFC Court 1, Kollam", 1],
+      ]
+    );
+    assert.equal(matterCountOn(w, dayKeyOf(at(0, 12)), NOW_MS), 3);
+  });
+});
+
+describe("weekOf", () => {
+  it("runs Monday to Sunday around now, dotting hearing and due days", () => {
+    const w = world(
+      // `kase` itself is in the world so its task is visible to the user.
+      [listed("h", 1, 15), kase],
+      [makeTask({ id: "t-due", caseId: kase.id, dueAt: at(2, 17), status: "open" })]
+    );
+    const cells = weekOf(w, NOW_MS);
+    assert.equal(cells.length, 7);
+    assert.equal(cells[0].at.getDay(), 1); // Monday
+    assert.equal(cells.filter((c) => c.today).length, 1);
+    const byKey = new Map(cells.map((c) => [c.key, c]));
+    assert.equal(byKey.get(dayKeyOf(at(1, 12)))?.hearings, 1);
+    assert.equal(byKey.get(dayKeyOf(at(2, 12)))?.due, 1);
+  });
+});
+
+describe("nextHearingDayAfter", () => {
+  it("finds the nearest later day with anything listed, across courts", () => {
+    const w = world([
+      listed("today", 0, 15),
+      listed("in3", 3, 15, "JMFC Court 1, Kollam"),
+      listed("in3b", 3, 16),
+      listed("in9", 9, 15),
+    ]);
+    const next = nextHearingDayAfter(w, dayKeyOf(at(0, 12)));
+    assert.deepEqual(next, { key: dayKeyOf(at(3, 12)), count: 2 });
+    assert.equal(nextHearingDayAfter(w, dayKeyOf(at(9, 12))), null);
+  });
+});
+
+describe("railTasks", () => {
+  it("is the needs-action view in canonical order, unsliced", () => {
+    const w = world(
+      [kase],
+      [
+        makeTask({ id: "t-later", dueAt: at(6, 17), status: "open" }),
+        makeTask({ id: "t-overdue", dueAt: at(-2, 17), status: "open" }),
+        makeTask({ id: "t-block", isBlocking: true, dueAt: at(4, 17), status: "open" }),
+        makeTask({ id: "t-waiting", status: "awaiting-court" }),
+        makeTask({ id: "t-outside", caseId: otherCase.id, status: "open" }),
+      ]
+    );
+    // Outsider's case is invisible to senior; waiting tasks sit in another tab.
+    // Order is whatever `sortTasks`/`compareUrgency` decree — the rail mirrors
+    // /tasks exactly rather than re-deriving its own ranking.
+    assert.deepEqual(
+      railTasks(w).map((t) => t.id),
+      ["t-overdue", "t-block", "t-later"]
+    );
+  });
+});

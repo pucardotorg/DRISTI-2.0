@@ -1,152 +1,254 @@
 "use client";
 
 import * as React from "react";
-import { PencilRulerIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 
-import { Badge } from "@/components/ui/badge";
-import { pick, type Locale } from "@/lib/onboarding/content";
-import { advHome, fillCopy } from "@/lib/advocate/content";
-import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { Locale } from "@/lib/onboarding/content";
+import { pick } from "@/lib/onboarding/content";
+import { advHome } from "@/lib/advocate/content";
+import {
+  boardOf,
+  courtRooms,
+  dayKeyOf,
+  matterCountOn,
+  nextHearingDayAfter,
+  weekOf,
+  type Board,
+} from "@/lib/advocate/home";
+import { useTasks } from "@/lib/tasks/store";
+import { TASKS_HOME, taskHref } from "@/lib/tasks/routes";
+import type { PersonId } from "@/lib/tasks/types";
+import type { World } from "@/lib/tasks/selectors";
+import { CourtBoard, type BoardView } from "@/components/advocate/court-board";
+import { CasePeek } from "@/components/advocate/case-peek";
+import { HomeGreeting } from "@/components/advocate/home-greeting";
+import { TasksRail } from "@/components/advocate/tasks-rail";
 
-/**
- * Wireframe of the advocate hearings dashboard.
- *
- * The real screen belongs to another designer; this placeholder keeps its skeleton —
- * greeting, court tabs, in-session card, up-next list — so the shell, side panel and
- * join flow can be reviewed in one place. Everything here is dashed-border grey by
- * intent: nothing on this surface should read as a finished design decision.
- */
+/** The shell top bar is `h-14`; the sticky rails hang below it. */
+const TOP_BAR = "3.5rem";
 
-const COURT_TABS = [
-  { name: "24×7 ON Court", count: 5, active: true },
-  { name: "JMFC Court 1", count: 3 },
-  { name: "JMFC Court 2", count: 2 },
-  { name: "CJM Court", count: 1 },
-];
-
-const UP_NEXT = [
-  {
-    item: 7,
-    title: "Fathima Beevi v. Anil Kumar K.",
-    purpose: "Recording of the plea of the accused · KLKL01-000088-2026",
-    task: "Upload the certified copy of the bank's return memo",
-    due: "2 days past due",
-  },
-  {
-    item: 9,
-    title: "Anitha Joseph v. Latheef M.",
-    purpose: "Evidence of the complainant · KLKL01-000112-2026",
-    task: "File the proof affidavit of PW-1",
-    due: "Due today",
-  },
-];
-
-function WireCard({ className, children }: { className?: string; children: React.ReactNode }) {
-  return (
-    <div className={cn("rounded-lg border border-dashed border-border bg-surface p-4", className)}>
-      {children}
-    </div>
-  );
+/** A clock that ticks once a minute so due cues stay honest on a long-open tab. */
+function useNow(): number {
+  const [now, setNow] = React.useState(() => Date.now());
+  React.useEffect(() => {
+    const t = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(t);
+  }, []);
+  return now;
 }
 
-export function AdvocateHome({ locale, profileFirstName }: {
+/**
+ * The advocate home — the day in court, and what stands in its way.
+ *
+ * One world, three surfaces: the cause-list board (from `Case.nextHearingAt`),
+ * the pending-tasks rail (the Needs-action tab of /tasks, verbatim), and the
+ * case peek. A blocking task appears on the hearing it blocks *and* in the rail,
+ * because they are the same task read twice — opening it anywhere lands on
+ * /tasks, where acting on it lives.
+ */
+export function AdvocateHome({
+  locale,
+  profileFirstName,
+}: {
   locale: Locale;
   profileFirstName: string;
 }) {
+  const store = useTasks();
+  const { state, people, cases, tasks, user } = store;
+  const router = useRouter();
+  const now = useNow();
+
+  const world = React.useMemo<World>(
+    () => ({ people, cases, tasks, user, now: new Date(now) }),
+    [people, cases, tasks, user, now]
+  );
+
+  const todayKey = dayKeyOf(now);
+  const [selectedDay, setSelectedDay] = React.useState<string>(todayKey);
+  const [view, setView] = React.useState<BoardView>("cards");
+  const [advocates, setAdvocates] = React.useState<PersonId[]>([]);
+  const [selectedCaseId, setSelectedCaseId] = React.useState<string | null>(null);
+  const [railOpen, setRailOpen] = React.useState(false);
+
+  const week = React.useMemo(() => weekOf(world, now), [world, now]);
+  const rooms = React.useMemo(
+    () => courtRooms(world, selectedDay, now),
+    [world, selectedDay, now]
+  );
+  const [courtId, setCourtId] = React.useState<string | null>(null);
+  const court = courtId ?? rooms[0]?.court ?? null;
+
+  const matterCount = React.useMemo(
+    () => matterCountOn(world, selectedDay, now),
+    [world, selectedDay, now]
+  );
+
+  function filteredBoard(board: Board): Board {
+    if (advocates.length === 0) return board;
+    const keep = (h: { kase: { advocates: PersonId[] } }) =>
+      h.kase.advocates.some((id) => advocates.includes(id));
+    return {
+      now: board.now && keep(board.now) ? board.now : null,
+      upcoming: board.upcoming.filter(keep),
+      concluded: board.concluded.filter(keep),
+    };
+  }
+
+  const boards = React.useMemo(() => {
+    const map = new Map<string, Board>();
+    for (const room of rooms) {
+      map.set(room.court, boardOf(world, room.court, selectedDay, now));
+    }
+    return map;
+  }, [world, rooms, selectedDay, now]);
+
+  // The peek's hearing: whichever board on the selected day holds the case.
+  const selectedHearing = React.useMemo(() => {
+    if (!selectedCaseId) return null;
+    for (const board of boards.values()) {
+      const all = [
+        ...(board.now ? [board.now] : []),
+        ...board.upcoming,
+        ...board.concluded,
+      ];
+      const hit = all.find((h) => h.kase.id === selectedCaseId);
+      if (hit) return hit;
+    }
+    return null;
+  }, [boards, selectedCaseId]);
+
+  const jump = React.useMemo(() => {
+    const next = nextHearingDayAfter(world, selectedDay);
+    if (!next) return null;
+    const label = new Intl.DateTimeFormat(locale === "ml" ? "ml-IN" : "en-IN", {
+      weekday: "long",
+      day: "numeric",
+      month: "short",
+    }).format(new Date(`${next.key}T12:00:00`));
+    return { ...next, label };
+  }, [world, selectedDay, locale]);
+
+  function selectDay(key: string) {
+    setSelectedDay(key);
+    setSelectedCaseId(null);
+  }
+
+  function toggleAdvocate(id: PersonId) {
+    setAdvocates((current) =>
+      current.includes(id) ? current.filter((x) => x !== id) : [...current, id]
+    );
+  }
+
+  function openTask(taskId: string) {
+    router.push(taskHref(taskId));
+  }
+
+  if (state !== "ready") {
+    return (
+      <main className="flex min-w-0 flex-1 items-center justify-center">
+        <Spinner className="size-6 text-muted-foreground" />
+      </main>
+    );
+  }
+
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-8 md:px-6 md:py-10">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-title text-balance font-semibold sm:text-title-l">
-            {fillCopy(advHome.greeting, locale, { name: profileFirstName })}
-          </h1>
-          <p className="text-body-compact text-muted-foreground">
-            {pick(advHome.subline, locale)}
-          </p>
+    <div className="flex min-h-0 min-w-0 flex-1">
+      {/* A container, not just a column: the peek and the rail narrow the board
+          without narrowing the viewport, so what the board puts on one line has
+          to answer to its own width. */}
+      <main className="@container flex min-w-0 flex-1 flex-col">
+        <div className="px-4 pt-8 pb-4 md:px-6">
+          <HomeGreeting
+            locale={locale}
+            firstName={profileFirstName}
+            now={now}
+            week={week}
+            selectedDay={selectedDay}
+            matterCount={matterCount}
+            onSelectDay={selectDay}
+          />
         </div>
-        <Badge variant="outline" className="mt-1 shrink-0 text-muted-foreground">
-          <PencilRulerIcon aria-hidden />
-          {pick(advHome.wireframeNote, locale)}
-        </Badge>
-      </div>
 
-      {/* court tabs */}
-      <div className="flex flex-wrap items-center gap-2">
-        {COURT_TABS.map((tab) => (
-          <span
-            key={tab.name}
-            className={cn(
-              "flex h-9 items-center gap-2 rounded-md border border-dashed px-3 text-body-compact",
-              tab.active
-                ? "border-border bg-muted font-medium text-foreground"
-                : "border-border text-muted-foreground",
-            )}
+        <Tabs value={court ?? ""} onValueChange={setCourtId}>
+          {/* The active underline sits ON the band's rule rather than floating
+              above it — one horizontal line, not two. */}
+          <TabsList
+            variant="line"
+            className="w-full justify-start gap-1 overflow-x-auto border-b border-hairline px-4 pb-0 group-data-horizontal/tabs:h-auto md:px-6"
           >
-            {tab.name}
-            <span className="text-caption text-muted-foreground">{tab.count}</span>
-          </span>
-        ))}
-      </div>
-
-      {/* concluded strip */}
-      <WireCard className="flex min-h-12 items-center bg-surface-sunken py-2">
-        <p className="text-body-compact text-muted-foreground">{pick(advHome.concluded, locale)}</p>
-      </WireCard>
-
-      {/* in-session card */}
-      <section className="flex flex-col gap-2" aria-label={pick(advHome.nowLabel, locale)}>
-        <p className="text-caption font-semibold text-muted-foreground uppercase">
-          {pick(advHome.nowLabel, locale)}
-        </p>
-        <WireCard className="flex flex-col gap-4 p-5">
-          <div className="flex flex-col gap-1">
-            <p className="text-title-s font-semibold">Sreekumar N. v. Vismaya Traders</p>
-            <p className="text-body-compact text-muted-foreground">
-              Cross-examination of PW-1, and evidence of PW-2 · KLKL01-000412-2025
-            </p>
-          </div>
-          <div className="flex flex-col gap-2">
-            {[
-              { task: "Fix 2 defects — condonation of delay application", due: "4 days past due" },
-              { task: "Pay the ₹2 process fee", due: "41 days past due" },
-            ].map((row) => (
-              <div
-                key={row.task}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface-sunken px-3 py-2.5"
+            {rooms.map((room) => (
+              <TabsTrigger
+                key={room.court}
+                value={room.court}
+                className="-mb-px flex-none gap-2 px-3 pt-2 pb-3 group-data-horizontal/tabs:h-auto group-data-horizontal/tabs:after:bottom-0 group-data-[variant=line]/tabs-list:data-active:after:bg-brand-accent"
               >
-                <p className="text-body-compact">{row.task}</p>
-                <p className="text-caption text-destructive">{row.due}</p>
-              </div>
-            ))}
-          </div>
-        </WireCard>
-      </section>
-
-      {/* up next */}
-      <section className="flex flex-col gap-2" aria-label={pick(advHome.upNext, locale)}>
-        <p className="text-caption font-semibold text-muted-foreground uppercase">
-          {pick(advHome.upNext, locale)}
-        </p>
-        <div className="flex flex-col gap-3">
-          {UP_NEXT.map((entry) => (
-            <WireCard key={entry.item} className="flex flex-col gap-3">
-              <div className="flex items-start gap-3">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-body-compact font-semibold text-muted-foreground">
-                  {entry.item}
+                {room.live ? (
+                  <span
+                    aria-hidden="true"
+                    className="size-2 rounded-full bg-success"
+                  />
+                ) : null}
+                <span className="text-body-compact font-semibold">
+                  {room.court.replace(", Kollam", "")}
                 </span>
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  <p className="text-body font-semibold">{entry.title}</p>
-                  <p className="text-caption text-muted-foreground">{entry.purpose}</p>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface-sunken px-3 py-2.5">
-                <p className="text-body-compact">{entry.task}</p>
-                <p className="text-caption text-destructive">{entry.due}</p>
-              </div>
-            </WireCard>
+                {/* Every tab states its count the same way — the number is the
+                    same kind of fact on all four. */}
+                <span className="text-caption tabular-nums text-muted-foreground">
+                  {room.count}
+                </span>
+                {room.live ? (
+                  <span className="sr-only">{pick(advHome.inSession, locale)}</span>
+                ) : null}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          {rooms.map((room) => (
+            <TabsContent key={room.court} value={room.court} className="px-4 md:px-6">
+              <CourtBoard
+                world={world}
+                locale={locale}
+                board={filteredBoard(boards.get(room.court)!)}
+                filtered={advocates.length > 0}
+                view={view}
+                onViewChange={setView}
+                advocates={advocates}
+                onToggleAdvocate={toggleAdvocate}
+                selectedCaseId={selectedCaseId}
+                onOpenCase={setSelectedCaseId}
+                onOpenTask={openTask}
+                jump={jump}
+                onJump={selectDay}
+              />
+            </TabsContent>
           ))}
-        </div>
-      </section>
-    </main>
+        </Tabs>
+      </main>
+
+      <CasePeek
+        world={world}
+        locale={locale}
+        hearing={selectedHearing}
+        open={Boolean(selectedHearing)}
+        topOffset={TOP_BAR}
+        onOpenChange={(next) => {
+          if (!next) setSelectedCaseId(null);
+        }}
+        onOpenTask={openTask}
+      />
+
+      <TasksRail
+        world={world}
+        locale={locale}
+        open={railOpen}
+        topOffset={TOP_BAR}
+        onOpen={() => setRailOpen(true)}
+        onClose={() => setRailOpen(false)}
+        onOpenTask={openTask}
+        onViewAll={() => router.push(TASKS_HOME)}
+      />
+    </div>
   );
 }

@@ -157,21 +157,76 @@ export const advShell = {
   role: t("Advocate", "അഭിഭാഷക"),
 } as const;
 
-/* ---------------------------------------------------------- home (wireframe) */
+/* ----------------------------------------------------------------------- home */
 
-/** The hearings dashboard is another designer's screen. This wireframe keeps its
- *  structure — greeting, court tabs, in-session card, up-next list — so the shell
- *  and flows can be reviewed together, and will be replaced wholesale. */
+/**
+ * The advocate hearings dashboard. Chrome copy only — everything derived from data
+ * (parties, stages, due phrases) comes through `lib/tasks/format` and stays English,
+ * exactly as it does on /tasks: bilingual rendering is the citizen screens' rule.
+ */
 export const advHome = {
-  greeting: t("Good morning, {name}", "സുപ്രഭാതം, {name}"),
-  subline: t("Monday 10 August · 12 matters", "തിങ്കൾ 10 ഓഗസ്റ്റ് · 12 വിഷയങ്ങൾ"),
-  wireframeNote: t(
-    "Wireframe — the hearings dashboard is designed separately and will replace this screen.",
-    "വയർഫ്രെയിം — ഹിയറിംഗ് ഡാഷ്‌ബോർഡ് പ്രത്യേകം രൂപകൽപ്പന ചെയ്യുന്നു; ഈ സ്ക്രീൻ മാറ്റിസ്ഥാപിക്കും.",
-  ),
-  concluded: t("2 concluded earlier — items 1, 2", "നേരത്തെ തീർന്നത് 2 — ഇനം 1, 2"),
-  nowLabel: t("Now — item 4", "ഇപ്പോൾ — ഇനം 4"),
+  greetingMorning: t("Good morning, {name}", "സുപ്രഭാതം, {name}"),
+  greetingAfternoon: t("Good afternoon, {name}", "നമസ്കാരം, {name}"),
+  greetingEvening: t("Good evening, {name}", "ശുഭ സന്ധ്യ, {name}"),
+  mattersOne: t("1 matter listed", "1 വിഷയം പട്ടികയിൽ"),
+  mattersMany: t("{n} matters listed", "{n} വിഷയങ്ങൾ പട്ടികയിൽ"),
+  mattersNone: t("Nothing listed", "ഒന്നും പട്ടികയിലില്ല"),
+  today: t("Today", "ഇന്ന്"),
+
+  /* Board */
+  inSession: t("in session", "സെഷനിൽ"),
+  nowLabel: t("Now — item {n}", "ഇപ്പോൾ — ഇനം {n}"),
   upNext: t("Up next", "അടുത്തത്"),
+  inListOrder: t("In list order", "പട്ടിക ക്രമത്തിൽ"),
+  concludedStrip: t(
+    "{n} concluded earlier — items {items}",
+    "നേരത്തെ തീർന്നത് {n} — ഇനം {items}",
+  ),
+  ready: t("Ready", "തയ്യാർ"),
+  viewCases: t("View cases", "കേസുകൾ കാണുക"),
+  layoutCards: t("Cards", "കാർഡുകൾ"),
+  layoutList: t("List", "പട്ടിക"),
+  layoutLabel: t("Cause list layout", "കോസ് ലിസ്റ്റ് രൂപം"),
+  joinCourtroom: t("Join this courtroom", "ഈ കോടതിമുറിയിൽ ചേരുക"),
+  emptyDayTitle: t("Nothing listed this day", "ഈ ദിവസം ഒന്നും പട്ടികയിലില്ല"),
+  emptyDayBody: t(
+    "No matters are listed in this court on the selected day.",
+    "തിരഞ്ഞെടുത്ത ദിവസം ഈ കോടതിയിൽ വിഷയങ്ങളൊന്നും പട്ടികയിലില്ല.",
+  ),
+  emptyFilterTitle: t("No matters match this filter", "ഈ ഫിൽട്ടറിന് വിഷയങ്ങളൊന്നുമില്ല"),
+  emptyFilterBody: t(
+    "No listed items for the advocates you selected. Clear a chip to see the full cause list.",
+    "തിരഞ്ഞെടുത്ത അഭിഭാഷകർക്ക് ഇനങ്ങളൊന്നുമില്ല. മുഴുവൻ പട്ടിക കാണാൻ ഒരു ചിപ്പ് മാറ്റുക.",
+  ),
+  jumpNext: t("Next hearing day: {day} — {n} listed", "അടുത്ത ഹിയറിംഗ് ദിവസം: {day} — {n} ഇനം"),
+
+  /* Pending-tasks rail */
+  railTitle: t("Pending tasks", "ബാക്കിയുള്ള ജോലികൾ"),
+  railCaption: t("Most urgent first", "ഏറ്റവും അടിയന്തിരം ആദ്യം"),
+  railOpen: t("Open pending tasks, {n} need action", "ബാക്കിയുള്ള ജോലികൾ തുറക്കുക, {n} എണ്ണം"),
+  railCollapse: t("Collapse pending tasks", "ജോലികളുടെ പാനൽ ചുരുക്കുക"),
+  railViewAll: t("View all {n} tasks", "എല്ലാ {n} ജോലികളും കാണുക"),
+  railEmptyTitle: t("Nothing needs you", "ഒന്നും ബാക്കിയില്ല"),
+  railEmptyBody: t(
+    "Every task is done or waiting on the court.",
+    "എല്ലാം തീർന്നു, അല്ലെങ്കിൽ കോടതിയുടെ ഊഴം.",
+  ),
+  open: t("Open", "തുറക്കുക"),
+  blocksHearing: t("blocks the hearing", "ഹിയറിംഗ് തടയുന്നു"),
+
+  /* Case peek */
+  peekLabel: t("Case peek", "കേസ് ഒറ്റനോട്ടം"),
+  peekClose: t("Close", "അടയ്ക്കുക"),
+  peekStage: t("Stage", "ഘട്ടം"),
+  peekHearing: t("This hearing", "ഈ ഹിയറിംഗ്"),
+  peekAdvocates: t("On the vakalatnama", "വക്കാലത്തിൽ"),
+  peekTeam: t("Also on the case", "കേസിൽ ഒപ്പം"),
+  peekTasks: t("Pending on this case", "ഈ കേസിൽ ബാക്കി"),
+  peekNoTasks: t("Nothing pending", "ഒന്നും ബാക്കിയില്ല"),
+  peekNoTasksBody: t(
+    "This matter is ready for the hearing.",
+    "ഈ വിഷയം ഹിയറിംഗിന് തയ്യാറാണ്.",
+  ),
 } as const;
 
 /* -------------------------------------------------------------- join stub page */
