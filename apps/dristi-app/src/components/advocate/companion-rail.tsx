@@ -35,6 +35,7 @@ import {
   prepGroups,
   railCaseLineOf,
   railGroups,
+  worstOverdue,
   type PrepGroup,
   type PrepItem,
   type RailGroup,
@@ -44,7 +45,7 @@ import { dueCueOf } from "@/lib/tasks/format";
 import { summaryOf, type World } from "@/lib/tasks/selectors";
 import type { Task, TaskKind } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
-import { RowAction } from "@/components/advocate/home-bits";
+import { DueCue, RowAction } from "@/components/advocate/home-bits";
 
 /**
  * The companion rail — Gmail's model. A persistent icon strip on the far right
@@ -186,16 +187,18 @@ function TaskCard({
   world,
   task,
   verb,
+  worst,
   onAct,
 }: {
   world: World;
   task: Task;
   verb: string;
+  /** The panel's single furthest-overdue task — the one card that keeps a badge. */
+  worst?: boolean;
   onAct: (task: Task) => void;
 }) {
   const Icon = KIND_ICON[task.kind];
   const due = dueCueOf(task, new Date(world.now));
-  const today = due.primary === "Due today";
 
   return (
     <div className={RAIL_CARD}>
@@ -215,14 +218,20 @@ function TaskCard({
         <span className="w-full truncate text-caption text-muted-foreground">
           {railCaseLineOf(world, task)}
         </span>
-        {/* Where it stands, said as a tag rather than a bare red number: every
-            card carries one, so the column below it stays a rhythm. */}
-        <Badge
-          className="self-start"
-          variant={due.overdue ? "destructive" : today ? "warning" : "secondary"}
-        >
-          {due.primary}
-        </Badge>
+        {/* Where it stands, in ink. These rows repeat, and a chip on each spent
+            the screen's whole colour budget before the rail's own count was
+            read — so one badge survives, on the task owed longest, and the rest
+            say it in words. An overdue row carries its date too: "41 days
+            overdue" is a duration, and the day it fell due is the fact. */}
+        {worst ? (
+          <Badge className="self-start" variant="destructive">
+            {due.primary}
+          </Badge>
+        ) : (
+          <DueCue overdue={due.overdue}>
+            {due.overdue && due.date ? `${due.primary} · ${due.date}` : due.primary}
+          </DueCue>
+        )}
       </div>
 
       <RowAction label={verb} onClick={() => onAct(task)} />
@@ -245,13 +254,18 @@ function TasksPanel({
   onClose: () => void;
   onViewAll: () => void;
 }) {
-  const groups = railGroups(world, Number(new Date(world.now)));
+  const now = Number(new Date(world.now));
+  const groups = railGroups(world, now);
   const count = summaryOf(world).action;
+  // The cards stop at seven days; the footer's count does not. Naming the one
+  // badge's owner here keeps that decision out of the card.
+  const worst = worstOverdue(world, now);
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col">
       <PanelHeader
         title={pick(advHome.railTitle, locale)}
+        caption={pick(advHome.railScope, locale)}
         locale={locale}
         onClose={onClose}
       />
@@ -277,6 +291,7 @@ function TasksPanel({
                         world={world}
                         task={task}
                         verb={verbOf(task)}
+                        worst={task.id === worst?.id}
                         onAct={onAct}
                       />
                     </li>
@@ -474,7 +489,8 @@ function StripButton({
   icon: LucideIcon;
   label: string;
   count: number;
-  countTone: "destructive" | "warning";
+  /** Only a count that reports a *status* is coloured; a tally is neutral. */
+  countTone: "destructive" | "neutral";
   active: boolean;
   onClick: () => void;
 }) {
@@ -510,7 +526,10 @@ function StripButton({
                 "absolute -top-1 -right-1 flex min-w-4 items-center justify-center rounded-full px-1 text-caption tabular-nums",
                 countTone === "destructive"
                   ? "bg-destructive text-destructive-foreground"
-                  : "bg-warning-muted font-medium text-warning-ink"
+                  : // Substantial hearings ahead is a tally, not a warning. On the
+                    // rail's own sunken fill a neutral pill has to rise to read at
+                    // all — the card step, with a hairline to hold its edge.
+                    "bg-card font-medium text-muted-foreground ring-1 ring-hairline dark:bg-surface-raised"
               )}
             >
               {count}
@@ -642,7 +661,7 @@ export function CompanionRail({
           icon={CalendarClock}
           label={fillCopy(advHome.prepOpen, locale, { n: String(prepCount) })}
           count={prepCount}
-          countTone="warning"
+          countTone="neutral"
           active={section === "prep"}
           onClick={() => toggle("prep")}
         />

@@ -61,7 +61,7 @@ export function NowHearingCard({
       </p>
       <Card
         className={cn(
-          "relative cursor-pointer gap-5 overflow-visible rounded-3xl border-transparent bg-brand-muted px-8 py-6 shadow-raised",
+          "relative cursor-pointer gap-4 overflow-visible rounded-3xl border-transparent bg-brand-muted px-8 py-6 shadow-raised",
           selected && "ring-2 ring-brand-accent"
         )}
       >

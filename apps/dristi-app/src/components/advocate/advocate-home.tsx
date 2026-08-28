@@ -259,8 +259,12 @@ function HomeBody({
                     className="size-2 rounded-full bg-success"
                   />
                 ) : null}
+                {/* The court's name as the world states it. Shortening it here
+                    matched an English literal, so a Malayalam or Gujarati
+                    deployment would silently keep the long form — how a court is
+                    named is a state-layer fact, not a view's edit. */}
                 <span className="text-body-compact font-semibold">
-                  {room.court.replace(", Kollam", "")}
+                  {room.court}
                 </span>
                 {/* Every tab states its count the same way — the number is the
                     same kind of fact on all four. */}

@@ -6,6 +6,7 @@ import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Locale } from "@/lib/onboarding/content";
 import { advHome, fillCopy } from "@/lib/advocate/content";
 import { pick } from "@/lib/onboarding/content";
@@ -32,10 +33,17 @@ function mattersLine(locale: Locale, count: number): string {
   return fillCopy(advHome.mattersMany, locale, { n: String(count) });
 }
 
+/** The amber dot's referent, in words — "3 tasks due". */
+function dueLine(locale: Locale, count: number): string {
+  return count === 1
+    ? pick(advHome.dueOne, locale)
+    : fillCopy(advHome.dueMany, locale, { n: String(count) });
+}
+
 function dayNote(cell: WeekCell, locale: Locale): string {
   const parts: string[] = [];
   if (cell.hearings) parts.push(mattersLine(locale, cell.hearings));
-  if (cell.due) parts.push(`${cell.due} due`);
+  if (cell.due) parts.push(dueLine(locale, cell.due));
   return parts.length ? parts.join(" · ") : pick(advHome.mattersNone, locale);
 }
 
@@ -87,8 +95,12 @@ export function HomeGreeting({
           {fillCopy(greetingCopy(nowDate.getHours()), locale, { name: firstName })}
         </h1>
         <div className="flex items-center gap-1.5">
+          {/* The due count is said here, always: the week strip states it as an
+              amber dot, and a dot that means on its own means nothing to a
+              reader who cannot see the colour. */}
           <p className="text-body-compact text-muted-foreground @3xl:text-body">
             {dateLine} · {mattersLine(locale, matterCount)}
+            {selected?.due ? ` · ${dueLine(locale, selected.due)}` : ""}
           </p>
           <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
             <PopoverTrigger asChild>
@@ -142,47 +154,56 @@ export function HomeGreeting({
             const isSelected = cell.key === selectedDay;
             return (
               <li key={cell.key}>
-                <button
-                  type="button"
-                  aria-pressed={isSelected}
-                  onClick={() => onSelectDay(cell.key)}
-                  className={cn(
-                    "flex w-11 flex-col items-center gap-1 rounded-lg py-2 transition-colors",
-                    // Brand tint means "today", not "selected" — a chosen day
-                    // elsewhere in the week gets a neutral cue instead.
-                    cell.today
-                      ? "bg-brand-muted text-brand-muted-foreground"
-                      : isSelected
-                        ? "bg-surface-sunken text-foreground"
-                        : "text-muted-foreground hover:bg-accent"
-                  )}
-                >
-                  <span className="text-caption">{weekdayFmt.format(cell.at)}</span>
-                  <span
-                    className={cn(
-                      "text-body tabular-nums",
-                      (cell.today || isSelected) && "font-semibold"
-                    )}
-                  >
-                    {cell.at.getDate()}
-                  </span>
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      "size-1 rounded-full",
-                      cell.due
-                        ? "bg-warning-ink"
-                        : cell.hearings
-                          ? "bg-muted-foreground"
-                          : "bg-transparent"
-                    )}
-                  />
-                  <span className="sr-only">
-                    {weekdayFmt.format(cell.at)} {cell.at.getDate()}
-                    {cell.today ? ` (${pick(advHome.today, locale)})` : ""} —{" "}
-                    {dayNote(cell, locale)}
-                  </span>
-                </button>
+                {/* The dots mean by colour. The tooltip hands a sighted reader
+                    the same sentence the `sr-only` line has always carried. */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => onSelectDay(cell.key)}
+                      className={cn(
+                        "flex w-11 flex-col items-center gap-1 rounded-lg py-2 transition-colors",
+                        // Brand tint means "today", not "selected" — a chosen day
+                        // elsewhere in the week gets a neutral cue instead.
+                        cell.today
+                          ? "bg-brand-muted text-brand-muted-foreground"
+                          : isSelected
+                            ? "bg-surface-sunken text-foreground"
+                            : "text-muted-foreground hover:bg-accent"
+                      )}
+                    >
+                      <span className="text-caption">
+                        {weekdayFmt.format(cell.at)}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-body tabular-nums",
+                          (cell.today || isSelected) && "font-semibold"
+                        )}
+                      >
+                        {cell.at.getDate()}
+                      </span>
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "size-1 rounded-full",
+                          cell.due
+                            ? "bg-warning-ink"
+                            : cell.hearings
+                              ? "bg-muted-foreground"
+                              : "bg-transparent"
+                        )}
+                      />
+                      <span className="sr-only">
+                        {weekdayFmt.format(cell.at)} {cell.at.getDate()}
+                        {cell.today ? ` (${pick(advHome.today, locale)})` : ""} —{" "}
+                        {dayNote(cell, locale)}
+                      </span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>{dayNote(cell, locale)}</TooltipContent>
+                </Tooltip>
               </li>
             );
           })}

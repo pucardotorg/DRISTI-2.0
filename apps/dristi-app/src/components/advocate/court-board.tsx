@@ -11,7 +11,6 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { Locale } from "@/lib/onboarding/content";
 import { pick } from "@/lib/onboarding/content";
 import { advHome, fillCopy } from "@/lib/advocate/content";
@@ -110,24 +109,31 @@ export function CourtBoard({
           ))}
         </SegmentedControl>
 
-        <ToggleGroup
+        {/* The same kind of choice as the access filter beside it — one value
+            from a fixed set — so it is the same control. `ToggleGroup size="sm"`
+            was a 28px target, under the 40×40 floor; `compact` shrinks the well
+            and keeps the target. */}
+        <SegmentedControl
           type="single"
+          size="compact"
           value={view}
           onValueChange={(next) => next && onViewChange(next as BoardView)}
-          variant="outline"
-          size="sm"
-          spacing={0}
           aria-label={pick(advHome.layoutLabel, locale)}
         >
-          <ToggleGroupItem value="cards">
-            <LayoutGrid aria-hidden="true" />
-            {pick(advHome.layoutCards, locale)}
-          </ToggleGroupItem>
-          <ToggleGroupItem value="list">
-            <List aria-hidden="true" />
-            {pick(advHome.layoutList, locale)}
-          </ToggleGroupItem>
-        </ToggleGroup>
+          {(
+            [
+              ["cards", advHome.layoutCards, LayoutGrid],
+              ["list", advHome.layoutList, List],
+            ] as const
+          ).map(([value, label, Icon]) => (
+            <SegmentedControlItem key={value} value={value}>
+              <span className="flex items-center gap-1.5">
+                <Icon aria-hidden="true" className="size-4" />
+                {pick(label, locale)}
+              </span>
+            </SegmentedControlItem>
+          ))}
+        </SegmentedControl>
       </div>
 
       {concluded.length ? (

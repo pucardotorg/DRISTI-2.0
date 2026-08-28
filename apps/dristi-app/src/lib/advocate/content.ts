@@ -171,6 +171,10 @@ export const advHome = {
   mattersOne: t("1 matter listed", "1 വിഷയം പട്ടികയിൽ"),
   mattersMany: t("{n} matters listed", "{n} വിഷയങ്ങൾ പട്ടികയിൽ"),
   mattersNone: t("Nothing listed", "ഒന്നും പട്ടികയിലില്ല"),
+  /** Appended to the subline when the selected day carries task consequences —
+      the words behind the week strip's amber dot, so it never means by colour alone. */
+  dueOne: t("1 task due", "1 ജോലി അവസാനിക്കുന്നു"),
+  dueMany: t("{n} tasks due", "{n} ജോലികൾ അവസാനിക്കുന്നു"),
   today: t("Today", "ഇന്ന്"),
 
   /* Board */
@@ -230,6 +234,12 @@ export const advHome = {
 
   /* Companion rail */
   railTitle: t("Pending tasks", "ബാക്കിയുള്ള ജോലികൾ"),
+  /** The panel lists the coming week; the strip's badge counts every open task.
+      The two can never agree, so the header says which one this is. */
+  railScope: t(
+    "Due in the next 7 days",
+    "അടുത്ത 7 ദിവസത്തിനുള്ളിൽ അവസാനിക്കുന്നവ",
+  ),
   prepTitle: t(
     "Important upcoming hearings",
     "വരാനിരിക്കുന്ന പ്രധാന ഹിയറിംഗുകൾ",

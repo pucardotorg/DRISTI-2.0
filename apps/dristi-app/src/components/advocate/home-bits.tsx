@@ -74,24 +74,33 @@ export function TeamAvatar({
  * first (the signed-in account first among them), then the advocates with case
  * access; the tooltip on each says which of the two they are. Past `max` the
  * remainder collapses into a count that names them.
+ *
+ * The viewer's own disc is off by default. On a board it appeared on every row —
+ * the viewer can see all of them — so it said nothing, while spending the brand
+ * tint that elsewhere on this screen means "now". Surfaces where the subject
+ * *is* who is on the matter, and the set is read once, pass `includeSelf`.
  */
 export function AdvocateStack({
   locale,
   team,
   max = 3,
   onBrand,
+  includeSelf = false,
   ring = "ring-card",
 }: {
   locale: Locale;
   team: TeamMember[];
   max?: number;
   onBrand?: boolean;
+  /** Keep the signed-in account's disc — for "who is on this case", not for lists. */
+  includeSelf?: boolean;
   /** The surface behind the stack — the discs ring in it to stay separate. */
   ring?: string;
 }) {
-  if (team.length === 0) return null;
-  const shown = team.slice(0, max);
-  const rest = team.slice(max);
+  const others = includeSelf ? team : team.filter((member) => !member.you);
+  if (others.length === 0) return null;
+  const shown = others.slice(0, max);
+  const rest = others.slice(max);
 
   return (
     // Overlapped by 4px, not 8: two-letter initials sit dead centre, so any
