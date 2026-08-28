@@ -1393,7 +1393,134 @@ against the DS — not against this brief.
 
 ---
 
-## 16. Decision log
+## 16. Round 5 — courts as a filtered view again, per-court actions, rail redesign
+
+Owner review of R4, 2026-08-28. Two rulings: **(a)** the stacked-court structure R4 shipped is
+worse than the owner's own earlier iteration — revert to a tabbed single-court view; **(b)** the
+rail cards are "too ugly", hierarchy off, information cut — redesign them, and the orchestrator will
+screenshot two variants and pick. The owner's earlier iteration (court tabs + advocate chips +
+per-court "View cause list" and "Join this courtroom") is the spec for structure.
+
+### 16.1 The miss being corrected
+
+R4 (D13) stacked courts as sections and deleted the tab band, on the reading that "court is a
+container, not a selector". That reading missed that a court is a **place with its own actions**:
+each court has its own full day cause list and its own **virtual courtroom** (a video conference
+room, one per court, at the court level — not per hearing). Those two per-court actions need a
+single-court view to hang on. The "N courts don't fit the tab bar" concern (P11) is answered by a
+scrolling tab band + short court names (`courtLabelsOf`), **not** by stacking: a tab clips where a
+section header wraps, but a scrolling band with short names holds the pilot's four courts and stays
+one line. R5 reverts D13/D15/D16 (stack, foot-line, jump menu) while keeping every R4 *content* win
+the owner did not reject.
+
+### 16.2 A. Board structure — court tabs return (reverts D13)
+
+- **Tab band** (DS `Tabs variant="line"`): `TabsList` with `overflow-x-auto`, the active underline
+  sitting ON the band's `border-b border-hairline` (trigger `-mb-px … after:bottom-0`, never two
+  parallel rules). Each tab: live dot (in session) + short court name (`courtLabelsOf.shortOf`) +
+  muted `tabular-nums` count. **All** courts get a tab, including zero-count ones — a 0 tab is a
+  landmark and leads to that court's own empty-state jump. The stacked `sections.map` render and the
+  "Jump to court" `DropdownMenu` are deleted; one court's board shows at a time.
+- **`CourtBoard` reverts to its single-court shape** (concluded strip → Now card → queue / list,
+  with a per-court `Empty`), and today's content wins are layered on top: the "Not on the
+  vakalatnama" mark on all three surfaces (D19), DS-composed avatars via `surface` (D21), the Now
+  card's hover-reveal "View case" (D22). No R4-removed content is resurrected ("Ready" stays gone;
+  "Up next" caption stays gone).
+- **The establishment caption is dropped** from the toolbar (R4's "Courts at {place}"): the short
+  tab names already imply the one establishment, and the caption crowded the toolbar's chips and
+  actions. `courtLabelsOf` is kept — its `shortOf` is what the tabs render. *(Deviation from the
+  spec's "keep it if it still reads"; the forcing rule is the toolbar's width budget once the chips
+  and two action buttons are on it.)*
+
+### 16.3 The per-court toolbar (below the tabs)
+
+Left → right, `flex flex-wrap items-center gap-2`:
+
+- **"View cases" + advocate chips.** The R4 `Select` becomes a row of small avatar chips — the day's
+  roster from `advocateRosterOn`, the signed-in advocate first and selected by default. A chip is a
+  40px hit target (`role="radio"`, `aria-checked`) around a `size="default"` disc; clicking one
+  filters the board via the same `whose`/`canView` path the Select used. Selection is **one quiet
+  cue** — a `ring-2 ring-brand-accent` on the selected disc — per the loudness ladder; *not* ring +
+  fill (a second cue). Past **7** advocates the tail collapses into a "+N" `DropdownMenu` rather than
+  wrapping to many rows; the menu names each with their count and checks the selected one.
+- **Cards/List** — `SegmentedControl size="compact"`, next to the chips.
+- **Right-aligned (`ml-auto`): "View cause list"** (`Button variant="outline"`) opens the selected
+  court's full official cause list for the day (all matters, not just the viewer's).
+  **"Join this courtroom"** (`Button` default — the one `bg-primary` action on the board, with a
+  `Video` icon) joins that court's virtual room. Both are **per-court** and operate on the selected
+  tab. No real endpoints exist: `onJoinCourt` / `onViewCauseList` are wired as stub handlers (no-op +
+  a TODO), presented as live actions (owner-confirmed real features). "Join this courtroom" renders
+  only when the court's `hasVirtualRoom` flag is set; that flag **defaults `true` for every court**
+  for now (see Q11).
+
+### 16.4 B. Rail redesign — two variants behind `RAIL_VARIANT`
+
+Defects from the owner's screenshots: cards are `min-h-24` (96px) holding ~64px → a visible sag; the
+title truncates hard; every due-today card repeats the "Due today" its bucket header already says;
+the overdue amount + date compete with the title for width.
+
+**Shared fixes in both variants (non-optional):** drop `min-h-24` and let content size the card;
+remove the per-card time signal for on-time cards (the bucket header scopes them) so **only overdue
+carries a per-card time signal**; give the title its width back so it stops truncating at ~20 chars;
+keep the DS avatars/icons; keep both panels one frame as siblings.
+
+- **Variant A — "breathing card, overdue-anchored".** Keeps the card container but fixed: a smaller
+  kind icon, a full-width one-line title, the case name muted under it, and — **only when overdue** —
+  a compact right tag ("41 days overdue" in `destructive-ink` over the muted date). ~7 cards visible.
+- **Variant B — "dense cause-list rows".** Drops the card containers: the panel becomes a tight
+  `divide-hairline` list of rows on one `bg-card` surface (like the concluded strip). Each row: a
+  leading kind icon, the title (full width, late-truncating), the case name on a tight second line,
+  overdue as a small inline `destructive-ink` tag. ~40% more rows visible; reads as a worklist.
+
+Both are selected by a top-of-file `const RAIL_VARIANT: "A" | "B"` in `companion-rail.tsx` — no
+user-facing toggle; the orchestrator flips it and screenshots both, and the loser is deleted after
+the pick. **Committed default: "A".** Both pass gates and tests and read in light and dark.
+
+### 16.5 Decisions (Round 5)
+
+- **D27 — Tabs return; the stack, the foot-line and the jump menu are deleted (reverts D13/D15/D16).**
+  *Rule:* owner ruling, 2026-08-28; §16.1. *Gives up:* seeing all courts at once — but the tab band
+  scrolls and short names keep four courts on one line, and a court now carries per-court actions
+  that need a single subject.
+- **D28 — The advocate switcher is avatar chips, not a `Select` (revises D18).** *Rule:* the owner's
+  earlier iteration; a roster small enough to show as faces is faster to switch than a menu. Selected
+  chip carries one quiet ring (loudness ladder); overflow past 7 to a "+N" menu, not wrapped rows.
+  *Kept from D18:* the `whose`/`canView` filter path, self-first ordering, self default (not
+  persisted), and the honest limitation that a colleague chip shows *shared* matters (Q8).
+- **D29 — Two real per-court actions live on the toolbar: "View cause list" (outline) and
+  "Join this courtroom" (the one `bg-primary`, with a `Video` icon).** They reverse the R2 note that
+  "there is no `bg-primary` action on this screen, and that is correct" — the owner confirmed both are
+  real features. Endpoints do not exist; `onJoinCourt`/`onViewCauseList` are stubs. *Rule:* owner
+  confirmation; ui-craft §1.2 (one `bg-primary` per view — Join is now that one). *Gives up:* nothing
+  visible; the actions are honest stubs, flagged in Q11.
+- **D30 — `hasVirtualRoom` gates "Join this courtroom", defaulting `true` for every court.** Whether
+  physical courts (CJM/JMFC) have a virtual room, or only the 24×7 ON Court does, is unknown; the flag
+  makes the answer a one-field change without a redesign, and defaults to showing for all until
+  product answers (Q11).
+- **D31 — The rail redesign is two variants behind `RAIL_VARIANT`, default "A".** Shared fixes:
+  no `min-h-24`; on-time cards carry no per-card time signal (only overdue does); the title regains
+  full width. *Rule:* owner items on the rail; ui-craft §2 (a repeated row states one fact one way;
+  the bucket header already scopes "when"). *Gives up:* the at-rest "when" on on-time cards — but the
+  bucket header carries it, and hiding a duplicate is the point.
+
+### 16.6 Open questions for product (Round 5)
+
+Q1–Q10 stand; Q2 and Q3 remain explicitly undecided.
+
+- **Q11 — The virtual courtroom: route and coverage.** What URL/route does "Join this courtroom"
+  open, and do physical courts (CJM/JMFC) have a virtual room at all, or only the 24×7 ON Court?
+  R5 stubs the action and defaults `hasVirtualRoom` to `true` for every court. Design cannot decide
+  this; it needs whoever owns the courtroom-conferencing integration. **The same applies to "View
+  cause list"** — the endpoint that returns a court's full official day cause list does not exist yet.
+- **Q12 — A "Yours" marker on own-matters when viewing a colleague.** The owner's earlier iteration
+  marked "Yours" on the viewer's own matters (the inverse of R4's "Not on the vakalatnama"). When a
+  colleague chip is selected and the board shows shared matters, a "Yours" marker on the ones the
+  viewer holds may help. Not built in R5; logged for a later pass so the two markers are designed
+  together rather than one at a time.
+
+---
+
+## 17. Decision log
 
 | Date | What changed | Who confirmed |
 |---|---|---|
@@ -1412,3 +1539,6 @@ against the DS — not against this brief.
 | **2026-08-28** | **Two DS gaps raised (§15.12): `AvatarGroup` rings in `background`; no stacked-section / section-header pattern. To be added to `docs/design/ds-requests.md` as 16 and 17.** | — |
 | **2026-08-28** | **Four new open questions for product (Q7 structured court names, Q8 office scope for the advocate switcher, Q9 volume threshold, Q10 the duplicated avatar stack as an engineering follow-up). Q2 and Q3 remain untouched and undecided.** | pending |
 | — | D8 (rail default open) and D9 (narrow-width behaviour) still awaiting owner sign-off. | pending |
+| **2026-08-28** | **Owner review of R4. Two rulings: the stacked-court structure is worse than the owner's earlier iteration (revert to tabbed single-court view); the rail cards are "too ugly", redesign as two pickable variants. Recorded as the authoritative input for R5 (§16).** | **owner, 2026-08-28** |
+| **2026-08-28** | **R5 opened. D13/D15/D16 reverted (D27): court tabs return, the stack, foot-line and jump menu are deleted. D18's `Select` becomes avatar chips (D28). Two real per-court actions land on the toolbar (D29): "View cause list" (outline) and "Join this courtroom" (the one `bg-primary`, `Video`), wired as stubs. `hasVirtualRoom` gates Join, default `true` for all (D30). Rail redesigned as two variants behind `RAIL_VARIANT`, default "A" (D31).** | — |
+| **2026-08-28** | **Two new open questions (§16.6): Q11 virtual-courtroom route + coverage and the cause-list endpoint; Q12 a "Yours" marker for own-matters under a colleague filter.** | pending |

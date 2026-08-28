@@ -1,10 +1,20 @@
 "use client";
 
+import { ArrowRight, SlidersHorizontal } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import type { Locale } from "@/lib/onboarding/content";
 import { pick } from "@/lib/onboarding/content";
-import { advHome } from "@/lib/advocate/content";
+import { advHome, fillCopy } from "@/lib/advocate/content";
 import { holdsVakalatnama, type Board } from "@/lib/advocate/home";
-import type { Task } from "@/lib/tasks/types";
+import type { PersonId, Task } from "@/lib/tasks/types";
 import type { World } from "@/lib/tasks/selectors";
 import {
   ConcludedStrip,
@@ -15,7 +25,14 @@ import { HearingList } from "@/components/advocate/hearing-list";
 
 export type BoardView = "cards" | "list";
 
-/** One court's stretch of the day, after the advocate switcher has been applied. */
+/**
+ * One court's stretch of the day, after the advocate switcher has been applied.
+ *
+ * A court is a *place with actions*, not just a grouping: each has its own full
+ * day cause list and its own virtual courtroom. That is why the board shows one
+ * court at a time behind a tab rather than stacking them — the per-court toolbar
+ * has a single subject, the selected court, to act on.
+ */
 export type CourtSection = {
   court: string;
   /** The court's name with the establishment every court shares removed. */
@@ -28,25 +45,13 @@ export type CourtSection = {
 };
 
 /**
- * The anchor a court section answers to. Shared by the section and the jump
- * menu, so the two can never disagree about where a court lives.
- */
-export function courtSectionId(court: string): string {
-  return `court-${encodeURIComponent(court)}`;
-}
-
-/**
- * One court's section of the day's board.
+ * Everything below the court tabs for the selected court on the selected day.
  *
- * The domain nests day ⊃ court ⊃ matter, and the screen now says so: courts are
- * containers stacked down the page, not tabs that show one and hide the rest. A
- * tab band could not accommodate the pilot's own four courts at 1440px, and the
- * fix was never a narrower tab — a scroll that hides a cause list is the defect.
- *
- * Nothing here collapses. A collapsed court can hide a listed matter, and on a
- * §138 board that is the failure mode with the worst consequence: the statutory
- * clocks do not give the day back. The concluded strip may fold, because those
- * matters have already been called.
+ * The board is deliberately spare chrome: the layout choice and the advocate
+ * switcher are page state and live on the toolbar above it, where their scope is
+ * legible; the per-court actions ("View cause list", "Join this courtroom") live
+ * there too, because they operate on whichever court is selected. What is left
+ * here is the day itself — concluded, now, and what is still to be called.
  */
 export function CourtBoard({
   world,
@@ -54,53 +59,41 @@ export function CourtBoard({
   section,
   view,
   selectedCaseId,
+  active,
+  userId,
+  whoseName,
+  jump,
   onOpenCase,
   onAct,
+  onJump,
+  onShowYours,
 }: {
   world: World;
   locale: Locale;
   section: CourtSection;
   view: BoardView;
   selectedCaseId: string | null;
+  /** The advocate the board is being seen through. */
+  active: PersonId;
+  /** The signed-in account — the switcher's default. */
+  userId: PersonId;
+  /** The name behind `active`, for the colleague-empty message. */
+  whoseName: string;
+  /** The next day with anything listed, when this one is empty. */
+  jump: { key: string; label: string; count: number } | null;
   onOpenCase: (caseId: string) => void;
   onAct: (task: Task) => void;
+  /** Move the whole board to another day — the empty state's jump-ahead. */
+  onJump: (key: string) => void;
+  /** Reset the switcher to the signed-in advocate from a colleague-empty state. */
+  onShowYours: () => void;
 }) {
-  const { court, label, count, live, board } = section;
-  const { now, upcoming, concluded } = board;
-  const active = [...(now ? [now] : []), ...upcoming];
-  const headingId = `${courtSectionId(court)}-heading`;
+  const { now, upcoming, concluded } = section.board;
+  const activeList = [...(now ? [now] : []), ...upcoming];
+  const mine = active === userId;
 
   return (
-    // `scroll-mt-16` clears the 56px top bar when the jump menu lands here.
-    <section
-      id={courtSectionId(court)}
-      aria-labelledby={headingId}
-      className="flex scroll-mt-16 flex-col gap-4"
-    >
-      <header className="flex flex-wrap items-center gap-2">
-        {live ? (
-          <span aria-hidden="true" className="size-2 rounded-full bg-success" />
-        ) : null}
-        {/* The heading takes focus from the jump menu, so a keyboard user lands
-            on the court rather than at the top of the page. */}
-        <h2
-          id={headingId}
-          tabIndex={-1}
-          className="text-title-s font-semibold outline-none"
-        >
-          {label}
-        </h2>
-        <span className="text-caption tabular-nums text-muted-foreground">
-          {count}
-        </span>
-        {/* Words, not just the dot — a green disc alone would mean by colour. */}
-        {live ? (
-          <span className="text-caption font-medium text-success-ink">
-            {pick(advHome.inSession, locale)}
-          </span>
-        ) : null}
-      </header>
-
+    <div className="flex flex-col gap-4 pt-4 pb-8">
       {concluded.length ? (
         <ConcludedStrip
           locale={locale}
@@ -109,7 +102,50 @@ export function CourtBoard({
         />
       ) : null}
 
-      {view === "cards" ? (
+      {activeList.length === 0 ? (
+        // The sunken fill is the separation — a stroke on top of it would be the
+        // second thing doing one job.
+        <Empty className="bg-surface-sunken">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <SlidersHorizontal aria-hidden="true" />
+            </EmptyMedia>
+            <EmptyTitle>
+              {mine
+                ? pick(advHome.emptyDayTitle, locale)
+                : fillCopy(advHome.emptyAdvocateTitle, locale, {
+                    name: whoseName,
+                  })}
+            </EmptyTitle>
+            <EmptyDescription>
+              {mine
+                ? pick(advHome.emptyDayBody, locale)
+                : fillCopy(advHome.emptyAdvocateBody, locale, {
+                    name: whoseName,
+                  })}
+            </EmptyDescription>
+          </EmptyHeader>
+          {mine ? (
+            jump ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onJump(jump.key)}
+              >
+                {fillCopy(advHome.jumpNext, locale, {
+                  day: jump.label,
+                  n: String(jump.count),
+                })}
+                <ArrowRight aria-hidden="true" />
+              </Button>
+            ) : null
+          ) : (
+            <Button variant="outline" size="sm" onClick={onShowYours}>
+              {pick(advHome.showYourMatters, locale)}
+            </Button>
+          )}
+        </Empty>
+      ) : view === "cards" ? (
         <>
           {now ? (
             <NowHearingCard
@@ -123,9 +159,9 @@ export function CourtBoard({
             />
           ) : null}
 
-          {/* No "Up next" caption: the court heading above already says what
-              this list is, and every card carries its own item number, which is
-              the order — cause-list order is never resequenced. */}
+          {/* No "Up next" caption: the tab above names the court and every card
+              carries its own item number, which is the order — cause-list order
+              is never resequenced. */}
           {upcoming.length ? (
             <ul className="flex flex-col gap-3">
               {upcoming.map((hearing) => (
@@ -143,15 +179,15 @@ export function CourtBoard({
             </ul>
           ) : null}
         </>
-      ) : active.length ? (
+      ) : (
         <HearingList
           world={world}
           locale={locale}
-          hearings={active}
+          hearings={activeList}
           selectedId={selectedCaseId}
           onOpenCase={onOpenCase}
         />
-      ) : null}
-    </section>
+      )}
+    </div>
   );
 }

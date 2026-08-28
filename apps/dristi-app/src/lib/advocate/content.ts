@@ -182,14 +182,6 @@ export const advHome = {
   /** The state, and only the state: the item number is on the chip and the
       listed time is in the row's rest cell, so nothing is said twice. */
   nowLabel: t("Now", "ഇപ്പോൾ"),
-  /** The establishment every court name shares, said once above the stack. */
-  courtsAt: t("Courts at {place}", "{place}-ലെ കോടതികൾ"),
-  jumpToCourt: t("Jump to court", "കോടതിയിലേക്ക് പോകുക"),
-  /** Courts the viewer can see that have nothing on the selected day. */
-  nothingListedIn: t(
-    "Nothing listed in {courts}",
-    "{courts}-ൽ ഒന്നും പട്ടികയിലില്ല",
-  ),
   /** A property of the matter, on its own metadata line — not a status chip.
       "View only" reads as a UI mode; this is the word an advocate says. */
   notOnVakalatnama: t("Not on the vakalatnama", "വക്കാലത്തിൽ ഇല്ല"),

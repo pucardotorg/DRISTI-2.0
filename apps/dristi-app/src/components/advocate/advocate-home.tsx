@@ -2,23 +2,9 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import {
-  ArrowRight,
-  ChevronDown,
-  CloudAlert,
-  LayoutGrid,
-  List,
-  RotateCw,
-  SlidersHorizontal,
-} from "lucide-react";
+import { CloudAlert, LayoutGrid, List, RotateCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Empty,
   EmptyDescription,
@@ -37,6 +23,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Locale } from "@/lib/onboarding/content";
 import { pick } from "@/lib/onboarding/content";
 import { advHome, fillCopy } from "@/lib/advocate/content";
@@ -64,7 +51,6 @@ import { CasePeekSurface } from "@/components/cases/case-peek";
 import { CasePeekProvider, useCasePeek } from "@/components/cases/use-case-peek";
 import {
   CourtBoard,
-  courtSectionId,
   type BoardView,
   type CourtSection,
 } from "@/components/advocate/court-board";
@@ -89,25 +75,17 @@ function useNow(): number {
   return now;
 }
 
-/** Below this many sections the jump menu is chrome explaining two headings. */
-const JUMP_MENU_FROM = 3;
-
 /**
- * The board's own row of chrome: what it contains on the left, how it is drawn
- * on the right.
- *
- * Everything here is page state rather than one court's, and rendering it once
- * above the stack is what says so. The establishment leads because it is the
- * one fact every court heading below would otherwise repeat.
+ * The per-court toolbar, below the court tabs: the advocate the board is seen
+ * through on the left, how the cause list is drawn on the right. Both are page
+ * state that holds across every tab, and rendering them once here — not inside a
+ * court's panel — is what says so.
  */
 function BoardToolbar({
   locale,
   roster,
   whose,
   onWhoseChange,
-  sections,
-  establishment,
-  onJump,
   view,
   onViewChange,
 }: {
@@ -115,24 +93,13 @@ function BoardToolbar({
   roster: AdvocateOption[];
   whose: PersonId;
   onWhoseChange: (whose: PersonId) => void;
-  /** The courts with matters — the jump menu's targets. */
-  sections: CourtSection[];
-  /** The trailing run every court name shares, said once. */
-  establishment: string | null;
-  onJump: (court: string) => void;
   view: BoardView;
   onViewChange: (view: BoardView) => void;
 }) {
   const current = roster.find((option) => option.person.id === whose);
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-hairline px-4 pb-3 md:px-8">
-      {establishment ? (
-        <p className="text-caption font-medium text-muted-foreground">
-          {fillCopy(advHome.courtsAt, locale, { place: establishment })}
-        </p>
-      ) : null}
-
+    <div className="flex flex-wrap items-center gap-2 px-4 pt-3 pb-3 md:px-8">
       {/* Names, not a permission model. Holding the vakalatnama is a property of
           one matter — it changes that card's verbs and nothing else — so it was
           never a cut that should remove matters from a cause list. */}
@@ -150,15 +117,11 @@ function BoardToolbar({
             </span>
           ) : null}
         </SelectTrigger>
-        {/* The DS default opens the list over its own trigger; a roster is read
-            downward from the control that names it. */}
         <SelectContent position="popper" align="start" sideOffset={4}>
           {roster.map((option) => (
             <SelectItem
               key={option.person.id}
               value={option.person.id}
-              // The row is an avatar, a name and a count; typeahead reads text
-              // content, so it needs the plain name said separately.
               textValue={option.person.name}
             >
               <PersonAvatar person={option.person} size="sm" />
@@ -176,43 +139,6 @@ function BoardToolbar({
           ))}
         </SelectContent>
       </Select>
-
-      {/* Three courts is where a stack stops being scannable in one look. Below
-          that the menu would be a control explaining two headings. */}
-      {sections.length >= JUMP_MENU_FROM ? (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline">
-              {pick(advHome.jumpToCourt, locale)}
-              <ChevronDown aria-hidden="true" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-auto min-w-56">
-            {sections.map((section) => (
-              <DropdownMenuItem
-                key={section.court}
-                onSelect={() => onJump(section.court)}
-              >
-                {section.live ? (
-                  <span
-                    aria-hidden="true"
-                    className="size-2 rounded-full bg-success"
-                  />
-                ) : null}
-                <span className="flex-1 truncate">{section.label}</span>
-                {section.live ? (
-                  <span className="sr-only">
-                    {pick(advHome.inSession, locale)}
-                  </span>
-                ) : null}
-                <span className="text-caption tabular-nums text-muted-foreground">
-                  {section.count}
-                </span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ) : null}
 
       <SegmentedControl
         className="ml-auto"
@@ -289,6 +215,8 @@ function HomeBody({
   // A per-session lens, deliberately not persisted: "my matters" is the right
   // thing to land on every morning.
   const [whose, setWhose] = React.useState<PersonId>(user.id);
+  /** Which court's board is shown; null falls back to the first tab. */
+  const [courtId, setCourtId] = React.useState<string | null>(null);
   // Not `useState`: which panel stands open is remembered per user, so a rail
   // closed last week is still closed. First run opens the tasks panel.
   const [railSection, setRailSection] = useRailSection();
@@ -329,7 +257,9 @@ function HomeBody({
     return map;
   }, [world, rooms, selectedDay, now]);
 
-  // The switcher narrows the board, never the cause list's numbering: item
+  // Every court the viewer can see gets a tab — including one that lists nothing
+  // today, which stays a landmark and leads to its own empty-state jump. The
+  // switcher narrows a board's contents, never the cause list's numbering: item
   // numbers come from the full world, so a filtered board still says "item 7".
   const sections = React.useMemo<CourtSection[]>(() => {
     const keep = (h: HomeHearing) => canView(active, h.kase);
@@ -351,20 +281,8 @@ function HomeBody({
     });
   }, [rooms, boards, courtLabels, active]);
 
-  const listed = sections.filter((section) => section.count > 0);
-  const quiet = sections.filter((section) => section.count === 0);
   const visibleMatterCount = sections.reduce((sum, s) => sum + s.count, 0);
-
-  /**
-   * The jump menu moves focus, not just the scroll position — landing a keyboard
-   * user at the top of the page would be a scroll that pretended to be a jump.
-   */
-  const jumpToCourt = React.useCallback((court: string) => {
-    const section = document.getElementById(courtSectionId(court));
-    if (!section) return;
-    section.scrollIntoView({ behavior: "smooth", block: "start" });
-    section.querySelector("h2")?.focus({ preventScroll: true });
-  }, []);
+  const court = courtId ?? sections[0]?.court ?? null;
 
   const jump = React.useMemo(() => {
     const next = nextHearingDayAfter(world, selectedDay);
@@ -461,94 +379,104 @@ function HomeBody({
           />
         </div>
 
-        <BoardToolbar
-          locale={locale}
-          roster={roster}
-          whose={active}
-          onWhoseChange={setWhose}
-          sections={listed}
-          establishment={courtLabels.establishment}
-          onJump={jumpToCourt}
-          view={view}
-          onViewChange={setView}
-        />
+        {court ? (
+          <Tabs value={court} onValueChange={setCourtId}>
+            {/* The tab band scrolls rather than clips: a section header would
+                wrap, but a court is a place with per-court actions, so a tab —
+                which keeps one court selected for the toolbar to act on — is the
+                right shape. Short names keep the establishment out of the band.
+                The active underline sits ON the band's own rule (`-mb-px` +
+                `after:bottom-0`), never floating above a second line. */}
+            <div className="border-b border-hairline px-4 md:px-8">
+              <TabsList
+                variant="line"
+                className="min-w-0 grow basis-full justify-start gap-1 overflow-x-auto px-0 pb-0 group-data-horizontal/tabs:h-auto"
+              >
+                {sections.map((section) => (
+                  <TabsTrigger
+                    key={section.court}
+                    value={section.court}
+                    className="-mb-px flex-none gap-2 px-3 pt-2 pb-3 group-data-horizontal/tabs:h-auto group-data-horizontal/tabs:after:bottom-0 group-data-[variant=line]/tabs-list:data-active:after:bg-brand-accent"
+                  >
+                    {section.live ? (
+                      <span
+                        aria-hidden="true"
+                        className="size-2 rounded-full bg-success"
+                      />
+                    ) : null}
+                    <span className="text-body-compact font-semibold">
+                      {section.label}
+                    </span>
+                    <span className="text-caption tabular-nums text-muted-foreground">
+                      {section.count}
+                    </span>
+                    {section.live ? (
+                      <span className="sr-only">
+                        {pick(advHome.inSession, locale)}
+                      </span>
+                    ) : null}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
 
-        {/* The day's courts, stacked in cause-list order. A section header is a
-            block element that wraps; a tab was an inline element that clipped,
-            and at the pilot's own four courts none of them fitted. */}
-        {listed.length ? (
-          <div className="flex flex-col gap-8 px-4 pt-4 pb-8 md:px-8">
-            {listed.map((section) => (
-              <CourtBoard
+            <BoardToolbar
+              locale={locale}
+              roster={roster}
+              whose={active}
+              onWhoseChange={setWhose}
+              view={view}
+              onViewChange={setView}
+            />
+
+            {sections.map((section) => (
+              <TabsContent
                 key={section.court}
-                world={world}
-                locale={locale}
-                section={section}
-                view={view}
-                selectedCaseId={selectedCaseId}
-                onOpenCase={openCase}
-                onAct={actOn}
-              />
+                value={section.court}
+                className="px-4 md:px-8"
+              >
+                <CourtBoard
+                  world={world}
+                  locale={locale}
+                  section={section}
+                  view={view}
+                  selectedCaseId={selectedCaseId}
+                  active={active}
+                  userId={user.id}
+                  whoseName={whoseName}
+                  jump={jump}
+                  onOpenCase={openCase}
+                  onAct={actOn}
+                  onJump={selectDay}
+                  onShowYours={() => setWhose(user.id)}
+                />
+              </TabsContent>
             ))}
-
-            {/* A court with nothing listed is worth one line, not a section:
-                stacked, an empty court is 200px of scroll the reader pays for
-                on the way past, where a tab at least stayed a landmark. */}
-            {quiet.length ? (
-              <p className="text-caption text-muted-foreground">
-                {fillCopy(advHome.nothingListedIn, locale, {
-                  courts: quiet.map((section) => section.label).join(", "),
-                })}
-              </p>
-            ) : null}
-          </div>
+          </Tabs>
         ) : (
           <div className="px-4 pt-4 pb-8 md:px-8">
-            {/* The sunken fill is the separation — a stroke on top of it would
-                be the second thing doing one job. */}
             <Empty className="bg-surface-sunken">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
-                  <SlidersHorizontal aria-hidden="true" />
+                  <CloudAlert aria-hidden="true" />
                 </EmptyMedia>
-                <EmptyTitle>
-                  {active === user.id
-                    ? pick(advHome.emptyDayTitle, locale)
-                    : fillCopy(advHome.emptyAdvocateTitle, locale, {
-                        name: whoseName,
-                      })}
-                </EmptyTitle>
+                <EmptyTitle>{pick(advHome.emptyDayTitle, locale)}</EmptyTitle>
                 <EmptyDescription>
-                  {active === user.id
-                    ? pick(advHome.emptyDayBody, locale)
-                    : fillCopy(advHome.emptyAdvocateBody, locale, {
-                        name: whoseName,
-                      })}
+                  {pick(advHome.emptyDayBody, locale)}
                 </EmptyDescription>
               </EmptyHeader>
-              {active === user.id ? (
-                jump ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => selectDay(jump.key)}
-                  >
-                    {fillCopy(advHome.jumpNext, locale, {
-                      day: jump.label,
-                      n: String(jump.count),
-                    })}
-                    <ArrowRight aria-hidden="true" />
-                  </Button>
-                ) : null
-              ) : (
+              {jump ? (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setWhose(user.id)}
+                  onClick={() => selectDay(jump.key)}
                 >
-                  {pick(advHome.showYourMatters, locale)}
+                  {fillCopy(advHome.jumpNext, locale, {
+                    day: jump.label,
+                    n: String(jump.count),
+                  })}
                 </Button>
-              )}
+              ) : null}
             </Empty>
           </div>
         )}
