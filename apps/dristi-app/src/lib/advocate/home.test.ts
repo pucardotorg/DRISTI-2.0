@@ -7,16 +7,20 @@ import type { World } from "@/lib/tasks/selectors";
 import {
   boardOf,
   caseRecordFor,
-  prepQueue,
   courtRooms,
   dayKeyOf,
   hearingsOn,
+  holdersOf,
   holdsVakalatnama,
   matterCountOn,
   nextHearingDayAfter,
+  prepAhead,
+  prepGroups,
   railGroups,
   railTasks,
+  teamOf,
   weekOf,
+  weightOf,
 } from "./home";
 
 const NOW_MS = new Date(NOW).getTime();
@@ -203,24 +207,100 @@ describe("railGroups", () => {
   });
 });
 
-describe("prepQueue", () => {
-  it("queues the coming week's not-ready matters, soonest hearing first", () => {
-    const soonBlocked = listed("soon", 1, 10);
-    const laterBlocked = listed("later", 4, 10);
-    const readySoon = listed("ready", 2, 10);
-    const farBlocked = listed("far", 12, 10);
+describe("weightOf", () => {
+  it("calls a posting substantial when it records or decides something", () => {
+    for (const stage of [
+      "Evidence of the complainant",
+      "Evidence of the accused",
+      "Cross-examination",
+      "Plea",
+      "Arguments",
+      "Judgment",
+    ]) {
+      assert.equal(weightOf(stage), "substantial", stage);
+    }
+    for (const stage of ["Appearance", "Cognizance", "Pre-filing"]) {
+      assert.equal(weightOf(stage), "procedural", stage);
+    }
+  });
+});
+
+describe("prepAhead", () => {
+  it("lists substantial postings ahead of today, soonest first, inside the horizon", () => {
+    const evidenceToday = { ...listed("today", 0, 15), stage: "Arguments" };
+    const evidenceSoon = { ...listed("soon", 2, 10), stage: "Evidence of the complainant" };
+    const argumentsLater = { ...listed("later", 9, 10), stage: "Arguments" };
+    const appearanceSoon = { ...listed("appearance", 1, 10), stage: "Appearance" };
+    const beyondHorizon = { ...listed("far", 30, 10), stage: "Arguments" };
+    const w = world([
+      evidenceToday,
+      evidenceSoon,
+      argumentsLater,
+      appearanceSoon,
+      beyondHorizon,
+    ]);
+
+    // Today is the board's business; an appearance needs presence, not preparation.
+    const queue = prepAhead(w, NOW_MS);
+    assert.deepEqual(queue.map((i) => i.kase.id), ["soon", "later"]);
+    assert.deepEqual(queue.map((i) => i.inDays), [2, 9]);
+  });
+
+  it("queues a substantial posting with nothing pending — lead time is the point", () => {
+    const clear = { ...listed("clear", 4, 10), stage: "Cross-examination" };
+    const w = world([clear]);
+    const [item] = prepAhead(w, NOW_MS);
+    assert.equal(item.kase.id, "clear");
+    assert.deepEqual(item.blockers, []);
+  });
+
+  it("carries open blocking work as a second cue", () => {
+    const c = { ...listed("blocked", 3, 10), stage: "Evidence of the complainant" };
     const w = world(
-      [soonBlocked, laterBlocked, readySoon, farBlocked],
+      [c],
       [
-        makeTask({ id: "b1", caseId: laterBlocked.id, isBlocking: true, status: "open" }),
-        makeTask({ id: "b2", caseId: soonBlocked.id, isBlocking: true, status: "open" }),
-        makeTask({ id: "b3", caseId: farBlocked.id, isBlocking: true, status: "open" }),
-        makeTask({ id: "done", caseId: readySoon.id, isBlocking: true, status: "done" }),
+        makeTask({ id: "b1", caseId: c.id, isBlocking: true, status: "open" }),
+        makeTask({ id: "done", caseId: c.id, isBlocking: true, status: "done" }),
       ]
     );
-    const queue = prepQueue(w, NOW_MS);
-    assert.deepEqual(queue.map((i) => i.kase.id), ["soon", "later"]);
-    assert.deepEqual(queue[0].blockers.map((t) => t.id), ["b2"]);
+    assert.deepEqual(prepAhead(w, NOW_MS)[0].blockers.map((t) => t.id), ["b1"]);
+  });
+
+  it("splits into the next seven days and the fortnight after", () => {
+    const w = world([
+      { ...listed("wk", 5, 10), stage: "Arguments" },
+      { ...listed("later", 15, 10), stage: "Evidence of the complainant" },
+    ]);
+    assert.deepEqual(
+      prepGroups(w, NOW_MS).map((g) => [g.key, g.items.map((i) => i.kase.id)]),
+      [
+        ["week", ["wk"]],
+        ["later", ["later"]],
+      ]
+    );
+  });
+});
+
+describe("teamOf", () => {
+  it("puts vakalatnama holders first and marks who acts and who is you", () => {
+    const shared: Case = {
+      ...kase,
+      signatories: ["p-sen2", senior.id],
+      advocates: ["p-jun", "p-sen2", senior.id],
+    };
+    const team = teamOf(world([shared]), shared);
+    assert.deepEqual(
+      team.map((m) => [m.person.id, m.acts]),
+      [["p-sen2", true], [senior.id, true], ["p-jun", false]]
+    );
+    assert.deepEqual(
+      team.filter((m) => m.you).map((m) => m.person.id),
+      [senior.id]
+    );
+    assert.deepEqual(
+      holdersOf(world([shared]), shared).map((m) => m.person.id),
+      ["p-sen2", senior.id]
+    );
   });
 });
 

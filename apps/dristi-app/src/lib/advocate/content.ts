@@ -224,16 +224,27 @@ export const advHome = {
 
   /* Companion rail */
   railTitle: t("Pending tasks", "ബാക്കിയുള്ള ജോലികൾ"),
+  railCaption: t("What is owed, and by when", "എന്ത് ബാക്കി, എപ്പോഴേക്ക്"),
   prepTitle: t("Hearing prep", "ഹിയറിംഗ് തയ്യാറെടുപ്പ്"),
-  prepCaption: t("Listed this week, not ready yet", "ഈ ആഴ്ച പട്ടികയിൽ, തയ്യാറായിട്ടില്ല"),
-  prepOpen: t("Open hearing prep, {n} matters need work", "തയ്യാറെടുപ്പ് തുറക്കുക, {n} വിഷയങ്ങൾ"),
-  prepEmptyTitle: t("Everything is ready", "എല്ലാം തയ്യാറാണ്"),
-  prepEmptyBody: t(
-    "No matter listed this week has blocking work left.",
-    "ഈ ആഴ്ച പട്ടികയിലുള്ള വിഷയങ്ങളിൽ തടസ്സങ്ങളൊന്നും ബാക്കിയില്ല.",
+  prepCaption: t(
+    "Evidence, cross, plea and arguments coming up",
+    "വരാനിരിക്കുന്ന തെളിവ്, വിസ്താരം, ബോധിപ്പിക്കൽ, വാദം",
   ),
-  prepToDoOne: t("1 to prepare", "1 തയ്യാറാക്കാൻ"),
-  prepToDoMany: t("{n} to prepare", "{n} തയ്യാറാക്കാൻ"),
+  prepOpen: t(
+    "Open hearing prep, {n} substantial hearings ahead",
+    "തയ്യാറെടുപ്പ് തുറക്കുക, {n} സുപ്രധാന ഹിയറിംഗുകൾ",
+  ),
+  prepGroupWeek: t("Next 7 days", "അടുത്ത 7 ദിവസം"),
+  prepGroupLater: t("The fortnight after", "അതിനു ശേഷമുള്ള രണ്ടാഴ്ച"),
+  prepTomorrow: t("Tomorrow", "നാളെ"),
+  prepInDays: t("In {n} days", "{n} ദിവസത്തിൽ"),
+  prepEmptyTitle: t("Nothing substantial ahead", "സുപ്രധാനമായി ഒന്നുമില്ല"),
+  prepEmptyBody: t(
+    "No evidence, plea or arguments posting in the next three weeks.",
+    "അടുത്ത മൂന്നാഴ്ചയിൽ തെളിവോ ബോധിപ്പിക്കലോ വാദമോ ഇല്ല.",
+  ),
+  prepPendingOne: t("1 pending", "1 ബാക്കി"),
+  prepPendingMany: t("{n} pending", "{n} ബാക്കി"),
   viewCase: t("View case", "കേസ് കാണുക"),
   groupToday: t("Due today", "ഇന്ന് അവസാനം"),
   groupSoon: t("Next 3 days", "അടുത്ത 3 ദിവസം"),
@@ -247,8 +258,21 @@ export const advHome = {
     "Every task is done or waiting on the court.",
     "എല്ലാം തീർന്നു, അല്ലെങ്കിൽ കോടതിയുടെ ഊഴം.",
   ),
+  railClose: t("Close this panel", "ഈ പാനൽ അടയ്ക്കുക"),
   open: t("Open", "തുറക്കുക"),
   blocksHearing: t("blocks the hearing", "ഹിയറിംഗ് തടയുന്നു"),
+
+  /* Who is on the matter — a case is rarely one advocate's */
+  teamLabel: t("On this matter", "ഈ വിഷയത്തിൽ"),
+  teamMore: t("{n} more on this matter", "ഈ വിഷയത്തിൽ വേറെ {n} പേർ"),
+  teamHoldsVakalatnama: t("{name} — vakalatnama", "{name} — വക്കാലത്ത്"),
+  teamCaseAccess: t("{name} — case access", "{name} — കേസ് ആക്‌സസ്"),
+  vakalatnamaYouAlone: t("You hold the vakalatnama", "വക്കാലത്ത് നിങ്ങളുടേതാണ്"),
+  vakalatnamaYouWith: t(
+    "You and {names} hold the vakalatnama",
+    "വക്കാലത്ത് നിങ്ങൾക്കും {names}നും",
+  ),
+  vakalatnamaThem: t("{names} hold the vakalatnama", "വക്കാലത്ത് {names}ന്"),
 
   /* Case peek */
   peekLabel: t("Case peek", "കേസ് ഒറ്റനോട്ടം"),

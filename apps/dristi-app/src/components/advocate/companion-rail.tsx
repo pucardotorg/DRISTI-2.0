@@ -12,6 +12,7 @@ import {
   ListChecks,
   PenLine,
   Undo2,
+  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -30,9 +31,11 @@ import type { Locale } from "@/lib/onboarding/content";
 import { pick } from "@/lib/onboarding/content";
 import { advHome, fillCopy } from "@/lib/advocate/content";
 import {
-  prepQueue,
+  prepAhead,
+  prepGroups,
   railCaseLineOf,
   railGroups,
+  type PrepGroup,
   type PrepItem,
   type RailGroup,
 } from "@/lib/advocate/home";
@@ -40,13 +43,27 @@ import { summaryOf, type World } from "@/lib/tasks/selectors";
 import { consequenceAt, daysUntil, isOverdue } from "@/lib/tasks/urgency";
 import type { Task, TaskKind } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
+import { RowAction } from "@/components/advocate/home-bits";
 
 /**
  * The companion rail — Gmail's model. A persistent icon strip on the far right
- * holds one entry per section: Pending tasks and Hearing prep (the matters
- * listed soon that are not ready — the job the old notifications did). Clicking
- * an icon opens that section's panel beside the strip; clicking it again
- * returns to the strip alone. One panel at a time; the strip never leaves.
+ * holds one entry per section: Pending tasks (what is owed) and Hearing prep (the
+ * substantial postings coming, which need lead time rather than a deadline).
+ * Clicking an icon opens that section's panel beside the strip; clicking it
+ * again — or the panel's own close button — returns to the strip alone.
+ *
+ * The rail sits one step off the page so the cards inside it read as panels in a
+ * container rather than white-on-white — and that step runs in opposite
+ * directions per theme, because depth does. In light the rail *sinks*
+ * (`surface-sunken`) under white cards; in dark, where elevation is lightness and
+ * `surface-sunken` is in fact *lighter* than the page, the rail holds the page
+ * colour and the cards rise to `surface-raised` instead. Get that backwards and
+ * every card in here reads as a hole.
+ *
+ * The hover follows the same logic: in light a card lifts with a shadow (a
+ * darker fill would sink it below its own container); in dark it lifts by
+ * going a step lighter, since shadows do not read on near-black. The rail's own
+ * chrome hovers to `accent-strong`, plain `accent` being invisible on a sunken fill.
  */
 
 export type RailSection = "tasks" | "prep";
@@ -65,39 +82,96 @@ const MIN_WIDTH = 280;
 const MAX_WIDTH = 460;
 export const RAIL_DEFAULT_WIDTH = 384;
 
+/** Every card in the rail: one height, a hairline, and a hover that lifts. */
+const RAIL_CARD =
+  "group/row relative flex h-16 cursor-pointer items-center gap-3 rounded-lg border border-hairline bg-card px-3 transition-all dark:bg-surface-raised hover:shadow-raised has-focus-visible:shadow-raised dark:hover:bg-accent dark:has-focus-visible:bg-accent";
+
+/** The tile the kind icon sits in — a small well inside the card. */
+const CARD_ICON =
+  "flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-muted-foreground";
+
+/** The row title: one line, truncating, and the whole card's hit area. */
+const CARD_TITLE =
+  "truncate text-left text-body-compact font-medium after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:ring-3 focus-visible:after:ring-ring/50";
+
 function groupLabel(locale: Locale, group: RailGroup): string {
   if (group.key === "today") return pick(advHome.groupToday, locale);
   if (group.key === "soon") return pick(advHome.groupSoon, locale);
   return pick(advHome.groupWeek, locale);
 }
 
-/**
- * The hover action every row in this rail shares: an overlay, out of the layout
- * flow, floated over the row's right edge on hover / focus-within — so the verb
- * is explicit and the row's geometry provably never changes. The overlay's fill
- * matches the row's hover fill, so it masks cleanly. On touch there is no hover:
- * the row itself is the button, and the overlay stays away.
- */
-function HoverAction({
-  label,
-  onClick,
+/** The panel's own header: what this section is, and the way out of it. */
+function PanelHeader({
+  icon: Icon,
+  title,
+  caption,
+  locale,
+  onClose,
 }: {
-  label: string;
-  onClick: () => void;
+  icon: LucideIcon;
+  title: string;
+  caption: string;
+  locale: Locale;
+  onClose: () => void;
 }) {
   return (
-    <div className="absolute inset-y-0 right-0 z-10 hidden items-center rounded-r-lg bg-accent pr-2 pl-3 group-hover/task:flex group-focus-within/task:flex pointer-coarse:group-hover/task:hidden">
-      <Button variant="outline" size="xs" onClick={onClick} tabIndex={-1}>
-        {label}
-      </Button>
+    <div className="flex flex-col gap-1 px-4 pt-4 pb-3">
+      <div className="flex items-center gap-2">
+        <Icon aria-hidden="true" className="size-4 shrink-0 text-warning-ink" />
+        <h2 className="flex-1 text-title-s font-semibold">{title}</h2>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onClose}
+          aria-label={pick(advHome.railClose, locale)}
+          className="-mr-1 hover:bg-accent-strong"
+        >
+          <X aria-hidden="true" />
+        </Button>
+      </div>
+      <p className="text-caption text-muted-foreground">{caption}</p>
     </div>
   );
 }
 
+/** A collapsible bucket header — the Slack move, shared by both panels. */
+function BucketTrigger({
+  label,
+  count,
+  lead,
+}: {
+  label: string;
+  count: number;
+  /** The nearest bucket, whose header carries the warning ink. */
+  lead?: boolean;
+}) {
+  return (
+    <CollapsibleTrigger className="group/bucket flex h-9 w-full shrink-0 items-center gap-1.5 rounded-lg px-1.5 transition-colors hover:bg-accent-strong">
+      <span
+        className={cn(
+          "text-caption font-semibold",
+          lead ? "text-warning-ink" : "text-muted-foreground"
+        )}
+      >
+        {label}
+      </span>
+      <span className="text-caption font-medium tabular-nums text-muted-foreground">
+        {count}
+      </span>
+      <ChevronDown
+        aria-hidden="true"
+        className="ml-auto size-4 text-muted-foreground transition-transform group-data-open/bucket:rotate-180"
+      />
+    </CollapsibleTrigger>
+  );
+}
+
+/* ───────────────────────────── pending tasks ───────────────────────────── */
+
 /**
  * One pending task: a single-line title over the matter line — every card the
  * same height, so the list reads as a rhythm, not a pile. The kind icon carries
- * the what; the hover overlay carries the verb.
+ * the what; the hover action carries the verb this viewer holds.
  */
 function TaskCard({
   world,
@@ -116,18 +190,8 @@ function TaskCard({
   const days = overdue && at ? -daysUntil(at, world.now) : 0;
 
   return (
-    <div
-      className={cn(
-        // Flat tiles: a card on the neutral-2 rail is only ~1.01:1, so a
-        // hairline — not a shadow — is what makes each task a unit.
-        "group/task relative flex h-16 cursor-pointer items-center gap-3 rounded-lg border border-hairline bg-card px-3",
-        "transition-colors hover:bg-accent has-focus-visible:bg-accent"
-      )}
-    >
-      <span
-        aria-hidden="true"
-        className="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-muted-foreground"
-      >
+    <div className={RAIL_CARD}>
+      <span aria-hidden="true" className={CARD_ICON}>
         <Icon className="size-4" />
       </span>
 
@@ -136,7 +200,7 @@ function TaskCard({
           type="button"
           onClick={() => onAct(task)}
           title={task.title}
-          className="truncate text-left text-body-compact font-medium after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
+          className={CARD_TITLE}
         >
           {task.title}
         </button>
@@ -145,16 +209,20 @@ function TaskCard({
         </span>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
-        {overdue ? (
-          <span className="text-caption font-medium tabular-nums text-destructive-ink">
-            {days}d
+      <RowAction
+        label={verb}
+        onClick={() => onAct(task)}
+        rest={
+          <span className="flex items-center gap-2">
+            {overdue ? (
+              <span className="text-caption font-medium tabular-nums text-destructive-ink">
+                {days}d
+              </span>
+            ) : null}
+            <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground" />
           </span>
-        ) : null}
-        <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground" />
-      </div>
-
-      <HoverAction label={verb} onClick={() => onAct(task)} />
+        }
+      />
     </div>
   );
 }
@@ -164,12 +232,14 @@ function TasksPanel({
   locale,
   verbOf,
   onAct,
+  onClose,
   onViewAll,
 }: {
   world: World;
   locale: Locale;
   verbOf: (task: Task) => string;
   onAct: (task: Task) => void;
+  onClose: () => void;
   onViewAll: () => void;
 }) {
   const groups = railGroups(world, Number(new Date(world.now)));
@@ -177,12 +247,13 @@ function TasksPanel({
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col">
-      <div className="flex items-center gap-2 px-4 pt-4 pb-3">
-        <ListChecks aria-hidden="true" className="size-4 text-warning-ink" />
-        <h2 className="flex-1 text-title-s font-semibold">
-          {pick(advHome.railTitle, locale)}
-        </h2>
-      </div>
+      <PanelHeader
+        icon={ListChecks}
+        title={pick(advHome.railTitle, locale)}
+        caption={pick(advHome.railCaption, locale)}
+        locale={locale}
+        onClose={onClose}
+      />
 
       {groups.length ? (
         <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto px-3 pb-3">
@@ -192,27 +263,11 @@ function TasksPanel({
               defaultOpen={group.key === "today"}
               className="flex flex-col gap-2"
             >
-              {/* The Slack move: the timeline collapses. Today stands open,
-                  the rest wait as a header and a count until asked. */}
-              <CollapsibleTrigger className="group/bucket flex h-9 w-full shrink-0 items-center gap-1.5 rounded-lg px-1.5 transition-colors hover:bg-accent">
-                <span
-                  className={cn(
-                    "text-caption font-semibold",
-                    group.key === "today"
-                      ? "text-warning-ink"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  {groupLabel(locale, group)}
-                </span>
-                <span className="text-caption font-medium tabular-nums text-muted-foreground">
-                  {group.tasks.length}
-                </span>
-                <ChevronDown
-                  aria-hidden="true"
-                  className="ml-auto size-4 text-muted-foreground transition-transform group-data-open/bucket:rotate-180"
-                />
-              </CollapsibleTrigger>
+              <BucketTrigger
+                label={groupLabel(locale, group)}
+                count={group.tasks.length}
+                lead={group.key === "today"}
+              />
               <CollapsibleContent>
                 <ul className="flex flex-col gap-2 pb-2">
                   {group.tasks.map((task) => (
@@ -251,7 +306,18 @@ function TasksPanel({
   );
 }
 
-/** One matter that is listed soon and not ready — same fixed height as a task card. */
+/* ───────────────────────────── hearing prep ───────────────────────────── */
+
+/**
+ * One substantial posting ahead.
+ *
+ * The card leads with the matter and what the posting is *for* — evidence, cross,
+ * the plea, arguments — because that is what decides how much work the week
+ * holds. How far away it is sits on the right, relative first ("In 6 days") and
+ * dated under it, since lead time is the whole point of the section. Open
+ * blocking work is a second cue on the stage line, not the reason the card
+ * exists: an evidence posting three weeks out belongs here with nothing pending.
+ */
 function PrepCard({
   locale,
   item,
@@ -261,86 +327,124 @@ function PrepCard({
   item: PrepItem;
   onOpenCase: (caseId: string) => void;
 }) {
-  const when = new Intl.DateTimeFormat(locale === "ml" ? "ml-IN" : "en-IN", {
+  const date = new Intl.DateTimeFormat(locale === "ml" ? "ml-IN" : "en-IN", {
     weekday: "short",
-    hour: "numeric",
-    minute: "2-digit",
+    day: "numeric",
+    month: "short",
   }).format(new Date(item.at));
-  const toDo =
-    item.blockers.length === 1
-      ? pick(advHome.prepToDoOne, locale)
-      : fillCopy(advHome.prepToDoMany, locale, { n: String(item.blockers.length) });
+  const away =
+    item.inDays === 1
+      ? pick(advHome.prepTomorrow, locale)
+      : fillCopy(advHome.prepInDays, locale, { n: String(item.inDays) });
+  const pending = item.blockers.length
+    ? item.blockers.length === 1
+      ? pick(advHome.prepPendingOne, locale)
+      : fillCopy(advHome.prepPendingMany, locale, {
+          n: String(item.blockers.length),
+        })
+    : null;
 
   return (
-    <div
-      className={cn(
-        "group/task relative flex h-16 cursor-pointer items-center gap-3 rounded-lg border border-hairline bg-card px-3",
-        "transition-colors hover:bg-accent has-focus-visible:bg-accent"
-      )}
-    >
-      <span
-        aria-hidden="true"
-        className="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-muted-foreground"
-      >
+    <div className={RAIL_CARD}>
+      <span aria-hidden="true" className={CARD_ICON}>
         <Gavel className="size-4" />
       </span>
+
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <button
           type="button"
           onClick={() => onOpenCase(item.kase.id)}
           title={item.kase.parties}
-          className="truncate text-left text-body-compact font-medium after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
+          className={CARD_TITLE}
         >
           {item.kase.parties}
         </button>
-        <span className="truncate text-caption text-muted-foreground">
-          {when} · {item.kase.court.replace(", Kollam", "")}
+        {/* The stage gives way before the count does: "2 pending" is four
+            characters and changes what the advocate does today. */}
+        <span className="flex min-w-0 items-center gap-1 text-caption text-muted-foreground">
+          <span className="truncate">{item.kase.stage}</span>
+          {pending ? (
+            <span className="shrink-0 font-medium whitespace-nowrap text-warning-ink">
+              · {pending}
+            </span>
+          ) : null}
         </span>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <span className="text-caption font-medium text-warning-ink">{toDo}</span>
-        <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground" />
-      </div>
 
-      <HoverAction
+      <RowAction
         label={pick(advHome.viewCase, locale)}
         onClick={() => onOpenCase(item.kase.id)}
+        rest={
+          <span className="flex flex-col items-end gap-0.5 text-right">
+            <span className="text-caption font-medium whitespace-nowrap">{away}</span>
+            <span className="text-caption whitespace-nowrap text-muted-foreground">
+              {date}
+            </span>
+          </span>
+        }
       />
     </div>
   );
 }
 
+function prepGroupLabel(locale: Locale, group: PrepGroup): string {
+  return group.key === "week"
+    ? pick(advHome.prepGroupWeek, locale)
+    : pick(advHome.prepGroupLater, locale);
+}
+
 function PrepPanel({
   world,
   locale,
+  onClose,
   onOpenCase,
 }: {
   world: World;
   locale: Locale;
+  onClose: () => void;
   onOpenCase: (caseId: string) => void;
 }) {
-  const queue = prepQueue(world, Number(new Date(world.now)));
+  const groups = prepGroups(world, Number(new Date(world.now)));
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col">
-      <div className="flex items-center gap-2 px-4 pt-4 pb-1">
-        <CalendarClock aria-hidden="true" className="size-4 text-warning-ink" />
-        <h2 className="flex-1 text-title-s font-semibold">
-          {pick(advHome.prepTitle, locale)}
-        </h2>
-      </div>
-      <p className="px-4 pb-3 text-caption text-muted-foreground">
-        {pick(advHome.prepCaption, locale)}
-      </p>
+      <PanelHeader
+        icon={CalendarClock}
+        title={pick(advHome.prepTitle, locale)}
+        caption={pick(advHome.prepCaption, locale)}
+        locale={locale}
+        onClose={onClose}
+      />
 
-      {queue.length ? (
-        <ul className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto px-3 pb-3">
-          {queue.map((item) => (
-            <li key={item.kase.id}>
-              <PrepCard locale={locale} item={item} onOpenCase={onOpenCase} />
-            </li>
+      {groups.length ? (
+        <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto px-3 pb-3">
+          {groups.map((group) => (
+            <Collapsible
+              key={group.key}
+              defaultOpen={group.key === "week"}
+              className="flex flex-col gap-2"
+            >
+              <BucketTrigger
+                label={prepGroupLabel(locale, group)}
+                count={group.items.length}
+                lead={group.key === "week"}
+              />
+              <CollapsibleContent>
+                <ul className="flex flex-col gap-2 pb-2">
+                  {group.items.map((item) => (
+                    <li key={item.kase.id}>
+                      <PrepCard
+                        locale={locale}
+                        item={item}
+                        onOpenCase={onOpenCase}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </CollapsibleContent>
+            </Collapsible>
           ))}
-        </ul>
+        </div>
       ) : (
         <div className="flex flex-1 flex-col justify-center gap-1 px-6 pb-8 text-center">
           <p className="text-body-compact font-medium">
@@ -354,6 +458,8 @@ function PrepPanel({
     </div>
   );
 }
+
+/* ───────────────────────────── the strip ───────────────────────────── */
 
 /** One entry on the strip: icon, count, active state — like Gmail's side apps. */
 function StripButton({
@@ -383,7 +489,7 @@ function StripButton({
             "relative flex size-10 items-center justify-center rounded-lg transition-colors",
             active
               ? "bg-brand-muted text-brand-muted-foreground"
-              : "text-muted-foreground hover:bg-accent"
+              : "text-muted-foreground hover:bg-accent-strong"
           )}
         >
           <Icon aria-hidden="true" className="size-5" />
@@ -432,7 +538,7 @@ export function CompanionRail({
   onViewAllTasks: () => void;
 }) {
   const tasksCount = summaryOf(world).action;
-  const prepCount = prepQueue(world, Number(new Date(world.now))).length;
+  const prepCount = prepAhead(world, Number(new Date(world.now))).length;
   const [width, setWidth] = React.useState(RAIL_DEFAULT_WIDTH);
   const dragFrom = React.useRef<{ x: number; width: number } | null>(null);
 
@@ -457,12 +563,13 @@ export function CompanionRail({
 
   const toggle = (next: RailSection) =>
     onSectionChange(section === next ? null : next);
+  const close = () => onSectionChange(null);
 
   return (
     <aside
       aria-label={pick(advHome.railTitle, locale)}
       style={{ top: topOffset, height: `calc(100svh - ${topOffset})` }}
-      className="sticky hidden shrink-0 self-start border-l border-hairline bg-sidebar md:flex"
+      className="sticky hidden shrink-0 self-start border-l border-hairline bg-surface-sunken md:flex dark:bg-background"
     >
       {section ? (
         <div className="relative flex h-full" style={{ width }}>
@@ -491,10 +598,16 @@ export function CompanionRail({
               locale={locale}
               verbOf={verbOf}
               onAct={onAct}
+              onClose={close}
               onViewAll={onViewAllTasks}
             />
           ) : (
-            <PrepPanel world={world} locale={locale} onOpenCase={onOpenCase} />
+            <PrepPanel
+              world={world}
+              locale={locale}
+              onClose={close}
+              onOpenCase={onOpenCase}
+            />
           )}
         </div>
       ) : null}

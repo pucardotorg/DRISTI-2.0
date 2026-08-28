@@ -1001,6 +1001,16 @@ const TASKS_WORLD_CASES: CaseRecord[] = ([
   { id: "c-hd8", st: "ST 233/2025", parties: "Asha Kumari v. Vel Murugan Stores", court: JMFC1, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN], filedOn: "2025-02-19" },
   { id: "c-hd9", st: "ST 47/2025", parties: "Krishnan Kutty v. Sree Devi Traders", court: CJM, stage: "arguments", counsel: [AN], filedOn: "2025-01-05" },
   { id: "c-hd10", st: "ST 902/2025", parties: "Noor Jahan v. Kadavil Motors", court: CJM, stage: "appearance", counsel: [DV, AN], filedOn: "2025-06-24" },
+  { id: "c-hd11", st: "ST 318/2025", parties: "Vasanthi Amma v. Deepak Nambiar", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN, DV, SP, RI], filedOn: "2025-03-11" },
+  { id: "c-hd12", st: "ST 655/2026", parties: "Faisal Rahman v. Ponnamma K.", court: ON_COURT, stage: "appearance", counsel: [RM, AN, SP], filedOn: "2026-02-24" },
+  { id: "c-hd13", st: "ST 205/2026", parties: "Leelamma Joy v. Sunrise Plywoods", court: ON_COURT, stage: "evidence", substage: "Cross-examination", counsel: [AN, SP], filedOn: "2026-01-15" },
+  { id: "c-hd14", st: "ST 471/2025", parties: "Abdul Latheef v. Thejas Marine", court: ON_COURT, stage: "appearance", substage: "Plea", counsel: [AN, RM, DV, SP], filedOn: "2025-05-29" },
+  { id: "c-hd15", st: "ST 830/2025", parties: "Sarala Devi v. Kochu Varkey", court: ON_COURT, stage: "arguments", counsel: [DV, AN, RI], filedOn: "2025-06-12" },
+  { id: "c-hd16", st: "ST 96/2026", parties: "Jaseela Beegum v. Anand Motors", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN, RI, SP], filedOn: "2026-01-30" },
+  { id: "c-hd17", st: "ST 1190/2026", parties: "Rajeev Menon v. Padmini Traders", court: ON_COURT, stage: "appearance", counsel: [AN, SP], filedOn: "2026-04-02" },
+  { id: "c-pa1", st: "ST 559/2025", parties: "Girija Kumari v. Elite Hardwares", court: ON_COURT, stage: "evidence", substage: "Cross-examination", counsel: [AN, DV, SP], filedOn: "2025-04-08" },
+  { id: "c-pa2", st: "ST 1073/2026", parties: "Hariharan P. v. Blue Wave Foods", court: ON_COURT, stage: "arguments", counsel: [AN, RI], filedOn: "2026-02-17" },
+  { id: "c-pa3", st: "ST 284/2026", parties: "Zainaba M. v. Crescent Steels", court: JMFC1, stage: "evidence", substage: "Evidence of the accused", counsel: [DV, AN, SP], filedOn: "2026-01-19" },
 ] as TwSeed[]).map(tw);
 
 export const CASES: CaseRecord[] = [...FIXTURE_CASES, ...TASKS_WORLD_CASES];

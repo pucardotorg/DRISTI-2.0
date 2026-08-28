@@ -16,9 +16,9 @@
 
 import { CASES as CASE_RECORDS } from "@/lib/cases/fixtures";
 import type { CaseRecord } from "@/lib/cases/types";
-import type { Case, Task } from "@/lib/tasks/types";
+import type { Case, Person, Task } from "@/lib/tasks/types";
 import { caseOf, tasksInView, sortTasks, type World } from "@/lib/tasks/selectors";
-import { ACTIONABLE, canView } from "@/lib/tasks/permissions";
+import { ACTIONABLE, advocatesOf, canView } from "@/lib/tasks/permissions";
 import { compareUrgency, consequenceAt } from "@/lib/tasks/urgency";
 
 /** How long a listed item is treated as live once its time arrives. */
@@ -295,40 +295,130 @@ export function railGroups(world: World, now: number = Date.now()): RailGroup[] 
 
 /* ───────────────────────────── preparation ───────────────────────────── */
 
+/**
+ * What a posting is *for*, in the only terms that change how an advocate spends
+ * the week before it.
+ *
+ * A **substantial** posting is one where something is recorded or decided and the
+ * advocate has to arrive with material: evidence is led or a witness is
+ * cross-examined, the accused answers the charge, arguments are heard, judgment is
+ * pronounced. A **procedural** one moves the file along — appearance and service,
+ * cognizance, a posting for compliance — and needs the advocate present, not
+ * prepared.
+ *
+ * The stage names are the world's own (`Case.stage`); this only reads them.
+ */
+export type HearingWeight = "substantial" | "procedural";
+
+/** Stage words that mean evidence, the plea, arguments, or judgment. */
+const SUBSTANTIAL_WORDS = [
+  "evidence",
+  "cross",
+  "examination",
+  "argument",
+  "judgment",
+  "judgement",
+  "plea",
+  "sworn statement",
+];
+
+export function weightOf(stage: string): HearingWeight {
+  const s = stage.toLowerCase();
+  return SUBSTANTIAL_WORDS.some((w) => s.includes(w)) ? "substantial" : "procedural";
+}
+
+/** Whole calendar days from `now`'s day to `at`'s day — 1 is tomorrow. */
+export function daysAhead(at: string | number | Date, now: number | Date): number {
+  const to = new Date(at);
+  to.setHours(12, 0, 0, 0);
+  const from = new Date(now);
+  from.setHours(12, 0, 0, 0);
+  return Math.round((to.getTime() - from.getTime()) / DAY_MS);
+}
+
 export type PrepItem = {
   kase: Case;
-  /** The listed hearing this preparation is for. */
+  /** The listed hearing being prepared for. */
   at: string;
-  /** What still stands in the way — actionable blocking tasks, most urgent first. */
+  /** Whole days away — 1 is tomorrow. Never 0: today's list is the board. */
+  inDays: number;
+  /** Actionable blocking tasks on the case — a second cue, not the reason it is here. */
   blockers: Task[];
 };
 
+export type PrepGroupKey = "week" | "later";
+export type PrepGroup = { key: PrepGroupKey; items: PrepItem[] };
+
+/** How far ahead preparation is worth surfacing — three court weeks. */
+const PREP_HORIZON_DAYS = 21;
+
 /**
- * The hearing-prep queue: matters listed in the coming week that are not ready —
- * a hearing is coming and actionable blocking work still stands. Soonest hearing
- * first. Matters already ready do not queue; being prepared is the goal, not a
- * to-do. This is the companion rail's second section — the "these need you
- * before they reach the board" list the old notifications carried.
+ * The hearings worth preparing for: substantial postings ahead of today, soonest
+ * first, inside the horizon.
+ *
+ * The point of this list is lead time. An evidence posting three weeks out needs
+ * the witness lined up now; it belongs here whether or not a task happens to be
+ * open on the case, and an appearance posting tomorrow does not belong here at
+ * all — nothing is prepared for it. That is why it is not the blocking-task list
+ * wearing a different hat: those live in Pending tasks, and appear on a card here
+ * only as a second cue.
+ *
+ * Today is excluded on purpose: today's matters are the board, in full.
  */
-export function prepQueue(world: World, now: number = Date.now()): PrepItem[] {
+export function prepAhead(world: World, now: number = Date.now()): PrepItem[] {
   const todayKey = dayKeyOf(now);
-  const weekEnd = dayKeyOf(now + 7 * DAY_MS);
+  const horizon = dayKeyOf(now + PREP_HORIZON_DAYS * DAY_MS);
   return viewableCases(world)
     .filter((c) => {
       if (!c.nextHearingAt) return false;
       const key = dayKeyOf(c.nextHearingAt);
-      return key >= todayKey && key <= weekEnd;
+      return key > todayKey && key <= horizon && weightOf(c.stage) === "substantial";
     })
     .map((kase) => ({
       kase,
       at: kase.nextHearingAt!,
+      inDays: daysAhead(kase.nextHearingAt!, now),
       blockers: blockersOf(world, kase, now),
     }))
-    .filter((item) => item.blockers.length > 0)
     .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 }
 
+/**
+ * The same list under two headers: the next seven days, then the rest of the
+ * horizon. Two groups, because the only cut that changes behaviour is "this week
+ * — start now" against "on the horizon".
+ */
+export function prepGroups(world: World, now: number = Date.now()): PrepGroup[] {
+  const items = prepAhead(world, now);
+  const groups: PrepGroup[] = [
+    { key: "week", items: items.filter((i) => i.inDays <= 7) },
+    { key: "later", items: items.filter((i) => i.inDays > 7) },
+  ];
+  return groups.filter((g) => g.items.length > 0);
+}
+
 /* ───────────────────────────── access ───────────────────────────── */
+
+/**
+ * Everyone on a matter, vakalatnama holders first — a case is rarely one
+ * advocate's, and the row has to say whose it is. `acts` is the line between
+ * signing/paying/filing and preparing; `you` marks the signed-in account.
+ */
+export type TeamMember = { person: Person; acts: boolean; you: boolean };
+
+export function teamOf(world: World, kase: Case): TeamMember[] {
+  const id = typeof world.user === "string" ? world.user : world.user.id;
+  return advocatesOf(kase, world.people).map((person) => ({
+    person,
+    acts: kase.signatories.includes(person.id),
+    you: person.id === id,
+  }));
+}
+
+/** The vakalatnama holders on a matter, in signing order — possibly several. */
+export function holdersOf(world: World, kase: Case): TeamMember[] {
+  return teamOf(world, kase).filter((m) => m.acts);
+}
 
 /**
  * Whether the user holds the vakalatnama on a case — the line between matters

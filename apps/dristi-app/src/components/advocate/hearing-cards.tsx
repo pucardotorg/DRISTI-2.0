@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, CircleCheck, Eye } from "lucide-react";
+import { ChevronDown, CircleCheck, Eye } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,61 +14,21 @@ import {
 import type { Locale } from "@/lib/onboarding/content";
 import { pick } from "@/lib/onboarding/content";
 import { advHome, fillCopy } from "@/lib/advocate/content";
-import type { HomeHearing } from "@/lib/advocate/home";
+import { holdersOf, teamOf, type HomeHearing } from "@/lib/advocate/home";
 import type { Task } from "@/lib/tasks/types";
 import type { World } from "@/lib/tasks/selectors";
-import { personOf } from "@/lib/tasks/selectors";
-import { mainAdvocateOf } from "@/lib/tasks/permissions";
 import { verbFor } from "@/lib/tasks/permissions";
 import { cn } from "@/lib/utils";
-import { HomeTaskRow, ItemChip, TeamAvatar } from "@/components/advocate/home-bits";
+import {
+  AdvocateStack,
+  HomeTaskRow,
+  ItemChip,
+  RowAction,
+  vakalatnamaLine,
+} from "@/components/advocate/home-bits";
 
 function timeOf(at: string): string {
   return new Intl.DateTimeFormat("en-IN", { timeStyle: "short" }).format(new Date(at));
-}
-
-/**
- * The hover affordance every case row shares: "View case", floated over the
- * row's right edge on hover / focus-within — out of the layout flow, so the
- * row's geometry never changes. `fill` matches the surface it must mask.
- */
-function ViewCaseOverlay({
-  locale,
-  fill,
-  onOpen,
-}: {
-  locale: Locale;
-  /** The class painting the overlay's mask — the row's own (hover) fill. */
-  fill: string;
-  onOpen: () => void;
-}) {
-  return (
-    <div
-      className={cn(
-        "absolute inset-y-0 right-0 z-10 hidden items-center rounded-r-lg pr-3 pl-3 group-hover/case:flex group-focus-within/case:flex pointer-coarse:group-hover/case:hidden",
-        fill
-      )}
-    >
-      <Button variant="outline" size="xs" onClick={onOpen} tabIndex={-1}>
-        {pick(advHome.viewCase, locale)}
-      </Button>
-    </div>
-  );
-}
-
-function MainAvatar({
-  world,
-  hearing,
-  onBrand,
-}: {
-  world: World;
-  hearing: HomeHearing;
-  onBrand?: boolean;
-}) {
-  const main = personOf(world, mainAdvocateOf(hearing.kase));
-  if (!main) return null;
-  const userId = typeof world.user === "string" ? world.user : world.user.id;
-  return <TeamAvatar person={main} you={main.id === userId} onBrand={onBrand} />;
 }
 
 /**
@@ -81,7 +41,6 @@ export function NowHearingCard({
   locale,
   hearing,
   selected,
-  viewOnly,
   onOpenCase,
   onAct,
 }: {
@@ -89,11 +48,16 @@ export function NowHearingCard({
   locale: Locale;
   hearing: HomeHearing;
   selected: boolean;
-  /** The user is not on this case's vakalatnama — watching, not acting. */
-  viewOnly?: boolean;
   onOpenCase: () => void;
   onAct: (task: Task) => void;
 }) {
+  const holders = holdersOf(world, hearing.kase);
+  // Quiet on the ordinary case — one holder, and it is you. Said out loud the
+  // moment it is worth knowing: someone else holds it, or you hold it jointly.
+  const holderLine =
+    holders.length > 1 || !holders.some((h) => h.you)
+      ? vakalatnamaLine(locale, holders)
+      : null;
   return (
     <section className="flex flex-col gap-3">
       <p className="flex items-center gap-2 text-caption font-semibold text-success-ink">
@@ -106,7 +70,7 @@ export function NowHearingCard({
           selected && "ring-2 ring-brand-accent"
         )}
       >
-        <div className="group/case relative flex flex-wrap items-start gap-4">
+        <div className="relative flex flex-wrap items-start gap-4">
           <ItemChip item={hearing.item} size="lg" onBrand />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <h2 className="text-title font-semibold text-balance">
@@ -127,21 +91,24 @@ export function NowHearingCard({
               <span className="font-mono">{hearing.kase.cnr}</span> ·{" "}
               {hearing.kase.stNumber} · {timeOf(hearing.at)}
             </p>
-          </div>
-          <ViewCaseOverlay locale={locale} fill="bg-brand-muted" onOpen={onOpenCase} />
-          <div className="flex shrink-0 flex-col items-end gap-1.5">
-            <MainAvatar world={world} hearing={hearing} onBrand />
-            {viewOnly ? (
-              /* On the tinted hero the chip sits as a plain card tile — the
-                 same move as the item chip — not a grey smudge on colour. */
-              <Badge
-                variant="secondary"
-                className="border-transparent bg-card text-muted-foreground"
-              >
-                <Eye aria-hidden="true" />
-                {pick(advHome.viewOnly, locale)}
-              </Badge>
+            {/* Said positively, and by name: on a matter three advocates share,
+                who may act is more useful than what this viewer cannot do. */}
+            {holderLine ? (
+              <p className="text-caption text-brand-muted-foreground">{holderLine}</p>
             ) : null}
+          </div>
+          {/* The day's one live matter is not a row in a list — its action is
+              stated outright rather than waiting for a pointer. */}
+          <div className="relative z-10 flex shrink-0 items-center gap-3">
+            <AdvocateStack
+              locale={locale}
+              team={teamOf(world, hearing.kase)}
+              onBrand
+              ring="ring-brand-muted"
+            />
+            <Button variant="outline" size="sm" onClick={onOpenCase}>
+              {pick(advHome.viewCase, locale)}
+            </Button>
           </div>
         </div>
 
@@ -192,7 +159,7 @@ export function HearingCard({
           selected && "ring-2 ring-brand-accent"
         )}
       >
-        <div className="group/case relative flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="group/row relative flex flex-wrap items-center gap-x-4 gap-y-2">
           <ItemChip item={hearing.item} />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <h3 className="text-body font-semibold text-balance">
@@ -220,12 +187,13 @@ export function HearingCard({
               {pick(advHome.ready, locale)}
             </Badge>
           ) : null}
-          <MainAvatar world={world} hearing={hearing} />
-          <ChevronRight
-            aria-hidden="true"
-            className="size-4 shrink-0 text-muted-foreground"
+          {/* Everyone on the matter, not just whoever signed first. */}
+          <AdvocateStack locale={locale} team={teamOf(world, hearing.kase)} />
+          <RowAction
+            label={pick(advHome.viewCase, locale)}
+            onClick={onOpenCase}
+            className="relative z-10"
           />
-          <ViewCaseOverlay locale={locale} fill="bg-card" onOpen={onOpenCase} />
         </div>
 
         {blocker ? (
@@ -296,7 +264,7 @@ export function ConcludedStrip({
           {concluded.map((h) => (
             <li
               key={h.kase.id}
-              className="group/case relative flex cursor-pointer flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 transition-colors hover:bg-accent has-focus-visible:bg-accent"
+              className="group/row relative flex cursor-pointer flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 transition-colors hover:bg-accent has-focus-visible:bg-accent"
             >
               <span className="w-12 shrink-0 font-mono text-caption text-muted-foreground">
                 item {h.item}
@@ -313,13 +281,15 @@ export function ConcludedStrip({
                   {h.kase.cnr || h.kase.stNumber}
                 </span>
               </span>
-              <span className="text-caption tabular-nums text-muted-foreground">
-                {timeOf(h.at)}
-              </span>
-              <ViewCaseOverlay
-                locale={locale}
-                fill="bg-accent"
-                onOpen={() => onOpenCase(h.kase.id)}
+              <RowAction
+                label={pick(advHome.viewCase, locale)}
+                onClick={() => onOpenCase(h.kase.id)}
+                className="relative z-10"
+                rest={
+                  <span className="text-caption tabular-nums text-muted-foreground">
+                    {timeOf(h.at)}
+                  </span>
+                }
               />
             </li>
           ))}
