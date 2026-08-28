@@ -230,14 +230,17 @@ export const advHome = {
 
   /* Companion rail */
   railTitle: t("Pending tasks", "ബാക്കിയുള്ള ജോലികൾ"),
-  prepTitle: t("Hearing prep", "ഹിയറിംഗ് തയ്യാറെടുപ്പ്"),
+  prepTitle: t(
+    "Important upcoming hearings",
+    "വരാനിരിക്കുന്ന പ്രധാന ഹിയറിംഗുകൾ",
+  ),
   prepCaption: t(
     "Evidence, cross, plea and arguments coming up",
     "വരാനിരിക്കുന്ന തെളിവ്, വിസ്താരം, ബോധിപ്പിക്കൽ, വാദം",
   ),
   prepOpen: t(
-    "Open hearing prep, {n} substantial hearings ahead",
-    "തയ്യാറെടുപ്പ് തുറക്കുക, {n} സുപ്രധാന ഹിയറിംഗുകൾ",
+    "Open important upcoming hearings, {n} ahead",
+    "പ്രധാന ഹിയറിംഗുകൾ തുറക്കുക, {n} വരാനുണ്ട്",
   ),
   prepGroupWeek: t("Next 7 days", "അടുത്ത 7 ദിവസം"),
   prepGroupLater: t("The fortnight after", "അതിനു ശേഷമുള്ള രണ്ടാഴ്ച"),

@@ -89,7 +89,7 @@ export const RAIL_DEFAULT_WIDTH = 384;
  * it stands — because a terse "41d" in red ink is a number, not a sentence.
  */
 const RAIL_CARD =
-  "group/row relative flex h-24 cursor-pointer items-center gap-3 rounded-lg border border-hairline bg-card px-3 transition-all dark:bg-surface-raised hover:shadow-raised has-focus-visible:shadow-raised dark:hover:bg-accent dark:has-focus-visible:bg-accent";
+  "group/row relative flex h-24 cursor-pointer items-center gap-3 rounded-lg border border-hairline bg-card px-3 transition dark:bg-surface-raised hover:shadow-raised has-focus-visible:shadow-raised dark:hover:bg-accent dark:has-focus-visible:bg-accent";
 
 /** The tile the kind icon sits in — a small well inside the card. */
 const CARD_ICON =
@@ -346,7 +346,10 @@ function PrepCard({
     : null;
 
   return (
-    <div className={RAIL_CARD}>
+    // Top-aligned, unlike the task cards: the right side is a two-line date
+    // block, and "Tomorrow" reads as the title's counterpart only when the two
+    // start on the same line.
+    <div className={cn(RAIL_CARD, "items-start py-3")}>
       <span aria-hidden="true" className={CARD_ICON}>
         <Gavel className="size-4" />
       </span>

@@ -226,7 +226,7 @@ function HomeBody({
           narrowing the viewport, so what the board puts on one line has to
           answer to its own width. */}
       <main className="@container flex min-w-0 flex-1 flex-col">
-        <div className="px-4 pt-8 pb-4 md:px-6">
+        <div className="px-4 pt-8 pb-4 md:px-8">
           <HomeGreeting
             locale={locale}
             firstName={profileFirstName}
@@ -245,7 +245,7 @@ function HomeBody({
               above it — one horizontal line, not two. */}
           <TabsList
             variant="line"
-            className="w-full justify-start gap-1 overflow-x-auto border-b border-hairline px-4 pb-0 group-data-horizontal/tabs:h-auto md:px-6"
+            className="w-full justify-start gap-1 overflow-x-auto border-b border-hairline px-4 pb-0 group-data-horizontal/tabs:h-auto md:px-8"
           >
             {roomView.map((room) => (
               <TabsTrigger
@@ -275,7 +275,7 @@ function HomeBody({
           </TabsList>
 
           {rooms.map((room) => (
-            <TabsContent key={room.court} value={room.court} className="px-4 md:px-6">
+            <TabsContent key={room.court} value={room.court} className="px-4 md:px-8">
               <CourtBoard
                 world={world}
                 locale={locale}

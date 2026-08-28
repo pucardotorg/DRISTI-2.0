@@ -182,25 +182,25 @@ export function RowAction({
 }
 
 /**
- * The listed item number. A plain card tile on the brand-tinted hero, a sunken
- * well elsewhere — the fill change is the depth, so neither variant carries a
- * shadow inside its already-lifted card.
+ * The listed item number. A plain card tile on any tinted card — the brand
+ * hero, the beige queue — a sunken well on white — the fill change is the
+ * depth, so neither variant carries a shadow inside its already-lifted card.
  */
 export function ItemChip({
   item,
   size = "default",
-  onBrand,
+  onTint,
 }: {
   item: number;
   size?: "default" | "lg";
-  onBrand?: boolean;
+  onTint?: boolean;
 }) {
   return (
     <span
       aria-hidden="true"
       className={cn(
         "flex shrink-0 flex-col items-center justify-center rounded-md",
-        onBrand ? "bg-card" : "bg-surface-sunken",
+        onTint ? "bg-card" : "bg-surface-sunken",
         size === "lg" ? "size-12" : "size-11"
       )}
     >

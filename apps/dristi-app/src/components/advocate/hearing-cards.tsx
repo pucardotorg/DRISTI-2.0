@@ -61,12 +61,12 @@ export function NowHearingCard({
       </p>
       <Card
         className={cn(
-          "relative cursor-pointer gap-5 overflow-visible rounded-3xl border-transparent bg-brand-muted p-6 shadow-raised",
+          "relative cursor-pointer gap-5 overflow-visible rounded-3xl border-transparent bg-brand-muted px-8 py-6 shadow-raised",
           selected && "ring-2 ring-brand-accent"
         )}
       >
         <div className="relative flex flex-wrap items-start gap-4">
-          <ItemChip item={hearing.item} size="lg" onBrand />
+          <ItemChip item={hearing.item} size="lg" onTint />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <h2 className="text-title font-semibold text-balance">
               <button
@@ -124,7 +124,12 @@ export function NowHearingCard({
   );
 }
 
-/** An upcoming item in the day's cause list — a quiet, near-white card. */
+/**
+ * An upcoming item in the day's cause list — a quiet beige card. The queue
+ * recedes on the sunken fill so the one brand-tinted "now" card is the view's
+ * sole focal surface; fill is the separation, so the border goes. Hover
+ * deepens the fill a step — a sunken surface darkens, it does not lift.
+ */
 export function HearingCard({
   world,
   locale,
@@ -148,12 +153,12 @@ export function HearingCard({
     <li>
       <Card
         className={cn(
-          "relative cursor-pointer gap-3 overflow-visible rounded-2xl p-4 transition-shadow hover:shadow-raised",
+          "relative cursor-pointer gap-3 overflow-visible rounded-2xl border-transparent bg-surface-sunken p-4 transition-colors hover:bg-accent-strong has-focus-visible:bg-accent-strong",
           selected && "ring-2 ring-brand-accent"
         )}
       >
         <div className="group/row relative flex flex-wrap items-center gap-x-4 gap-y-2">
-          <ItemChip item={hearing.item} />
+          <ItemChip item={hearing.item} onTint />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <h3 className="text-body font-semibold text-balance">
               <button
@@ -197,7 +202,9 @@ export function HearingCard({
         </div>
 
         {blocker ? (
-          <div className="relative z-10 rounded-md bg-surface-sunken">
+          // A white well on the beige card, as on the brand-tinted hero — the
+          // sunken fill would vanish into a card that is itself sunken.
+          <div className="relative z-10 rounded-md bg-card">
             <HomeTaskRow
               task={blocker}
               now={world.now}
