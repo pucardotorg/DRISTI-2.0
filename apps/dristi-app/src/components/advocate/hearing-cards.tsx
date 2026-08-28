@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, CircleCheck, Eye } from "lucide-react";
+import { ChevronDown, CircleCheck } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import {
@@ -29,31 +29,6 @@ function timeOf(at: string): string {
   return new Intl.DateTimeFormat("en-IN", { timeStyle: "short" }).format(new Date(at));
 }
 
-/**
- * The mark that leads a matter's metadata line when the viewer cannot act on it.
- *
- * Not a `Badge`: a badge is a status chip in the action zone, and this is a
- * property of the matter, so it belongs with the matter's other properties. It
- * goes *first* because the line truncates, and the fact that must never be the
- * first thing lost is whether you may act. Holding the vakalatnama says nothing
- * — the norm is silent, only the exception is marked.
- */
-function ViewOnlyMark({
-  locale,
-  size,
-}: {
-  locale: Locale;
-  /** Match the line's own text size — the icon is not the signal, the words are. */
-  size: "sm" | "xs";
-}) {
-  return (
-    <span className="flex shrink-0 items-center gap-1.5">
-      <Eye aria-hidden="true" className={size === "sm" ? "size-4" : "size-3.5"} />
-      {pick(advHome.notOnVakalatnama, locale)}
-      <span aria-hidden="true">·</span>
-    </span>
-  );
-}
 
 /**
  * The hearing currently being called — one per court section, cards view only.
@@ -64,7 +39,6 @@ export function NowHearingCard({
   locale,
   hearing,
   selected,
-  viewOnly,
   onOpenCase,
   onAct,
 }: {
@@ -72,8 +46,6 @@ export function NowHearingCard({
   locale: Locale;
   hearing: HomeHearing;
   selected: boolean;
-  /** The user is not on this case's vakalatnama — watching, not acting. */
-  viewOnly?: boolean;
   onOpenCase: () => void;
   onAct: (task: Task) => void;
 }) {
@@ -110,9 +82,8 @@ export function NowHearingCard({
                 vakalatnama sentence were a wall of dimmed type on a tinted card.
                 The number is one click away in the peek; who holds the
                 vakalatnama is in the avatars beside it, by name, on hover. */}
-            <p className="flex min-w-0 items-center gap-1.5 text-body text-brand-muted-foreground">
-              {viewOnly ? <ViewOnlyMark locale={locale} size="sm" /> : null}
-              <span className="truncate">{hearing.kase.stage}</span>
+            <p className="truncate text-body text-brand-muted-foreground">
+              {hearing.kase.stage}
             </p>
           </div>
           {/* The day's live matter is a repeated row like any other: the listed
@@ -123,6 +94,7 @@ export function NowHearingCard({
               locale={locale}
               team={teamOf(world, hearing.kase)}
               surface="brand"
+              includeSelf
             />
             <RowAction
               label={pick(advHome.viewCase, locale)}
@@ -171,7 +143,6 @@ export function HearingCard({
   locale,
   hearing,
   selected,
-  viewOnly,
   onOpenCase,
   onAct,
 }: {
@@ -179,8 +150,6 @@ export function HearingCard({
   locale: Locale;
   hearing: HomeHearing;
   selected: boolean;
-  /** The user is not on this case's vakalatnama — watching, not acting. */
-  viewOnly?: boolean;
   onOpenCase: () => void;
   onAct: (task: Task) => void;
 }) {
@@ -209,19 +178,19 @@ export function HearingCard({
                 matter with nothing owed is silent. "Ready" marked the norm on
                 fourteen of today's seventeen cards, which is no information at
                 all — only the exception is worth a mark, and it leads the line. */}
-            <p className="flex min-w-0 items-center gap-1.5 text-body-compact text-muted-foreground">
-              {viewOnly ? <ViewOnlyMark locale={locale} size="xs" /> : null}
-              <span className="truncate">
-                {hearing.kase.stage} ·{" "}
-                <span className="font-mono">{hearing.kase.cnr}</span>
-              </span>
+            <p className="truncate text-body-compact text-muted-foreground">
+              {hearing.kase.stage} ·{" "}
+              <span className="font-mono">{hearing.kase.cnr}</span>
             </p>
           </div>
-          {/* Everyone on the matter, not just whoever signed first. */}
+          {/* Everyone on the matter, the viewer included, and each disc styled
+              by whether they hold the vakalatnama — so the stack says who may
+              act and shows the viewer their own standing, in one place. */}
           <AdvocateStack
             locale={locale}
             team={teamOf(world, hearing.kase)}
             surface="sunken"
+            includeSelf
           />
           {/* The cell holds the listed time at rest, so reserving room for the
               button costs nothing and the row gains the fact it was missing. */}

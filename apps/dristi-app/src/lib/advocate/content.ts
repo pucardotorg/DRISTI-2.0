@@ -240,6 +240,16 @@ export const advHome = {
     "No matters listed on this day where {name} is on the case. Switch back to your own matters to see the full board.",
     "ഈ ദിവസം {name} കേസിലുള്ള വിഷയങ്ങളൊന്നും പട്ടികയിലില്ല. മുഴുവൻ ബോർഡ് കാണാൻ നിങ്ങളുടെ വിഷയങ്ങളിലേക്ക് മടങ്ങുക.",
   ),
+  // The filter is now multi-select, so an empty board is not one named
+  // colleague's — it is the set the viewer picked.
+  emptyFilterTitle: t(
+    "No matters for the chosen advocates",
+    "തിരഞ്ഞെടുത്ത അഭിഭാഷകർക്ക് വിഷയങ്ങളൊന്നുമില്ല",
+  ),
+  emptyFilterBody: t(
+    "No listed matters on this day for the advocates you have picked. Show your own matters to see the full board.",
+    "നിങ്ങൾ തിരഞ്ഞെടുത്ത അഭിഭാഷകർക്ക് ഈ ദിവസം പട്ടികയിലുള്ള വിഷയങ്ങളൊന്നുമില്ല. മുഴുവൻ ബോർഡ് കാണാൻ നിങ്ങളുടെ വിഷയങ്ങൾ കാണിക്കുക.",
+  ),
 
   /* Companion rail */
   railTitle: t("Pending tasks", "ബാക്കിയുള്ള ജോലികൾ"),

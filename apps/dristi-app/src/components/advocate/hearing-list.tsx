@@ -1,12 +1,11 @@
 "use client";
 
-import { Eye } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import type { Locale } from "@/lib/onboarding/content";
 import { pick } from "@/lib/onboarding/content";
 import { advHome } from "@/lib/advocate/content";
-import { holdsVakalatnama, teamOf, type HomeHearing } from "@/lib/advocate/home";
+import { teamOf, type HomeHearing } from "@/lib/advocate/home";
 import type { World } from "@/lib/tasks/selectors";
 import { cn } from "@/lib/utils";
 import {
@@ -72,7 +71,6 @@ export function HearingList({
         <tbody>
           {hearings.map((hearing) => {
             const selected = hearing.kase.id === selectedId;
-            const viewOnly = !holdsVakalatnama(world, hearing.kase);
             return (
               <tr
                 key={hearing.kase.id}
@@ -104,31 +102,23 @@ export function HearingList({
                     <span className="text-body-compact font-semibold">
                       {hearing.kase.parties}
                     </span>
-                    {/* Whether you may act leads the line here too — one
-                        treatment for the fact across card, row and hero. */}
-                    <span className="flex items-center gap-1.5 text-caption text-muted-foreground">
-                      {viewOnly ? (
-                        <span className="flex shrink-0 items-center gap-1.5">
-                          <Eye aria-hidden="true" className="size-3.5" />
-                          {pick(advHome.notOnVakalatnama, locale)}
-                          <span aria-hidden="true">·</span>
-                        </span>
-                      ) : null}
-                      <span className="truncate">{hearing.kase.stage}</span>
+                    <span className="truncate text-caption text-muted-foreground">
+                      {hearing.kase.stage}
                     </span>
                   </button>
                 </td>
                 <td className="px-4 py-3 font-mono text-caption text-muted-foreground">
                   {hearing.kase.cnr || "—"}
                 </td>
-                {/* Everyone on the matter — a case is rarely one advocate's,
-                    and the first signatory is not the whole answer. */}
+                {/* Everyone on the matter, the viewer included, each disc styled
+                    by vakalatnama standing — the stack carries who may act. */}
                 <td className="px-4 py-3">
                   <AdvocateStack
                     locale={locale}
                     team={teamOf(world, hearing.kase)}
-                    max={2}
+                    max={3}
                     surface={hearing.status === "now" ? "brand" : "card"}
+                    includeSelf
                   />
                 </td>
                 <td className="px-4 py-3">{statusCell(hearing)}</td>

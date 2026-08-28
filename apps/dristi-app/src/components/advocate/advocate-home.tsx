@@ -117,8 +117,7 @@ function AdvocateChip({
       <TooltipTrigger asChild>
         <button
           type="button"
-          role="radio"
-          aria-checked={selected}
+          aria-pressed={selected}
           aria-label={label}
           onClick={() => onSelect(option.person.id)}
           className="flex size-10 items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -156,8 +155,8 @@ function AdvocateChip({
 function BoardToolbar({
   locale,
   roster,
-  whose,
-  onWhoseChange,
+  selected,
+  onToggle,
   view,
   onViewChange,
   section,
@@ -166,8 +165,8 @@ function BoardToolbar({
 }: {
   locale: Locale;
   roster: AdvocateOption[];
-  whose: PersonId;
-  onWhoseChange: (whose: PersonId) => void;
+  selected: readonly PersonId[];
+  onToggle: (id: PersonId) => void;
   view: BoardView;
   onViewChange: (view: BoardView) => void;
   /** The court the per-court actions act on. */
@@ -177,16 +176,18 @@ function BoardToolbar({
 }) {
   const shown = roster.slice(0, MAX_CHIPS);
   const rest = roster.slice(MAX_CHIPS);
-  const restSelected = rest.some((option) => option.person.id === whose);
+  const restSelected = rest.some((option) =>
+    selected.includes(option.person.id)
+  );
 
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-3 px-4 pt-3 pb-3 md:px-8">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 pt-3 pb-3 md:px-8">
       <span className="text-caption font-medium text-muted-foreground">
         {pick(advHome.viewCases, locale)}
       </span>
 
       <div
-        role="radiogroup"
+        role="group"
         aria-label={pick(advHome.whoseMatters, locale)}
         className="flex items-center gap-1"
       >
@@ -194,9 +195,9 @@ function BoardToolbar({
           <AdvocateChip
             key={option.person.id}
             option={option}
-            selected={option.person.id === whose}
+            selected={selected.includes(option.person.id)}
             locale={locale}
-            onSelect={onWhoseChange}
+            onSelect={onToggle}
           />
         ))}
 
@@ -220,7 +221,10 @@ function BoardToolbar({
               {rest.map((option) => (
                 <DropdownMenuItem
                   key={option.person.id}
-                  onSelect={() => onWhoseChange(option.person.id)}
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    onToggle(option.person.id);
+                  }}
                 >
                   <PersonAvatar person={option.person} size="sm" />
                   <span className="truncate text-body-compact">
@@ -228,7 +232,7 @@ function BoardToolbar({
                   </span>
                   <span className="ml-auto flex items-center gap-2 text-caption tabular-nums text-muted-foreground">
                     {option.count}
-                    {option.person.id === whose ? (
+                    {selected.includes(option.person.id) ? (
                       <Check aria-hidden="true" className="size-4 text-foreground" />
                     ) : null}
                   </span>
@@ -328,8 +332,19 @@ function HomeBody({
   const [weekAnchor, setWeekAnchor] = React.useState<number>(now);
   const [view, setView] = React.useState<BoardView>("cards");
   // A per-session lens, deliberately not persisted: "my matters" is the right
-  // thing to land on every morning.
-  const [whose, setWhose] = React.useState<PersonId>(user.id);
+  // thing to land on every morning. Multi-select and additive — you start on
+  // your own matters, and picking a colleague *adds* theirs to the board rather
+  // than replacing yours; the board shows the union. Deselect everyone and the
+  // filter is off: the court's whole day shows.
+  const [selected, setSelected] = React.useState<readonly PersonId[]>(() => [
+    user.id,
+  ]);
+  const toggleAdvocate = React.useCallback((id: PersonId) => {
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }, []);
+  const mine = selected.length === 1 && selected[0] === user.id;
   /** Which court's board is shown; null falls back to the first tab. */
   const [courtId, setCourtId] = React.useState<string | null>(null);
   // Not `useState`: which panel stands open is remembered per user, so a rail
@@ -355,14 +370,6 @@ function HomeBody({
     () => advocateRosterOn(world, selectedDay, now),
     [world, selectedDay, now]
   );
-  // Yesterday's colleague may have nothing listed today. Falling back to self
-  // rather than syncing state in an effect keeps the choice for the day it was
-  // made on: step back to that day and it is still there.
-  const active = roster.some((option) => option.person.id === whose)
-    ? whose
-    : user.id;
-  const whoseName =
-    roster.find((option) => option.person.id === active)?.person.name ?? user.name;
 
   const boards = React.useMemo(() => {
     const map = new Map<string, Board>();
@@ -377,7 +384,10 @@ function HomeBody({
   // switcher narrows a board's contents, never the cause list's numbering: item
   // numbers come from the full world, so a filtered board still says "item 7".
   const sections = React.useMemo<CourtSection[]>(() => {
-    const keep = (h: HomeHearing) => canView(active, h.kase);
+    // Union: keep a matter if any chosen advocate is on it. No one chosen means
+    // no filter — the court's full day shows.
+    const keep = (h: HomeHearing) =>
+      selected.length === 0 || selected.some((id) => canView(id, h.kase));
     return rooms.map((room) => {
       const full = boards.get(room.court)!;
       const board: Board = {
@@ -397,7 +407,7 @@ function HomeBody({
         board,
       };
     });
-  }, [rooms, boards, courtLabels, active]);
+  }, [rooms, boards, courtLabels, selected]);
 
   const visibleMatterCount = sections.reduce((sum, s) => sum + s.count, 0);
   const court = courtId ?? sections[0]?.court ?? null;
@@ -556,8 +566,8 @@ function HomeBody({
               <BoardToolbar
                 locale={locale}
                 roster={roster}
-                whose={active}
-                onWhoseChange={setWhose}
+                selected={selected}
+                onToggle={toggleAdvocate}
                 view={view}
                 onViewChange={setView}
                 section={current}
@@ -578,14 +588,12 @@ function HomeBody({
                   section={section}
                   view={view}
                   selectedCaseId={selectedCaseId}
-                  active={active}
-                  userId={user.id}
-                  whoseName={whoseName}
+                  mine={mine}
                   jump={jump}
                   onOpenCase={openCase}
                   onAct={actOn}
                   onJump={selectDay}
-                  onShowYours={() => setWhose(user.id)}
+                  onShowYours={() => setSelected([user.id])}
                 />
               </TabsContent>
             ))}

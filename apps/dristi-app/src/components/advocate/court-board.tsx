@@ -13,8 +13,8 @@ import {
 import type { Locale } from "@/lib/onboarding/content";
 import { pick } from "@/lib/onboarding/content";
 import { advHome, fillCopy } from "@/lib/advocate/content";
-import { holdsVakalatnama, type Board } from "@/lib/advocate/home";
-import type { PersonId, Task } from "@/lib/tasks/types";
+import { type Board } from "@/lib/advocate/home";
+import type { Task } from "@/lib/tasks/types";
 import type { World } from "@/lib/tasks/selectors";
 import {
   ConcludedStrip,
@@ -66,9 +66,7 @@ export function CourtBoard({
   section,
   view,
   selectedCaseId,
-  active,
-  userId,
-  whoseName,
+  mine,
   jump,
   onOpenCase,
   onAct,
@@ -80,24 +78,20 @@ export function CourtBoard({
   section: CourtSection;
   view: BoardView;
   selectedCaseId: string | null;
-  /** The advocate the board is being seen through. */
-  active: PersonId;
-  /** The signed-in account — the switcher's default. */
-  userId: PersonId;
-  /** The name behind `active`, for the colleague-empty message. */
-  whoseName: string;
+  /** The filter is exactly the signed-in advocate — an empty board is "your"
+   *  day, not a colleague's, so the empty message and jump differ. */
+  mine: boolean;
   /** The next day with anything listed, when this one is empty. */
   jump: { key: string; label: string; count: number } | null;
   onOpenCase: (caseId: string) => void;
   onAct: (task: Task) => void;
   /** Move the whole board to another day — the empty state's jump-ahead. */
   onJump: (key: string) => void;
-  /** Reset the switcher to the signed-in advocate from a colleague-empty state. */
+  /** Reset the filter to just the signed-in advocate from a filtered-empty state. */
   onShowYours: () => void;
 }) {
   const { now, upcoming, concluded } = section.board;
   const activeList = [...(now ? [now] : []), ...upcoming];
-  const mine = active === userId;
 
   return (
     <div className="flex flex-col gap-4 pt-4 pb-8">
@@ -120,16 +114,12 @@ export function CourtBoard({
             <EmptyTitle>
               {mine
                 ? pick(advHome.emptyDayTitle, locale)
-                : fillCopy(advHome.emptyAdvocateTitle, locale, {
-                    name: whoseName,
-                  })}
+                : pick(advHome.emptyFilterTitle, locale)}
             </EmptyTitle>
             <EmptyDescription>
               {mine
                 ? pick(advHome.emptyDayBody, locale)
-                : fillCopy(advHome.emptyAdvocateBody, locale, {
-                    name: whoseName,
-                  })}
+                : pick(advHome.emptyFilterBody, locale)}
             </EmptyDescription>
           </EmptyHeader>
           {mine ? (
@@ -160,7 +150,6 @@ export function CourtBoard({
               locale={locale}
               hearing={now}
               selected={now.kase.id === selectedCaseId}
-              viewOnly={!holdsVakalatnama(world, now.kase)}
               onOpenCase={() => onOpenCase(now.kase.id)}
               onAct={onAct}
             />
@@ -178,7 +167,6 @@ export function CourtBoard({
                   locale={locale}
                   hearing={hearing}
                   selected={hearing.kase.id === selectedCaseId}
-                  viewOnly={!holdsVakalatnama(world, hearing.kase)}
                   onOpenCase={() => onOpenCase(hearing.kase.id)}
                   onAct={onAct}
                 />

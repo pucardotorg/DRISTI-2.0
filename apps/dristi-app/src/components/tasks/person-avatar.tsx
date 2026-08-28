@@ -27,6 +27,7 @@ export function PersonAvatar({
   you,
   size = "sm",
   surface = "card",
+  variant = "solid",
   label,
   className,
   // Passed through so the disc can *be* a trigger: `TooltipTrigger asChild`
@@ -37,6 +38,12 @@ export function PersonAvatar({
   person: Person;
   you?: boolean;
   surface?: AvatarSurface;
+  /**
+   * `solid` — a filled disc, the default and the vakalatnama holder. `outline`
+   * — a hollow, ringed disc for an advocate who only holds case access, so the
+   * stack itself says who may act and who only watches.
+   */
+  variant?: "solid" | "outline";
   /**
    * What names this disc, when the caller names it richly (the home stack's
    * vakalatnama/case-access tooltip). The native `title` steps aside so a Radix
@@ -57,9 +64,11 @@ export function PersonAvatar({
           size === "sm" ? "text-caption" : "text-body-compact",
           you
             ? "bg-brand-muted text-brand-muted-foreground"
-            : surface === "card"
-              ? "bg-surface-sunken text-foreground"
-              : "bg-card text-foreground"
+            : variant === "outline"
+              ? "bg-card text-muted-foreground ring-1 ring-inset ring-border"
+              : surface === "card"
+                ? "bg-surface-sunken text-foreground"
+                : "bg-card text-foreground"
         )}
       >
         {person.initials}

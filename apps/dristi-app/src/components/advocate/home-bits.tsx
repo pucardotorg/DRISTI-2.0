@@ -108,11 +108,18 @@ export function AdvocateStack({
       {shown.map((member) => (
         <Tooltip key={member.person.id}>
           <TooltipTrigger asChild>
+            {/* Self is in the stack but not brand-tinted — brand means "live"
+                on this screen, and the viewer sits on every one of their own
+                matters, so a tinted self-disc would light up the whole board.
+                The initials and the "(you)" tooltip name it; `acts` styles it
+                like anyone else, so your own disc shows your own vakalatnama
+                standing. Holder solid, case-access hollow — the note lives in
+                the stack. */}
             <PersonAvatar
               person={member.person}
-              you={member.you}
               size="default"
               surface={surface}
+              variant={member.acts ? "solid" : "outline"}
               label={labelOf(locale, member)}
             />
           </TooltipTrigger>
