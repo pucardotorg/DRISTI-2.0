@@ -304,7 +304,7 @@ function WideTable({
           {/* The panel names the advocates itself; when it narrows the table past
               the full width, this column stands down rather than wrapping every
               other cell to three lines. */}
-          <TableHead className={cn(headClass, "hidden @4xl:table-cell")}>Advocates</TableHead>
+          <TableHead className={cn(headClass, "hidden @4xl:table-cell")}>Owners</TableHead>
           {fifthHead ? <TableHead className={headClass}>{fifthHead}</TableHead> : null}
           <TableHead className={cn(headClass, "text-right")}>
             <span className="sr-only">Action</span>
@@ -461,7 +461,7 @@ function StackedRows({
               <dd>
                 <DueCell task={task} now={now} />
               </dd>
-              <dt className="text-caption text-muted-foreground">Advocates</dt>
+              <dt className="text-caption text-muted-foreground">Owners</dt>
               <dd>
                 <AdvocateStack kase={kase} people={people} user={user} />
               </dd>
