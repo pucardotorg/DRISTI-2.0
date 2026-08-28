@@ -82,8 +82,11 @@ import {
  * opens) and `manual` (the Join-a-case page). The legacy flow's "are you an advocate
  * or a litigant?" question is gone: sign-in answered it.
  *
- * Stages: lookup → details → account → access code → representation → litigant details (paged)
- * → vakalatnama → outcome. Departures from legacy, all agreed Aug 14:
+ * Stages (manual): lookup → access code → details → account → representation → litigant
+ * details (paged) → vakalatnama → outcome. The access code gates the case details: an
+ * advocate must prove they hold the litigant's six-digit code before any case data is
+ * shown. (Summons mode arrives pre-verified from the unique link, so it opens on details
+ * and skips the code.) Departures from legacy, all agreed Aug 14:
  * · "Which litigant(s)" moved up to follow the side question, and is multi-select —
  *   one vakalatnama routinely covers co-accused.
  * · The replacement questions (approver, reason, document) appear only after a "yes".
@@ -382,21 +385,21 @@ export function AdvocateJoinCaseDialog({
     }
     setLookupMiss(false);
     setJoinCase(ADVOCATE_JOIN_CASE);
-    setStage("details");
+    // The access code comes before the case details: nothing about the case is shown
+    // until the advocate proves they hold the litigant's six-digit code.
+    setStage("code");
   }
 
   function submitCode(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setCodeTouched(true);
     if (code.length !== CODE_LENGTH) return;
-    setStage("role");
+    setStage("details");
   }
 
   function continueFromAccount() {
     if (accountRole === "advocate") {
-      // The access code is redundant when the advocate arrived from the summons
-      // unique link — it only guards the manually-entered "Join a case" path.
-      setStage(mode === "summons" ? "role" : "code");
+      setStage("role");
       return;
     }
     setSwitchingProfile(true);
@@ -513,13 +516,13 @@ export function AdvocateJoinCaseDialog({
         // interaction and swallows it before the option can be selected.
         onInteractOutside={(event) => {
           const target = event.target as Element | null;
-          if (target?.closest?.('[data-slot="combobox-positioner"]')) event.preventDefault();
+          if (target?.closest?.('[data-slot="combobox-content"]')) event.preventDefault();
         }}
         // Escape must close the innermost layer only: with the combobox list open
-        // (its positioner is in the DOM), the dialog stands down and lets the list
+        // (its popup is in the DOM), the dialog stands down and lets the list
         // close; a second Escape then closes the dialog.
         onEscapeKeyDown={(event) => {
-          if (document.querySelector('[data-slot="combobox-positioner"]')) event.preventDefault();
+          if (document.querySelector('[data-slot="combobox-content"]')) event.preventDefault();
         }}
       >
         {stage === "done" ? (
@@ -759,7 +762,11 @@ export function AdvocateJoinCaseDialog({
                         )}
                       </ComboboxValue>
                     </ComboboxChips>
-                    <ComboboxContent anchor={partyAnchor}>
+                    {/* The popup portals to <body>, which the modal dialog freezes with
+                        pointer-events:none — so the list must re-enable its own, or every
+                        option is unclickable (a Radix-dialog + portaled-popup interaction,
+                        not a combobox bug). */}
+                    <ComboboxContent anchor={partyAnchor} className="pointer-events-auto">
                       <ComboboxEmpty>{pick(advDialog.whichEmpty, locale)}</ComboboxEmpty>
                       <ComboboxList>
                         {(item: string) => (
@@ -1107,7 +1114,7 @@ export function AdvocateJoinCaseDialog({
                                     )}
                                   </ComboboxValue>
                                 </ComboboxChips>
-                                <ComboboxContent anchor={vkAdvAnchor}>
+                                <ComboboxContent anchor={vkAdvAnchor} className="pointer-events-auto">
                                   <ComboboxEmpty>{pick(advDialog.vkAddEmpty, locale)}</ComboboxEmpty>
                                   <ComboboxList>
                                     {(item: string) => (
@@ -1309,7 +1316,7 @@ export function AdvocateJoinCaseDialog({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setStage("lookup")}
+                  onClick={() => setStage("code")}
                   data-icon="inline-start"
                 >
                   <ArrowLeftIcon aria-hidden />
@@ -1358,7 +1365,7 @@ export function AdvocateJoinCaseDialog({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setStage("account")}
+                onClick={() => setStage("lookup")}
                 data-icon="inline-start"
               >
                 <ArrowLeftIcon aria-hidden />
@@ -1376,8 +1383,8 @@ export function AdvocateJoinCaseDialog({
               <Button
                 type="button"
                 variant="outline"
-                // Summons mode skips the access-code stage, so Back returns to account.
-                onClick={() => setStage(mode === "summons" ? "account" : "code")}
+                // Representation always follows the account step in both modes.
+                onClick={() => setStage("account")}
                 data-icon="inline-start"
               >
                 <ArrowLeftIcon aria-hidden />
