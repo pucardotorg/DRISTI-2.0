@@ -131,7 +131,7 @@ export function CourtBoard({
       </div>
 
       {concluded.length ? (
-        <ConcludedStrip locale={locale} concluded={concluded} />
+        <ConcludedStrip locale={locale} concluded={concluded} onOpenCase={onOpenCase} />
       ) : null}
 
       {/* The sunken fill is the separation — a stroke on top of it would be the

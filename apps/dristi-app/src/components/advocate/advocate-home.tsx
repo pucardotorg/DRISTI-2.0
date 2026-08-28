@@ -21,7 +21,8 @@ import {
 } from "@/lib/advocate/home";
 import { useTasks } from "@/lib/tasks/store";
 import { TASKS_HOME } from "@/lib/tasks/routes";
-import type { World } from "@/lib/tasks/selectors";
+import { caseOf, type World } from "@/lib/tasks/selectors";
+import { verbFor } from "@/lib/tasks/permissions";
 import { useTaskAct } from "@/components/tasks/task-act-layer";
 import { CasePeekSurface } from "@/components/cases/case-peek";
 import { CasePeekProvider, useCasePeek } from "@/components/cases/use-case-peek";
@@ -31,7 +32,10 @@ import {
   type BoardView,
 } from "@/components/advocate/court-board";
 import { HomeGreeting } from "@/components/advocate/home-greeting";
-import { TasksRail } from "@/components/advocate/tasks-rail";
+import {
+  CompanionRail,
+  type RailSection,
+} from "@/components/advocate/companion-rail";
 
 /** The shell top bar is `h-14`; the sticky rail hangs below it. */
 const TOP_BAR = "3.5rem";
@@ -95,7 +99,7 @@ function HomeBody({
   const [weekAnchor, setWeekAnchor] = React.useState<number>(now);
   const [view, setView] = React.useState<BoardView>("cards");
   const [access, setAccess] = React.useState<AccessFilter>("all");
-  const [railOpen, setRailOpen] = React.useState(true);
+  const [railSection, setRailSection] = React.useState<RailSection | null>("tasks");
 
   const week = React.useMemo(
     () => weekOf(world, now, weekAnchor),
@@ -183,15 +187,24 @@ function HomeBody({
     setWeekAnchor(new Date(`${key}T12:00:00`).getTime());
   }
 
-  /** Open the shared case peek on a board hearing, via the bridged record. */
-  const openHearing = React.useCallback(
+  /** Open the shared case peek for any matter in the world, via the bridge. */
+  const openCase = React.useCallback(
     (caseId: string) => {
-      const hearing = allHearings.find((h) => h.kase.id === caseId);
-      if (!hearing) return;
-      const record = caseRecordFor(hearing.kase, hearing.at);
+      const kase = cases.find((c) => c.id === caseId);
+      if (!kase) return;
+      const record = caseRecordFor(kase, kase.nextHearingAt);
       if (record) peek.open(record);
     },
-    [allHearings, peek]
+    [cases, peek]
+  );
+
+  /** The viewer's verb for a task — what the hover overlay names. */
+  const verbOf = React.useCallback(
+    (task: (typeof tasks)[number]) => {
+      const kase = caseOf({ cases }, task);
+      return kase ? verbFor(user, task, kase) : "Open";
+    },
+    [cases, user]
   );
 
   const selectedCaseId = React.useMemo(() => {
@@ -273,7 +286,7 @@ function HomeBody({
                 view={view}
                 onViewChange={setView}
                 selectedCaseId={selectedCaseId}
-                onOpenCase={openHearing}
+                onOpenCase={openCase}
                 onAct={actOn}
                 jump={jump}
                 onJump={selectDay}
@@ -283,15 +296,16 @@ function HomeBody({
         </Tabs>
       </main>
 
-      <TasksRail
+      <CompanionRail
         world={world}
         locale={locale}
-        open={railOpen}
+        section={railSection}
         topOffset={TOP_BAR}
-        onOpen={() => setRailOpen(true)}
-        onClose={() => setRailOpen(false)}
+        onSectionChange={setRailSection}
+        verbOf={verbOf}
         onAct={actOn}
-        onViewAll={() => router.push(TASKS_HOME)}
+        onOpenCase={openCase}
+        onViewAllTasks={() => router.push(TASKS_HOME)}
       />
 
       {actLayer}

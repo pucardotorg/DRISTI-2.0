@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight, CircleCheck, Eye } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   Collapsible,
@@ -24,6 +25,35 @@ import { HomeTaskRow, ItemChip, TeamAvatar } from "@/components/advocate/home-bi
 
 function timeOf(at: string): string {
   return new Intl.DateTimeFormat("en-IN", { timeStyle: "short" }).format(new Date(at));
+}
+
+/**
+ * The hover affordance every case row shares: "View case", floated over the
+ * row's right edge on hover / focus-within — out of the layout flow, so the
+ * row's geometry never changes. `fill` matches the surface it must mask.
+ */
+function ViewCaseOverlay({
+  locale,
+  fill,
+  onOpen,
+}: {
+  locale: Locale;
+  /** The class painting the overlay's mask — the row's own (hover) fill. */
+  fill: string;
+  onOpen: () => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "absolute inset-y-0 right-0 z-10 hidden items-center rounded-r-lg pr-3 pl-3 group-hover/case:flex group-focus-within/case:flex pointer-coarse:group-hover/case:hidden",
+        fill
+      )}
+    >
+      <Button variant="outline" size="xs" onClick={onOpen} tabIndex={-1}>
+        {pick(advHome.viewCase, locale)}
+      </Button>
+    </div>
+  );
 }
 
 function MainAvatar({
@@ -76,7 +106,7 @@ export function NowHearingCard({
           selected && "ring-2 ring-brand-accent"
         )}
       >
-        <div className="flex flex-wrap items-start gap-4">
+        <div className="group/case relative flex flex-wrap items-start gap-4">
           <ItemChip item={hearing.item} size="lg" onBrand />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <h2 className="text-title font-semibold text-balance">
@@ -98,6 +128,7 @@ export function NowHearingCard({
               {hearing.kase.stNumber} · {timeOf(hearing.at)}
             </p>
           </div>
+          <ViewCaseOverlay locale={locale} fill="bg-brand-muted" onOpen={onOpenCase} />
           <div className="flex shrink-0 flex-col items-end gap-1.5">
             <MainAvatar world={world} hearing={hearing} onBrand />
             {viewOnly ? (
@@ -161,7 +192,7 @@ export function HearingCard({
           selected && "ring-2 ring-brand-accent"
         )}
       >
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="group/case relative flex flex-wrap items-center gap-x-4 gap-y-2">
           <ItemChip item={hearing.item} />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <h3 className="text-body font-semibold text-balance">
@@ -194,6 +225,7 @@ export function HearingCard({
             aria-hidden="true"
             className="size-4 shrink-0 text-muted-foreground"
           />
+          <ViewCaseOverlay locale={locale} fill="bg-card" onOpen={onOpenCase} />
         </div>
 
         {blocker ? (
@@ -220,9 +252,11 @@ export function HearingCard({
 export function ConcludedStrip({
   locale,
   concluded,
+  onOpenCase,
 }: {
   locale: Locale;
   concluded: HomeHearing[];
+  onOpenCase: (caseId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -262,15 +296,19 @@ export function ConcludedStrip({
           {concluded.map((h) => (
             <li
               key={h.kase.id}
-              className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3"
+              className="group/case relative flex cursor-pointer flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 transition-colors hover:bg-accent has-focus-visible:bg-accent"
             >
               <span className="w-12 shrink-0 font-mono text-caption text-muted-foreground">
                 item {h.item}
               </span>
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="text-body-compact font-medium">
+                <button
+                  type="button"
+                  onClick={() => onOpenCase(h.kase.id)}
+                  className="text-left text-body-compact font-medium after:absolute after:inset-0 focus-visible:outline-none"
+                >
                   {h.kase.parties}
-                </span>
+                </button>
                 <span className="text-caption text-muted-foreground">
                   {h.kase.cnr || h.kase.stNumber}
                 </span>
@@ -278,6 +316,11 @@ export function ConcludedStrip({
               <span className="text-caption tabular-nums text-muted-foreground">
                 {timeOf(h.at)}
               </span>
+              <ViewCaseOverlay
+                locale={locale}
+                fill="bg-accent"
+                onOpen={() => onOpenCase(h.kase.id)}
+              />
             </li>
           ))}
         </ul>

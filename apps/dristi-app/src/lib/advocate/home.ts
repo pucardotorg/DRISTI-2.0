@@ -293,6 +293,41 @@ export function railGroups(world: World, now: number = Date.now()): RailGroup[] 
     .filter((g) => g.tasks.length > 0);
 }
 
+/* ───────────────────────────── preparation ───────────────────────────── */
+
+export type PrepItem = {
+  kase: Case;
+  /** The listed hearing this preparation is for. */
+  at: string;
+  /** What still stands in the way — actionable blocking tasks, most urgent first. */
+  blockers: Task[];
+};
+
+/**
+ * The hearing-prep queue: matters listed in the coming week that are not ready —
+ * a hearing is coming and actionable blocking work still stands. Soonest hearing
+ * first. Matters already ready do not queue; being prepared is the goal, not a
+ * to-do. This is the companion rail's second section — the "these need you
+ * before they reach the board" list the old notifications carried.
+ */
+export function prepQueue(world: World, now: number = Date.now()): PrepItem[] {
+  const todayKey = dayKeyOf(now);
+  const weekEnd = dayKeyOf(now + 7 * DAY_MS);
+  return viewableCases(world)
+    .filter((c) => {
+      if (!c.nextHearingAt) return false;
+      const key = dayKeyOf(c.nextHearingAt);
+      return key >= todayKey && key <= weekEnd;
+    })
+    .map((kase) => ({
+      kase,
+      at: kase.nextHearingAt!,
+      blockers: blockersOf(world, kase, now),
+    }))
+    .filter((item) => item.blockers.length > 0)
+    .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+}
+
 /* ───────────────────────────── access ───────────────────────────── */
 
 /**

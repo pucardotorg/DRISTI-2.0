@@ -3,6 +3,7 @@
 import { ChevronRight, CircleCheck } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { Locale } from "@/lib/onboarding/content";
 import { pick } from "@/lib/onboarding/content";
 import { advHome } from "@/lib/advocate/content";
@@ -69,7 +70,7 @@ export function HearingList({
             <th scope="col" className="w-40 px-4 py-2 font-medium">
               Status
             </th>
-            <th scope="col" className="w-12 px-4 py-2">
+            <th scope="col" className="w-32 px-4 py-2">
               <span className="sr-only">Open case</span>
             </th>
           </tr>
@@ -82,6 +83,7 @@ export function HearingList({
               <tr
                 key={hearing.kase.id}
                 className={cn(
+                  "group/case",
                   "border-b border-hairline transition-colors last:border-b-0 hover:bg-accent has-focus-visible:bg-accent",
                   // Brand fill is reserved for the live "now" row; a selected row
                   // gets a quiet neutral well so the two never read alike.
@@ -116,8 +118,21 @@ export function HearingList({
                   ) : null}
                 </td>
                 <td className="px-4 py-3">{statusCell(locale, hearing)}</td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  <ChevronRight aria-hidden="true" className="size-4" />
+                {/* Fixed-width cell: the chevron yields to "View case" on hover
+                    without the column moving a pixel. */}
+                <td className="w-32 px-4 py-3 text-right text-muted-foreground">
+                  <ChevronRight
+                    aria-hidden="true"
+                    className="inline size-4 group-hover/case:hidden group-focus-within/case:hidden"
+                  />
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    onClick={() => onOpenCase(hearing.kase.id)}
+                    className="hidden group-hover/case:inline-flex group-focus-within/case:inline-flex"
+                  >
+                    {pick(advHome.viewCase, locale)}
+                  </Button>
                 </td>
               </tr>
             );

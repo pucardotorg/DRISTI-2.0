@@ -7,6 +7,7 @@ import type { World } from "@/lib/tasks/selectors";
 import {
   boardOf,
   caseRecordFor,
+  prepQueue,
   courtRooms,
   dayKeyOf,
   hearingsOn,
@@ -199,6 +200,27 @@ describe("railGroups", () => {
         ["week", ["t-day5"]],
       ]
     );
+  });
+});
+
+describe("prepQueue", () => {
+  it("queues the coming week's not-ready matters, soonest hearing first", () => {
+    const soonBlocked = listed("soon", 1, 10);
+    const laterBlocked = listed("later", 4, 10);
+    const readySoon = listed("ready", 2, 10);
+    const farBlocked = listed("far", 12, 10);
+    const w = world(
+      [soonBlocked, laterBlocked, readySoon, farBlocked],
+      [
+        makeTask({ id: "b1", caseId: laterBlocked.id, isBlocking: true, status: "open" }),
+        makeTask({ id: "b2", caseId: soonBlocked.id, isBlocking: true, status: "open" }),
+        makeTask({ id: "b3", caseId: farBlocked.id, isBlocking: true, status: "open" }),
+        makeTask({ id: "done", caseId: readySoon.id, isBlocking: true, status: "done" }),
+      ]
+    );
+    const queue = prepQueue(w, NOW_MS);
+    assert.deepEqual(queue.map((i) => i.kase.id), ["soon", "later"]);
+    assert.deepEqual(queue[0].blockers.map((t) => t.id), ["b2"]);
   });
 });
 

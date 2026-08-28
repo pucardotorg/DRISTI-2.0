@@ -222,8 +222,19 @@ export const advHome = {
     "കാണാനായി പങ്കിട്ട കേസുകളിൽ ഈ ദിവസം ഒന്നും പട്ടികയിലില്ല.",
   ),
 
-  /* Pending-tasks rail */
+  /* Companion rail */
   railTitle: t("Pending tasks", "ബാക്കിയുള്ള ജോലികൾ"),
+  prepTitle: t("Hearing prep", "ഹിയറിംഗ് തയ്യാറെടുപ്പ്"),
+  prepCaption: t("Listed this week, not ready yet", "ഈ ആഴ്ച പട്ടികയിൽ, തയ്യാറായിട്ടില്ല"),
+  prepOpen: t("Open hearing prep, {n} matters need work", "തയ്യാറെടുപ്പ് തുറക്കുക, {n} വിഷയങ്ങൾ"),
+  prepEmptyTitle: t("Everything is ready", "എല്ലാം തയ്യാറാണ്"),
+  prepEmptyBody: t(
+    "No matter listed this week has blocking work left.",
+    "ഈ ആഴ്ച പട്ടികയിലുള്ള വിഷയങ്ങളിൽ തടസ്സങ്ങളൊന്നും ബാക്കിയില്ല.",
+  ),
+  prepToDoOne: t("1 to prepare", "1 തയ്യാറാക്കാൻ"),
+  prepToDoMany: t("{n} to prepare", "{n} തയ്യാറാക്കാൻ"),
+  viewCase: t("View case", "കേസ് കാണുക"),
   groupToday: t("Due today", "ഇന്ന് അവസാനം"),
   groupSoon: t("Next 3 days", "അടുത്ത 3 ദിവസം"),
   groupWeek: t("Later this week", "ഈ ആഴ്ച പിന്നീട്"),
