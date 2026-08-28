@@ -14,6 +14,7 @@ import {
 } from "@/lib/tasks/fixtures";
 import type { Case } from "@/lib/tasks/types";
 import type { World } from "@/lib/tasks/selectors";
+import { canView } from "@/lib/tasks/permissions";
 import {
   advocateRosterOn,
   boardOf,
@@ -311,6 +312,50 @@ describe("advocateRosterOn", () => {
     ]);
     const roster = advocateRosterOn(w, today(), NOW_MS);
     assert.equal(roster[0].count, 2);
+  });
+});
+
+describe("advocate chips (board filter)", () => {
+  // The toolbar's avatar chips replaced the R4 Select but drive the same path:
+  // the roster comes from `advocateRosterOn`, and clicking a chip filters the
+  // board with `canView(active, h.kase)`. These pin the two behaviours the chips
+  // depend on — the default is you, and a colleague chip narrows the board to
+  // the matters shared with them.
+  const today = () => dayKeyOf(at(0, 12));
+  const shared: Case = {
+    ...listed("shared", 0, 15),
+    signatories: [senior.id],
+    advocates: [senior.id, senior2.id],
+  };
+  const mineAlone: Case = {
+    ...listed("mine", 0, 16),
+    signatories: [senior.id],
+    advocates: [senior.id],
+  };
+
+  it("defaults to you, with the whole board visible", () => {
+    const w = world([shared, mineAlone]);
+    const roster = advocateRosterOn(w, today(), NOW_MS);
+    assert.equal(roster[0].you, true);
+    assert.equal(roster[0].person.id, senior.id);
+
+    const visible = hearingsOn(w, kase.court, today(), NOW_MS).filter((h) =>
+      canView(senior.id, h.kase)
+    );
+    assert.deepEqual(visible.map((h) => h.kase.id).sort(), ["mine", "shared"]);
+  });
+
+  it("narrows the board to the matters a chosen colleague shares", () => {
+    const w = world([shared, mineAlone]);
+    // senior2 is on the control (they share one matter today)…
+    const roster = advocateRosterOn(w, today(), NOW_MS);
+    assert.ok(roster.some((o) => o.person.id === senior2.id && !o.you));
+
+    // …and picking their chip filters the board to that one matter.
+    const visible = hearingsOn(w, kase.court, today(), NOW_MS).filter((h) =>
+      canView(senior2.id, h.kase)
+    );
+    assert.deepEqual(visible.map((h) => h.kase.id), ["shared"]);
   });
 });
 

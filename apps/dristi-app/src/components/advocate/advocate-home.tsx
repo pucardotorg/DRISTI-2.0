@@ -2,9 +2,15 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { CloudAlert, LayoutGrid, List, RotateCw } from "lucide-react";
+import { Check, CloudAlert, LayoutGrid, List, RotateCw, Video } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Empty,
   EmptyDescription,
@@ -17,15 +23,15 @@ import {
   SegmentedControlItem,
 } from "@/components/ui/segmented-control";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select";
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Locale } from "@/lib/onboarding/content";
 import { pick } from "@/lib/onboarding/content";
+import { cn } from "@/lib/utils";
 import { advHome, fillCopy } from "@/lib/advocate/content";
 import {
   advocateRosterOn,
@@ -75,11 +81,77 @@ function useNow(): number {
   return now;
 }
 
+/** Past this many advocates the tail collapses into a "+N" menu, not more rows. */
+const MAX_CHIPS = 7;
+
+/** The advocate's own label, "(you)" folded in for the signed-in account. */
+function advocateLabel(locale: Locale, option: AdvocateOption): string {
+  return option.you
+    ? fillCopy(advHome.switcherYou, locale, { name: option.person.name })
+    : option.person.name;
+}
+
 /**
- * The per-court toolbar, below the court tabs: the advocate the board is seen
- * through on the left, how the cause list is drawn on the right. Both are page
- * state that holds across every tab, and rendering them once here — not inside a
- * court's panel — is what says so.
+ * One advocate in the roster, as a pressable face.
+ *
+ * The switcher is names the advocate says, not a permission model: holding the
+ * vakalatnama is a property of one matter and never a cut that removes matters
+ * from a cause list. Selection is one quiet cue — a brand ring on the chosen
+ * disc — per the loudness ladder; a ring *and* a fill would be a costume. The
+ * 40px hit target holds even though the disc inside it is smaller.
+ */
+function AdvocateChip({
+  option,
+  selected,
+  locale,
+  onSelect,
+}: {
+  option: AdvocateOption;
+  selected: boolean;
+  locale: Locale;
+  onSelect: (id: PersonId) => void;
+}) {
+  const label = advocateLabel(locale, option);
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={selected}
+          aria-label={label}
+          onClick={() => onSelect(option.person.id)}
+          className="flex size-10 items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <span
+            className={cn(
+              "flex items-center justify-center rounded-full transition-shadow",
+              selected && "ring-2 ring-brand-accent"
+            )}
+          >
+            <PersonAvatar
+              person={option.person}
+              you={option.you}
+              size="default"
+              surface="card"
+            />
+          </span>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+/**
+ * The per-court toolbar, below the court tabs.
+ *
+ * Two groups by role: what the board *contains* — the advocate it is seen
+ * through — and how it is *drawn* on the left; the two real per-court actions on
+ * the right. "View cause list" opens the court's full official day list (every
+ * matter, not just the viewer's); "Join this courtroom" — the one bg-primary
+ * action on the board — joins that court's virtual room. Both act on the
+ * selected court, and both are honest stubs: no endpoint exists yet (§16.6 Q11).
  */
 function BoardToolbar({
   locale,
@@ -88,6 +160,9 @@ function BoardToolbar({
   onWhoseChange,
   view,
   onViewChange,
+  section,
+  onViewCauseList,
+  onJoinCourt,
 }: {
   locale: Locale;
   roster: AdvocateOption[];
@@ -95,53 +170,76 @@ function BoardToolbar({
   onWhoseChange: (whose: PersonId) => void;
   view: BoardView;
   onViewChange: (view: BoardView) => void;
+  /** The court the per-court actions act on. */
+  section: CourtSection;
+  onViewCauseList: (court: string) => void;
+  onJoinCourt: (court: string) => void;
 }) {
-  const current = roster.find((option) => option.person.id === whose);
+  const shown = roster.slice(0, MAX_CHIPS);
+  const rest = roster.slice(MAX_CHIPS);
+  const restSelected = rest.some((option) => option.person.id === whose);
 
   return (
-    <div className="flex flex-wrap items-center gap-2 px-4 pt-3 pb-3 md:px-8">
-      {/* Names, not a permission model. Holding the vakalatnama is a property of
-          one matter — it changes that card's verbs and nothing else — so it was
-          never a cut that should remove matters from a cause list. */}
-      <Select value={whose} onValueChange={onWhoseChange}>
-        <SelectTrigger
-          aria-label={pick(advHome.whoseMatters, locale)}
-          className="w-fit min-w-48"
-        >
-          {current ? (
-            <span className="flex min-w-0 items-center gap-2">
-              <PersonAvatar person={current.person} size="sm" />
-              <span className="truncate text-body-compact">
-                {current.person.name}
-              </span>
-            </span>
-          ) : null}
-        </SelectTrigger>
-        <SelectContent position="popper" align="start" sideOffset={4}>
-          {roster.map((option) => (
-            <SelectItem
-              key={option.person.id}
-              value={option.person.id}
-              textValue={option.person.name}
-            >
-              <PersonAvatar person={option.person} size="sm" />
-              <span className="truncate text-body-compact">
-                {option.you
-                  ? fillCopy(advHome.switcherYou, locale, {
-                      name: option.person.name,
-                    })
-                  : option.person.name}
-              </span>
-              <span className="ml-auto text-caption tabular-nums text-muted-foreground">
-                {option.count}
-              </span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-3 px-4 pt-3 pb-3 md:px-8">
+      <span className="text-caption font-medium text-muted-foreground">
+        {pick(advHome.viewCases, locale)}
+      </span>
+
+      <div
+        role="radiogroup"
+        aria-label={pick(advHome.whoseMatters, locale)}
+        className="flex items-center gap-1"
+      >
+        {shown.map((option) => (
+          <AdvocateChip
+            key={option.person.id}
+            option={option}
+            selected={option.person.id === whose}
+            locale={locale}
+            onSelect={onWhoseChange}
+          />
+        ))}
+
+        {/* The roster is unbounded — an establishment day can list many
+            advocates — so past seven the tail is a menu, not another row. */}
+        {rest.length ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={pick(advHome.moreAdvocates, locale)}
+                className={cn(
+                  "flex size-10 items-center justify-center rounded-full text-caption font-medium text-muted-foreground outline-none transition-colors hover:bg-accent-strong focus-visible:ring-3 focus-visible:ring-ring/50 aria-expanded:bg-accent-strong",
+                  restSelected && "ring-2 ring-brand-accent"
+                )}
+              >
+                +{rest.length}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-auto min-w-56">
+              {rest.map((option) => (
+                <DropdownMenuItem
+                  key={option.person.id}
+                  onSelect={() => onWhoseChange(option.person.id)}
+                >
+                  <PersonAvatar person={option.person} size="sm" />
+                  <span className="truncate text-body-compact">
+                    {advocateLabel(locale, option)}
+                  </span>
+                  <span className="ml-auto flex items-center gap-2 text-caption tabular-nums text-muted-foreground">
+                    {option.count}
+                    {option.person.id === whose ? (
+                      <Check aria-hidden="true" className="size-4 text-foreground" />
+                    ) : null}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+      </div>
 
       <SegmentedControl
-        className="ml-auto"
         type="single"
         size="compact"
         value={view}
@@ -162,6 +260,23 @@ function BoardToolbar({
           </SegmentedControlItem>
         ))}
       </SegmentedControl>
+
+      {/* The two per-court actions — a court is a place with a cause list and a
+          courtroom of its own. Join is the one saturated action on the board. */}
+      <div className="ml-auto flex items-center gap-2">
+        <Button
+          variant="outline"
+          onClick={() => onViewCauseList(section.court)}
+        >
+          {pick(advHome.viewCauseList, locale)}
+        </Button>
+        {section.hasVirtualRoom ? (
+          <Button onClick={() => onJoinCourt(section.court)}>
+            <Video aria-hidden="true" />
+            {pick(advHome.joinCourtroom, locale)}
+          </Button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -276,6 +391,9 @@ function HomeBody({
         count:
           (board.now ? 1 : 0) + board.upcoming.length + board.concluded.length,
         live: !!board.now,
+        // Every court is assumed to have a virtual room for now; §16.6 Q11 owns
+        // the real answer (only the 24×7 ON Court, or all of them).
+        hasVirtualRoom: true,
         board,
       };
     });
@@ -283,6 +401,7 @@ function HomeBody({
 
   const visibleMatterCount = sections.reduce((sum, s) => sum + s.count, 0);
   const court = courtId ?? sections[0]?.court ?? null;
+  const current = sections.find((s) => s.court === court) ?? sections[0] ?? null;
 
   const jump = React.useMemo(() => {
     const next = nextHearingDayAfter(world, selectedDay);
@@ -326,6 +445,19 @@ function HomeBody({
     const id = peek.record?.id;
     return id?.startsWith("tw-") ? id.slice(3) : null;
   }, [peek.record]);
+
+  // The two per-court actions the owner confirmed are real features. No endpoint
+  // exists yet — the courtroom-conferencing route and the official cause-list
+  // service are both open (§16.6 Q11) — so these are honest no-op stubs, wired
+  // as live actions rather than hidden until the backend lands.
+  const onJoinCourt = React.useCallback((court: string) => {
+    // TODO(Q11): open the court's virtual courtroom for `court`.
+    void court;
+  }, []);
+  const onViewCauseList = React.useCallback((court: string) => {
+    // TODO(Q11): open the full official day cause list for `court`.
+    void court;
+  }, []);
 
   // A failure and a slow load are not the same screen. One spinner stood for
   // both, so a failed load spun forever with no way out of it.
@@ -420,14 +552,19 @@ function HomeBody({
               </TabsList>
             </div>
 
-            <BoardToolbar
-              locale={locale}
-              roster={roster}
-              whose={active}
-              onWhoseChange={setWhose}
-              view={view}
-              onViewChange={setView}
-            />
+            {current ? (
+              <BoardToolbar
+                locale={locale}
+                roster={roster}
+                whose={active}
+                onWhoseChange={setWhose}
+                view={view}
+                onViewChange={setView}
+                section={current}
+                onViewCauseList={onViewCauseList}
+                onJoinCourt={onJoinCourt}
+              />
+            ) : null}
 
             {sections.map((section) => (
               <TabsContent

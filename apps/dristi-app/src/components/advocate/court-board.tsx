@@ -41,6 +41,13 @@ export type CourtSection = {
   count: number;
   /** An item's listed window covers the clock right now. */
   live: boolean;
+  /**
+   * The court has a virtual courtroom to join. Defaults on for every court for
+   * now — whether physical courts (CJM/JMFC) have one, or only the 24×7 ON Court
+   * does, is a product question (brief §16.6 Q11), and this flag is where that
+   * answer lands without a redesign.
+   */
+  hasVirtualRoom: boolean;
   board: Board;
 };
 

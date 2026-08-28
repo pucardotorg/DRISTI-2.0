@@ -199,6 +199,10 @@ export const advHome = {
   layoutCards: t("Cards", "കാർഡുകൾ"),
   layoutList: t("List", "പട്ടിക"),
   layoutLabel: t("Cause list layout", "കോസ് ലിസ്റ്റ് രൂപം"),
+  /** The overflow chip past ~7 advocates — the rest of the day's roster in a menu. */
+  moreAdvocates: t("More advocates", "കൂടുതൽ അഭിഭാഷകർ"),
+  /** Per-court: the court's full official day cause list, all matters. */
+  viewCauseList: t("View cause list", "കോസ് ലിസ്റ്റ് കാണുക"),
   joinCourtroom: t("Join this courtroom", "ഈ കോടതിമുറിയിൽ ചേരുക"),
   emptyDayTitle: t("Nothing listed this day", "ഈ ദിവസം ഒന്നും പട്ടികയിലില്ല"),
   /** Board-level since the courts stack: the empty state is the whole day's,
