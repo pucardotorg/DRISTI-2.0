@@ -119,21 +119,41 @@ export function useRailSection(): [
 }
 
 /**
- * Every card in the rail — *both* panels, one constant, no local override.
+ * Which rail treatment ships. Two candidates, one committed default; the
+ * orchestrator flips this and screenshots both for the owner, and the loser is
+ * deleted after the pick — there is no user-facing toggle.
  *
- * Top-aligned, because the right-hand cell is a two-line "when" block and its
- * first line only reads as the title's counterpart when the two start together.
- * `min-h-24` keeps the floor the panel has always had, so the rhythm does not
- * change as bodies grow or shrink; `py-3` is what the height used to supply.
- * A task card and a prep card were drifting apart one local `cn()` at a time —
- * this is the structural fix, not a patch on one of them.
+ *   A — "breathing card, overdue-anchored": the card container kept but fixed —
+ *       a smaller kind icon, a full-width one-line title, the case name muted
+ *       under it, and a compact right tag *only when overdue*. ~7 cards visible.
+ *   B — "dense cause-list rows": the card containers dropped for a tight
+ *       `divide-hairline` list on one panel surface; overdue as a small inline
+ *       ink tag. ~40% more rows, reading as a worklist.
  */
-const RAIL_CARD =
-  "group/row relative flex min-h-24 cursor-pointer items-start gap-3 rounded-lg border border-hairline bg-card px-3 py-3 transition dark:bg-surface-raised hover:shadow-raised has-focus-visible:shadow-raised dark:hover:bg-accent dark:has-focus-visible:bg-accent";
+const RAIL_VARIANT: "A" | "B" = "A";
 
-/** The tile the kind icon sits in — a small well inside the card. */
-const CARD_ICON =
-  "flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-muted-foreground";
+/**
+ * The two panels share one row frame, whichever variant is on — a task card and
+ * a prep card were drifting apart one local `cn()` at a time, and that is the
+ * defect the owner named. Both are top-aligned and let content set the height:
+ * `min-h-24` (the old floor) held a 96px card around ~64px of content, which is
+ * the sag the redesign removes. Nothing here reserves a fixed right column, so
+ * the title spans nearly the full width and stops truncating at ~20 characters.
+ */
+const CARD_A =
+  "group/row relative flex cursor-pointer items-start gap-3 rounded-lg border border-hairline bg-card px-3 py-2.5 transition dark:bg-surface-raised hover:shadow-raised has-focus-visible:shadow-raised dark:hover:bg-accent dark:has-focus-visible:bg-accent";
+
+const ROW_B =
+  "group/row relative flex cursor-pointer items-start gap-2.5 px-3 py-2.5 transition-colors hover:bg-accent has-focus-visible:bg-accent";
+
+/** The bucket's item list: gapped cards (A) or one divided panel surface (B). */
+const LIST_A = "flex flex-col gap-2 pb-2";
+const LIST_B =
+  "flex flex-col divide-y divide-hairline overflow-hidden rounded-lg border border-hairline bg-card pb-0 dark:bg-surface-raised";
+
+/** Variant A's kind-icon tile — smaller than the old one, a small well inside the card. */
+const CARD_ICON_A =
+  "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-muted-foreground";
 
 /** The row title: one line, truncating, and the whole card's hit area. */
 const CARD_TITLE =
@@ -258,9 +278,13 @@ function BucketTrigger({
 /* ───────────────────────────── pending tasks ───────────────────────────── */
 
 /**
- * One pending task: a single-line title over the matter line — every card the
- * same height, so the list reads as a rhythm, not a pile. The kind icon carries
- * the what; the hover action carries the verb this viewer holds.
+ * One pending task: a single-line title over the matter line. The kind icon
+ * carries the what; the hover action carries the verb this viewer holds.
+ *
+ * Only overdue carries a per-card time signal — the bucket header already says
+ * "Due today", so repeating it on every card inside was duplication that also
+ * cost the title its width. An on-time card therefore has no right-hand tag, and
+ * the title runs nearly full width.
  */
 function TaskCard({
   world,
@@ -275,14 +299,21 @@ function TaskCard({
 }) {
   const Icon = KIND_ICON[task.kind];
   const due = dueCueOf(task, new Date(world.now));
+  const dense = RAIL_VARIANT === "B";
 
   return (
-    <div className={RAIL_CARD}>
-      <span aria-hidden="true" className={CARD_ICON}>
-        <Icon className="size-4" />
-      </span>
+    <div className={dense ? ROW_B : CARD_A}>
+      {dense ? (
+        <span aria-hidden="true" className="mt-0.5 shrink-0 text-muted-foreground">
+          <Icon className="size-4" />
+        </span>
+      ) : (
+        <span aria-hidden="true" className={CARD_ICON_A}>
+          <Icon className="size-3.5" />
+        </span>
+      )}
 
-      <div className="flex min-w-0 flex-1 flex-col items-stretch gap-1">
+      <div className="flex min-w-0 flex-1 flex-col items-stretch gap-0.5">
         <button
           type="button"
           onClick={() => onAct(task)}
@@ -296,18 +327,22 @@ function TaskCard({
         </span>
       </div>
 
-      {/* Every task states its due-ness the same way. Reserving one badge for
-          the worst-overdue card made two adjacent siblings say one fact two
-          ways — which is the defect the ink treatment existed to prevent. */}
+      {/* Overdue is the only time signal on a task card, and it is ink, not a
+          badge: a red chip on every overdue row would spend the panel's whole
+          destructive budget before the count is read. */}
       <RowAction
         label={verb}
         onClick={() => onAct(task)}
         rest={
-          <WhenBlock
-            lead={due.primary}
-            sub={due.date}
-            tone={due.overdue ? "overdue" : "muted"}
-          />
+          due.overdue ? (
+            dense ? (
+              <span className="text-caption font-medium whitespace-nowrap tabular-nums text-destructive-ink">
+                {due.primary}
+              </span>
+            ) : (
+              <WhenBlock lead={due.primary} sub={due.date} tone="overdue" />
+            )
+          ) : undefined
         }
       />
     </div>
@@ -356,7 +391,7 @@ function TasksPanel({
                 lead={group.key === "today"}
               />
               <CollapsibleContent>
-                <ul className="flex flex-col gap-2 pb-2">
+                <ul className={RAIL_VARIANT === "B" ? LIST_B : LIST_A}>
                   {group.tasks.map((task) => (
                     <li key={task.id}>
                       <TaskCard
@@ -431,13 +466,21 @@ function PrepCard({
         })
     : null;
 
-  return (
-    <div className={RAIL_CARD}>
-      <span aria-hidden="true" className={CARD_ICON}>
-        <Gavel className="size-4" />
-      </span>
+  const dense = RAIL_VARIANT === "B";
 
-      <div className="flex min-w-0 flex-1 flex-col items-stretch gap-1">
+  return (
+    <div className={dense ? ROW_B : CARD_A}>
+      {dense ? (
+        <span aria-hidden="true" className="mt-0.5 shrink-0 text-muted-foreground">
+          <Gavel className="size-4" />
+        </span>
+      ) : (
+        <span aria-hidden="true" className={CARD_ICON_A}>
+          <Gavel className="size-3.5" />
+        </span>
+      )}
+
+      <div className="flex min-w-0 flex-1 flex-col items-stretch gap-0.5">
         <button
           type="button"
           onClick={() => onOpenCase(item.kase.id)}
@@ -460,10 +503,21 @@ function PrepCard({
         ) : null}
       </div>
 
+      {/* Prep keeps its relative day in both variants: lead time is the whole
+          point of this section, so "In 6 days" adds precision the group header
+          ("Next 7 days") does not. */}
       <RowAction
         label={pick(advHome.viewCase, locale)}
         onClick={() => onOpenCase(item.kase.id)}
-        rest={<WhenBlock lead={away} sub={date} tone="muted" />}
+        rest={
+          dense ? (
+            <span className="text-caption whitespace-nowrap tabular-nums text-muted-foreground">
+              {away}
+            </span>
+          ) : (
+            <WhenBlock lead={away} sub={date} tone="muted" />
+          )
+        }
       />
     </div>
   );
@@ -511,7 +565,7 @@ function PrepPanel({
                 lead={group.key === "week"}
               />
               <CollapsibleContent>
-                <ul className="flex flex-col gap-2 pb-2">
+                <ul className={RAIL_VARIANT === "B" ? LIST_B : LIST_A}>
                   {group.items.map((item) => (
                     <li key={item.kase.id}>
                       <PrepCard
