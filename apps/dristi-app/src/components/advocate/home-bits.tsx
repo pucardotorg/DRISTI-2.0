@@ -90,11 +90,9 @@ export function ItemChip({
 }
 
 /**
- * The due wording, and the only cue a task row carries at rest. Overdue is words
- * in `destructive-ink`, not a solid badge — these rows repeat, and a red chip on
- * each would spend the screen's whole destructive budget before the rail count is
- * read. It yields its slot to the action on hover / focus-within; on a device
- * with no hover both stay visible.
+ * The due wording a task row carries — words in ink, never a solid badge: these
+ * rows repeat, and a red chip on each would spend the screen's whole
+ * destructive budget before the rail count is read.
  */
 export function DueCue({
   children,
@@ -106,7 +104,7 @@ export function DueCue({
   return (
     <span
       className={cn(
-        "text-caption tabular-nums group-hover/task:hidden group-focus-within/task:hidden",
+        "text-caption tabular-nums",
         overdue ? "font-medium text-destructive-ink" : "text-muted-foreground"
       )}
     >
@@ -115,26 +113,11 @@ export function DueCue({
   );
 }
 
-/** The task's one shortcut, revealed in the due cue's slot. */
-export function TaskAction({
-  label,
-  onOpen,
-}: {
-  label: string;
-  onOpen: () => void;
-}) {
-  return (
-    <div className="hidden shrink-0 items-center group-hover/task:flex group-focus-within/task:flex pointer-coarse:flex">
-      <Button variant="outline" size="xs" onClick={onOpen}>
-        {label}
-      </Button>
-    </div>
-  );
-}
-
 /**
- * One pending task inside a hearing card or the case peek. The row itself opens
- * the task; `min-h-16` holds the height steady across the hover swap.
+ * One pending task inside a hearing card. Nothing appears or disappears on
+ * hover — the due cue and the row's one bordered action are both always there
+ * (a repeated row carries at most one visible bordered action, and this is it),
+ * so the row never changes shape under the pointer.
  */
 export function HomeTaskRow({
   task,
@@ -173,9 +156,11 @@ export function HomeTaskRow({
           <span className="text-caption text-muted-foreground">{sub}</span>
         ) : null}
       </div>
-      <div className="relative z-10 flex shrink-0 flex-wrap items-center justify-end gap-2">
+      <div className="relative z-10 flex shrink-0 items-center gap-3">
         <DueCue overdue={due.overdue}>{due.primary}</DueCue>
-        <TaskAction label={action} onOpen={onOpen} />
+        <Button variant="outline" size="xs" onClick={onOpen}>
+          {action}
+        </Button>
       </div>
     </div>
   );

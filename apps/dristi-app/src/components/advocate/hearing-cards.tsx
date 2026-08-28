@@ -101,7 +101,12 @@ export function NowHearingCard({
           <div className="flex shrink-0 flex-col items-end gap-1.5">
             <MainAvatar world={world} hearing={hearing} onBrand />
             {viewOnly ? (
-              <Badge variant="secondary">
+              /* On the tinted hero the chip sits as a plain card tile — the
+                 same move as the item chip — not a grey smudge on colour. */
+              <Badge
+                variant="secondary"
+                className="border-transparent bg-card text-muted-foreground"
+              >
                 <Eye aria-hidden="true" />
                 {pick(advHome.viewOnly, locale)}
               </Badge>

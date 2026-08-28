@@ -25,8 +25,7 @@ import type { Locale } from "@/lib/onboarding/content";
 import { pick } from "@/lib/onboarding/content";
 import { advHome, fillCopy } from "@/lib/advocate/content";
 import { railCaseLineOf, railGroups, type RailGroup } from "@/lib/advocate/home";
-import { caseOf, summaryOf, type World } from "@/lib/tasks/selectors";
-import { verbFor } from "@/lib/tasks/permissions";
+import { summaryOf, type World } from "@/lib/tasks/selectors";
 import { consequenceAt, daysUntil, isOverdue } from "@/lib/tasks/urgency";
 import type { Task, TaskKind } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
@@ -61,16 +60,13 @@ function groupLabel(locale: Locale, group: RailGroup): string {
  */
 function RailTaskCard({
   world,
-  locale,
   task,
   onAct,
 }: {
   world: World;
-  locale: Locale;
   task: Task;
   onAct: (task: Task) => void;
 }) {
-  const kase = caseOf(world, task);
   const Icon = KIND_ICON[task.kind];
   const at = consequenceAt(task);
   const overdue = isOverdue(task, world.now);
@@ -105,21 +101,16 @@ function RailTaskCard({
         </span>
       </div>
 
+      {/* Constant furniture: the overdue count and the open-affordance chevron
+          are always there — the kind icon already says what acting will mean,
+          and the row itself is the button, so nothing needs to appear on hover. */}
       <div className="relative z-10 flex h-8 shrink-0 items-center gap-2">
         {overdue ? (
           <span className="text-caption font-medium tabular-nums text-destructive-ink">
             {days}d
           </span>
         ) : null}
-        <ChevronRight
-          aria-hidden="true"
-          className="size-4 text-muted-foreground group-hover/task:hidden group-focus-within/task:hidden pointer-coarse:hidden"
-        />
-        <div className="hidden group-hover/task:flex group-focus-within/task:flex pointer-coarse:flex">
-          <Button variant="outline" size="xs" onClick={() => onAct(task)}>
-            {kase ? verbFor(world.user, task, kase) : pick(advHome.open, locale)}
-          </Button>
-        </div>
+        <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground" />
       </div>
     </div>
   );
@@ -294,12 +285,7 @@ export function TasksRail({
                     <ul className="flex flex-col gap-2 pb-2">
                       {group.tasks.map((task) => (
                         <li key={task.id}>
-                          <RailTaskCard
-                            world={world}
-                            locale={locale}
-                            task={task}
-                            onAct={onAct}
-                          />
+                          <RailTaskCard world={world} task={task} onAct={onAct} />
                         </li>
                       ))}
                     </ul>

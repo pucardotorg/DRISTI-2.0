@@ -96,9 +96,9 @@ export function HomeGreeting({
                 variant="ghost"
                 size="icon-sm"
                 aria-label={pick(advHome.pickDate, locale)}
-                className="text-muted-foreground"
+                className="-my-2 text-muted-foreground"
               >
-                <CalendarDays aria-hidden="true" className="size-4.5" />
+                <CalendarDays aria-hidden="true" className="size-5" />
               </Button>
             </PopoverTrigger>
             <PopoverContent align="start" className="w-auto p-0">
@@ -130,11 +130,12 @@ export function HomeGreeting({
 
         <Button
           variant="ghost"
-          size="icon-xs"
+          size="icon-sm"
           aria-label={pick(advHome.prevWeek, locale)}
           onClick={() => onShiftWeek(-1)}
+          className="text-muted-foreground"
         >
-          <ChevronLeft aria-hidden="true" />
+          <ChevronLeft aria-hidden="true" className="size-5" />
         </Button>
         <ul className="flex items-center gap-0.5">
           {week.map((cell) => {
@@ -188,11 +189,12 @@ export function HomeGreeting({
         </ul>
         <Button
           variant="ghost"
-          size="icon-xs"
+          size="icon-sm"
           aria-label={pick(advHome.nextWeek, locale)}
           onClick={() => onShiftWeek(1)}
+          className="text-muted-foreground"
         >
-          <ChevronRight aria-hidden="true" />
+          <ChevronRight aria-hidden="true" className="size-5" />
         </Button>
 
       </div>
