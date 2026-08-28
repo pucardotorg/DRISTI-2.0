@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import type { Locale } from "@/lib/onboarding/content";
-import { pick } from "@/lib/onboarding/content";
 import { advHome, fillCopy } from "@/lib/advocate/content";
 import type { TeamMember } from "@/lib/advocate/home";
 import type { Person, Task } from "@/lib/tasks/types";
@@ -138,21 +137,6 @@ export function AdvocateStack({
 }
 
 /**
- * Who may act on this matter, said positively. "View only" tells an advocate what
- * they cannot do; this tells them whom to ask — the more useful half of the same
- * fact when three people share a case.
- */
-export function vakalatnamaLine(locale: Locale, holders: TeamMember[]): string | null {
-  if (holders.length === 0) return null;
-  const you = holders.find((h) => h.you);
-  const others = holders.filter((h) => !h.you).map((h) => h.person.name);
-  if (you && others.length === 0) return pick(advHome.vakalatnamaYouAlone, locale);
-  if (you)
-    return fillCopy(advHome.vakalatnamaYouWith, locale, { names: others.join(", ") });
-  return fillCopy(advHome.vakalatnamaThem, locale, { names: others.join(", ") });
-}
-
-/**
  * The one hover affordance every repeated row on this screen shares.
  *
  * The button itself holds the cell open — invisible and inert at rest, with a
@@ -222,7 +206,7 @@ export function ItemChip({
     >
       {size === "lg" ? (
         <>
-          <span className="text-caption text-muted-foreground">item</span>
+          <span className="text-caption text-muted-foreground">Item</span>
           <span className="text-title-s font-semibold tabular-nums">{item}</span>
         </>
       ) : (

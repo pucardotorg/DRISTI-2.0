@@ -1011,6 +1011,16 @@ const TASKS_WORLD_CASES: CaseRecord[] = ([
   { id: "c-pa1", st: "ST 559/2025", parties: "Girija Kumari v. Elite Hardwares", court: ON_COURT, stage: "evidence", substage: "Cross-examination", counsel: [AN, DV, SP], filedOn: "2025-04-08" },
   { id: "c-pa2", st: "ST 1073/2026", parties: "Hariharan P. v. Blue Wave Foods", court: ON_COURT, stage: "arguments", counsel: [AN, RI], filedOn: "2026-02-17" },
   { id: "c-pa3", st: "ST 284/2026", parties: "Zainaba M. v. Crescent Steels", court: JMFC1, stage: "evidence", substage: "Evidence of the accused", counsel: [DV, AN, SP], filedOn: "2026-01-19" },
+  { id: "c-up1", st: "ST 447/2025", parties: "Thankamani P. v. Vayalar Traders", court: ON_COURT, stage: "evidence", substage: "Cross-examination", counsel: [AN, SP], filedOn: "2025-03-24" },
+  { id: "c-up2", st: "ST 918/2026", parties: "Basheer K. v. Malabar Gold Mart", court: JMFC1, stage: "appearance", counsel: [RM, AN], filedOn: "2026-03-05" },
+  { id: "c-up3", st: "ST 122/2026", parties: "Susheela Devi v. Anand Cements", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN, DV, RI], filedOn: "2026-01-12" },
+  { id: "c-up4", st: "ST 736/2025", parties: "Ibrahim Kutty v. Sagara Fisheries", court: CJM, stage: "arguments", counsel: [DV, AN], filedOn: "2025-05-20" },
+  { id: "c-up5", st: "ST 65/2026", parties: "Remani Amma v. Kuttan Pillai", court: ON_COURT, stage: "appearance", substage: "Plea", counsel: [AN, SP, RI], filedOn: "2026-01-09" },
+  { id: "c-up6", st: "ST 1281/2026", parties: "Nazeer M. v. Kerala Spice Board", court: JMFC1, stage: "evidence", substage: "Cross-examination", counsel: [AN, RM, SP], filedOn: "2026-04-14" },
+  { id: "c-up7", st: "ST 503/2025", parties: "Ammini George v. Padma Textiles", court: JMFC2, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN, DV], filedOn: "2025-04-02" },
+  { id: "c-up8", st: "ST 194/2026", parties: "Devassy Joseph v. Anchor Marine", court: ON_COURT, stage: "appearance", counsel: [RM, AN], filedOn: "2026-02-11" },
+  { id: "c-up9", st: "ST 872/2025", parties: "Radhamani T. v. Sunlight Agro", court: ON_COURT, stage: "evidence", substage: "Evidence of the accused", counsel: [AN, DV, SP], filedOn: "2025-06-18" },
+  { id: "c-up10", st: "ST 331/2026", parties: "Ouseph Varkey v. Nilgiri Rubbers", court: CJM, stage: "arguments", counsel: [AN, RI], filedOn: "2026-02-27" },
 ] as TwSeed[]).map(tw);
 
 export const CASES: CaseRecord[] = [...FIXTURE_CASES, ...TASKS_WORLD_CASES];

@@ -14,7 +14,7 @@ import {
 import type { Locale } from "@/lib/onboarding/content";
 import { pick } from "@/lib/onboarding/content";
 import { advHome, fillCopy } from "@/lib/advocate/content";
-import { holdersOf, teamOf, type HomeHearing } from "@/lib/advocate/home";
+import { teamOf, type HomeHearing } from "@/lib/advocate/home";
 import type { Task } from "@/lib/tasks/types";
 import type { World } from "@/lib/tasks/selectors";
 import { verbFor } from "@/lib/tasks/permissions";
@@ -24,7 +24,6 @@ import {
   HomeTaskRow,
   ItemChip,
   RowAction,
-  vakalatnamaLine,
 } from "@/components/advocate/home-bits";
 
 function timeOf(at: string): string {
@@ -51,18 +50,14 @@ export function NowHearingCard({
   onOpenCase: () => void;
   onAct: (task: Task) => void;
 }) {
-  const holders = holdersOf(world, hearing.kase);
-  // Quiet on the ordinary case — one holder, and it is you. Said out loud the
-  // moment it is worth knowing: someone else holds it, or you hold it jointly.
-  const holderLine =
-    holders.length > 1 || !holders.some((h) => h.you)
-      ? vakalatnamaLine(locale, holders)
-      : null;
   return (
     <section className="flex flex-col gap-3">
       <p className="flex items-center gap-2 text-caption font-semibold text-success-ink">
         <span aria-hidden="true" className="size-2 rounded-full bg-success" />
-        {fillCopy(advHome.nowLabel, locale, { n: String(hearing.item) })}
+        {fillCopy(advHome.nowLabel, locale, {
+          n: String(hearing.item),
+          at: timeOf(hearing.at),
+        })}
       </p>
       <Card
         className={cn(
@@ -82,20 +77,13 @@ export function NowHearingCard({
                 {hearing.kase.parties}
               </button>
             </h2>
+            {/* Parties and posting, and nothing else: the numbers and the
+                vakalatnama sentence were a wall of dimmed type on a tinted card.
+                The number is one click away in the peek; who holds the
+                vakalatnama is in the avatars beside it, by name, on hover. */}
             <p className="text-body text-brand-muted-foreground">
               {hearing.kase.stage}
             </p>
-            {/* On a tinted fill the caption takes that fill's own ink pair,
-                never the neutral grey — size carries the step down. */}
-            <p className="text-caption text-brand-muted-foreground">
-              <span className="font-mono">{hearing.kase.cnr}</span> ·{" "}
-              {hearing.kase.stNumber} · {timeOf(hearing.at)}
-            </p>
-            {/* Said positively, and by name: on a matter three advocates share,
-                who may act is more useful than what this viewer cannot do. */}
-            {holderLine ? (
-              <p className="text-caption text-brand-muted-foreground">{holderLine}</p>
-            ) : null}
           </div>
           {/* The day's one live matter is not a row in a list — its action is
               stated outright rather than waiting for a pointer. */}
@@ -114,6 +102,11 @@ export function NowHearingCard({
 
         {hearing.blockers.length ? (
           <div className="relative z-10 flex flex-col gap-1.5 rounded-md bg-card p-1.5">
+            {/* A white well full of sentences does not announce itself as a list
+                of things owed. The heading says what it is. */}
+            <h3 className="px-4 pt-2 text-caption font-semibold text-muted-foreground">
+              {pick(advHome.blockersHeading, locale)}
+            </h3>
             {hearing.blockers.map((task) => (
               <HomeTaskRow
                 key={task.id}
@@ -189,10 +182,17 @@ export function HearingCard({
           ) : null}
           {/* Everyone on the matter, not just whoever signed first. */}
           <AdvocateStack locale={locale} team={teamOf(world, hearing.kase)} />
+          {/* The cell holds the listed time at rest, so reserving room for the
+              button costs nothing and the row gains the fact it was missing. */}
           <RowAction
             label={pick(advHome.viewCase, locale)}
             onClick={onOpenCase}
             className="relative z-10"
+            rest={
+              <span className="text-body-compact tabular-nums text-muted-foreground">
+                {timeOf(hearing.at)}
+              </span>
+            }
           />
         </div>
 
@@ -266,8 +266,8 @@ export function ConcludedStrip({
               key={h.kase.id}
               className="group/row relative flex cursor-pointer flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 transition-colors hover:bg-accent has-focus-visible:bg-accent"
             >
-              <span className="w-12 shrink-0 font-mono text-caption text-muted-foreground">
-                item {h.item}
+              <span className="w-16 shrink-0 font-mono text-caption whitespace-nowrap text-muted-foreground">
+                {fillCopy(advHome.itemN, locale, { n: String(h.item) })}
               </span>
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <button

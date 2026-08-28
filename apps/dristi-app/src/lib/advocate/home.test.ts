@@ -10,7 +10,6 @@ import {
   courtRooms,
   dayKeyOf,
   hearingsOn,
-  holdersOf,
   holdsVakalatnama,
   matterCountOn,
   nextHearingDayAfter,
@@ -115,6 +114,21 @@ describe("boardOf", () => {
     assert.equal(board.now?.kase.id, "live");
     assert.deepEqual(board.upcoming.map((h) => h.kase.id), ["next"]);
     assert.deepEqual(board.concluded.map((h) => h.kase.id), ["gone"]);
+  });
+
+  it("keeps a second live item on the board, as still to be called", () => {
+    // Two listed windows overlapping: only one matter is being called, and the
+    // other must not fall through every filter.
+    const a = new Date(NOW_MS - 20 * 60 * 1000).toISOString();
+    const b = new Date(NOW_MS - 5 * 60 * 1000).toISOString();
+    const w = world([
+      { ...listed("first", 0, 12), nextHearingAt: a },
+      { ...listed("second", 0, 12), nextHearingAt: b },
+    ]);
+    const board = boardOf(w, kase.court, dayKeyOf(a), NOW_MS);
+    assert.equal(board.now?.kase.id, "first");
+    assert.deepEqual(board.upcoming.map((h) => h.kase.id), ["second"]);
+    assert.deepEqual(board.concluded, []);
   });
 });
 
@@ -296,10 +310,6 @@ describe("teamOf", () => {
     assert.deepEqual(
       team.filter((m) => m.you).map((m) => m.person.id),
       [senior.id]
-    );
-    assert.deepEqual(
-      holdersOf(world([shared]), shared).map((m) => m.person.id),
-      ["p-sen2", senior.id]
     );
   });
 });

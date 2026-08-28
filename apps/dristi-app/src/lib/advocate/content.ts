@@ -175,7 +175,13 @@ export const advHome = {
 
   /* Board */
   inSession: t("in session", "സെഷനിൽ"),
-  nowLabel: t("Now — item {n}", "ഇപ്പോൾ — ഇനം {n}"),
+  nowLabel: t("Now — item {n} · {at}", "ഇപ്പോൾ — ഇനം {n} · {at}"),
+  /** Above the tasks well inside a hearing card — it is not self-evidently a task list. */
+  blockersHeading: t(
+    "Pending before this hearing",
+    "ഈ ഹിയറിംഗിന് മുൻപ് ബാക്കി",
+  ),
+  itemN: t("Item {n}", "ഇനം {n}"),
   upNext: t("Up next", "അടുത്തത്"),
   inListOrder: t("In list order", "പട്ടിക ക്രമത്തിൽ"),
   concludedStrip: t(
@@ -224,7 +230,6 @@ export const advHome = {
 
   /* Companion rail */
   railTitle: t("Pending tasks", "ബാക്കിയുള്ള ജോലികൾ"),
-  railCaption: t("What is owed, and by when", "എന്ത് ബാക്കി, എപ്പോഴേക്ക്"),
   prepTitle: t("Hearing prep", "ഹിയറിംഗ് തയ്യാറെടുപ്പ്"),
   prepCaption: t(
     "Evidence, cross, plea and arguments coming up",
@@ -267,13 +272,6 @@ export const advHome = {
   teamMore: t("{n} more on this matter", "ഈ വിഷയത്തിൽ വേറെ {n} പേർ"),
   teamHoldsVakalatnama: t("{name} — vakalatnama", "{name} — വക്കാലത്ത്"),
   teamCaseAccess: t("{name} — case access", "{name} — കേസ് ആക്‌സസ്"),
-  vakalatnamaYouAlone: t("You hold the vakalatnama", "വക്കാലത്ത് നിങ്ങളുടേതാണ്"),
-  vakalatnamaYouWith: t(
-    "You and {names} hold the vakalatnama",
-    "വക്കാലത്ത് നിങ്ങൾക്കും {names}നും",
-  ),
-  vakalatnamaThem: t("{names} hold the vakalatnama", "വക്കാലത്ത് {names}ന്"),
-
   /* Case peek */
   peekLabel: t("Case peek", "കേസ് ഒറ്റനോട്ടം"),
   peekClose: t("Close", "അടയ്ക്കുക"),

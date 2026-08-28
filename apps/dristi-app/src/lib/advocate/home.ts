@@ -193,7 +193,15 @@ export type Board = {
   concluded: HomeHearing[];
 };
 
-/** The board below one court tab, split by where the day has got to. */
+/**
+ * The board below one court tab, split by where the day has got to.
+ *
+ * Listed windows overlap — two items posted an hour apart are both "live" for a
+ * stretch — but only one matter is being called. The earliest live item is the
+ * one on the hero; the rest are still to come, so they join `upcoming`. (They
+ * used to match none of the three filters and drop off the board entirely, count
+ * and all.)
+ */
 export function boardOf(
   world: World,
   court: string,
@@ -201,9 +209,10 @@ export function boardOf(
   now: number = Date.now()
 ): Board {
   const listed = hearingsOn(world, court, dayKey, now);
+  const live = listed.find((h) => h.status === "now") ?? null;
   return {
-    now: listed.find((h) => h.status === "now") ?? null,
-    upcoming: listed.filter((h) => h.status === "upcoming"),
+    now: live,
+    upcoming: listed.filter((h) => h !== live && h.status !== "concluded"),
     concluded: listed.filter((h) => h.status === "concluded"),
   };
 }
@@ -415,11 +424,6 @@ export function teamOf(world: World, kase: Case): TeamMember[] {
   }));
 }
 
-/** The vakalatnama holders on a matter, in signing order — possibly several. */
-export function holdersOf(world: World, kase: Case): TeamMember[] {
-  return teamOf(world, kase).filter((m) => m.acts);
-}
-
 /**
  * Whether the user holds the vakalatnama on a case — the line between matters
  * they act in and matters they can only watch. Signatories may sign, pay and
@@ -438,11 +442,10 @@ export function holdsVakalatnama(world: World, kase: Case): boolean {
  */
 export function caseRecordFor(kase: Case, hearingAt?: string): CaseRecord | null {
   const record = CASE_RECORDS.find((r) => r.id === `tw-${kase.id}`);
-  if (!record) return null;
+  if (!record) return record ?? null;
   if (!hearingAt) return record;
   return {
     ...record,
     nextHearing: { on: dayKeyOf(hearingAt), purpose: kase.stage },
   };
 }
-

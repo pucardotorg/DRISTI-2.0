@@ -39,8 +39,9 @@ import {
   type PrepItem,
   type RailGroup,
 } from "@/lib/advocate/home";
+import { Badge } from "@/components/ui/badge";
+import { dueCueOf } from "@/lib/tasks/format";
 import { summaryOf, type World } from "@/lib/tasks/selectors";
-import { consequenceAt, daysUntil, isOverdue } from "@/lib/tasks/urgency";
 import type { Task, TaskKind } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
 import { RowAction } from "@/components/advocate/home-bits";
@@ -82,9 +83,13 @@ const MIN_WIDTH = 280;
 const MAX_WIDTH = 460;
 export const RAIL_DEFAULT_WIDTH = 384;
 
-/** Every card in the rail: one height, a hairline, and a hover that lifts. */
+/**
+ * Every card in the rail: one height, a hairline, and a hover that lifts. Tall
+ * enough for three rows — what it is, which matter, and the tag that says where
+ * it stands — because a terse "41d" in red ink is a number, not a sentence.
+ */
 const RAIL_CARD =
-  "group/row relative flex h-16 cursor-pointer items-center gap-3 rounded-lg border border-hairline bg-card px-3 transition-all dark:bg-surface-raised hover:shadow-raised has-focus-visible:shadow-raised dark:hover:bg-accent dark:has-focus-visible:bg-accent";
+  "group/row relative flex h-24 cursor-pointer items-center gap-3 rounded-lg border border-hairline bg-card px-3 transition-all dark:bg-surface-raised hover:shadow-raised has-focus-visible:shadow-raised dark:hover:bg-accent dark:has-focus-visible:bg-accent";
 
 /** The tile the kind icon sits in — a small well inside the card. */
 const CARD_ICON =
@@ -100,24 +105,26 @@ function groupLabel(locale: Locale, group: RailGroup): string {
   return pick(advHome.groupWeek, locale);
 }
 
-/** The panel's own header: what this section is, and the way out of it. */
+/**
+ * The panel's own header: the title and the way out. No icon (the strip beside it
+ * already carries one, lit) and no caption unless the section's contents need
+ * explaining — "Pending tasks" does not.
+ */
 function PanelHeader({
-  icon: Icon,
   title,
   caption,
   locale,
   onClose,
 }: {
-  icon: LucideIcon;
   title: string;
-  caption: string;
+  /** Only where the selection rule is not obvious from the title. */
+  caption?: string;
   locale: Locale;
   onClose: () => void;
 }) {
   return (
     <div className="flex flex-col gap-1 px-4 pt-4 pb-3">
       <div className="flex items-center gap-2">
-        <Icon aria-hidden="true" className="size-4 shrink-0 text-warning-ink" />
         <h2 className="flex-1 text-title-s font-semibold">{title}</h2>
         <Button
           variant="ghost"
@@ -129,7 +136,9 @@ function PanelHeader({
           <X aria-hidden="true" />
         </Button>
       </div>
-      <p className="text-caption text-muted-foreground">{caption}</p>
+      {caption ? (
+        <p className="text-caption text-muted-foreground">{caption}</p>
+      ) : null}
     </div>
   );
 }
@@ -185,9 +194,8 @@ function TaskCard({
   onAct: (task: Task) => void;
 }) {
   const Icon = KIND_ICON[task.kind];
-  const at = consequenceAt(task);
-  const overdue = isOverdue(task, world.now);
-  const days = overdue && at ? -daysUntil(at, world.now) : 0;
+  const due = dueCueOf(task, new Date(world.now));
+  const today = due.primary === "Due today";
 
   return (
     <div className={RAIL_CARD}>
@@ -195,7 +203,7 @@ function TaskCard({
         <Icon className="size-4" />
       </span>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+      <div className="flex min-w-0 flex-1 flex-col items-stretch gap-1">
         <button
           type="button"
           onClick={() => onAct(task)}
@@ -204,25 +212,20 @@ function TaskCard({
         >
           {task.title}
         </button>
-        <span className="truncate text-caption text-muted-foreground">
+        <span className="w-full truncate text-caption text-muted-foreground">
           {railCaseLineOf(world, task)}
         </span>
+        {/* Where it stands, said as a tag rather than a bare red number: every
+            card carries one, so the column below it stays a rhythm. */}
+        <Badge
+          className="self-start"
+          variant={due.overdue ? "destructive" : today ? "warning" : "secondary"}
+        >
+          {due.primary}
+        </Badge>
       </div>
 
-      <RowAction
-        label={verb}
-        onClick={() => onAct(task)}
-        rest={
-          <span className="flex items-center gap-2">
-            {overdue ? (
-              <span className="text-caption font-medium tabular-nums text-destructive-ink">
-                {days}d
-              </span>
-            ) : null}
-            <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground" />
-          </span>
-        }
-      />
+      <RowAction label={verb} onClick={() => onAct(task)} />
     </div>
   );
 }
@@ -248,9 +251,7 @@ function TasksPanel({
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col">
       <PanelHeader
-        icon={ListChecks}
         title={pick(advHome.railTitle, locale)}
-        caption={pick(advHome.railCaption, locale)}
         locale={locale}
         onClose={onClose}
       />
@@ -350,7 +351,7 @@ function PrepCard({
         <Gavel className="size-4" />
       </span>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+      <div className="flex min-w-0 flex-1 flex-col items-stretch gap-1">
         <button
           type="button"
           onClick={() => onOpenCase(item.kase.id)}
@@ -359,16 +360,14 @@ function PrepCard({
         >
           {item.kase.parties}
         </button>
-        {/* The stage gives way before the count does: "2 pending" is four
-            characters and changes what the advocate does today. */}
-        <span className="flex min-w-0 items-center gap-1 text-caption text-muted-foreground">
-          <span className="truncate">{item.kase.stage}</span>
-          {pending ? (
-            <span className="shrink-0 font-medium whitespace-nowrap text-warning-ink">
-              · {pending}
-            </span>
-          ) : null}
+        {/* A matter you are meant to prepare for has to be identifiable: the
+            number you would quote at the counter, and the posting it is for. */}
+        <span className="w-full truncate text-caption text-muted-foreground">
+          <span className="font-mono">{item.kase.stNumber}</span> · {item.kase.stage}
         </span>
+        <Badge className="self-start" variant={pending ? "warning" : "success"}>
+          {pending ?? pick(advHome.ready, locale)}
+        </Badge>
       </div>
 
       <RowAction
@@ -409,7 +408,6 @@ function PrepPanel({
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col">
       <PanelHeader
-        icon={CalendarClock}
         title={pick(advHome.prepTitle, locale)}
         caption={pick(advHome.prepCaption, locale)}
         locale={locale}
@@ -492,6 +490,15 @@ function StripButton({
               : "text-muted-foreground hover:bg-accent-strong"
           )}
         >
+          {/* The open section is marked twice over: the tinted tile, and a brand
+              bar on the strip's edge — the same marker a mail client puts against
+              the row you are in, readable at a glance down the whole strip. */}
+          {active ? (
+            <span
+              aria-hidden="true"
+              className="absolute -left-2 h-6 w-0.5 rounded-full bg-brand-accent"
+            />
+          ) : null}
           <Icon aria-hidden="true" className="size-5" />
           {count ? (
             <span

@@ -14,7 +14,7 @@ import { SCRUTINY_DEFECTS, SCRUTINY_DRAFT_ID } from "./scrutiny-return";
 import type { Case, Defect, Person, Task } from "./types";
 
 /** Bump when the seed's shape changes; a browser holding an older seed is re-seeded. */
-export const SEED_VERSION = 7;
+export const SEED_VERSION = 8;
 
 /**
  * A defect on a filing that was made outside this app, so there is no draft to open and
@@ -136,6 +136,20 @@ export const CASES: Case[] = [
   { id: "c-pa1", stNumber: "ST 559/2025", cnr: "KLKL01-000559-2025", parties: "Girija Kumari v. Elite Hardwares", court: ON, stage: "Cross-examination", nextHearingAt: hearing(6), signatories: ["p-an", "p-dv"], advocates: ["p-an", "p-dv", "p-sp"] },
   { id: "c-pa2", stNumber: "ST 1073/2026", cnr: "KLKL01-001073-2026", parties: "Hariharan P. v. Blue Wave Foods", court: ON, stage: "Arguments", nextHearingAt: hearing(11), signatories: ["p-an"], advocates: ["p-an", "p-ri"] },
   { id: "c-pa3", stNumber: "ST 284/2026", cnr: "KLKL02-000284-2026", parties: "Zainaba M. v. Crescent Steels", court: JMFC1, stage: "Evidence of the accused", nextHearingAt: hearing(14), signatories: ["p-dv", "p-an"], advocates: ["p-dv", "p-an", "p-sp"] },
+  // ── The weeks ahead ──────────────────────────────────────────────
+  // The diary an advocate actually carries: most days after today hold something,
+  // at varied hours, substantial and procedural mixed, so the week strip, the
+  // "next hearing day" jump and the prep queue all have real ground under them.
+  { id: "c-up1", stNumber: "ST 447/2025", cnr: "KLKL01-000447-2025", parties: "Thankamani P. v. Vayalar Traders", court: ON, stage: "Cross-examination", nextHearingAt: at(1, 11, 0), signatories: ["p-an"], advocates: ["p-an", "p-sp"] },
+  { id: "c-up2", stNumber: "ST 918/2026", cnr: "KLKL02-000918-2026", parties: "Basheer K. v. Malabar Gold Mart", court: JMFC1, stage: "Appearance", nextHearingAt: at(1, 14, 30), signatories: ["p-rm", "p-an"], advocates: ["p-rm", "p-an"] },
+  { id: "c-up3", stNumber: "ST 122/2026", cnr: "KLKL01-000122-2026", parties: "Susheela Devi v. Anand Cements", court: ON, stage: "Evidence of the complainant", nextHearingAt: at(2, 10, 0), signatories: ["p-an", "p-dv"], advocates: ["p-an", "p-dv", "p-ri"] },
+  { id: "c-up4", stNumber: "ST 736/2025", cnr: "KLKL04-000736-2025", parties: "Ibrahim Kutty v. Sagara Fisheries", court: CJM, stage: "Arguments", nextHearingAt: at(2, 15, 0), signatories: ["p-dv"], advocates: ["p-dv", "p-an"] },
+  { id: "c-up5", stNumber: "ST 65/2026", cnr: "KLKL01-000065-2026", parties: "Remani Amma v. Kuttan Pillai", court: ON, stage: "Plea", nextHearingAt: at(4, 11, 30), signatories: ["p-an"], advocates: ["p-an", "p-sp", "p-ri"] },
+  { id: "c-up6", stNumber: "ST 1281/2026", cnr: "KLKL02-001281-2026", parties: "Nazeer M. v. Kerala Spice Board", court: JMFC1, stage: "Cross-examination", nextHearingAt: at(5, 10, 30), signatories: ["p-an", "p-rm"], advocates: ["p-an", "p-rm", "p-sp"] },
+  { id: "c-up7", stNumber: "ST 503/2025", cnr: "KLKL03-000503-2025", parties: "Ammini George v. Padma Textiles", court: JMFC2, stage: "Evidence of the complainant", nextHearingAt: at(6, 14, 0), signatories: ["p-an"], advocates: ["p-an", "p-dv"] },
+  { id: "c-up8", stNumber: "ST 194/2026", cnr: "KLKL01-000194-2026", parties: "Devassy Joseph v. Anchor Marine", court: ON, stage: "Appearance", nextHearingAt: at(8, 10, 30), signatories: ["p-rm"], advocates: ["p-rm", "p-an"] },
+  { id: "c-up9", stNumber: "ST 872/2025", cnr: "KLKL01-000872-2025", parties: "Radhamani T. v. Sunlight Agro", court: ON, stage: "Evidence of the accused", nextHearingAt: at(13, 11, 0), signatories: ["p-an", "p-dv"], advocates: ["p-an", "p-dv", "p-sp"] },
+  { id: "c-up10", stNumber: "ST 331/2026", cnr: "KLKL04-000331-2026", parties: "Ouseph Varkey v. Nilgiri Rubbers", court: CJM, stage: "Arguments", nextHearingAt: at(17, 10, 30), signatories: ["p-an"], advocates: ["p-an", "p-ri"] },
   // Matters before filing — no ST number, no CNR yet; the statutory clocks live here.
   { id: "c-sainaba", stNumber: "", cnr: "", parties: "Sainaba K. v. Riyas M.", court: ON, stage: "Pre-filing", signatories: ["p-an"], advocates: ["p-an", "p-sp"] },
   { id: "c-arun", stNumber: "", cnr: "", parties: "Arun K. v. Meera Enterprises", court: ON, stage: "Pre-filing", signatories: ["p-rm"], advocates: ["p-rm", "p-sp"] },
