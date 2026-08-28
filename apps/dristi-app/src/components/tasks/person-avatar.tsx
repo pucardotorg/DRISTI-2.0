@@ -1,5 +1,7 @@
 "use client";
 
+import type * as React from "react";
+
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import type { Person } from "@/lib/tasks/types";
@@ -27,10 +29,13 @@ export function PersonAvatar({
   surface = "card",
   label,
   className,
-}: {
+  // Passed through so the disc can *be* a trigger: `TooltipTrigger asChild`
+  // hands its child the handlers, the ref and `aria-describedby`, and a
+  // component that swallows them is a tooltip that never opens.
+  ...props
+}: React.ComponentProps<typeof Avatar> & {
   person: Person;
   you?: boolean;
-  size?: "sm" | "default" | "lg";
   surface?: AvatarSurface;
   /**
    * What names this disc, when the caller names it richly (the home stack's
@@ -38,13 +43,13 @@ export function PersonAvatar({
    * tooltip is not racing one the browser drew.
    */
   label?: string;
-  className?: string;
 }) {
   return (
     <Avatar
       size={size}
       title={label ? undefined : person.name}
       className={className}
+      {...props}
     >
       <AvatarFallback
         className={cn(

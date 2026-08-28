@@ -122,9 +122,13 @@ export function AdvocateStack({
       {rest.length ? (
         <Tooltip>
           <TooltipTrigger asChild>
+            {/* No size class: `AvatarGroupCount` sizes its own numeral with the
+                group, and a named role passed in here is silently dropped in
+                the merge rather than winning — the count reads at the discs'
+                own size, which is what a peer of an initial should do. */}
             <AvatarGroupCount
               className={cn(
-                "text-caption font-medium tabular-nums text-muted-foreground",
+                "font-medium tabular-nums text-muted-foreground",
                 COUNT_FILL[surface]
               )}
             >
