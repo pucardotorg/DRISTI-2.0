@@ -14,7 +14,7 @@ import { SCRUTINY_DEFECTS, SCRUTINY_DRAFT_ID } from "./scrutiny-return";
 import type { Case, Defect, Person, Task } from "./types";
 
 /** Bump when the seed's shape changes; a browser holding an older seed is re-seeded. */
-export const SEED_VERSION = 8;
+export const SEED_VERSION = 10;
 
 /**
  * A defect on a filing that was made outside this app, so there is no draft to open and
@@ -64,6 +64,72 @@ function hearing(days: number): string {
   return at(days, 10, 30);
 }
 
+/**
+ * Today's cause list, built when the sandbox is seeded.
+ *
+ * Two matters already risen, one being called, the rest still ahead — whatever
+ * hour the app is opened. Fixed clock hours could not do that: a list running
+ * 9:00 to 17:00 is entirely "concluded" by the evening and entirely "upcoming"
+ * before nine, so the one thing the board exists to show — a day in progress —
+ * was only visible around midday.
+ *
+ * Everything is placed *proportionally* inside today rather than at a fixed
+ * offset from now, because a cause list belongs to one calendar date: an item
+ * pushed past midnight silently leaves the board and takes the court's count
+ * with it. Late in the evening the remaining items simply sit closer together.
+ */
+function todaySchedule(): Record<string, string> {
+  const MIN = 60 * 1000;
+  const now = Date.now();
+  const dayStart = new Date();
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date();
+  dayEnd.setHours(23, 45, 0, 0);
+  const inDay = (t: number) =>
+    Math.min(dayEnd.getTime(), Math.max(dayStart.getTime(), t));
+
+  // Risen: back to six hours ago, stopping well clear of the 90-minute window
+  // that would still count an item as live.
+  const risenFrom = inDay(now - 360 * MIN);
+  const risenTo = Math.max(risenFrom, inDay(now - 110 * MIN));
+  // Ahead: from half an hour out to six hours out, or the day's end.
+  const aheadFrom = inDay(now + 30 * MIN);
+  const aheadTo = Math.max(aheadFrom, inDay(now + 360 * MIN));
+
+  const spread = (ids: string[], from: number, to: number) =>
+    ids.map(
+      (id, i) =>
+        [id, new Date(from + ((to - from) * i) / Math.max(1, ids.length - 1)).toISOString()] as const
+    );
+
+  // Per court, in list order. Only the ON court is in session, so the tab
+  // strip's "in session" dot means one thing.
+  const rooms = [
+    {
+      risen: ["c-hd1", "c-hd11"],
+      live: "c-hd3",
+      ahead: ["c-hd12", "c-hd2", "c-hd13", "c-hd14", "c-hd15", "c-hd4", "c-hd16", "c-hd5", "c-hd17"],
+    },
+    { risen: ["c-hd6"], ahead: ["c-hd7", "c-hd8"] },
+    { risen: ["c-hd9"], ahead: ["c-hd10"] },
+  ];
+
+  const schedule: Record<string, string> = {};
+  for (const room of rooms) {
+    for (const [id, at] of spread(room.risen, risenFrom, risenTo)) schedule[id] = at;
+    if (room.live) schedule[room.live] = new Date(inDay(now - 25 * MIN)).toISOString();
+    for (const [id, at] of spread(room.ahead, aheadFrom, aheadTo)) schedule[id] = at;
+  }
+  return schedule;
+}
+
+const TODAY = todaySchedule();
+
+/** The listed time of a matter on today's board. */
+function listedToday(id: string): string {
+  return TODAY[id];
+}
+
 function shortDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }
@@ -107,30 +173,30 @@ export const CASES: Case[] = [
   { id: "c-815", stNumber: "ST 815/2025", cnr: "KLKL04-000815-2025", parties: "Vinod Chandran v. Sabari Traders", court: CJM, stage: "Arguments", nextHearingAt: hearing(10), signatories: ["p-an", "p-dv"], advocates: ["p-an", "p-dv"] },
   { id: "c-1044", stNumber: "ST 1044/2026", cnr: "KLKL03-001044-2026", parties: "Beena Thomas v. A. Salim", court: JMFC2, stage: "Appearance", nextHearingAt: hearing(22), signatories: ["p-dv"], advocates: ["p-dv", "p-an"] },
   // ── Today's cause list ───────────────────────────────────────────
-  // Ten matters listed today across three courts (ON 5 · JMFC 1 3 · CJM 2), at
-  // staggered hours so the board has concluded, live and upcoming items through a
-  // working day. Anjali is a signatory on eight; two (c-hd4, c-hd7) she can see
-  // but not act on — the vakalatnama access split the home screen must show.
-  { id: "c-hd1", stNumber: "ST 268/2025", cnr: "KLKL01-000268-2025", parties: "Prakash Kumar v. Malabar Traders", court: ON, stage: "Evidence of the complainant", nextHearingAt: at(0, 9, 0), signatories: ["p-an"], advocates: ["p-an", "p-sp"] },
-  { id: "c-hd2", stNumber: "ST 743/2025", cnr: "KLKL01-000743-2025", parties: "Divya Suresh v. K. Salim", court: ON, stage: "Plea", nextHearingAt: at(0, 10, 30), signatories: ["p-an", "p-rm"], advocates: ["p-an", "p-rm"] },
-  { id: "c-hd3", stNumber: "ST 512/2025", cnr: "KLKL01-000512-2025", parties: "Gopinathan Nair v. Chaithanya Agencies", court: ON, stage: "Evidence of the complainant", nextHearingAt: at(0, 12, 30), signatories: ["p-an"], advocates: ["p-an", "p-sp"] },
-  { id: "c-hd4", stNumber: "ST 391/2026", cnr: "KLKL01-000391-2026", parties: "Mariyam Bee v. Anwar Sadath", court: ON, stage: "Appearance", nextHearingAt: at(0, 14, 30), signatories: ["p-dv"], advocates: ["p-dv", "p-an"] },
-  { id: "c-hd5", stNumber: "ST 129/2026", cnr: "KLKL01-000129-2026", parties: "Ravi Chandran v. Sea Pearl Exports", court: ON, stage: "Evidence of the complainant", nextHearingAt: at(0, 16, 0), signatories: ["p-an", "p-dv"], advocates: ["p-an", "p-dv", "p-sp"] },
-  { id: "c-hd6", stNumber: "ST 84/2026", cnr: "KLKL02-000084-2026", parties: "Salini Mohan v. Grand Textiles", court: JMFC1, stage: "Plea", nextHearingAt: at(0, 11, 0), signatories: ["p-an"], advocates: ["p-an", "p-ri"] },
-  { id: "c-hd7", stNumber: "ST 610/2025", cnr: "KLKL02-000610-2025", parties: "Peter Varghese v. Nila Finance", court: JMFC1, stage: "Arguments", nextHearingAt: at(0, 15, 0), signatories: ["p-rm"], advocates: ["p-rm", "p-an"] },
-  { id: "c-hd8", stNumber: "ST 233/2025", cnr: "KLKL02-000233-2025", parties: "Asha Kumari v. Vel Murugan Stores", court: JMFC1, stage: "Evidence of the complainant", nextHearingAt: at(0, 16, 30), signatories: ["p-an"], advocates: ["p-an", "p-sp"] },
-  { id: "c-hd9", stNumber: "ST 47/2025", cnr: "KLKL04-000047-2025", parties: "Krishnan Kutty v. Sree Devi Traders", court: CJM, stage: "Arguments", nextHearingAt: at(0, 10, 0), signatories: ["p-an"], advocates: ["p-an"] },
-  { id: "c-hd10", stNumber: "ST 902/2025", cnr: "KLKL04-000902-2025", parties: "Noor Jahan v. Kadavil Motors", court: CJM, stage: "Appearance", nextHearingAt: at(0, 15, 30), signatories: ["p-dv", "p-an"], advocates: ["p-dv", "p-an"] },
+  // Seventeen matters listed today across three courts (ON 12 · JMFC 1 3 · CJM 2),
+  // timed by `TODAY_OFFSET` so the day always reads as a day in progress. Anjali
+  // is a signatory on most; a few (c-hd4, c-hd7, c-hd12) she can see but not act
+  // on — the vakalatnama access split the home screen must show.
+  { id: "c-hd1", stNumber: "ST 268/2025", cnr: "KLKL01-000268-2025", parties: "Prakash Kumar v. Malabar Traders", court: ON, stage: "Evidence of the complainant", nextHearingAt: listedToday("c-hd1"), signatories: ["p-an"], advocates: ["p-an", "p-sp"] },
+  { id: "c-hd2", stNumber: "ST 743/2025", cnr: "KLKL01-000743-2025", parties: "Divya Suresh v. K. Salim", court: ON, stage: "Plea", nextHearingAt: listedToday("c-hd2"), signatories: ["p-an", "p-rm"], advocates: ["p-an", "p-rm"] },
+  { id: "c-hd3", stNumber: "ST 512/2025", cnr: "KLKL01-000512-2025", parties: "Gopinathan Nair v. Chaithanya Agencies", court: ON, stage: "Evidence of the complainant", nextHearingAt: listedToday("c-hd3"), signatories: ["p-an"], advocates: ["p-an", "p-sp"] },
+  { id: "c-hd4", stNumber: "ST 391/2026", cnr: "KLKL01-000391-2026", parties: "Mariyam Bee v. Anwar Sadath", court: ON, stage: "Appearance", nextHearingAt: listedToday("c-hd4"), signatories: ["p-dv"], advocates: ["p-dv", "p-an"] },
+  { id: "c-hd5", stNumber: "ST 129/2026", cnr: "KLKL01-000129-2026", parties: "Ravi Chandran v. Sea Pearl Exports", court: ON, stage: "Evidence of the complainant", nextHearingAt: listedToday("c-hd5"), signatories: ["p-an", "p-dv"], advocates: ["p-an", "p-dv", "p-sp"] },
+  { id: "c-hd6", stNumber: "ST 84/2026", cnr: "KLKL02-000084-2026", parties: "Salini Mohan v. Grand Textiles", court: JMFC1, stage: "Plea", nextHearingAt: listedToday("c-hd6"), signatories: ["p-an"], advocates: ["p-an", "p-ri"] },
+  { id: "c-hd7", stNumber: "ST 610/2025", cnr: "KLKL02-000610-2025", parties: "Peter Varghese v. Nila Finance", court: JMFC1, stage: "Arguments", nextHearingAt: listedToday("c-hd7"), signatories: ["p-rm"], advocates: ["p-rm", "p-an"] },
+  { id: "c-hd8", stNumber: "ST 233/2025", cnr: "KLKL02-000233-2025", parties: "Asha Kumari v. Vel Murugan Stores", court: JMFC1, stage: "Evidence of the complainant", nextHearingAt: listedToday("c-hd8"), signatories: ["p-an"], advocates: ["p-an", "p-sp"] },
+  { id: "c-hd9", stNumber: "ST 47/2025", cnr: "KLKL04-000047-2025", parties: "Krishnan Kutty v. Sree Devi Traders", court: CJM, stage: "Arguments", nextHearingAt: listedToday("c-hd9"), signatories: ["p-an"], advocates: ["p-an"] },
+  { id: "c-hd10", stNumber: "ST 902/2025", cnr: "KLKL04-000902-2025", parties: "Noor Jahan v. Kadavil Motors", court: CJM, stage: "Appearance", nextHearingAt: listedToday("c-hd10"), signatories: ["p-dv", "p-an"], advocates: ["p-dv", "p-an"] },
   // Seven more in the ON court, so the flagship board runs twelve deep — enough
   // to see how the day scales, and how a matter reads when three or four
   // advocates share it: some sign together, some only have case access.
-  { id: "c-hd11", stNumber: "ST 318/2025", cnr: "KLKL01-000318-2025", parties: "Vasanthi Amma v. Deepak Nambiar", court: ON, stage: "Evidence of the complainant", nextHearingAt: at(0, 9, 30), signatories: ["p-an", "p-dv"], advocates: ["p-an", "p-dv", "p-sp", "p-ri"] },
-  { id: "c-hd12", stNumber: "ST 655/2026", cnr: "KLKL01-000655-2026", parties: "Faisal Rahman v. Ponnamma K.", court: ON, stage: "Appearance", nextHearingAt: at(0, 10, 0), signatories: ["p-rm"], advocates: ["p-rm", "p-an", "p-sp"] },
-  { id: "c-hd13", stNumber: "ST 205/2026", cnr: "KLKL01-000205-2026", parties: "Leelamma Joy v. Sunrise Plywoods", court: ON, stage: "Cross-examination", nextHearingAt: at(0, 11, 15), signatories: ["p-an"], advocates: ["p-an", "p-sp"] },
-  { id: "c-hd14", stNumber: "ST 471/2025", cnr: "KLKL01-000471-2025", parties: "Abdul Latheef v. Thejas Marine", court: ON, stage: "Plea", nextHearingAt: at(0, 11, 45), signatories: ["p-an", "p-rm", "p-dv"], advocates: ["p-an", "p-rm", "p-dv", "p-sp"] },
-  { id: "c-hd15", stNumber: "ST 830/2025", cnr: "KLKL01-000830-2025", parties: "Sarala Devi v. Kochu Varkey", court: ON, stage: "Arguments", nextHearingAt: at(0, 13, 30), signatories: ["p-dv"], advocates: ["p-dv", "p-an", "p-ri"] },
-  { id: "c-hd16", stNumber: "ST 96/2026", cnr: "KLKL01-000096-2026", parties: "Jaseela Beegum v. Anand Motors", court: ON, stage: "Evidence of the complainant", nextHearingAt: at(0, 15, 15), signatories: ["p-an"], advocates: ["p-an", "p-ri", "p-sp"] },
-  { id: "c-hd17", stNumber: "ST 1190/2026", cnr: "KLKL01-001190-2026", parties: "Rajeev Menon v. Padmini Traders", court: ON, stage: "Appearance", nextHearingAt: at(0, 17, 0), signatories: ["p-an", "p-sp"], advocates: ["p-an", "p-sp"] },
+  { id: "c-hd11", stNumber: "ST 318/2025", cnr: "KLKL01-000318-2025", parties: "Vasanthi Amma v. Deepak Nambiar", court: ON, stage: "Evidence of the complainant", nextHearingAt: listedToday("c-hd11"), signatories: ["p-an", "p-dv"], advocates: ["p-an", "p-dv", "p-sp", "p-ri"] },
+  { id: "c-hd12", stNumber: "ST 655/2026", cnr: "KLKL01-000655-2026", parties: "Faisal Rahman v. Ponnamma K.", court: ON, stage: "Appearance", nextHearingAt: listedToday("c-hd12"), signatories: ["p-rm"], advocates: ["p-rm", "p-an", "p-sp"] },
+  { id: "c-hd13", stNumber: "ST 205/2026", cnr: "KLKL01-000205-2026", parties: "Leelamma Joy v. Sunrise Plywoods", court: ON, stage: "Cross-examination", nextHearingAt: listedToday("c-hd13"), signatories: ["p-an"], advocates: ["p-an", "p-sp"] },
+  { id: "c-hd14", stNumber: "ST 471/2025", cnr: "KLKL01-000471-2025", parties: "Abdul Latheef v. Thejas Marine", court: ON, stage: "Plea", nextHearingAt: listedToday("c-hd14"), signatories: ["p-an", "p-rm", "p-dv"], advocates: ["p-an", "p-rm", "p-dv", "p-sp"] },
+  { id: "c-hd15", stNumber: "ST 830/2025", cnr: "KLKL01-000830-2025", parties: "Sarala Devi v. Kochu Varkey", court: ON, stage: "Arguments", nextHearingAt: listedToday("c-hd15"), signatories: ["p-dv"], advocates: ["p-dv", "p-an", "p-ri"] },
+  { id: "c-hd16", stNumber: "ST 96/2026", cnr: "KLKL01-000096-2026", parties: "Jaseela Beegum v. Anand Motors", court: ON, stage: "Evidence of the complainant", nextHearingAt: listedToday("c-hd16"), signatories: ["p-an"], advocates: ["p-an", "p-ri", "p-sp"] },
+  { id: "c-hd17", stNumber: "ST 1190/2026", cnr: "KLKL01-001190-2026", parties: "Rajeev Menon v. Padmini Traders", court: ON, stage: "Appearance", nextHearingAt: listedToday("c-hd17"), signatories: ["p-an", "p-sp"], advocates: ["p-an", "p-sp"] },
   // Substantial postings in the fortnight ahead — evidence, cross and arguments
   // an advocate has to be ready for well before the day arrives.
   { id: "c-pa1", stNumber: "ST 559/2025", cnr: "KLKL01-000559-2025", parties: "Girija Kumari v. Elite Hardwares", court: ON, stage: "Cross-examination", nextHearingAt: hearing(6), signatories: ["p-an", "p-dv"], advocates: ["p-an", "p-dv", "p-sp"] },
@@ -891,7 +957,7 @@ export function buildTasks(): Task[] {
       dueAt: at(0, 12, 0),
       dueKind: "court-set",
       deadlineNote: "Registry: before today's posting",
-      hearingAt: at(0, 12, 30),
+      hearingAt: listedToday("c-hd3"),
       status: "open",
     }),
     task({
@@ -905,7 +971,7 @@ export function buildTasks(): Task[] {
       dueAt: at(0, 14, 0),
       dueKind: "before-hearing",
       deadlineNote: "Before today's evidence posting",
-      hearingAt: at(0, 16, 0),
+      hearingAt: listedToday("c-hd5"),
       status: "open",
     }),
     task({
@@ -919,7 +985,7 @@ export function buildTasks(): Task[] {
       dueAt: at(0, 15, 0),
       dueKind: "court-set",
       deadlineNote: "Order: to be produced at today's posting",
-      hearingAt: at(0, 16, 30),
+      hearingAt: listedToday("c-hd8"),
       status: "open",
     }),
     task({
