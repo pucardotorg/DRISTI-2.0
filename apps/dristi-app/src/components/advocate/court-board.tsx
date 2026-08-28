@@ -27,7 +27,12 @@ import { HearingList } from "@/components/advocate/hearing-list";
 
 export type BoardView = "cards" | "list";
 
-export type AccessFilter = "all" | "mine";
+/**
+ * Access, not people: several advocates can hold the vakalatnama on one case,
+ * and others hold view access shared from the case file. The cut that matters
+ * to "what can I do today" is which of the two the viewer holds per matter.
+ */
+export type AccessFilter = "all" | "mine" | "shared";
 
 /**
  * Everything below the court tabs for one court on one day.
@@ -44,6 +49,7 @@ export function CourtBoard({
   board,
   access,
   onAccessChange,
+  accessCounts,
   view,
   onViewChange,
   selectedCaseId,
@@ -55,9 +61,11 @@ export function CourtBoard({
   world: World;
   locale: Locale;
   board: Board;
-  /** All matters, or only those where the user holds the vakalatnama. */
+  /** All matters, only vakalatnama matters, or only view-access matters. */
   access: AccessFilter;
   onAccessChange: (access: AccessFilter) => void;
+  /** Selected-day totals per access mode — the control names its counts. */
+  accessCounts: Record<AccessFilter, number>;
   view: BoardView;
   onViewChange: (view: BoardView) => void;
   selectedCaseId: string | null;
@@ -84,12 +92,22 @@ export function CourtBoard({
           onValueChange={(next) => next && onAccessChange(next as AccessFilter)}
           aria-label={pick(advHome.filterLabel, locale)}
         >
-          <SegmentedControlItem value="all">
-            {pick(advHome.filterAll, locale)}
-          </SegmentedControlItem>
-          <SegmentedControlItem value="mine">
-            {pick(advHome.filterMine, locale)}
-          </SegmentedControlItem>
+          {(
+            [
+              ["all", advHome.filterAll],
+              ["mine", advHome.filterMine],
+              ["shared", advHome.filterShared],
+            ] as const
+          ).map(([value, label]) => (
+            <SegmentedControlItem key={value} value={value}>
+              {pick(label, locale)}
+              {/* Counts presented the same way as the court tabs' — one
+                  presentation per data type across siblings. */}
+              <span className="ml-1 text-caption tabular-nums text-muted-foreground">
+                {accessCounts[value]}
+              </span>
+            </SegmentedControlItem>
+          ))}
         </SegmentedControl>
 
         <ToggleGroup
@@ -125,14 +143,18 @@ export function CourtBoard({
               <SlidersHorizontal aria-hidden="true" />
             </EmptyMedia>
             <EmptyTitle>
-              {filtered
+              {access === "mine"
                 ? pick(advHome.emptyMineTitle, locale)
-                : pick(advHome.emptyDayTitle, locale)}
+                : access === "shared"
+                  ? pick(advHome.emptySharedTitle, locale)
+                  : pick(advHome.emptyDayTitle, locale)}
             </EmptyTitle>
             <EmptyDescription>
-              {filtered
+              {access === "mine"
                 ? pick(advHome.emptyMineBody, locale)
-                : pick(advHome.emptyDayBody, locale)}
+                : access === "shared"
+                  ? pick(advHome.emptySharedBody, locale)
+                  : pick(advHome.emptyDayBody, locale)}
             </EmptyDescription>
           </EmptyHeader>
           {!filtered && jump ? (

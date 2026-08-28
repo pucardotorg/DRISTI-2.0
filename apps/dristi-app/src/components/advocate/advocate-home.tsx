@@ -10,28 +10,30 @@ import { pick } from "@/lib/onboarding/content";
 import { advHome } from "@/lib/advocate/content";
 import {
   boardOf,
+  caseRecordFor,
   courtRooms,
   dayKeyOf,
   holdsVakalatnama,
   nextHearingDayAfter,
   weekOf,
   type Board,
+  type HomeHearing,
 } from "@/lib/advocate/home";
 import { useTasks } from "@/lib/tasks/store";
 import { TASKS_HOME } from "@/lib/tasks/routes";
 import type { World } from "@/lib/tasks/selectors";
-import { useMinWidth } from "@/hooks/use-min-width";
 import { useTaskAct } from "@/components/tasks/task-act-layer";
+import { CasePeekSurface } from "@/components/cases/case-peek";
+import { CasePeekProvider, useCasePeek } from "@/components/cases/use-case-peek";
 import {
   CourtBoard,
   type AccessFilter,
   type BoardView,
 } from "@/components/advocate/court-board";
-import { CasePeek } from "@/components/advocate/case-peek";
 import { HomeGreeting } from "@/components/advocate/home-greeting";
 import { TasksRail } from "@/components/advocate/tasks-rail";
 
-/** The shell top bar is `h-14`; the sticky rails hang below it. */
+/** The shell top bar is `h-14`; the sticky rail hangs below it. */
 const TOP_BAR = "3.5rem";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -51,23 +53,36 @@ function useNow(): number {
  *
  * One world, three surfaces: the cause-list board (from `Case.nextHearingAt`),
  * the pending-tasks rail (the coming week of the Needs-action tab), and the
- * case peek. A blocking task appears on the hearing it blocks *and* in the
- * rail, because it is the same task read twice — and acting on it happens in
- * place, through the same modal-and-flow table /tasks runs, so completing a
- * task never demands a detour through another screen.
+ * case peek — the same peek Your Cases uses, over the bridged record, so one
+ * component answers "what is this case" everywhere. Acting on a task happens
+ * in place, through the same modal-and-flow table /tasks runs.
  */
-export function AdvocateHome({
+export function AdvocateHome(props: {
+  locale: Locale;
+  profileFirstName: string;
+}) {
+  const now = useNow();
+  return (
+    <CasePeekProvider now={now}>
+      <HomeBody {...props} now={now} />
+    </CasePeekProvider>
+  );
+}
+
+function HomeBody({
   locale,
   profileFirstName,
+  now,
 }: {
   locale: Locale;
   profileFirstName: string;
+  now: number;
 }) {
   const store = useTasks();
   const { state, people, cases, tasks, user } = store;
   const router = useRouter();
-  const now = useNow();
   const { run: actOn, layer: actLayer } = useTaskAct();
+  const peek = useCasePeek();
 
   const world = React.useMemo<World>(
     () => ({ people, cases, tasks, user, now: new Date(now) }),
@@ -80,12 +95,7 @@ export function AdvocateHome({
   const [weekAnchor, setWeekAnchor] = React.useState<number>(now);
   const [view, setView] = React.useState<BoardView>("cards");
   const [access, setAccess] = React.useState<AccessFilter>("all");
-  const [selectedCaseId, setSelectedCaseId] = React.useState<string | null>(null);
   const [railOpen, setRailOpen] = React.useState(true);
-
-  // From xl the board can hold the case peek and the open rail at once; below
-  // it, opening the peek folds the rail to its strip rather than removing it.
-  const wide = useMinWidth(1280);
 
   const week = React.useMemo(
     () => weekOf(world, now, weekAnchor),
@@ -101,8 +111,10 @@ export function AdvocateHome({
   const filterBoard = React.useCallback(
     (board: Board): Board => {
       if (access === "all") return board;
-      const keep = (h: { kase: Board["upcoming"][number]["kase"] }) =>
-        holdsVakalatnama(world, h.kase);
+      const keep = (h: HomeHearing) =>
+        access === "mine"
+          ? holdsVakalatnama(world, h.kase)
+          : !holdsVakalatnama(world, h.kase);
       return {
         now: board.now && keep(board.now) ? board.now : null,
         upcoming: board.upcoming.filter(keep),
@@ -120,8 +132,24 @@ export function AdvocateHome({
     return map;
   }, [world, rooms, selectedDay, now]);
 
-  // What the tabs and greeting count — the filtered view, so "My vakalatnama"
-  // never shows a 5 above a board of 3. Boards keep the full-world item numbers.
+  const allHearings = React.useMemo(
+    () =>
+      [...boards.values()].flatMap((board) => [
+        ...(board.now ? [board.now] : []),
+        ...board.upcoming,
+        ...board.concluded,
+      ]),
+    [boards]
+  );
+
+  /** Selected-day totals per access mode — the filter control names them. */
+  const accessCounts = React.useMemo(() => {
+    const mine = allHearings.filter((h) => holdsVakalatnama(world, h.kase)).length;
+    return { all: allHearings.length, mine, shared: allHearings.length - mine };
+  }, [allHearings, world]);
+
+  // What the tabs and greeting count — the filtered view, so a narrowed filter
+  // never shows a 5 above a board of 3. Boards keep full-world item numbers.
   const roomView = React.useMemo(
     () =>
       rooms.map((room) => {
@@ -137,21 +165,6 @@ export function AdvocateHome({
   );
   const visibleMatterCount = roomView.reduce((sum, r) => sum + r.count, 0);
 
-  // The peek's hearing: whichever board on the selected day holds the case.
-  const selectedHearing = React.useMemo(() => {
-    if (!selectedCaseId) return null;
-    for (const board of boards.values()) {
-      const all = [
-        ...(board.now ? [board.now] : []),
-        ...board.upcoming,
-        ...board.concluded,
-      ];
-      const hit = all.find((h) => h.kase.id === selectedCaseId);
-      if (hit) return hit;
-    }
-    return null;
-  }, [boards, selectedCaseId]);
-
   const jump = React.useMemo(() => {
     const next = nextHearingDayAfter(world, selectedDay);
     if (!next) return null;
@@ -165,15 +178,26 @@ export function AdvocateHome({
 
   function selectDay(key: string) {
     setSelectedDay(key);
-    setSelectedCaseId(null);
+    peek.close();
     // Selecting a day in another week re-anchors the strip to it.
     setWeekAnchor(new Date(`${key}T12:00:00`).getTime());
   }
 
-  function openCase(caseId: string) {
-    setSelectedCaseId(caseId);
-    if (!wide) setRailOpen(false);
-  }
+  /** Open the shared case peek on a board hearing, via the bridged record. */
+  const openHearing = React.useCallback(
+    (caseId: string) => {
+      const hearing = allHearings.find((h) => h.kase.id === caseId);
+      if (!hearing) return;
+      const record = caseRecordFor(hearing.kase, hearing.at);
+      if (record) peek.open(record);
+    },
+    [allHearings, peek]
+  );
+
+  const selectedCaseId = React.useMemo(() => {
+    const id = peek.record?.id;
+    return id?.startsWith("tw-") ? id.slice(3) : null;
+  }, [peek.record]);
 
   if (state !== "ready") {
     return (
@@ -184,10 +208,10 @@ export function AdvocateHome({
   }
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1">
-      {/* A container, not just a column: the peek and the rail narrow the board
-          without narrowing the viewport, so what the board puts on one line has
-          to answer to its own width. */}
+    <CasePeekSurface className="flex min-h-0 min-w-0 flex-1">
+      {/* A container, not just a column: the rail narrows the board without
+          narrowing the viewport, so what the board puts on one line has to
+          answer to its own width. */}
       <main className="@container flex min-w-0 flex-1 flex-col">
         <div className="px-4 pt-8 pb-4 md:px-6">
           <HomeGreeting
@@ -245,10 +269,11 @@ export function AdvocateHome({
                 board={filterBoard(boards.get(room.court)!)}
                 access={access}
                 onAccessChange={setAccess}
+                accessCounts={accessCounts}
                 view={view}
                 onViewChange={setView}
                 selectedCaseId={selectedCaseId}
-                onOpenCase={openCase}
+                onOpenCase={openHearing}
                 onAct={actOn}
                 jump={jump}
                 onJump={selectDay}
@@ -257,18 +282,6 @@ export function AdvocateHome({
           ))}
         </Tabs>
       </main>
-
-      <CasePeek
-        world={world}
-        locale={locale}
-        hearing={selectedHearing}
-        open={Boolean(selectedHearing)}
-        topOffset={TOP_BAR}
-        onOpenChange={(next) => {
-          if (!next) setSelectedCaseId(null);
-        }}
-        onAct={actOn}
-      />
 
       <TasksRail
         world={world}
@@ -282,6 +295,6 @@ export function AdvocateHome({
       />
 
       {actLayer}
-    </div>
+    </CasePeekSurface>
   );
 }

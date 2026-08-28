@@ -208,6 +208,7 @@ export const advHome = {
   /* Access */
   filterAll: t("All matters", "എല്ലാ വിഷയങ്ങളും"),
   filterMine: t("My vakalatnama", "എന്റെ വക്കാലത്ത്"),
+  filterShared: t("View access", "കാണാനുള്ള ആക്‌സസ്"),
   filterLabel: t("Which matters", "ഏതെല്ലാം വിഷയങ്ങൾ"),
   viewOnly: t("View only", "കാണാൻ മാത്രം"),
   emptyMineTitle: t("No matters on your vakalatnama", "നിങ്ങളുടെ വക്കാലത്തിൽ വിഷയങ്ങളില്ല"),
@@ -215,13 +216,17 @@ export const advHome = {
     "Nothing listed this day where you hold the vakalatnama. Switch to all matters to see the full cause list.",
     "ഈ ദിവസം നിങ്ങളുടെ വക്കാലത്തിലുള്ള വിഷയങ്ങളില്ല. മുഴുവൻ പട്ടികയ്ക്ക് എല്ലാ വിഷയങ്ങളിലേക്കും മാറുക.",
   ),
+  emptySharedTitle: t("No shared matters this day", "ഈ ദിവസം പങ്കിട്ട വിഷയങ്ങളില്ല"),
+  emptySharedBody: t(
+    "Nothing listed this day on the cases shared with you for viewing.",
+    "കാണാനായി പങ്കിട്ട കേസുകളിൽ ഈ ദിവസം ഒന്നും പട്ടികയിലില്ല.",
+  ),
 
   /* Pending-tasks rail */
   railTitle: t("Pending tasks", "ബാക്കിയുള്ള ജോലികൾ"),
-  groupOverdue: t("Overdue", "സമയം കഴിഞ്ഞു"),
   groupToday: t("Due today", "ഇന്ന് അവസാനം"),
-  groupTomorrow: t("Due tomorrow", "നാളെ അവസാനം"),
-  groupOn: t("Due {day}", "{day} അവസാനം"),
+  groupSoon: t("Next 3 days", "അടുത്ത 3 ദിവസം"),
+  groupWeek: t("Later this week", "ഈ ആഴ്ച പിന്നീട്"),
   railResize: t("Resize the pending tasks rail", "പാനലിന്റെ വീതി ക്രമീകരിക്കുക"),
   railOpen: t("Open pending tasks, {n} need action", "ബാക്കിയുള്ള ജോലികൾ തുറക്കുക, {n} എണ്ണം"),
   railCollapse: t("Collapse pending tasks", "ജോലികളുടെ പാനൽ ചുരുക്കുക"),

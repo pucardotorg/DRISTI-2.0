@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, CircleCheck } from "lucide-react";
+import { ChevronDown, ChevronRight, CircleCheck, Eye } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -72,7 +72,7 @@ export function NowHearingCard({
       </p>
       <Card
         className={cn(
-          "relative gap-5 overflow-visible rounded-3xl border-transparent bg-brand-muted p-6 shadow-raised",
+          "relative cursor-pointer gap-5 overflow-visible rounded-3xl border-transparent bg-brand-muted p-6 shadow-raised",
           selected && "ring-2 ring-brand-accent"
         )}
       >
@@ -101,9 +101,10 @@ export function NowHearingCard({
           <div className="flex shrink-0 flex-col items-end gap-1.5">
             <MainAvatar world={world} hearing={hearing} onBrand />
             {viewOnly ? (
-              <span className="text-caption text-brand-muted-foreground">
+              <Badge variant="secondary">
+                <Eye aria-hidden="true" />
                 {pick(advHome.viewOnly, locale)}
-              </span>
+              </Badge>
             ) : null}
           </div>
         </div>
@@ -151,7 +152,7 @@ export function HearingCard({
     <li>
       <Card
         className={cn(
-          "relative gap-3 overflow-visible rounded-2xl p-4 transition-shadow hover:shadow-raised",
+          "relative cursor-pointer gap-3 overflow-visible rounded-2xl p-4 transition-shadow hover:shadow-raised",
           selected && "ring-2 ring-brand-accent"
         )}
       >
@@ -173,9 +174,10 @@ export function HearingCard({
             </p>
           </div>
           {viewOnly ? (
-            <span className="text-caption text-muted-foreground">
+            <Badge variant="secondary">
+              <Eye aria-hidden="true" />
               {pick(advHome.viewOnly, locale)}
-            </span>
+            </Badge>
           ) : hearing.ready ? (
             <Badge variant="success">
               <CircleCheck aria-hidden="true" />
@@ -183,6 +185,10 @@ export function HearingCard({
             </Badge>
           ) : null}
           <MainAvatar world={world} hearing={hearing} />
+          <ChevronRight
+            aria-hidden="true"
+            className="size-4 shrink-0 text-muted-foreground"
+          />
         </div>
 
         {blocker ? (

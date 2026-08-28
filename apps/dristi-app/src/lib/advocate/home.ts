@@ -14,6 +14,8 @@
  * outcome rather than inventing one.
  */
 
+import { CASES as CASE_RECORDS } from "@/lib/cases/fixtures";
+import type { CaseRecord } from "@/lib/cases/types";
 import type { Case, Task } from "@/lib/tasks/types";
 import { caseOf, tasksInView, sortTasks, type World } from "@/lib/tasks/selectors";
 import { ACTIONABLE, canView } from "@/lib/tasks/permissions";
@@ -257,50 +259,38 @@ export function railCaseLineOf(world: World, task: Task): string {
  * repeat it. Tasks due beyond the week (or with no date) are left to /tasks;
  * the rail's footer names the full count.
  */
+export type RailGroupKey = "today" | "soon" | "week";
+
 export type RailGroup = {
-  key: "overdue" | "today" | "tomorrow" | string;
-  /** Set for the per-day buckets — noon local, safe to format. */
-  at?: Date;
+  key: RailGroupKey;
   tasks: Task[];
 };
 
+/**
+ * Three buckets, no more: due today (overdue folded in — an overdue task is due
+ * today most of all, and its card keeps the day count), the next three days,
+ * and the rest of the week. The bucket header carries the date words, so the
+ * cards inside do not repeat them; past the week is /tasks' business.
+ */
 export function railGroups(world: World, now: number = Date.now()): RailGroup[] {
+  const buckets: Record<RailGroupKey, Task[]> = { today: [], soon: [], week: [] };
   const todayKey = dayKeyOf(now);
-  const tomorrowKey = dayKeyOf(now + DAY_MS);
+  const soonEnd = dayKeyOf(now + 3 * DAY_MS);
   const weekEnd = dayKeyOf(now + 7 * DAY_MS);
 
-  const buckets = new Map<string, RailGroup>();
   for (const task of railTasks(world)) {
     const at = consequenceAt(task);
     if (!at) continue;
     const key = dayKeyOf(at);
     if (key > weekEnd) continue;
-    const bucketKey =
-      key < todayKey
-        ? "overdue"
-        : key === todayKey
-          ? "today"
-          : key === tomorrowKey
-            ? "tomorrow"
-            : key;
-    let bucket = buckets.get(bucketKey);
-    if (!bucket) {
-      bucket = {
-        key: bucketKey,
-        at:
-          bucketKey === "overdue" || bucketKey === "today" || bucketKey === "tomorrow"
-            ? undefined
-            : new Date(`${key}T12:00:00`),
-        tasks: [],
-      };
-      buckets.set(bucketKey, bucket);
-    }
-    bucket.tasks.push(task);
+    if (key <= todayKey) buckets.today.push(task);
+    else if (key <= soonEnd) buckets.soon.push(task);
+    else buckets.week.push(task);
   }
 
-  const order = (g: RailGroup) =>
-    g.key === "overdue" ? "0" : g.key === "today" ? "1" : g.key === "tomorrow" ? "2" : g.key;
-  return [...buckets.values()].sort((a, b) => order(a).localeCompare(order(b)));
+  return (Object.keys(buckets) as RailGroupKey[])
+    .map((key) => ({ key, tasks: buckets[key] }))
+    .filter((g) => g.tasks.length > 0);
 }
 
 /* ───────────────────────────── access ───────────────────────────── */
@@ -314,3 +304,20 @@ export function holdsVakalatnama(world: World, kase: Case): boolean {
   const id = typeof world.user === "string" ? world.user : world.user.id;
   return kase.signatories.includes(id);
 }
+
+/**
+ * The cases-world record for a sandbox matter — the bridge that lets the home
+ * screen open the same case peek and case file as Your Cases. Records live in
+ * `lib/cases/fixtures` under id `tw-<sandbox id>`; the hearing being looked at
+ * overrides the record's placeholder next-hearing with the real listing.
+ */
+export function caseRecordFor(kase: Case, hearingAt?: string): CaseRecord | null {
+  const record = CASE_RECORDS.find((r) => r.id === `tw-${kase.id}`);
+  if (!record) return null;
+  if (!hearingAt) return record;
+  return {
+    ...record,
+    nextHearing: { on: dayKeyOf(hearingAt), purpose: kase.stage },
+  };
+}
+

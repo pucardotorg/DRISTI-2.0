@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import {
+  ChevronDown,
   ChevronRight,
   FileClock,
   FileUp,
@@ -13,6 +14,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+
 import { Button } from "@/components/ui/button";
 import type { Locale } from "@/lib/onboarding/content";
 import { pick } from "@/lib/onboarding/content";
@@ -20,8 +27,7 @@ import { advHome, fillCopy } from "@/lib/advocate/content";
 import { railCaseLineOf, railGroups, type RailGroup } from "@/lib/advocate/home";
 import { caseOf, summaryOf, type World } from "@/lib/tasks/selectors";
 import { verbFor } from "@/lib/tasks/permissions";
-import { daysUntil } from "@/lib/tasks/urgency";
-import { consequenceAt } from "@/lib/tasks/urgency";
+import { consequenceAt, daysUntil, isOverdue } from "@/lib/tasks/urgency";
 import type { Task, TaskKind } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
 
@@ -37,54 +43,51 @@ const KIND_ICON: Record<TaskKind, LucideIcon> = {
 
 const MIN_WIDTH = 280;
 const MAX_WIDTH = 460;
-export const RAIL_DEFAULT_WIDTH = 320;
+export const RAIL_DEFAULT_WIDTH = 384;
 
 function groupLabel(locale: Locale, group: RailGroup): string {
-  if (group.key === "overdue") return pick(advHome.groupOverdue, locale);
   if (group.key === "today") return pick(advHome.groupToday, locale);
-  if (group.key === "tomorrow") return pick(advHome.groupTomorrow, locale);
-  const day = new Intl.DateTimeFormat(locale === "ml" ? "ml-IN" : "en-IN", {
-    weekday: "long",
-  }).format(group.at!);
-  return fillCopy(advHome.groupOn, locale, { day });
+  if (group.key === "soon") return pick(advHome.groupSoon, locale);
+  return pick(advHome.groupWeek, locale);
 }
 
 /**
- * One task, two calm lines under a dated header. The header carries the date, so
- * the card does not repeat it — only the overdue group keeps a per-card count,
- * because "overdue" alone does not say by how much. The kind icon does the
- * scanning work; the verb appears in place on hover / focus (always on touch).
+ * One task, two calm lines under its bucket's header. The header carries the
+ * date words, so the card does not repeat them — an overdue task keeps its day
+ * count, because "today" alone would understate it. The kind icon does the
+ * scanning; the right slot holds a fixed-height chevron that the verb button
+ * replaces on hover / focus (always the button on touch), so the card never
+ * changes size under the pointer.
  */
 function RailTaskCard({
   world,
   locale,
   task,
-  overdueGroup,
   onAct,
 }: {
   world: World;
   locale: Locale;
   task: Task;
-  overdueGroup: boolean;
   onAct: (task: Task) => void;
 }) {
   const kase = caseOf(world, task);
   const Icon = KIND_ICON[task.kind];
   const at = consequenceAt(task);
-  const days = overdueGroup && at ? -daysUntil(at, world.now) : 0;
+  const overdue = isOverdue(task, world.now);
+  const days = overdue && at ? -daysUntil(at, world.now) : 0;
 
   return (
     <div
       className={cn(
         // Flat tiles: a card on the neutral-2 rail is only ~1.01:1, so a
         // hairline — not a shadow — is what makes each task a unit.
-        "group/task relative flex items-start gap-3 rounded-lg border border-hairline bg-card p-3",
+        "group/task relative flex cursor-pointer items-center gap-3 rounded-lg border border-hairline bg-card p-3",
         "transition-colors hover:bg-accent has-focus-visible:bg-accent"
       )}
     >
       <span
         aria-hidden="true"
-        className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-muted-foreground"
+        className="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-muted-foreground"
       >
         <Icon className="size-4" />
       </span>
@@ -97,28 +100,23 @@ function RailTaskCard({
         >
           {task.title}
         </button>
-        <span className="flex items-center gap-1.5 text-caption text-muted-foreground">
-          <span className="min-w-0 truncate">{railCaseLineOf(world, task)}</span>
-          {task.isBlocking ? (
-            <span className="shrink-0 text-brand-muted-foreground">
-              · {pick(advHome.blocksHearing, locale)}
-            </span>
-          ) : null}
+        <span className="truncate text-caption text-muted-foreground">
+          {railCaseLineOf(world, task)}
         </span>
       </div>
 
-      <div className="relative z-10 flex shrink-0 items-center gap-2 self-center">
-        {overdueGroup ? (
-          <span className="text-caption font-medium tabular-nums text-destructive-ink group-hover/task:hidden group-focus-within/task:hidden">
+      <div className="relative z-10 flex h-8 shrink-0 items-center gap-2">
+        {overdue ? (
+          <span className="text-caption font-medium tabular-nums text-destructive-ink">
             {days}d
           </span>
         ) : null}
+        <ChevronRight
+          aria-hidden="true"
+          className="size-4 text-muted-foreground group-hover/task:hidden group-focus-within/task:hidden pointer-coarse:hidden"
+        />
         <div className="hidden group-hover/task:flex group-focus-within/task:flex pointer-coarse:flex">
-          <Button
-            variant="outline"
-            size="xs"
-            onClick={() => onAct(task)}
-          >
+          <Button variant="outline" size="xs" onClick={() => onAct(task)}>
             {kase ? verbFor(world.user, task, kase) : pick(advHome.open, locale)}
           </Button>
         </div>
@@ -263,38 +261,50 @@ export function TasksRail({
           </div>
 
           {groups.length ? (
-            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-3 pb-3">
+            <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto px-3 pb-3">
               {groups.map((group) => (
-                <section key={group.key} className="flex flex-col gap-2">
-                  <h3
-                    className={cn(
-                      "px-1 text-caption font-semibold",
-                      group.key === "overdue"
-                        ? "text-destructive-ink"
-                        : group.key === "today"
+                <Collapsible
+                  key={group.key}
+                  defaultOpen={group.key === "today"}
+                  className="flex flex-col gap-2"
+                >
+                  {/* The Slack move: the timeline collapses. Each bucket is an
+                      accordion — today stands open, the rest wait as a header
+                      and a count until asked. */}
+                  <CollapsibleTrigger className="group/bucket flex h-9 w-full items-center gap-1.5 rounded-lg px-1.5 transition-colors hover:bg-accent">
+                    <span
+                      className={cn(
+                        "text-caption font-semibold",
+                        group.key === "today"
                           ? "text-warning-ink"
                           : "text-muted-foreground"
-                    )}
-                  >
-                    {groupLabel(locale, group)}
-                    <span className="ml-1.5 font-medium tabular-nums text-muted-foreground">
+                      )}
+                    >
+                      {groupLabel(locale, group)}
+                    </span>
+                    <span className="text-caption font-medium tabular-nums text-muted-foreground">
                       {group.tasks.length}
                     </span>
-                  </h3>
-                  <ul className="flex flex-col gap-2">
-                    {group.tasks.map((task) => (
-                      <li key={task.id}>
-                        <RailTaskCard
-                          world={world}
-                          locale={locale}
-                          task={task}
-                          overdueGroup={group.key === "overdue"}
-                          onAct={onAct}
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                </section>
+                    <ChevronDown
+                      aria-hidden="true"
+                      className="ml-auto size-4 text-muted-foreground transition-transform group-data-open/bucket:rotate-180"
+                    />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <ul className="flex flex-col gap-2 pb-2">
+                      {group.tasks.map((task) => (
+                        <li key={task.id}>
+                          <RailTaskCard
+                            world={world}
+                            locale={locale}
+                            task={task}
+                            onAct={onAct}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </CollapsibleContent>
+                </Collapsible>
               ))}
             </div>
           ) : (

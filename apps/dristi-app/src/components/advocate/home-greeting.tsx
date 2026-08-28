@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import type { Locale } from "@/lib/onboarding/content";
 import { advHome, fillCopy } from "@/lib/advocate/content";
 import { pick } from "@/lib/onboarding/content";
-import type { WeekCell } from "@/lib/advocate/home";
+import { dayKeyOf, type WeekCell } from "@/lib/advocate/home";
 import { cn } from "@/lib/utils";
 
 /**
@@ -66,6 +66,11 @@ export function HomeGreeting({
   const intl = locale === "ml" ? "ml-IN" : "en-IN";
   const selected = week.find((c) => c.key === selectedDay);
   const [pickerOpen, setPickerOpen] = React.useState(false);
+  // "Today" earns its place only when the view has left today — either another
+  // day is selected, or the strip is paged to a week that does not hold today.
+  const todayKey = dayKeyOf(now);
+  const awayFromToday =
+    selectedDay !== todayKey || !week.some((cell) => cell.today);
   const dateLine = new Intl.DateTimeFormat(intl, {
     weekday: "long",
     day: "numeric",
@@ -81,20 +86,47 @@ export function HomeGreeting({
         <h1 className="text-title font-semibold tracking-tight text-balance @3xl:text-title-l">
           {fillCopy(greetingCopy(nowDate.getHours()), locale, { name: firstName })}
         </h1>
-        <p className="text-body-compact text-muted-foreground @3xl:text-body">
-          {dateLine} · {mattersLine(locale, matterCount)}
-        </p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-body-compact text-muted-foreground @3xl:text-body">
+            {dateLine} · {mattersLine(locale, matterCount)}
+          </p>
+          <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={pick(advHome.pickDate, locale)}
+                className="text-muted-foreground"
+              >
+                <CalendarDays aria-hidden="true" className="size-4.5" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-auto p-0">
+              <Calendar
+                mode="single"
+                selected={selected?.at ?? new Date(`${selectedDay}T12:00:00`)}
+                onSelect={(date) => {
+                  if (!date) return;
+                  setPickerOpen(false);
+                  onPickDate(date);
+                }}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
 
       <div className="flex max-w-full items-center gap-1.5 overflow-x-auto">
-        <Button
-          variant="outline"
-          size="xs"
-          onClick={() => onPickDate(nowDate)}
-          className="mr-0.5"
-        >
-          {pick(advHome.today, locale)}
-        </Button>
+        {awayFromToday ? (
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => onPickDate(nowDate)}
+            className="mr-0.5"
+          >
+            {pick(advHome.today, locale)}
+          </Button>
+        ) : null}
 
         <Button
           variant="ghost"
@@ -163,28 +195,6 @@ export function HomeGreeting({
           <ChevronRight aria-hidden="true" />
         </Button>
 
-        <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label={pick(advHome.pickDate, locale)}
-            >
-              <CalendarDays aria-hidden="true" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-auto p-0">
-            <Calendar
-              mode="single"
-              selected={selected?.at ?? new Date(`${selectedDay}T12:00:00`)}
-              onSelect={(date) => {
-                if (!date) return;
-                setPickerOpen(false);
-                onPickDate(date);
-              }}
-            />
-          </PopoverContent>
-        </Popover>
       </div>
     </div>
   );

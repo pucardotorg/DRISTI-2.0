@@ -6,6 +6,7 @@ import type { Case } from "@/lib/tasks/types";
 import type { World } from "@/lib/tasks/selectors";
 import {
   boardOf,
+  caseRecordFor,
   courtRooms,
   dayKeyOf,
   hearingsOn,
@@ -176,7 +177,7 @@ describe("weekOf anchor", () => {
 });
 
 describe("railGroups", () => {
-  it("buckets the coming week by day and leaves the rest to /tasks", () => {
+  it("buckets into exactly today (overdue folded in), next 3 days, and the week", () => {
     const w = world(
       [kase],
       [
@@ -184,20 +185,32 @@ describe("railGroups", () => {
         makeTask({ id: "t-today", dueAt: at(0, 17), status: "open" }),
         makeTask({ id: "t-tomorrow", dueAt: at(1, 17), status: "open" }),
         makeTask({ id: "t-day3", dueAt: at(3, 17), status: "open" }),
+        makeTask({ id: "t-day5", dueAt: at(5, 17), status: "open" }),
         makeTask({ id: "t-beyond", dueAt: at(12, 17), status: "open" }),
         makeTask({ id: "t-undated", dueKind: "none", dueAt: undefined, status: "open" }),
       ]
     );
     const groups = railGroups(w, NOW_MS);
     assert.deepEqual(
-      groups.map((g) => [g.key === "overdue" || g.key === "today" || g.key === "tomorrow" ? g.key : "day", g.tasks.map((t) => t.id)]),
+      groups.map((g) => [g.key, g.tasks.map((t) => t.id)]),
       [
-        ["overdue", ["t-over"]],
-        ["today", ["t-today"]],
-        ["tomorrow", ["t-tomorrow"]],
-        ["day", ["t-day3"]],
+        ["today", ["t-over", "t-today"]],
+        ["soon", ["t-tomorrow", "t-day3"]],
+        ["week", ["t-day5"]],
       ]
     );
+  });
+});
+
+describe("caseRecordFor", () => {
+  it("bridges a sandbox case to its cases-world record, hearing overriding", () => {
+    const sandboxCase = { ...kase, id: "c-412", stage: "Evidence of the complainant" };
+    const record = caseRecordFor(sandboxCase, at(0, 10));
+    assert.ok(record);
+    assert.equal(record.id, "tw-c-412");
+    assert.equal(record.nextHearing?.on, dayKeyOf(at(0, 10)));
+    assert.equal(record.nextHearing?.purpose, "Evidence of the complainant");
+    assert.equal(caseRecordFor({ ...kase, id: "c-nope" }), null);
   });
 });
 
