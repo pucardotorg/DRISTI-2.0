@@ -2,7 +2,12 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { LayoutGrid, List } from "lucide-react";
 
+import {
+  SegmentedControl,
+  SegmentedControlItem,
+} from "@/components/ui/segmented-control";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Locale } from "@/lib/onboarding/content";
@@ -50,6 +55,85 @@ function useNow(): number {
     return () => window.clearInterval(t);
   }, []);
   return now;
+}
+
+/**
+ * The two controls on the tab band's trailing edge.
+ *
+ * Both are page state, not a court's: the access cut and the cause-list layout
+ * hold across every tab, and this is where placement says so. They are the same
+ * kind of choice — one value from a fixed set — so they are the same control at
+ * the same size, and each keeps the DS's 40px target under a 32px well.
+ */
+function BoardControls({
+  locale,
+  access,
+  onAccessChange,
+  accessCounts,
+  view,
+  onViewChange,
+}: {
+  locale: Locale;
+  access: AccessFilter;
+  onAccessChange: (access: AccessFilter) => void;
+  /** Selected-day totals per access mode — the control names its counts. */
+  accessCounts: Record<AccessFilter, number>;
+  view: BoardView;
+  onViewChange: (view: BoardView) => void;
+}) {
+  return (
+    <div className="ml-auto flex shrink-0 items-center gap-2">
+      {/* Not a people filter: access. A matter is either one you act in — you
+          hold the vakalatnama — or one you watch; the split decides the verbs
+          everywhere else on this screen, so it is the one cut worth a control. */}
+      <SegmentedControl
+        type="single"
+        size="compact"
+        value={access}
+        onValueChange={(next) => next && onAccessChange(next as AccessFilter)}
+        aria-label={pick(advHome.filterLabel, locale)}
+      >
+        {(
+          [
+            ["all", advHome.filterAll],
+            ["mine", advHome.filterMine],
+            ["shared", advHome.filterShared],
+          ] as const
+        ).map(([value, label]) => (
+          <SegmentedControlItem key={value} value={value}>
+            {pick(label, locale)}
+            {/* Counts presented the same way as the court tabs' — one
+                presentation per data type across siblings. */}
+            <span className="ml-1 text-caption tabular-nums text-muted-foreground">
+              {accessCounts[value]}
+            </span>
+          </SegmentedControlItem>
+        ))}
+      </SegmentedControl>
+
+      <SegmentedControl
+        type="single"
+        size="compact"
+        value={view}
+        onValueChange={(next) => next && onViewChange(next as BoardView)}
+        aria-label={pick(advHome.layoutLabel, locale)}
+      >
+        {(
+          [
+            ["cards", advHome.layoutCards, LayoutGrid],
+            ["list", advHome.layoutList, List],
+          ] as const
+        ).map(([value, label, Icon]) => (
+          <SegmentedControlItem key={value} value={value}>
+            <span className="flex items-center gap-1.5">
+              <Icon aria-hidden="true" className="size-4" />
+              {pick(label, locale)}
+            </span>
+          </SegmentedControlItem>
+        ))}
+      </SegmentedControl>
+    </div>
+  );
 }
 
 /**
@@ -226,7 +310,7 @@ function HomeBody({
           narrowing the viewport, so what the board puts on one line has to
           answer to its own width. */}
       <main className="@container flex min-w-0 flex-1 flex-col">
-        <div className="px-4 pt-8 pb-4 md:px-8">
+        <div className="px-4 pt-6 pb-4 md:px-8">
           <HomeGreeting
             locale={locale}
             firstName={profileFirstName}
@@ -241,42 +325,59 @@ function HomeBody({
         </div>
 
         <Tabs value={court ?? ""} onValueChange={setCourtId}>
-          {/* The active underline sits ON the band's rule rather than floating
-              above it — one horizontal line, not two. */}
-          <TabsList
-            variant="line"
-            className="w-full justify-start gap-1 overflow-x-auto border-b border-hairline px-4 pb-0 group-data-horizontal/tabs:h-auto md:px-8"
-          >
-            {roomView.map((room) => (
-              <TabsTrigger
-                key={room.court}
-                value={room.court}
-                className="-mb-px flex-none gap-2 px-3 pt-2 pb-3 group-data-horizontal/tabs:h-auto group-data-horizontal/tabs:after:bottom-0 group-data-[variant=line]/tabs-list:data-active:after:bg-brand-accent"
-              >
-                {room.live ? (
-                  <span
-                    aria-hidden="true"
-                    className="size-2 rounded-full bg-success"
-                  />
-                ) : null}
-                {/* The court's name as the world states it. Shortening it here
-                    matched an English literal, so a Malayalam or Gujarati
-                    deployment would silently keep the long form — how a court is
-                    named is a state-layer fact, not a view's edit. */}
-                <span className="text-body-compact font-semibold">
-                  {room.court}
-                </span>
-                {/* Every tab states its count the same way — the number is the
-                    same kind of fact on all four. */}
-                <span className="text-caption tabular-nums text-muted-foreground">
-                  {room.count}
-                </span>
-                {room.live ? (
-                  <span className="sr-only">{pick(advHome.inSession, locale)}</span>
-                ) : null}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          {/* One band, two jobs. The court tabs choose *which* board; the two
+              controls on the trailing edge are page state — they apply to every
+              court, and rendering them once here says so, where a copy inside
+              each court's panel implied a per-court scope they never had.
+              Wrapping is `wrap-reverse` on purpose: when the board is too narrow
+              to hold both, the controls take the upper line and the tabs stay
+              flush with the band's rule, so the active underline lands on that
+              rule at every width instead of floating above a second line. */}
+          <div className="flex flex-wrap-reverse gap-x-4 gap-y-2 border-b border-hairline px-4 md:px-8">
+            <TabsList
+              variant="line"
+              className="min-w-0 grow basis-full justify-start gap-1 overflow-x-auto px-0 pb-0 group-data-horizontal/tabs:h-auto @3xl:basis-0"
+            >
+              {roomView.map((room) => (
+                <TabsTrigger
+                  key={room.court}
+                  value={room.court}
+                  className="-mb-px flex-none gap-2 px-3 pt-2 pb-3 group-data-horizontal/tabs:h-auto group-data-horizontal/tabs:after:bottom-0 group-data-[variant=line]/tabs-list:data-active:after:bg-brand-accent"
+                >
+                  {room.live ? (
+                    <span
+                      aria-hidden="true"
+                      className="size-2 rounded-full bg-success"
+                    />
+                  ) : null}
+                  {/* The court's name as the world states it. Shortening it here
+                      matched an English literal, so a Malayalam or Gujarati
+                      deployment would silently keep the long form — how a court
+                      is named is a state-layer fact, not a view's edit. */}
+                  <span className="text-body-compact font-semibold">
+                    {room.court}
+                  </span>
+                  {/* Every tab states its count the same way — the number is the
+                      same kind of fact on all four. */}
+                  <span className="text-caption tabular-nums text-muted-foreground">
+                    {room.count}
+                  </span>
+                  {room.live ? (
+                    <span className="sr-only">{pick(advHome.inSession, locale)}</span>
+                  ) : null}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            <BoardControls
+              locale={locale}
+              access={access}
+              onAccessChange={setAccess}
+              accessCounts={accessCounts}
+              view={view}
+              onViewChange={setView}
+            />
+          </div>
 
           {rooms.map((room) => (
             <TabsContent key={room.court} value={room.court} className="px-4 md:px-8">
@@ -285,10 +386,7 @@ function HomeBody({
                 locale={locale}
                 board={filterBoard(boards.get(room.court)!)}
                 access={access}
-                onAccessChange={setAccess}
-                accessCounts={accessCounts}
                 view={view}
-                onViewChange={setView}
                 selectedCaseId={selectedCaseId}
                 onOpenCase={openCase}
                 onAct={actOn}

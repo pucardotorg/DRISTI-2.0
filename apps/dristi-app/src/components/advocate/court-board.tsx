@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, LayoutGrid, List, SlidersHorizontal } from "lucide-react";
+import { ArrowRight, SlidersHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -10,7 +10,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
 import type { Locale } from "@/lib/onboarding/content";
 import { pick } from "@/lib/onboarding/content";
 import { advHome, fillCopy } from "@/lib/advocate/content";
@@ -36,21 +35,19 @@ export type AccessFilter = "all" | "mine" | "shared";
 /**
  * Everything below the court tabs for one court on one day.
  *
- * The board's board-level chrome is deliberately spare: the cards/list toggle is
- * the cause-list layout, and filtering is by advocate chips. The v3 mock's "Join
- * this courtroom" and "View cause list" buttons are not here — there is no
- * courtroom link to join yet, and the list view *is* the cause list; a dead
- * primary action would outrank every real one.
+ * The board is deliberately spare chrome: it reads the access cut and the layout
+ * choice but owns neither — both are page state and live on the tab band, which
+ * is where their scope is legible. The v3 mock's "Join this courtroom" and "View
+ * cause list" buttons are not here either — there is no courtroom link to join
+ * yet, and the list view *is* the cause list; a dead primary action would
+ * outrank every real one.
  */
 export function CourtBoard({
   world,
   locale,
   board,
   access,
-  onAccessChange,
-  accessCounts,
   view,
-  onViewChange,
   selectedCaseId,
   onOpenCase,
   onAct,
@@ -62,11 +59,7 @@ export function CourtBoard({
   board: Board;
   /** All matters, only vakalatnama matters, or only view-access matters. */
   access: AccessFilter;
-  onAccessChange: (access: AccessFilter) => void;
-  /** Selected-day totals per access mode — the control names its counts. */
-  accessCounts: Record<AccessFilter, number>;
   view: BoardView;
-  onViewChange: (view: BoardView) => void;
   selectedCaseId: string | null;
   onOpenCase: (caseId: string) => void;
   onAct: (task: Task) => void;
@@ -79,63 +72,7 @@ export function CourtBoard({
   const filtered = access === "mine";
 
   return (
-    <div className="flex flex-col gap-6 pt-4 pb-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        {/* Not a people filter: access. A matter is either one you act in — you
-            hold the vakalatnama — or one you watch; the split decides the verbs
-            everywhere else on this screen, so it is the one cut worth a control. */}
-        <SegmentedControl
-          type="single"
-          size="compact"
-          value={access}
-          onValueChange={(next) => next && onAccessChange(next as AccessFilter)}
-          aria-label={pick(advHome.filterLabel, locale)}
-        >
-          {(
-            [
-              ["all", advHome.filterAll],
-              ["mine", advHome.filterMine],
-              ["shared", advHome.filterShared],
-            ] as const
-          ).map(([value, label]) => (
-            <SegmentedControlItem key={value} value={value}>
-              {pick(label, locale)}
-              {/* Counts presented the same way as the court tabs' — one
-                  presentation per data type across siblings. */}
-              <span className="ml-1 text-caption tabular-nums text-muted-foreground">
-                {accessCounts[value]}
-              </span>
-            </SegmentedControlItem>
-          ))}
-        </SegmentedControl>
-
-        {/* The same kind of choice as the access filter beside it — one value
-            from a fixed set — so it is the same control. `ToggleGroup size="sm"`
-            was a 28px target, under the 40×40 floor; `compact` shrinks the well
-            and keeps the target. */}
-        <SegmentedControl
-          type="single"
-          size="compact"
-          value={view}
-          onValueChange={(next) => next && onViewChange(next as BoardView)}
-          aria-label={pick(advHome.layoutLabel, locale)}
-        >
-          {(
-            [
-              ["cards", advHome.layoutCards, LayoutGrid],
-              ["list", advHome.layoutList, List],
-            ] as const
-          ).map(([value, label, Icon]) => (
-            <SegmentedControlItem key={value} value={value}>
-              <span className="flex items-center gap-1.5">
-                <Icon aria-hidden="true" className="size-4" />
-                {pick(label, locale)}
-              </span>
-            </SegmentedControlItem>
-          ))}
-        </SegmentedControl>
-      </div>
-
+    <div className="flex flex-col gap-4 pt-4 pb-8">
       {concluded.length ? (
         <ConcludedStrip locale={locale} concluded={concluded} onOpenCase={onOpenCase} />
       ) : null}

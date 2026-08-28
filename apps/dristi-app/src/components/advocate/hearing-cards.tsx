@@ -61,7 +61,7 @@ export function NowHearingCard({
       </p>
       <Card
         className={cn(
-          "relative cursor-pointer gap-4 overflow-visible rounded-3xl border-transparent bg-brand-muted px-8 py-6 shadow-raised",
+          "relative cursor-pointer gap-4 overflow-visible rounded-2xl border-transparent bg-brand-muted p-6 shadow-raised",
           selected && "ring-2 ring-brand-accent"
         )}
       >
@@ -72,7 +72,7 @@ export function NowHearingCard({
               <button
                 type="button"
                 onClick={onOpenCase}
-                className="text-left after:absolute after:inset-0 after:rounded-3xl focus-visible:outline-none focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
+                className="text-left after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
               >
                 {hearing.kase.parties}
               </button>
@@ -249,7 +249,7 @@ export function ConcludedStrip({
         )}
         <CollapsibleTrigger
           className={cn(
-            "group/concluded relative flex w-full items-center gap-2.5 bg-surface-sunken px-4 py-3 text-muted-foreground transition-colors hover:bg-accent",
+            "group/concluded relative flex w-full items-center gap-2.5 bg-surface-sunken px-4 py-2 text-muted-foreground transition-colors hover:bg-accent",
             open ? "rounded-t-xl" : "rounded-xl"
           )}
         >
