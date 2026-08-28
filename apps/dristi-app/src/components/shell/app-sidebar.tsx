@@ -13,6 +13,7 @@ import {
   HouseIcon,
   ListChecksIcon,
   RotateCcwIcon,
+  ScrollTextIcon,
   SearchIcon,
   SettingsIcon,
   UserPlusIcon,
@@ -137,6 +138,12 @@ const START: NavItem[] = [
     href: "/filings",
   },
   { id: "file-application", label: "File Application", icon: FileTextIcon },
+  {
+    id: "vakalatnama",
+    label: "Vakalatnama",
+    icon: ScrollTextIcon,
+    href: "/vakalatnama",
+  },
   {
     id: "join-case",
     label: "Join a Case",
