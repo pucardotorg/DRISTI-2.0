@@ -118,6 +118,7 @@ export function CourtBoard({
               locale={locale}
               hearing={now}
               selected={now.kase.id === selectedCaseId}
+              viewOnly={!holdsVakalatnama(world, now.kase)}
               onOpenCase={() => onOpenCase(now.kase.id)}
               onAct={onAct}
             />

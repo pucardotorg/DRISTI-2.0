@@ -1,34 +1,32 @@
 "use client";
 
-import { CircleCheck } from "lucide-react";
+import { Eye } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import type { Locale } from "@/lib/onboarding/content";
 import { pick } from "@/lib/onboarding/content";
 import { advHome } from "@/lib/advocate/content";
-import { teamOf, type HomeHearing } from "@/lib/advocate/home";
+import { holdsVakalatnama, teamOf, type HomeHearing } from "@/lib/advocate/home";
 import type { World } from "@/lib/tasks/selectors";
 import { cn } from "@/lib/utils";
-import { AdvocateStack, RowAction } from "@/components/advocate/home-bits";
+import {
+  AdvocateStack,
+  RowAction,
+  SELECTED_BAR,
+} from "@/components/advocate/home-bits";
 
-function statusCell(locale: Locale, hearing: HomeHearing) {
-  if (hearing.blockers.length) {
-    return (
-      <Badge variant="warning">
-        {hearing.blockers.length} blocking{" "}
-        {hearing.blockers.length === 1 ? "task" : "tasks"}
-      </Badge>
-    );
-  }
-  if (hearing.ready) {
-    return (
-      <Badge variant="success">
-        <CircleCheck aria-hidden="true" />
-        {pick(advHome.ready, locale)}
-      </Badge>
-    );
-  }
-  return null;
+/**
+ * Only the exception. A row with work owed says so; a row with nothing owed says
+ * nothing, because a green "Ready" on almost every row is a mark of the norm.
+ */
+function statusCell(hearing: HomeHearing) {
+  if (!hearing.blockers.length) return null;
+  return (
+    <Badge variant="warning">
+      {hearing.blockers.length} blocking{" "}
+      {hearing.blockers.length === 1 ? "task" : "tasks"}
+    </Badge>
+  );
 }
 
 /** Dense list view of the same items — the day's cause list, one row per matter. */
@@ -74,20 +72,27 @@ export function HearingList({
         <tbody>
           {hearings.map((hearing) => {
             const selected = hearing.kase.id === selectedId;
+            const viewOnly = !holdsVakalatnama(world, hearing.kase);
             return (
               <tr
                 key={hearing.kase.id}
                 className={cn(
                   "group/row",
                   "border-b border-hairline transition-colors last:border-b-0 hover:bg-accent has-focus-visible:bg-accent",
-                  // Brand fill is reserved for the live "now" row; a selected row
-                  // gets a quiet neutral well so the two never read alike.
-                  hearing.status === "now"
-                    ? "bg-brand-muted"
-                    : selected && "bg-surface-sunken"
+                  // Brand fill is the live "now" row and nothing else. Selection
+                  // is the same quiet bar the cards carry — one treatment for
+                  // one fact, whichever layout is on.
+                  hearing.status === "now" && "bg-brand-muted"
                 )}
               >
-                <td className="px-4 py-3 text-body-compact font-medium tabular-nums text-muted-foreground">
+                <td
+                  className={cn(
+                    "relative px-4 py-3 text-body-compact font-medium tabular-nums text-muted-foreground",
+                    // `left-0`, not the cards' `-left-2`: the table scrolls
+                    // horizontally, and anything outside its box is clipped.
+                    selected && cn(SELECTED_BAR, "before:inset-y-2 before:left-0")
+                  )}
+                >
                   {hearing.item}
                 </td>
                 <td className="px-4 py-3">
@@ -99,8 +104,17 @@ export function HearingList({
                     <span className="text-body-compact font-semibold">
                       {hearing.kase.parties}
                     </span>
-                    <span className="text-caption text-muted-foreground">
-                      {hearing.kase.stage}
+                    {/* Whether you may act leads the line here too — one
+                        treatment for the fact across card, row and hero. */}
+                    <span className="flex items-center gap-1.5 text-caption text-muted-foreground">
+                      {viewOnly ? (
+                        <span className="flex shrink-0 items-center gap-1.5">
+                          <Eye aria-hidden="true" className="size-3.5" />
+                          {pick(advHome.notOnVakalatnama, locale)}
+                          <span aria-hidden="true">·</span>
+                        </span>
+                      ) : null}
+                      <span className="truncate">{hearing.kase.stage}</span>
                     </span>
                   </button>
                 </td>
@@ -114,10 +128,10 @@ export function HearingList({
                     locale={locale}
                     team={teamOf(world, hearing.kase)}
                     max={2}
-                    ring={hearing.status === "now" ? "ring-brand-muted" : "ring-card"}
+                    surface={hearing.status === "now" ? "brand" : "card"}
                   />
                 </td>
-                <td className="px-4 py-3">{statusCell(locale, hearing)}</td>
+                <td className="px-4 py-3">{statusCell(hearing)}</td>
                 <td className="w-32 px-4 py-3">
                   <RowAction
                     label={pick(advHome.viewCase, locale)}

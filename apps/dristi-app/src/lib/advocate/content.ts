@@ -179,7 +179,9 @@ export const advHome = {
 
   /* Board */
   inSession: t("in session", "സെഷനിൽ"),
-  nowLabel: t("Now — item {n} · {at}", "ഇപ്പോൾ — ഇനം {n} · {at}"),
+  /** The state, and only the state: the item number is on the chip and the
+      listed time is in the row's rest cell, so nothing is said twice. */
+  nowLabel: t("Now", "ഇപ്പോൾ"),
   /** The establishment every court name shares, said once above the stack. */
   courtsAt: t("Courts at {place}", "{place}-ലെ കോടതികൾ"),
   jumpToCourt: t("Jump to court", "കോടതിയിലേക്ക് പോകുക"),
@@ -203,7 +205,6 @@ export const advHome = {
     "{n} concluded earlier — items {items}",
     "നേരത്തെ തീർന്നത് {n} — ഇനം {items}",
   ),
-  ready: t("Ready", "തയ്യാർ"),
   viewCases: t("View cases", "കേസുകൾ കാണുക"),
   layoutCards: t("Cards", "കാർഡുകൾ"),
   layoutList: t("List", "പട്ടിക"),
@@ -254,7 +255,6 @@ export const advHome = {
   filterMine: t("My vakalatnama", "എന്റെ വക്കാലത്ത്"),
   filterShared: t("View access", "കാണാനുള്ള ആക്‌സസ്"),
   filterLabel: t("Which matters", "ഏതെല്ലാം വിഷയങ്ങൾ"),
-  viewOnly: t("View only", "കാണാൻ മാത്രം"),
   emptyMineTitle: t("No matters on your vakalatnama", "നിങ്ങളുടെ വക്കാലത്തിൽ വിഷയങ്ങളില്ല"),
   emptyMineBody: t(
     "Nothing listed this day where you hold the vakalatnama. Switch to all matters to see the full cause list.",

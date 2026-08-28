@@ -8,65 +8,60 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import type { Locale } from "@/lib/onboarding/content";
 import { advHome, fillCopy } from "@/lib/advocate/content";
 import type { TeamMember } from "@/lib/advocate/home";
-import type { Person, Task } from "@/lib/tasks/types";
+import type { Task } from "@/lib/tasks/types";
 import { dueCueOf } from "@/lib/tasks/format";
 import { cn } from "@/lib/utils";
+import { PersonAvatar, type AvatarSurface } from "@/components/tasks/person-avatar";
 
 /**
  * Shared atoms of the advocate home: the team avatars, the cause-list item chip,
  * the row's hover action, and the task row that repeats inside hearing cards, the
  * case peek and the rail.
+ *
+ * `surface` is the one vocabulary the insets share. An avatar disc and an item
+ * chip sitting in the same card used to answer "how does an inset read on this
+ * fill?" two different ways — the chip stepped to white on a tint, the disc did
+ * not — so the disc vanished into the beige card it sat on. One prop on both
+ * makes that mismatch unrepresentable.
  */
 
-/** Initials chip for someone on a case. Brand tint marks the signed-in user. */
-export function TeamAvatar({
-  person,
-  you,
-  onBrand,
-  label,
-  ring,
-  className,
-}: {
-  person: Person;
-  /** This is the signed-in account — the one brand-tinted avatar per row. */
-  you?: boolean;
-  /** Sitting on the brand-tinted now card, where the sunken fill has no depth. */
-  onBrand?: boolean;
-  /** What the tooltip says; defaults to the person's name. */
-  label?: string;
-  /** Ring in the surface behind, so overlapping discs stay separate. */
-  ring?: string;
-  className?: string;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span
-          className={cn(
-            "flex size-8 shrink-0 items-center justify-center rounded-full text-caption font-semibold",
-            you
-              ? "bg-brand-muted text-brand-muted-foreground"
-              : onBrand
-                ? "bg-card text-foreground"
-                : "bg-surface-sunken text-foreground",
-            ring && `ring-2 ${ring}`,
-            className
-          )}
-        >
-          {person.initials}
-          <span className="sr-only">{person.name}</span>
-        </span>
-      </TooltipTrigger>
-      <TooltipContent>
-        {label ?? (you ? `${person.name} (you)` : person.name)}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
+/**
+ * `AvatarGroup` rings in `background`, which is only right on the bare page; a
+ * ring's job is to punch a hole in the overlap, so it has to equal the surface
+ * the stack is standing on. Tailwind cannot take a token through an arbitrary
+ * variant, so the three surfaces are a static map. (Raised with the DS as
+ * request 16 — the fix belongs on the primitive.)
+ */
+const GROUP_RING: Record<AvatarSurface, string> = {
+  card: "*:data-[slot=avatar]:ring-card",
+  sunken: "*:data-[slot=avatar]:ring-surface-sunken",
+  brand: "*:data-[slot=avatar]:ring-brand-muted",
+};
+
+/** The `+n` follows the discs' own rule: one step off the surface it sits on. */
+const COUNT_FILL: Record<AvatarSurface, string> = {
+  card: "bg-surface-sunken ring-card",
+  sunken: "bg-card ring-surface-sunken",
+  brand: "bg-card ring-brand-muted",
+};
+
+/**
+ * What "this is the matter the peek is showing" looks like, on a card and on a
+ * table row alike — one quiet neutral bar at the leading edge.
+ *
+ * Selection is the quietest rung of the loudness ladder: a ring, a border and a
+ * fill at once is a costume. Brand is not available for it either — on this
+ * screen brand fill means *now / live*, and a selected card wearing it would
+ * claim to be in session. The rail strip already marks its active section this
+ * way, so the screen gains a pattern rather than inventing one.
+ */
+export const SELECTED_BAR =
+  "before:absolute before:inset-y-4 before:-left-2 before:w-0.5 before:rounded-full before:bg-border";
 
 /**
  * Everyone on the matter, as overlapping discs — a case is rarely one advocate's,
@@ -74,6 +69,12 @@ export function TeamAvatar({
  * first (the signed-in account first among them), then the advocates with case
  * access; the tooltip on each says which of the two they are. Past `max` the
  * remainder collapses into a count that names them.
+ *
+ * The discs are the DS `Avatar`, not hand-rolled spans. That matters for one
+ * reason the hand-rolled version could not solve: the primitive carries an
+ * `after:border-border mix-blend-darken` edge which darkens whatever fill it
+ * lands on, so a disc reads on beige, on the brand tint and on white alike. A
+ * white ring on a beige card was the wrong colour, not the wrong weight.
  *
  * The viewer's own disc is off by default. On a board it appeared on every row —
  * the viewer can see all of them — so it said nothing, while spending the brand
@@ -84,18 +85,16 @@ export function AdvocateStack({
   locale,
   team,
   max = 3,
-  onBrand,
   includeSelf = false,
-  ring = "ring-card",
+  surface = "card",
 }: {
   locale: Locale;
   team: TeamMember[];
   max?: number;
-  onBrand?: boolean;
   /** Keep the signed-in account's disc — for "who is on this case", not for lists. */
   includeSelf?: boolean;
-  /** The surface behind the stack — the discs ring in it to stay separate. */
-  ring?: string;
+  /** The fill this stack is standing on — it sets both the disc and the ring. */
+  surface?: AvatarSurface;
 }) {
   const others = includeSelf ? team : team.filter((member) => !member.you);
   if (others.length === 0) return null;
@@ -103,45 +102,53 @@ export function AdvocateStack({
   const rest = others.slice(max);
 
   return (
-    // Overlapped by 4px, not 8: two-letter initials sit dead centre, so any
-    // deeper overlap covers the very thing the disc exists to say.
-    <span className="flex shrink-0 items-center pl-1">
+    // Overlapped by 4px, not the DS default 8: two-letter initials sit dead
+    // centre, so any deeper overlap covers the very thing the disc exists to say.
+    <AvatarGroup className={cn("w-fit shrink-0 -space-x-1", GROUP_RING[surface])}>
       {shown.map((member) => (
-        <TeamAvatar
-          key={member.person.id}
-          person={member.person}
-          you={member.you}
-          onBrand={onBrand}
-          ring={ring}
-          className="-ml-1"
-          label={fillCopy(
-            member.acts ? advHome.teamHoldsVakalatnama : advHome.teamCaseAccess,
-            locale,
-            { name: member.you ? `${member.person.name} (you)` : member.person.name }
-          )}
-        />
+        <Tooltip key={member.person.id}>
+          <TooltipTrigger asChild>
+            <PersonAvatar
+              person={member.person}
+              you={member.you}
+              size="default"
+              surface={surface}
+              label={labelOf(locale, member)}
+            />
+          </TooltipTrigger>
+          <TooltipContent>{labelOf(locale, member)}</TooltipContent>
+        </Tooltip>
       ))}
       {rest.length ? (
         <Tooltip>
           <TooltipTrigger asChild>
-            <span
+            <AvatarGroupCount
               className={cn(
-                "-ml-1 flex size-8 shrink-0 items-center justify-center rounded-full text-caption font-medium tabular-nums ring-2",
-                onBrand
-                  ? "bg-card text-muted-foreground"
-                  : "bg-surface-sunken text-muted-foreground",
-                ring
+                "text-caption font-medium tabular-nums text-muted-foreground",
+                COUNT_FILL[surface]
               )}
             >
               +{rest.length}
-            </span>
+            </AvatarGroupCount>
           </TooltipTrigger>
           <TooltipContent>
             {rest.map((m) => m.person.name).join(", ")}
           </TooltipContent>
         </Tooltip>
       ) : null}
-    </span>
+    </AvatarGroup>
+  );
+}
+
+/** Who this is, and which side of the vakalatnama line they stand on. */
+function labelOf(locale: Locale, member: TeamMember): string {
+  const name = member.you
+    ? fillCopy(advHome.switcherYou, locale, { name: member.person.name })
+    : member.person.name;
+  return fillCopy(
+    member.acts ? advHome.teamHoldsVakalatnama : advHome.teamCaseAccess,
+    locale,
+    { name }
   );
 }
 
@@ -154,6 +161,14 @@ export function AdvocateStack({
  * card with content beside it, that read as a button stranded in mid-air.) It is
  * `aria-hidden` on purpose: it repeats the row title's own action, which is the
  * accessible path and the thing focus reveals it from.
+ *
+ * **It has no always-visible coarse-pointer fallback, deliberately.** The usual
+ * rule — reveal-on-hover clusters must be permanently visible on touch — exists
+ * so no action is reachable *only* by pointer. Here none is: every surface that
+ * uses this puts `after:absolute after:inset-0` on its title button, so the whole
+ * card is the tap target, and the list row's parties cell is itself a visible
+ * button. Making the duplicate permanent would trade a bug that does not exist
+ * for clutter on every repeated row. Decided in brief §15.3 D25; do not "fix" it.
  */
 export function RowAction({
   label,
@@ -194,22 +209,24 @@ export function RowAction({
  * The listed item number. A plain card tile on any tinted card — the brand
  * hero, the beige queue — a sunken well on white — the fill change is the
  * depth, so neither variant carries a shadow inside its already-lifted card.
+ * Same `surface` vocabulary as the avatar discs beside it, so the two insets in
+ * one card can never disagree about how deep they sit.
  */
 export function ItemChip({
   item,
   size = "default",
-  onTint,
+  surface = "card",
 }: {
   item: number;
   size?: "default" | "lg";
-  onTint?: boolean;
+  surface?: AvatarSurface;
 }) {
   return (
     <span
       aria-hidden="true"
       className={cn(
         "flex shrink-0 flex-col items-center justify-center rounded-md",
-        onTint ? "bg-card" : "bg-surface-sunken",
+        surface === "card" ? "bg-surface-sunken" : "bg-card",
         size === "lg" ? "size-12" : "size-11"
       )}
     >

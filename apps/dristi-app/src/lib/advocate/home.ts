@@ -18,7 +18,6 @@ import { CASES as CASE_RECORDS } from "@/lib/cases/fixtures";
 import type { CaseRecord } from "@/lib/cases/types";
 import type { Case, Person, PersonId, Task } from "@/lib/tasks/types";
 import { caseOf, tasksInView, sortTasks, type World } from "@/lib/tasks/selectors";
-import { dueCueOf } from "@/lib/tasks/format";
 import { ACTIONABLE, advocatesOf, canView } from "@/lib/tasks/permissions";
 import { compareUrgency, consequenceAt } from "@/lib/tasks/urgency";
 
@@ -410,32 +409,6 @@ export function railGroups(world: World, now: number = Date.now()): RailGroup[] 
   return (Object.keys(buckets) as RailGroupKey[])
     .map((key) => ({ key, tasks: buckets[key] }))
     .filter((g) => g.tasks.length > 0);
-}
-
-/**
- * The one task in the panel that is furthest past its date — the single card
- * that keeps a badge while every other states its due-ness in ink.
- *
- * It has to be computed rather than read off the top of the list: `railTasks`
- * sorts blocking-first, so the first card is the one that stops a hearing, not
- * the one that has been owed longest. Overdue-ness is asked of `dueCueOf`, the
- * same function the cards render, so the badged card is always one whose own
- * words say "overdue". Ties keep canonical order, so the choice is stable.
- */
-export function worstOverdue(world: World, now: number = Date.now()): Task | null {
-  let worst: Task | null = null;
-  let worstAt = Infinity;
-  for (const group of railGroups(world, now)) {
-    for (const task of group.tasks) {
-      if (!dueCueOf(task, new Date(now)).overdue) continue;
-      const at = Number(new Date(consequenceAt(task)!));
-      if (at < worstAt) {
-        worst = task;
-        worstAt = at;
-      }
-    }
-  }
-  return worst;
 }
 
 /* ───────────────────────────── preparation ───────────────────────────── */

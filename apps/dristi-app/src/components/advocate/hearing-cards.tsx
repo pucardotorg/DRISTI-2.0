@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { ChevronDown, CircleCheck, Eye } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   Collapsible,
@@ -24,6 +22,7 @@ import {
   HomeTaskRow,
   ItemChip,
   RowAction,
+  SELECTED_BAR,
 } from "@/components/advocate/home-bits";
 
 function timeOf(at: string): string {
@@ -31,15 +30,41 @@ function timeOf(at: string): string {
 }
 
 /**
- * The hearing currently being called — one per court, cards view only. Joining
- * the courtroom is not here: the whole court is live, not this item, so that
- * action sits in the board toolbar where its scope reads correctly.
+ * The mark that leads a matter's metadata line when the viewer cannot act on it.
+ *
+ * Not a `Badge`: a badge is a status chip in the action zone, and this is a
+ * property of the matter, so it belongs with the matter's other properties. It
+ * goes *first* because the line truncates, and the fact that must never be the
+ * first thing lost is whether you may act. Holding the vakalatnama says nothing
+ * — the norm is silent, only the exception is marked.
+ */
+function ViewOnlyMark({
+  locale,
+  size,
+}: {
+  locale: Locale;
+  /** Match the line's own text size — the icon is not the signal, the words are. */
+  size: "sm" | "xs";
+}) {
+  return (
+    <span className="flex shrink-0 items-center gap-1.5">
+      <Eye aria-hidden="true" className={size === "sm" ? "size-4" : "size-3.5"} />
+      {pick(advHome.notOnVakalatnama, locale)}
+      <span aria-hidden="true">·</span>
+    </span>
+  );
+}
+
+/**
+ * The hearing currently being called — one per court section, cards view only.
+ * Joining the courtroom is not here: the whole court is live, not this item.
  */
 export function NowHearingCard({
   world,
   locale,
   hearing,
   selected,
+  viewOnly,
   onOpenCase,
   onAct,
 }: {
@@ -47,26 +72,27 @@ export function NowHearingCard({
   locale: Locale;
   hearing: HomeHearing;
   selected: boolean;
+  /** The user is not on this case's vakalatnama — watching, not acting. */
+  viewOnly?: boolean;
   onOpenCase: () => void;
   onAct: (task: Task) => void;
 }) {
   return (
     <section className="flex flex-col gap-3">
+      {/* "Now", and only that. The item number is on the chip and the listed
+          time is in the row's rest cell, so each fact appears exactly once. */}
       <p className="flex items-center gap-2 text-caption font-semibold text-success-ink">
         <span aria-hidden="true" className="size-2 rounded-full bg-success" />
-        {fillCopy(advHome.nowLabel, locale, {
-          n: String(hearing.item),
-          at: timeOf(hearing.at),
-        })}
+        {pick(advHome.nowLabel, locale)}
       </p>
       <Card
         className={cn(
           "relative cursor-pointer gap-4 overflow-visible rounded-2xl border-transparent bg-brand-muted p-6 shadow-raised",
-          selected && "ring-2 ring-brand-accent"
+          selected && SELECTED_BAR
         )}
       >
-        <div className="relative flex flex-wrap items-start gap-4">
-          <ItemChip item={hearing.item} size="lg" onTint />
+        <div className="group/row relative flex flex-wrap items-start gap-4">
+          <ItemChip item={hearing.item} size="lg" surface="brand" />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <h2 className="text-title font-semibold text-balance">
               <button
@@ -81,22 +107,29 @@ export function NowHearingCard({
                 vakalatnama sentence were a wall of dimmed type on a tinted card.
                 The number is one click away in the peek; who holds the
                 vakalatnama is in the avatars beside it, by name, on hover. */}
-            <p className="text-body text-brand-muted-foreground">
-              {hearing.kase.stage}
+            <p className="flex min-w-0 items-center gap-1.5 text-body text-brand-muted-foreground">
+              {viewOnly ? <ViewOnlyMark locale={locale} size="sm" /> : null}
+              <span className="truncate">{hearing.kase.stage}</span>
             </p>
           </div>
-          {/* The day's one live matter is not a row in a list — its action is
-              stated outright rather than waiting for a pointer. */}
+          {/* The day's live matter is a repeated row like any other: the listed
+              time at rest, the verb under the pointer. Six patterns and one
+              exception teaches the exception, not the pattern. */}
           <div className="relative z-10 flex shrink-0 items-center gap-3">
             <AdvocateStack
               locale={locale}
               team={teamOf(world, hearing.kase)}
-              onBrand
-              ring="ring-brand-muted"
+              surface="brand"
             />
-            <Button variant="outline" size="sm" onClick={onOpenCase}>
-              {pick(advHome.viewCase, locale)}
-            </Button>
+            <RowAction
+              label={pick(advHome.viewCase, locale)}
+              onClick={onOpenCase}
+              rest={
+                <span className="text-body-compact tabular-nums text-brand-muted-foreground">
+                  {timeOf(hearing.at)}
+                </span>
+              }
+            />
           </div>
         </div>
 
@@ -154,11 +187,11 @@ export function HearingCard({
       <Card
         className={cn(
           "relative cursor-pointer gap-3 overflow-visible rounded-2xl border-transparent bg-surface-sunken p-4 transition-colors hover:bg-accent-strong has-focus-visible:bg-accent-strong",
-          selected && "ring-2 ring-brand-accent"
+          selected && SELECTED_BAR
         )}
       >
         <div className="group/row relative flex flex-wrap items-center gap-x-4 gap-y-2">
-          <ItemChip item={hearing.item} onTint />
+          <ItemChip item={hearing.item} surface="sunken" />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <h3 className="text-body font-semibold text-balance">
               <button
@@ -169,24 +202,24 @@ export function HearingCard({
                 {hearing.kase.parties}
               </button>
             </h3>
-            <p className="text-body-compact text-muted-foreground">
-              {hearing.kase.stage} ·{" "}
-              <span className="font-mono">{hearing.kase.cnr}</span>
+            {/* A matter with something owed shows the blocker well below; a
+                matter with nothing owed is silent. "Ready" marked the norm on
+                fourteen of today's seventeen cards, which is no information at
+                all — only the exception is worth a mark, and it leads the line. */}
+            <p className="flex min-w-0 items-center gap-1.5 text-body-compact text-muted-foreground">
+              {viewOnly ? <ViewOnlyMark locale={locale} size="xs" /> : null}
+              <span className="truncate">
+                {hearing.kase.stage} ·{" "}
+                <span className="font-mono">{hearing.kase.cnr}</span>
+              </span>
             </p>
           </div>
-          {viewOnly ? (
-            <Badge variant="secondary">
-              <Eye aria-hidden="true" />
-              {pick(advHome.viewOnly, locale)}
-            </Badge>
-          ) : hearing.ready ? (
-            <Badge variant="success">
-              <CircleCheck aria-hidden="true" />
-              {pick(advHome.ready, locale)}
-            </Badge>
-          ) : null}
           {/* Everyone on the matter, not just whoever signed first. */}
-          <AdvocateStack locale={locale} team={teamOf(world, hearing.kase)} />
+          <AdvocateStack
+            locale={locale}
+            team={teamOf(world, hearing.kase)}
+            surface="sunken"
+          />
           {/* The cell holds the listed time at rest, so reserving room for the
               button costs nothing and the row gains the fact it was missing. */}
           <RowAction

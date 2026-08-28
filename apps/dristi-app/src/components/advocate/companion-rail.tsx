@@ -39,17 +39,15 @@ import {
   prepGroups,
   railCaseLineOf,
   railGroups,
-  worstOverdue,
   type PrepGroup,
   type PrepItem,
   type RailGroup,
 } from "@/lib/advocate/home";
-import { Badge } from "@/components/ui/badge";
 import { dueCueOf } from "@/lib/tasks/format";
 import { summaryOf, type World } from "@/lib/tasks/selectors";
 import type { Task, TaskKind } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
-import { DueCue, RowAction } from "@/components/advocate/home-bits";
+import { RowAction } from "@/components/advocate/home-bits";
 
 /**
  * The companion rail — Gmail's model. A persistent icon strip on the far right
@@ -121,12 +119,17 @@ export function useRailSection(): [
 }
 
 /**
- * Every card in the rail: one height, a hairline, and a hover that lifts. Tall
- * enough for three rows — what it is, which matter, and the tag that says where
- * it stands — because a terse "41d" in red ink is a number, not a sentence.
+ * Every card in the rail — *both* panels, one constant, no local override.
+ *
+ * Top-aligned, because the right-hand cell is a two-line "when" block and its
+ * first line only reads as the title's counterpart when the two start together.
+ * `min-h-24` keeps the floor the panel has always had, so the rhythm does not
+ * change as bodies grow or shrink; `py-3` is what the height used to supply.
+ * A task card and a prep card were drifting apart one local `cn()` at a time —
+ * this is the structural fix, not a patch on one of them.
  */
 const RAIL_CARD =
-  "group/row relative flex h-24 cursor-pointer items-center gap-3 rounded-lg border border-hairline bg-card px-3 transition dark:bg-surface-raised hover:shadow-raised has-focus-visible:shadow-raised dark:hover:bg-accent dark:has-focus-visible:bg-accent";
+  "group/row relative flex min-h-24 cursor-pointer items-start gap-3 rounded-lg border border-hairline bg-card px-3 py-3 transition dark:bg-surface-raised hover:shadow-raised has-focus-visible:shadow-raised dark:hover:bg-accent dark:has-focus-visible:bg-accent";
 
 /** The tile the kind icon sits in — a small well inside the card. */
 const CARD_ICON =
@@ -135,6 +138,46 @@ const CARD_ICON =
 /** The row title: one line, truncating, and the whole card's hit area. */
 const CARD_TITLE =
   "truncate text-left text-body-compact font-medium after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:ring-3 focus-visible:after:ring-ring/50";
+
+/**
+ * When something matters, in the place every repeated row on this screen puts
+ * its time: the row-action cell, at rest.
+ *
+ * Two lines by construction — the relative phrase over the date — so the string
+ * that used to wrap at a 320px rail ("6 days overdue · 22 Aug") cannot. Overdue
+ * speaks in destructive ink and nothing else on the panel does, which is how the
+ * worst item leads without a badge: `railTasks` sorts blocking-first to stay in
+ * step with /tasks, so position cannot carry it and colour has to.
+ *
+ * Used by both panels. That is the entire point of it existing.
+ */
+function WhenBlock({
+  lead,
+  sub,
+  tone,
+}: {
+  lead: string;
+  sub?: string;
+  tone: "muted" | "overdue";
+}) {
+  return (
+    <span className="flex flex-col items-end gap-0.5 text-right">
+      <span
+        className={cn(
+          "text-caption font-medium whitespace-nowrap tabular-nums",
+          tone === "overdue" ? "text-destructive-ink" : "text-muted-foreground"
+        )}
+      >
+        {lead}
+      </span>
+      {sub ? (
+        <span className="text-caption whitespace-nowrap tabular-nums text-muted-foreground">
+          {sub}
+        </span>
+      ) : null}
+    </span>
+  );
+}
 
 function groupLabel(locale: Locale, group: RailGroup): string {
   if (group.key === "today") return pick(advHome.groupToday, locale);
@@ -223,14 +266,11 @@ function TaskCard({
   world,
   task,
   verb,
-  worst,
   onAct,
 }: {
   world: World;
   task: Task;
   verb: string;
-  /** The panel's single furthest-overdue task — the one card that keeps a badge. */
-  worst?: boolean;
   onAct: (task: Task) => void;
 }) {
   const Icon = KIND_ICON[task.kind];
@@ -254,23 +294,22 @@ function TaskCard({
         <span className="w-full truncate text-caption text-muted-foreground">
           {railCaseLineOf(world, task)}
         </span>
-        {/* Where it stands, in ink. These rows repeat, and a chip on each spent
-            the screen's whole colour budget before the rail's own count was
-            read — so one badge survives, on the task owed longest, and the rest
-            say it in words. An overdue row carries its date too: "41 days
-            overdue" is a duration, and the day it fell due is the fact. */}
-        {worst ? (
-          <Badge className="self-start" variant="destructive">
-            {due.primary}
-          </Badge>
-        ) : (
-          <DueCue overdue={due.overdue}>
-            {due.overdue && due.date ? `${due.primary} · ${due.date}` : due.primary}
-          </DueCue>
-        )}
       </div>
 
-      <RowAction label={verb} onClick={() => onAct(task)} />
+      {/* Every task states its due-ness the same way. Reserving one badge for
+          the worst-overdue card made two adjacent siblings say one fact two
+          ways — which is the defect the ink treatment existed to prevent. */}
+      <RowAction
+        label={verb}
+        onClick={() => onAct(task)}
+        rest={
+          <WhenBlock
+            lead={due.primary}
+            sub={due.date}
+            tone={due.overdue ? "overdue" : "muted"}
+          />
+        }
+      />
     </div>
   );
 }
@@ -293,9 +332,6 @@ function TasksPanel({
   const now = Number(new Date(world.now));
   const groups = railGroups(world, now);
   const count = summaryOf(world).action;
-  // The cards stop at seven days; the footer's count does not. Naming the one
-  // badge's owner here keeps that decision out of the card.
-  const worst = worstOverdue(world, now);
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col">
@@ -327,7 +363,6 @@ function TasksPanel({
                         world={world}
                         task={task}
                         verb={verbOf(task)}
-                        worst={task.id === worst?.id}
                         onAct={onAct}
                       />
                     </li>
@@ -397,10 +432,7 @@ function PrepCard({
     : null;
 
   return (
-    // Top-aligned, unlike the task cards: the right side is a two-line date
-    // block, and "Tomorrow" reads as the title's counterpart only when the two
-    // start on the same line.
-    <div className={cn(RAIL_CARD, "items-start py-3")}>
+    <div className={RAIL_CARD}>
       <span aria-hidden="true" className={CARD_ICON}>
         <Gavel className="size-4" />
       </span>
@@ -419,22 +451,19 @@ function PrepCard({
         <span className="w-full truncate text-caption text-muted-foreground">
           <span className="font-mono">{item.kase.stNumber}</span> · {item.kase.stage}
         </span>
-        <Badge className="self-start" variant={pending ? "warning" : "success"}>
-          {pending ?? pick(advHome.ready, locale)}
-        </Badge>
+        {/* Only when something is owed. A "Ready" badge on every card is a mark
+            of the norm, and the card is here for its lead time either way. */}
+        {pending ? (
+          <span className="truncate text-caption font-medium text-warning-ink">
+            {pending}
+          </span>
+        ) : null}
       </div>
 
       <RowAction
         label={pick(advHome.viewCase, locale)}
         onClick={() => onOpenCase(item.kase.id)}
-        rest={
-          <span className="flex flex-col items-end gap-0.5 text-right">
-            <span className="text-caption font-medium whitespace-nowrap">{away}</span>
-            <span className="text-caption whitespace-nowrap text-muted-foreground">
-              {date}
-            </span>
-          </span>
-        }
+        rest={<WhenBlock lead={away} sub={date} tone="muted" />}
       />
     </div>
   );
