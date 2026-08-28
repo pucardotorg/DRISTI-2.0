@@ -58,7 +58,15 @@ drift cheap. Rules:
    page from panel from well with every border removed, the layering is missing and no
    stroke will fix it. **Do not paint a grey canvas under the whole page** — it reads as
    a dull admin panel and departs from the DS's flat-page model (owner-rejected
-   2026-08-17). (See §4 for the exact recipe.)
+   2026-08-17). The one sanctioned exception is a **scoped work canvas**: a long-form
+   data-entry column may carry `bg-muted` (neutral-2) so the white cards on it read as
+   the focus area, provided the bright chrome around it — top bar and sticky footer —
+   stays `bg-card` so the tint reads as the writing surface and not as a grey page (a
+   `bg-sidebar` rail already shares neutral-2 and may sit flush with the canvas). Approved for
+   the e-filing form 2026-08-26 (`FilingMain`); it is not a licence to tint dashboards,
+   landings, or any page that is read rather than filled. Light mode only — in dark,
+   `muted` is the `surface-raised` step and sits *above* `card`, so tinting the canvas
+   inverts depth; keep `dark:bg-background`. (See §4 for the exact recipe.)
 
 1. **Borders are the last resort for separation.** To separate two regions try, in
    order: spacing → background shift (`bg-surface-sunken`, `bg-muted` stage per the
@@ -108,7 +116,7 @@ the role names.
 | Cheap tell | Premium move |
 | --- | --- |
 | White page, white cards, only `border-border` between them ("wireframe", "flat", "no elevation") | Lift the panels: `Card` + `border-hairline shadow-raised` (`PANEL_CLASS`). The DS shadow does the separating; the page stays white |
-| Grey canvas painted under the whole page to "add depth" | Revert to `bg-background`; depth comes from the lifted panel and the `bg-sidebar` rail, not from a tinted page (owner-rejected) |
+| Grey canvas painted under the whole page to "add depth" | Revert to `bg-background`; depth comes from the lifted panel and the `bg-sidebar` rail, not from a tinted page (owner-rejected). Exception: a long-form entry column may take `bg-muted` with the chrome left white — see §1.0 |
 | Rail/sidebar on `bg-card` (same white as the content) | Rails are `bg-sidebar` with a `border-hairline` seam — the DS's own rail tone is the second layer |
 | A sunken well wrapped around a white sheet that already lifts off the page | Delete the wrapper — wells live *inside* panels only |
 | `border-b border-border` under a header/tab row that already changes fill or has an active underline | `border-b border-hairline`, or delete the rule and let spacing + the underline separate |

@@ -49,6 +49,25 @@ export function FilingShell({ children }: { children: React.ReactNode }) {
  *
  * A `div`, not a `main`: inside `FilingShell` the landmark is the shell's own `main`, and
  * the two screens outside it (upload, sign) carry theirs.
+ *
+ * The column carries `bg-muted` (neutral-2) in light mode — the one warm step that
+ * separates the form canvas from the white cards on it. Filling a long form is a
+ * one-card-at-a-time job, and on a white-on-white page the panel edge rests entirely on a
+ * 5% shadow, which is the first thing to vanish on a poor display or for a reader with low
+ * vision. The tint is scoped to this column on purpose: the top bar and the sticky footer
+ * stay `bg-card` white, so the tint reads as the writing surface rather than as a grey
+ * page. The Sections rail already sat on `bg-sidebar` (also neutral-2) and so shares the
+ * canvas tone — that is the composition the owner chose from the studies, with the cards
+ * as the only white.
+ *
+ * Dark mode deliberately keeps `bg-background`: there, `muted` is neutral-2, which the DS
+ * assigns to `surface-raised`, while cards sit at neutral-1 — tinting the canvas would put
+ * the page *above* the cards and read them as recesses. The DS keeps dark flat on purpose
+ * ("Dark stays flat: page and card share neutral-1", globals.css), so dark is unchanged
+ * and its depth question belongs upstream, not here.
+ *
+ * Owner-approved 2026-08-26 from the canvas studies (variant 3, "Whisper + lift");
+ * supersedes the blanket no-grey-canvas rule for the filing form only.
  */
 export function FilingMain({
   children,
@@ -78,7 +97,7 @@ export function FilingMain({
   return (
     <div
       className={cn(
-        "flex-1 px-4 pb-8 pt-6 sm:px-6",
+        "flex-1 bg-muted px-4 pb-8 pt-6 sm:px-6 dark:bg-background",
         sourceOpen ? "lg:px-6" : "lg:px-12",
         className
       )}
