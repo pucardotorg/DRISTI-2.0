@@ -1,18 +1,8 @@
 "use client";
 
-import { ArrowRight, SlidersHorizontal } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import type { Locale } from "@/lib/onboarding/content";
 import { pick } from "@/lib/onboarding/content";
-import { advHome, fillCopy } from "@/lib/advocate/content";
+import { advHome } from "@/lib/advocate/content";
 import { holdsVakalatnama, type Board } from "@/lib/advocate/home";
 import type { Task } from "@/lib/tasks/types";
 import type { World } from "@/lib/tasks/selectors";
@@ -25,92 +15,101 @@ import { HearingList } from "@/components/advocate/hearing-list";
 
 export type BoardView = "cards" | "list";
 
-/**
- * Access, not people: several advocates can hold the vakalatnama on one case,
- * and others hold view access shared from the case file. The cut that matters
- * to "what can I do today" is which of the two the viewer holds per matter.
- */
-export type AccessFilter = "all" | "mine" | "shared";
+/** One court's stretch of the day, after the advocate switcher has been applied. */
+export type CourtSection = {
+  court: string;
+  /** The court's name with the establishment every court shares removed. */
+  label: string;
+  /** Matters left in this court once the switcher has had its say. */
+  count: number;
+  /** An item's listed window covers the clock right now. */
+  live: boolean;
+  board: Board;
+};
 
 /**
- * Everything below the court tabs for one court on one day.
+ * The anchor a court section answers to. Shared by the section and the jump
+ * menu, so the two can never disagree about where a court lives.
+ */
+export function courtSectionId(court: string): string {
+  return `court-${encodeURIComponent(court)}`;
+}
+
+/**
+ * One court's section of the day's board.
  *
- * The board is deliberately spare chrome: it reads the access cut and the layout
- * choice but owns neither — both are page state and live on the tab band, which
- * is where their scope is legible. The v3 mock's "Join this courtroom" and "View
- * cause list" buttons are not here either — there is no courtroom link to join
- * yet, and the list view *is* the cause list; a dead primary action would
- * outrank every real one.
+ * The domain nests day ⊃ court ⊃ matter, and the screen now says so: courts are
+ * containers stacked down the page, not tabs that show one and hide the rest. A
+ * tab band could not accommodate the pilot's own four courts at 1440px, and the
+ * fix was never a narrower tab — a scroll that hides a cause list is the defect.
+ *
+ * Nothing here collapses. A collapsed court can hide a listed matter, and on a
+ * §138 board that is the failure mode with the worst consequence: the statutory
+ * clocks do not give the day back. The concluded strip may fold, because those
+ * matters have already been called.
  */
 export function CourtBoard({
   world,
   locale,
-  board,
-  access,
+  section,
   view,
   selectedCaseId,
   onOpenCase,
   onAct,
-  jump,
-  onJump,
 }: {
   world: World;
   locale: Locale;
-  board: Board;
-  /** All matters, only vakalatnama matters, or only view-access matters. */
-  access: AccessFilter;
+  section: CourtSection;
   view: BoardView;
   selectedCaseId: string | null;
   onOpenCase: (caseId: string) => void;
   onAct: (task: Task) => void;
-  /** The next day with anything listed, when this one is empty. */
-  jump: { key: string; label: string; count: number } | null;
-  onJump: (key: string) => void;
 }) {
+  const { court, label, count, live, board } = section;
   const { now, upcoming, concluded } = board;
   const active = [...(now ? [now] : []), ...upcoming];
-  const filtered = access === "mine";
+  const headingId = `${courtSectionId(court)}-heading`;
 
   return (
-    <div className="flex flex-col gap-4 pt-4 pb-8">
+    // `scroll-mt-16` clears the 56px top bar when the jump menu lands here.
+    <section
+      id={courtSectionId(court)}
+      aria-labelledby={headingId}
+      className="flex scroll-mt-16 flex-col gap-4"
+    >
+      <header className="flex flex-wrap items-center gap-2">
+        {live ? (
+          <span aria-hidden="true" className="size-2 rounded-full bg-success" />
+        ) : null}
+        {/* The heading takes focus from the jump menu, so a keyboard user lands
+            on the court rather than at the top of the page. */}
+        <h2
+          id={headingId}
+          tabIndex={-1}
+          className="text-title-s font-semibold outline-none"
+        >
+          {label}
+        </h2>
+        <span className="text-caption tabular-nums text-muted-foreground">
+          {count}
+        </span>
+        {/* Words, not just the dot — a green disc alone would mean by colour. */}
+        {live ? (
+          <span className="text-caption font-medium text-success-ink">
+            {pick(advHome.inSession, locale)}
+          </span>
+        ) : null}
+      </header>
+
       {concluded.length ? (
-        <ConcludedStrip locale={locale} concluded={concluded} onOpenCase={onOpenCase} />
+        <ConcludedStrip
+          locale={locale}
+          concluded={concluded}
+          onOpenCase={onOpenCase}
+        />
       ) : null}
 
-      {/* The sunken fill is the separation — a stroke on top of it would be the
-          second thing doing one job. */}
-      {active.length === 0 ? (
-        <Empty className="bg-surface-sunken">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <SlidersHorizontal aria-hidden="true" />
-            </EmptyMedia>
-            <EmptyTitle>
-              {access === "mine"
-                ? pick(advHome.emptyMineTitle, locale)
-                : access === "shared"
-                  ? pick(advHome.emptySharedTitle, locale)
-                  : pick(advHome.emptyDayTitle, locale)}
-            </EmptyTitle>
-            <EmptyDescription>
-              {access === "mine"
-                ? pick(advHome.emptyMineBody, locale)
-                : access === "shared"
-                  ? pick(advHome.emptySharedBody, locale)
-                  : pick(advHome.emptyDayBody, locale)}
-            </EmptyDescription>
-          </EmptyHeader>
-          {!filtered && jump ? (
-            <Button variant="outline" size="sm" onClick={() => onJump(jump.key)}>
-              {fillCopy(advHome.jumpNext, locale, {
-                day: jump.label,
-                n: String(jump.count),
-              })}
-              <ArrowRight aria-hidden="true" />
-            </Button>
-          ) : null}
-        </Empty>
-      ) : view === "cards" ? (
+      {view === "cards" ? (
         <>
           {now ? (
             <NowHearingCard
@@ -124,31 +123,27 @@ export function CourtBoard({
             />
           ) : null}
 
+          {/* No "Up next" caption: the court heading above already says what
+              this list is, and every card carries its own item number, which is
+              the order — cause-list order is never resequenced. */}
           {upcoming.length ? (
-            <section className="flex flex-col gap-3">
-              <h2 className="text-caption font-semibold text-muted-foreground">
-                {now
-                  ? pick(advHome.upNext, locale)
-                  : pick(advHome.inListOrder, locale)}
-              </h2>
-              <ul className="flex flex-col gap-3">
-                {upcoming.map((hearing) => (
-                  <HearingCard
-                    key={hearing.kase.id}
-                    world={world}
-                    locale={locale}
-                    hearing={hearing}
-                    selected={hearing.kase.id === selectedCaseId}
-                    viewOnly={!holdsVakalatnama(world, hearing.kase)}
-                    onOpenCase={() => onOpenCase(hearing.kase.id)}
-                    onAct={onAct}
-                  />
-                ))}
-              </ul>
-            </section>
+            <ul className="flex flex-col gap-3">
+              {upcoming.map((hearing) => (
+                <HearingCard
+                  key={hearing.kase.id}
+                  world={world}
+                  locale={locale}
+                  hearing={hearing}
+                  selected={hearing.kase.id === selectedCaseId}
+                  viewOnly={!holdsVakalatnama(world, hearing.kase)}
+                  onOpenCase={() => onOpenCase(hearing.kase.id)}
+                  onAct={onAct}
+                />
+              ))}
+            </ul>
           ) : null}
         </>
-      ) : (
+      ) : active.length ? (
         <HearingList
           world={world}
           locale={locale}
@@ -156,7 +151,7 @@ export function CourtBoard({
           selectedId={selectedCaseId}
           onOpenCase={onOpenCase}
         />
-      )}
-    </div>
+      ) : null}
+    </section>
   );
 }

@@ -199,8 +199,6 @@ export const advHome = {
     "ഈ ഹിയറിംഗിന് മുൻപ് ബാക്കി",
   ),
   itemN: t("Item {n}", "ഇനം {n}"),
-  upNext: t("Up next", "അടുത്തത്"),
-  inListOrder: t("In list order", "പട്ടിക ക്രമത്തിൽ"),
   concludedStrip: t(
     "{n} concluded earlier — items {items}",
     "നേരത്തെ തീർന്നത് {n} — ഇനം {items}",
@@ -211,14 +209,11 @@ export const advHome = {
   layoutLabel: t("Cause list layout", "കോസ് ലിസ്റ്റ് രൂപം"),
   joinCourtroom: t("Join this courtroom", "ഈ കോടതിമുറിയിൽ ചേരുക"),
   emptyDayTitle: t("Nothing listed this day", "ഈ ദിവസം ഒന്നും പട്ടികയിലില്ല"),
+  /** Board-level since the courts stack: the empty state is the whole day's,
+      not one court's, and no court can be selected away from any more. */
   emptyDayBody: t(
-    "No matters are listed in this court on the selected day.",
-    "തിരഞ്ഞെടുത്ത ദിവസം ഈ കോടതിയിൽ വിഷയങ്ങളൊന്നും പട്ടികയിലില്ല.",
-  ),
-  emptyFilterTitle: t("No matters match this filter", "ഈ ഫിൽട്ടറിന് വിഷയങ്ങളൊന്നുമില്ല"),
-  emptyFilterBody: t(
-    "No listed items for the advocates you selected. Clear a chip to see the full cause list.",
-    "തിരഞ്ഞെടുത്ത അഭിഭാഷകർക്ക് ഇനങ്ങളൊന്നുമില്ല. മുഴുവൻ പട്ടിക കാണാൻ ഒരു ചിപ്പ് മാറ്റുക.",
+    "No matters are listed in your courts on the selected day.",
+    "തിരഞ്ഞെടുത്ത ദിവസം നിങ്ങളുടെ കോടതികളിൽ വിഷയങ്ങളൊന്നും പട്ടികയിലില്ല.",
   ),
   jumpNext: t("Next hearing day: {day} — {n} listed", "അടുത്ത ഹിയറിംഗ് ദിവസം: {day} — {n} ഇനം"),
 
@@ -248,22 +243,6 @@ export const advHome = {
   emptyAdvocateBody: t(
     "No matters listed on this day where {name} is on the case. Switch back to your own matters to see the full board.",
     "ഈ ദിവസം {name} കേസിലുള്ള വിഷയങ്ങളൊന്നും പട്ടികയിലില്ല. മുഴുവൻ ബോർഡ് കാണാൻ നിങ്ങളുടെ വിഷയങ്ങളിലേക്ക് മടങ്ങുക.",
-  ),
-
-  /* Access */
-  filterAll: t("All matters", "എല്ലാ വിഷയങ്ങളും"),
-  filterMine: t("My vakalatnama", "എന്റെ വക്കാലത്ത്"),
-  filterShared: t("View access", "കാണാനുള്ള ആക്‌സസ്"),
-  filterLabel: t("Which matters", "ഏതെല്ലാം വിഷയങ്ങൾ"),
-  emptyMineTitle: t("No matters on your vakalatnama", "നിങ്ങളുടെ വക്കാലത്തിൽ വിഷയങ്ങളില്ല"),
-  emptyMineBody: t(
-    "Nothing listed this day where you hold the vakalatnama. Switch to all matters to see the full cause list.",
-    "ഈ ദിവസം നിങ്ങളുടെ വക്കാലത്തിലുള്ള വിഷയങ്ങളില്ല. മുഴുവൻ പട്ടികയ്ക്ക് എല്ലാ വിഷയങ്ങളിലേക്കും മാറുക.",
-  ),
-  emptySharedTitle: t("No shared matters this day", "ഈ ദിവസം പങ്കിട്ട വിഷയങ്ങളില്ല"),
-  emptySharedBody: t(
-    "Nothing listed this day on the cases shared with you for viewing.",
-    "കാണാനായി പങ്കിട്ട കേസുകളിൽ ഈ ദിവസം ഒന്നും പട്ടികയിലില്ല.",
   ),
 
   /* Companion rail */

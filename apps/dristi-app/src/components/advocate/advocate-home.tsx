@@ -2,9 +2,23 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { CloudAlert, LayoutGrid, List, RotateCw } from "lucide-react";
+import {
+  ArrowRight,
+  ChevronDown,
+  CloudAlert,
+  LayoutGrid,
+  List,
+  RotateCw,
+  SlidersHorizontal,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Empty,
   EmptyDescription,
@@ -16,33 +30,43 @@ import {
   SegmentedControl,
   SegmentedControlItem,
 } from "@/components/ui/segmented-control";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Locale } from "@/lib/onboarding/content";
 import { pick } from "@/lib/onboarding/content";
-import { advHome } from "@/lib/advocate/content";
+import { advHome, fillCopy } from "@/lib/advocate/content";
 import {
+  advocateRosterOn,
   boardOf,
   caseRecordFor,
+  courtLabelsOf,
   courtRooms,
   dayKeyOf,
-  holdsVakalatnama,
   nextHearingDayAfter,
   weekOf,
+  type AdvocateOption,
   type Board,
   type HomeHearing,
 } from "@/lib/advocate/home";
 import { useTasks } from "@/lib/tasks/store";
 import { TASKS_HOME } from "@/lib/tasks/routes";
 import { caseOf, type World } from "@/lib/tasks/selectors";
-import { verbFor } from "@/lib/tasks/permissions";
+import { canView, verbFor } from "@/lib/tasks/permissions";
+import type { PersonId } from "@/lib/tasks/types";
 import { useTaskAct } from "@/components/tasks/task-act-layer";
+import { PersonAvatar } from "@/components/tasks/person-avatar";
 import { CasePeekSurface } from "@/components/cases/case-peek";
 import { CasePeekProvider, useCasePeek } from "@/components/cases/use-case-peek";
 import {
   CourtBoard,
-  type AccessFilter,
+  courtSectionId,
   type BoardView,
+  type CourtSection,
 } from "@/components/advocate/court-board";
 import { HomeGreeting } from "@/components/advocate/home-greeting";
 import {
@@ -65,61 +89,133 @@ function useNow(): number {
   return now;
 }
 
+/** Below this many sections the jump menu is chrome explaining two headings. */
+const JUMP_MENU_FROM = 3;
+
 /**
- * The two controls on the tab band's trailing edge.
+ * The board's own row of chrome: what it contains on the left, how it is drawn
+ * on the right.
  *
- * Both are page state, not a court's: the access cut and the cause-list layout
- * hold across every tab, and this is where placement says so. They are the same
- * kind of choice — one value from a fixed set — so they are the same control at
- * the same size, and each keeps the DS's 40px target under a 32px well.
+ * Everything here is page state rather than one court's, and rendering it once
+ * above the stack is what says so. The establishment leads because it is the
+ * one fact every court heading below would otherwise repeat.
  */
-function BoardControls({
+function BoardToolbar({
   locale,
-  access,
-  onAccessChange,
-  accessCounts,
+  roster,
+  whose,
+  onWhoseChange,
+  sections,
+  establishment,
+  onJump,
   view,
   onViewChange,
 }: {
   locale: Locale;
-  access: AccessFilter;
-  onAccessChange: (access: AccessFilter) => void;
-  /** Selected-day totals per access mode — the control names its counts. */
-  accessCounts: Record<AccessFilter, number>;
+  roster: AdvocateOption[];
+  whose: PersonId;
+  onWhoseChange: (whose: PersonId) => void;
+  /** The courts with matters — the jump menu's targets. */
+  sections: CourtSection[];
+  /** The trailing run every court name shares, said once. */
+  establishment: string | null;
+  onJump: (court: string) => void;
   view: BoardView;
   onViewChange: (view: BoardView) => void;
 }) {
+  const current = roster.find((option) => option.person.id === whose);
+
   return (
-    <div className="ml-auto flex shrink-0 items-center gap-2">
-      {/* Not a people filter: access. A matter is either one you act in — you
-          hold the vakalatnama — or one you watch; the split decides the verbs
-          everywhere else on this screen, so it is the one cut worth a control. */}
-      <SegmentedControl
-        type="single"
-        size="compact"
-        value={access}
-        onValueChange={(next) => next && onAccessChange(next as AccessFilter)}
-        aria-label={pick(advHome.filterLabel, locale)}
-      >
-        {(
-          [
-            ["all", advHome.filterAll],
-            ["mine", advHome.filterMine],
-            ["shared", advHome.filterShared],
-          ] as const
-        ).map(([value, label]) => (
-          <SegmentedControlItem key={value} value={value}>
-            {pick(label, locale)}
-            {/* Counts presented the same way as the court tabs' — one
-                presentation per data type across siblings. */}
-            <span className="ml-1 text-caption tabular-nums text-muted-foreground">
-              {accessCounts[value]}
+    <div className="flex flex-wrap items-center gap-2 border-b border-hairline px-4 pb-3 md:px-8">
+      {establishment ? (
+        <p className="text-caption font-medium text-muted-foreground">
+          {fillCopy(advHome.courtsAt, locale, { place: establishment })}
+        </p>
+      ) : null}
+
+      {/* Names, not a permission model. Holding the vakalatnama is a property of
+          one matter — it changes that card's verbs and nothing else — so it was
+          never a cut that should remove matters from a cause list. */}
+      <Select value={whose} onValueChange={onWhoseChange}>
+        <SelectTrigger
+          aria-label={pick(advHome.whoseMatters, locale)}
+          className="w-fit min-w-48"
+        >
+          {current ? (
+            <span className="flex min-w-0 items-center gap-2">
+              <PersonAvatar person={current.person} size="sm" />
+              <span className="truncate text-body-compact">
+                {current.person.name}
+              </span>
             </span>
-          </SegmentedControlItem>
-        ))}
-      </SegmentedControl>
+          ) : null}
+        </SelectTrigger>
+        {/* The DS default opens the list over its own trigger; a roster is read
+            downward from the control that names it. */}
+        <SelectContent position="popper" align="start" sideOffset={4}>
+          {roster.map((option) => (
+            <SelectItem
+              key={option.person.id}
+              value={option.person.id}
+              // The row is an avatar, a name and a count; typeahead reads text
+              // content, so it needs the plain name said separately.
+              textValue={option.person.name}
+            >
+              <PersonAvatar person={option.person} size="sm" />
+              <span className="truncate text-body-compact">
+                {option.you
+                  ? fillCopy(advHome.switcherYou, locale, {
+                      name: option.person.name,
+                    })
+                  : option.person.name}
+              </span>
+              <span className="ml-auto text-caption tabular-nums text-muted-foreground">
+                {option.count}
+              </span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {/* Three courts is where a stack stops being scannable in one look. Below
+          that the menu would be a control explaining two headings. */}
+      {sections.length >= JUMP_MENU_FROM ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline">
+              {pick(advHome.jumpToCourt, locale)}
+              <ChevronDown aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-auto min-w-56">
+            {sections.map((section) => (
+              <DropdownMenuItem
+                key={section.court}
+                onSelect={() => onJump(section.court)}
+              >
+                {section.live ? (
+                  <span
+                    aria-hidden="true"
+                    className="size-2 rounded-full bg-success"
+                  />
+                ) : null}
+                <span className="flex-1 truncate">{section.label}</span>
+                {section.live ? (
+                  <span className="sr-only">
+                    {pick(advHome.inSession, locale)}
+                  </span>
+                ) : null}
+                <span className="text-caption tabular-nums text-muted-foreground">
+                  {section.count}
+                </span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
 
       <SegmentedControl
+        className="ml-auto"
         type="single"
         size="compact"
         value={view}
@@ -190,7 +286,9 @@ function HomeBody({
   /** Which week the strip shows — pages independently of today. */
   const [weekAnchor, setWeekAnchor] = React.useState<number>(now);
   const [view, setView] = React.useState<BoardView>("cards");
-  const [access, setAccess] = React.useState<AccessFilter>("all");
+  // A per-session lens, deliberately not persisted: "my matters" is the right
+  // thing to land on every morning.
+  const [whose, setWhose] = React.useState<PersonId>(user.id);
   // Not `useState`: which panel stands open is remembered per user, so a rail
   // closed last week is still closed. First run opens the tasks panel.
   const [railSection, setRailSection] = useRailSection();
@@ -203,24 +301,25 @@ function HomeBody({
     () => courtRooms(world, selectedDay, now),
     [world, selectedDay, now]
   );
-  const [courtId, setCourtId] = React.useState<string | null>(null);
-  const court = courtId ?? rooms[0]?.court ?? null;
 
-  const filterBoard = React.useCallback(
-    (board: Board): Board => {
-      if (access === "all") return board;
-      const keep = (h: HomeHearing) =>
-        access === "mine"
-          ? holdsVakalatnama(world, h.kase)
-          : !holdsVakalatnama(world, h.kase);
-      return {
-        now: board.now && keep(board.now) ? board.now : null,
-        upcoming: board.upcoming.filter(keep),
-        concluded: board.concluded.filter(keep),
-      };
-    },
-    [access, world]
+  /** The establishment every court name shares — computed, never matched. */
+  const courtLabels = React.useMemo(
+    () => courtLabelsOf(rooms.map((room) => room.court)),
+    [rooms]
   );
+
+  const roster = React.useMemo(
+    () => advocateRosterOn(world, selectedDay, now),
+    [world, selectedDay, now]
+  );
+  // Yesterday's colleague may have nothing listed today. Falling back to self
+  // rather than syncing state in an effect keeps the choice for the day it was
+  // made on: step back to that day and it is still there.
+  const active = roster.some((option) => option.person.id === whose)
+    ? whose
+    : user.id;
+  const whoseName =
+    roster.find((option) => option.person.id === active)?.person.name ?? user.name;
 
   const boards = React.useMemo(() => {
     const map = new Map<string, Board>();
@@ -230,38 +329,42 @@ function HomeBody({
     return map;
   }, [world, rooms, selectedDay, now]);
 
-  const allHearings = React.useMemo(
-    () =>
-      [...boards.values()].flatMap((board) => [
-        ...(board.now ? [board.now] : []),
-        ...board.upcoming,
-        ...board.concluded,
-      ]),
-    [boards]
-  );
+  // The switcher narrows the board, never the cause list's numbering: item
+  // numbers come from the full world, so a filtered board still says "item 7".
+  const sections = React.useMemo<CourtSection[]>(() => {
+    const keep = (h: HomeHearing) => canView(active, h.kase);
+    return rooms.map((room) => {
+      const full = boards.get(room.court)!;
+      const board: Board = {
+        now: full.now && keep(full.now) ? full.now : null,
+        upcoming: full.upcoming.filter(keep),
+        concluded: full.concluded.filter(keep),
+      };
+      return {
+        court: room.court,
+        label: courtLabels.shortOf(room.court),
+        count:
+          (board.now ? 1 : 0) + board.upcoming.length + board.concluded.length,
+        live: !!board.now,
+        board,
+      };
+    });
+  }, [rooms, boards, courtLabels, active]);
 
-  /** Selected-day totals per access mode — the filter control names them. */
-  const accessCounts = React.useMemo(() => {
-    const mine = allHearings.filter((h) => holdsVakalatnama(world, h.kase)).length;
-    return { all: allHearings.length, mine, shared: allHearings.length - mine };
-  }, [allHearings, world]);
+  const listed = sections.filter((section) => section.count > 0);
+  const quiet = sections.filter((section) => section.count === 0);
+  const visibleMatterCount = sections.reduce((sum, s) => sum + s.count, 0);
 
-  // What the tabs and greeting count — the filtered view, so a narrowed filter
-  // never shows a 5 above a board of 3. Boards keep full-world item numbers.
-  const roomView = React.useMemo(
-    () =>
-      rooms.map((room) => {
-        const board = filterBoard(boards.get(room.court)!);
-        return {
-          court: room.court,
-          count:
-            (board.now ? 1 : 0) + board.upcoming.length + board.concluded.length,
-          live: !!board.now,
-        };
-      }),
-    [rooms, boards, filterBoard]
-  );
-  const visibleMatterCount = roomView.reduce((sum, r) => sum + r.count, 0);
+  /**
+   * The jump menu moves focus, not just the scroll position — landing a keyboard
+   * user at the top of the page would be a scroll that pretended to be a jump.
+   */
+  const jumpToCourt = React.useCallback((court: string) => {
+    const section = document.getElementById(courtSectionId(court));
+    if (!section) return;
+    section.scrollIntoView({ behavior: "smooth", block: "start" });
+    section.querySelector("h2")?.focus({ preventScroll: true });
+  }, []);
 
   const jump = React.useMemo(() => {
     const next = nextHearingDayAfter(world, selectedDay);
@@ -358,78 +461,97 @@ function HomeBody({
           />
         </div>
 
-        <Tabs value={court ?? ""} onValueChange={setCourtId}>
-          {/* One band, two jobs. The court tabs choose *which* board; the two
-              controls on the trailing edge are page state — they apply to every
-              court, and rendering them once here says so, where a copy inside
-              each court's panel implied a per-court scope they never had.
-              Wrapping is `wrap-reverse` on purpose: when the board is too narrow
-              to hold both, the controls take the upper line and the tabs stay
-              flush with the band's rule, so the active underline lands on that
-              rule at every width instead of floating above a second line. */}
-          <div className="flex flex-wrap-reverse gap-x-4 gap-y-2 border-b border-hairline px-4 md:px-8">
-            <TabsList
-              variant="line"
-              className="min-w-0 grow basis-full justify-start gap-1 overflow-x-auto px-0 pb-0 group-data-horizontal/tabs:h-auto @3xl:basis-0"
-            >
-              {roomView.map((room) => (
-                <TabsTrigger
-                  key={room.court}
-                  value={room.court}
-                  className="-mb-px flex-none gap-2 px-3 pt-2 pb-3 group-data-horizontal/tabs:h-auto group-data-horizontal/tabs:after:bottom-0 group-data-[variant=line]/tabs-list:data-active:after:bg-brand-accent"
-                >
-                  {room.live ? (
-                    <span
-                      aria-hidden="true"
-                      className="size-2 rounded-full bg-success"
-                    />
-                  ) : null}
-                  {/* The court's name as the world states it. Shortening it here
-                      matched an English literal, so a Malayalam or Gujarati
-                      deployment would silently keep the long form — how a court
-                      is named is a state-layer fact, not a view's edit. */}
-                  <span className="text-body-compact font-semibold">
-                    {room.court}
-                  </span>
-                  {/* Every tab states its count the same way — the number is the
-                      same kind of fact on all four. */}
-                  <span className="text-caption tabular-nums text-muted-foreground">
-                    {room.count}
-                  </span>
-                  {room.live ? (
-                    <span className="sr-only">{pick(advHome.inSession, locale)}</span>
-                  ) : null}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+        <BoardToolbar
+          locale={locale}
+          roster={roster}
+          whose={active}
+          onWhoseChange={setWhose}
+          sections={listed}
+          establishment={courtLabels.establishment}
+          onJump={jumpToCourt}
+          view={view}
+          onViewChange={setView}
+        />
 
-            <BoardControls
-              locale={locale}
-              access={access}
-              onAccessChange={setAccess}
-              accessCounts={accessCounts}
-              view={view}
-              onViewChange={setView}
-            />
-          </div>
-
-          {rooms.map((room) => (
-            <TabsContent key={room.court} value={room.court} className="px-4 md:px-8">
+        {/* The day's courts, stacked in cause-list order. A section header is a
+            block element that wraps; a tab was an inline element that clipped,
+            and at the pilot's own four courts none of them fitted. */}
+        {listed.length ? (
+          <div className="flex flex-col gap-8 px-4 pt-4 pb-8 md:px-8">
+            {listed.map((section) => (
               <CourtBoard
+                key={section.court}
                 world={world}
                 locale={locale}
-                board={filterBoard(boards.get(room.court)!)}
-                access={access}
+                section={section}
                 view={view}
                 selectedCaseId={selectedCaseId}
                 onOpenCase={openCase}
                 onAct={actOn}
-                jump={jump}
-                onJump={selectDay}
               />
-            </TabsContent>
-          ))}
-        </Tabs>
+            ))}
+
+            {/* A court with nothing listed is worth one line, not a section:
+                stacked, an empty court is 200px of scroll the reader pays for
+                on the way past, where a tab at least stayed a landmark. */}
+            {quiet.length ? (
+              <p className="text-caption text-muted-foreground">
+                {fillCopy(advHome.nothingListedIn, locale, {
+                  courts: quiet.map((section) => section.label).join(", "),
+                })}
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <div className="px-4 pt-4 pb-8 md:px-8">
+            {/* The sunken fill is the separation — a stroke on top of it would
+                be the second thing doing one job. */}
+            <Empty className="bg-surface-sunken">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <SlidersHorizontal aria-hidden="true" />
+                </EmptyMedia>
+                <EmptyTitle>
+                  {active === user.id
+                    ? pick(advHome.emptyDayTitle, locale)
+                    : fillCopy(advHome.emptyAdvocateTitle, locale, {
+                        name: whoseName,
+                      })}
+                </EmptyTitle>
+                <EmptyDescription>
+                  {active === user.id
+                    ? pick(advHome.emptyDayBody, locale)
+                    : fillCopy(advHome.emptyAdvocateBody, locale, {
+                        name: whoseName,
+                      })}
+                </EmptyDescription>
+              </EmptyHeader>
+              {active === user.id ? (
+                jump ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => selectDay(jump.key)}
+                  >
+                    {fillCopy(advHome.jumpNext, locale, {
+                      day: jump.label,
+                      n: String(jump.count),
+                    })}
+                    <ArrowRight aria-hidden="true" />
+                  </Button>
+                ) : null
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setWhose(user.id)}
+                >
+                  {pick(advHome.showYourMatters, locale)}
+                </Button>
+              )}
+            </Empty>
+          </div>
+        )}
       </main>
 
       <CompanionRail
