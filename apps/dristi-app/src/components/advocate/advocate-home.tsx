@@ -2,8 +2,16 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { LayoutGrid, List } from "lucide-react";
+import { CloudAlert, LayoutGrid, List, RotateCw } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import {
   SegmentedControl,
   SegmentedControlItem,
@@ -39,7 +47,7 @@ import {
 import { HomeGreeting } from "@/components/advocate/home-greeting";
 import {
   CompanionRail,
-  type RailSection,
+  useRailSection,
 } from "@/components/advocate/companion-rail";
 
 /** The shell top bar is `h-14`; the sticky rail hangs below it. */
@@ -167,7 +175,7 @@ function HomeBody({
   now: number;
 }) {
   const store = useTasks();
-  const { state, people, cases, tasks, user } = store;
+  const { state, people, cases, tasks, user, reload } = store;
   const router = useRouter();
   const { run: actOn, layer: actLayer } = useTaskAct();
   const peek = useCasePeek();
@@ -183,7 +191,9 @@ function HomeBody({
   const [weekAnchor, setWeekAnchor] = React.useState<number>(now);
   const [view, setView] = React.useState<BoardView>("cards");
   const [access, setAccess] = React.useState<AccessFilter>("all");
-  const [railSection, setRailSection] = React.useState<RailSection | null>("tasks");
+  // Not `useState`: which panel stands open is remembered per user, so a rail
+  // closed last week is still closed. First run opens the tasks panel.
+  const [railSection, setRailSection] = useRailSection();
 
   const week = React.useMemo(
     () => weekOf(world, now, weekAnchor),
@@ -295,6 +305,30 @@ function HomeBody({
     const id = peek.record?.id;
     return id?.startsWith("tw-") ? id.slice(3) : null;
   }, [peek.record]);
+
+  // A failure and a slow load are not the same screen. One spinner stood for
+  // both, so a failed load spun forever with no way out of it.
+  if (state === "error") {
+    return (
+      <main className="flex min-w-0 flex-1 items-center justify-center px-4">
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <CloudAlert aria-hidden="true" />
+            </EmptyMedia>
+            <EmptyTitle>{pick(advHome.loadErrorTitle, locale)}</EmptyTitle>
+            <EmptyDescription>
+              {pick(advHome.loadErrorBody, locale)}
+            </EmptyDescription>
+          </EmptyHeader>
+          <Button variant="outline" size="sm" onClick={() => void reload()}>
+            <RotateCw aria-hidden="true" />
+            {pick(advHome.retry, locale)}
+          </Button>
+        </Empty>
+      </main>
+    );
+  }
 
   if (state !== "ready") {
     return (

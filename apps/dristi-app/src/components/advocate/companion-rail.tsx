@@ -16,6 +16,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import {
+  useLocalStorageValue,
+  writeLocalStorageValue,
+} from "@/hooks/use-local-storage-value";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -82,7 +86,39 @@ const KIND_ICON: Record<TaskKind, LucideIcon> = {
 
 const MIN_WIDTH = 280;
 const MAX_WIDTH = 460;
-export const RAIL_DEFAULT_WIDTH = 384;
+export const RAIL_DEFAULT_WIDTH = 320;
+
+/**
+ * The rail remembers itself, per user, across loads.
+ *
+ * Which panel is open is a working preference, not a per-visit question: someone
+ * who closes the rail should find it closed next time, and today they did not.
+ * Width goes with it, since resizing it is the same kind of choice. On first run
+ * the tasks panel opens — §138 runs on clocks a missed day does not give back,
+ * so the obligation surface is what an unconfigured rail shows.
+ */
+const RAIL_SECTION_KEY = "dristi.advocate-rail-section";
+const RAIL_WIDTH_KEY = "dristi.advocate-rail-width";
+
+/** The closed rail, written down — `null` is not a storable value. */
+const CLOSED = "closed";
+
+export function useRailSection(): [
+  RailSection | null,
+  (next: RailSection | null) => void,
+] {
+  // Server render and hydration agree on the default (the store's server
+  // snapshot is null); the stored choice takes over immediately after.
+  const stored = useLocalStorageValue(RAIL_SECTION_KEY);
+  const section: RailSection | null =
+    stored === CLOSED ? null : stored === "prep" ? "prep" : "tasks";
+
+  const setSection = React.useCallback((next: RailSection | null) => {
+    writeLocalStorageValue(RAIL_SECTION_KEY, next ?? CLOSED);
+  }, []);
+
+  return [section, setSection];
+}
 
 /**
  * Every card in the rail: one height, a hairline, and a hover that lifts. Tall
@@ -568,26 +604,41 @@ export function CompanionRail({
 }) {
   const tasksCount = summaryOf(world).action;
   const prepCount = prepAhead(world, Number(new Date(world.now))).length;
-  const [width, setWidth] = React.useState(RAIL_DEFAULT_WIDTH);
   const dragFrom = React.useRef<{ x: number; width: number } | null>(null);
 
   const clamp = (w: number) => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, w));
 
+  // The stored width is the resting truth; `dragging` holds the live value only
+  // while the pointer is down, so a drag is one write on release rather than one
+  // per pixel of travel.
+  const stored = useLocalStorageValue(RAIL_WIDTH_KEY);
+  const [dragging, setDragging] = React.useState<number | null>(null);
+  const restingWidth = clamp(Number(stored) || RAIL_DEFAULT_WIDTH);
+  const width = dragging ?? restingWidth;
+
+  const commitWidth = React.useCallback((w: number) => {
+    writeLocalStorageValue(RAIL_WIDTH_KEY, String(w));
+  }, []);
+
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     dragFrom.current = { x: e.clientX, width };
+    setDragging(width);
     e.currentTarget.setPointerCapture(e.pointerId);
   }
   function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
     if (!dragFrom.current) return;
     // The panel sits on the right, so dragging left grows it.
-    setWidth(clamp(dragFrom.current.width + (dragFrom.current.x - e.clientX)));
+    setDragging(clamp(dragFrom.current.width + (dragFrom.current.x - e.clientX)));
   }
   function onPointerUp() {
+    if (dragFrom.current && dragging !== null) commitWidth(dragging);
     dragFrom.current = null;
+    setDragging(null);
   }
   function onHandleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-    if (e.key === "ArrowLeft") setWidth((w) => clamp(w + 16));
-    if (e.key === "ArrowRight") setWidth((w) => clamp(w - 16));
+    // Discrete steps, so each one is worth writing down on its own.
+    if (e.key === "ArrowLeft") commitWidth(clamp(width + 16));
+    if (e.key === "ArrowRight") commitWidth(clamp(width - 16));
   }
 
   const toggle = (next: RailSection) =>

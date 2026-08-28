@@ -210,6 +210,15 @@ export const advHome = {
   ),
   jumpNext: t("Next hearing day: {day} — {n} listed", "അടുത്ത ഹിയറിംഗ് ദിവസം: {day} — {n} ഇനം"),
 
+  /* A load that failed, said apart from a load that is slow — the spinner used
+     to stand for both, so a failure spun forever with no way out. */
+  loadErrorTitle: t("Could not load the day", "ഈ ദിവസത്തെ വിവരങ്ങൾ ലഭിച്ചില്ല"),
+  loadErrorBody: t(
+    "The cause list and your pending tasks did not load. Check your connection and try again.",
+    "കോസ് ലിസ്റ്റും ബാക്കിയുള്ള ജോലികളും ലഭിച്ചില്ല. കണക്ഷൻ പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.",
+  ),
+  retry: t("Try again", "വീണ്ടും ശ്രമിക്കുക"),
+
   /* Week strip */
   prevWeek: t("Previous week", "കഴിഞ്ഞ ആഴ്ച"),
   nextWeek: t("Next week", "അടുത്ത ആഴ്ച"),
