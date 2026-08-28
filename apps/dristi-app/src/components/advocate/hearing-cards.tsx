@@ -94,7 +94,10 @@ export function NowHearingCard({
         <div className="group/row relative flex flex-wrap items-start gap-4">
           <ItemChip item={hearing.item} size="lg" surface="brand" />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <h2 className="text-title font-semibold text-balance">
+            {/* `h3`, not `h2`: the court's own heading is the section's `h2`
+                now, so the matter sits under it — the same level the queue
+                cards below take. Size is not level. */}
+            <h3 className="text-title font-semibold text-balance">
               <button
                 type="button"
                 onClick={onOpenCase}
@@ -102,7 +105,7 @@ export function NowHearingCard({
               >
                 {hearing.kase.parties}
               </button>
-            </h2>
+            </h3>
             {/* Parties and posting, and nothing else: the numbers and the
                 vakalatnama sentence were a wall of dimmed type on a tinted card.
                 The number is one click away in the peek; who holds the
@@ -137,9 +140,9 @@ export function NowHearingCard({
           <div className="relative z-10 flex flex-col gap-1.5 rounded-md bg-card p-1.5">
             {/* A white well full of sentences does not announce itself as a list
                 of things owed. The heading says what it is. */}
-            <h3 className="px-4 pt-2 text-caption font-semibold text-muted-foreground">
+            <h4 className="px-4 pt-2 text-caption font-semibold text-muted-foreground">
               {pick(advHome.blockersHeading, locale)}
-            </h3>
+            </h4>
             {hearing.blockers.map((task) => (
               <HomeTaskRow
                 key={task.id}
