@@ -175,8 +175,8 @@ export const CASES: Case[] = [
   // ── Today's cause list ───────────────────────────────────────────
   // Seventeen matters listed today across three courts (ON 12 · JMFC 1 3 · CJM 2),
   // timed by `TODAY_OFFSET` so the day always reads as a day in progress. Anjali
-  // is a signatory on most; a few (c-hd4, c-hd7, c-hd12) she can see but not act
-  // on — the vakalatnama access split the home screen must show.
+  // is a signatory on most; four (c-hd4, c-hd7, c-hd12, c-hd15) she can see but
+  // not act on — the vakalatnama split the home screen marks on the card itself.
   { id: "c-hd1", stNumber: "ST 268/2025", cnr: "KLKL01-000268-2025", parties: "Prakash Kumar v. Malabar Traders", court: ON, stage: "Evidence of the complainant", nextHearingAt: listedToday("c-hd1"), signatories: ["p-an"], advocates: ["p-an", "p-sp"] },
   { id: "c-hd2", stNumber: "ST 743/2025", cnr: "KLKL01-000743-2025", parties: "Divya Suresh v. K. Salim", court: ON, stage: "Plea", nextHearingAt: listedToday("c-hd2"), signatories: ["p-an", "p-rm"], advocates: ["p-an", "p-rm"] },
   { id: "c-hd3", stNumber: "ST 512/2025", cnr: "KLKL01-000512-2025", parties: "Gopinathan Nair v. Chaithanya Agencies", court: ON, stage: "Evidence of the complainant", nextHearingAt: listedToday("c-hd3"), signatories: ["p-an"], advocates: ["p-an", "p-sp"] },

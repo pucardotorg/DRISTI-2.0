@@ -16,7 +16,7 @@
 
 import { CASES as CASE_RECORDS } from "@/lib/cases/fixtures";
 import type { CaseRecord } from "@/lib/cases/types";
-import type { Case, Person, Task } from "@/lib/tasks/types";
+import type { Case, Person, PersonId, Task } from "@/lib/tasks/types";
 import { caseOf, tasksInView, sortTasks, type World } from "@/lib/tasks/selectors";
 import { dueCueOf } from "@/lib/tasks/format";
 import { ACTIONABLE, advocatesOf, canView } from "@/lib/tasks/permissions";
@@ -165,8 +165,9 @@ export type CourtRoom = {
 };
 
 /**
- * The court tabs for a day: every court the user can see, the flagship ON court
- * first, each with its day count and whether it is live at the moment.
+ * The day's courts: every court the user can see, the flagship ON court first,
+ * each with its day count and whether it is live at the moment. The board stacks
+ * one section per court that has matters; the rest are named in one line.
  */
 export function courtRooms(
   world: World,
@@ -186,6 +187,114 @@ export function courtRooms(
       live: listed.some((h) => h.status === "now"),
     };
   });
+}
+
+export type CourtLabels = {
+  /** The trailing run every court name shares — "Kollam" — or null. */
+  establishment: string | null;
+  /** The court name with that shared run removed. Identity when there is none. */
+  shortOf: (court: string) => string;
+};
+
+/**
+ * The part of the court names that is the same on all of them, said once.
+ *
+ * Four courts reading "…, Kollam" spend forty characters on one fact, and the
+ * fact belongs above the stack rather than on every heading. This computes it
+ * from the data instead of matching a literal: an English `.replace(", Kollam")`
+ * silently no-ops in a Malayalam or Gujarati deployment, and how a court is named
+ * is a state-layer concern (`product-foundation.md` §2), not a view's edit.
+ *
+ * The rule is the longest common *trailing* run of `", "`-separated segments that
+ * still leaves every court at least one leading segment of its own — so a court
+ * called only "Kollam" stops the run rather than being erased by it. No run, one
+ * court, or unrelated names all fall through to the full label, which is always
+ * correct. The `", "` split is itself a punctuation assumption; it is safe rather
+ * than durable, and the durable fix is structured court data (brief §15.11 Q7).
+ */
+export function courtLabelsOf(courts: string[]): CourtLabels {
+  const identity = (court: string) => court;
+  const names = [...new Set(courts)];
+  if (names.length < 2) return { establishment: null, shortOf: identity };
+
+  const parts = names.map((name) => name.split(", "));
+  // Every court keeps a leading segment, so the run is always shorter than the
+  // shortest name — that guard is what makes a bare "Kollam" fall through.
+  const limit = Math.min(...parts.map((p) => p.length)) - 1;
+
+  let run = 0;
+  while (run < limit) {
+    const segment = parts[0][parts[0].length - 1 - run];
+    if (!parts.every((p) => p[p.length - 1 - run] === segment)) break;
+    run += 1;
+  }
+  if (run === 0) return { establishment: null, shortOf: identity };
+
+  const establishment = parts[0].slice(parts[0].length - run).join(", ");
+  const suffix = `, ${establishment}`;
+  return {
+    establishment,
+    shortOf: (court) =>
+      court.endsWith(suffix) ? court.slice(0, -suffix.length) : court,
+  };
+}
+
+/** An advocate the day's board can be seen through, with their share of it. */
+export type AdvocateOption = {
+  person: Person;
+  /** Matters listed on the selected day where this advocate is on the case. */
+  count: number;
+  /** The signed-in account — always first, always present. */
+  you: boolean;
+};
+
+/**
+ * Everyone with a matter listed on the day, for the board's advocate switcher.
+ *
+ * The signed-in advocate leads and the rest follow alphabetically — not by
+ * descending count, because a roster that reorders day to day costs the muscle
+ * memory that makes a repeat-user control fast. Counts are "on the case"
+ * (`canView`), not "on the vakalatnama": being on the case is what puts a matter
+ * on someone's board.
+ *
+ * Honest limitation, stated where it is implemented: the world is already scoped
+ * to one viewer, so choosing a colleague shows the matters you *share* with them,
+ * never their own board. An office scope is a product question (brief §15.11 Q8).
+ */
+export function advocateRosterOn(
+  world: World,
+  dayKey: string,
+  now: number = Date.now()
+): AdvocateOption[] {
+  const meId: PersonId =
+    typeof world.user === "string" ? world.user : world.user.id;
+  const tally = new Map<PersonId, { person: Person; count: number }>();
+
+  for (const room of courtRooms(world, dayKey, now)) {
+    for (const hearing of hearingsOn(world, room.court, dayKey, now)) {
+      for (const person of advocatesOf(hearing.kase, world.people)) {
+        if (!canView(person.id, hearing.kase)) continue;
+        const entry = tally.get(person.id) ?? { person, count: 0 };
+        entry.count += 1;
+        tally.set(person.id, entry);
+      }
+    }
+  }
+
+  // The viewer is on the control even on a day that lists nothing of theirs —
+  // it is the default, and a switcher missing its own default cannot reset.
+  const me =
+    world.people.find((p) => p.id === meId) ??
+    (typeof world.user === "string" ? null : world.user);
+  const self = tally.get(meId) ?? (me ? { person: me, count: 0 } : null);
+
+  return [
+    ...(self ? [{ ...self, you: true }] : []),
+    ...[...tally.values()]
+      .filter((entry) => entry.person.id !== meId)
+      .sort((a, b) => a.person.name.localeCompare(b.person.name))
+      .map((entry) => ({ ...entry, you: false })),
+  ];
 }
 
 export type Board = {

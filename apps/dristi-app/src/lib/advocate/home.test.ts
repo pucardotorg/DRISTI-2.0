@@ -1,12 +1,24 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { at, kase, makeTask, NOW, otherCase, PEOPLE, senior } from "@/lib/tasks/fixtures";
+import {
+  at,
+  junior,
+  kase,
+  makeTask,
+  NOW,
+  otherCase,
+  PEOPLE,
+  senior,
+  senior2,
+} from "@/lib/tasks/fixtures";
 import type { Case } from "@/lib/tasks/types";
 import type { World } from "@/lib/tasks/selectors";
 import {
+  advocateRosterOn,
   boardOf,
   caseRecordFor,
+  courtLabelsOf,
   courtRooms,
   dayKeyOf,
   hearingsOn,
@@ -150,6 +162,155 @@ describe("courtRooms", () => {
       ]
     );
     assert.equal(matterCountOn(w, dayKeyOf(at(0, 12)), NOW_MS), 3);
+  });
+});
+
+describe("courtLabelsOf", () => {
+  const KOLLAM = [
+    "24×7 ON Court, Kollam",
+    "JMFC Court 1, Kollam",
+    "JMFC Court 2, Kollam",
+    "CJM Court, Kollam",
+  ];
+
+  it("names the shared trailing run once and strips it from every court", () => {
+    const { establishment, shortOf } = courtLabelsOf(KOLLAM);
+    assert.equal(establishment, "Kollam");
+    assert.equal(shortOf("JMFC Court 1, Kollam"), "JMFC Court 1");
+    assert.equal(shortOf("24×7 ON Court, Kollam"), "24×7 ON Court");
+  });
+
+  it("takes the longest common run, not just the last segment", () => {
+    const { establishment, shortOf } = courtLabelsOf([
+      "JMFC Court 1, Kollam, Kerala",
+      "CJM Court, Kollam, Kerala",
+    ]);
+    assert.equal(establishment, "Kollam, Kerala");
+    assert.equal(shortOf("CJM Court, Kollam, Kerala"), "CJM Court");
+  });
+
+  it("falls through to full names when nothing is shared", () => {
+    const unrelated = ["Sessions Court, Kollam", "JMFC Court 1, Kochi"];
+    const { establishment, shortOf } = courtLabelsOf(unrelated);
+    assert.equal(establishment, null);
+    for (const court of unrelated) assert.equal(shortOf(court), court);
+  });
+
+  it("falls through for a single court — there is nothing to say once", () => {
+    const { establishment, shortOf } = courtLabelsOf(["CJM Court, Kollam"]);
+    assert.equal(establishment, null);
+    assert.equal(shortOf("CJM Court, Kollam"), "CJM Court, Kollam");
+  });
+
+  it("never strips a court down to nothing", () => {
+    // "Kollam" is the whole name of one court, so the run has to stop before it
+    // — otherwise that heading would render empty.
+    const { establishment, shortOf } = courtLabelsOf(["Kollam", "CJM Court, Kollam"]);
+    assert.equal(establishment, null);
+    assert.equal(shortOf("Kollam"), "Kollam");
+  });
+
+  it("is unaffected by a repeated court name", () => {
+    const { establishment } = courtLabelsOf([
+      "CJM Court, Kollam",
+      "CJM Court, Kollam",
+    ]);
+    assert.equal(establishment, null);
+  });
+});
+
+describe("advocateRosterOn", () => {
+  const today = () => dayKeyOf(at(0, 12));
+
+  it("leads with the signed-in advocate, then the rest by name", () => {
+    // senior (Anjali) sees both; senior2 (R. Manoj) is on one, junior (S. Prakash)
+    // on the other. Alphabetical after self: "R. Manoj" then "S. Prakash".
+    const withManoj: Case = {
+      ...listed("a", 0, 15),
+      signatories: [senior.id],
+      advocates: [senior.id, senior2.id],
+    };
+    const withPrakash: Case = {
+      ...listed("b", 0, 16),
+      signatories: [senior.id],
+      advocates: [senior.id, junior.id],
+    };
+    const roster = advocateRosterOn(world([withManoj, withPrakash]), today(), NOW_MS);
+
+    assert.deepEqual(
+      roster.map((o) => [o.person.id, o.count, o.you]),
+      [
+        [senior.id, 2, true],
+        [senior2.id, 1, false],
+        [junior.id, 1, false],
+      ]
+    );
+  });
+
+  it("counts a colleague's share of the day, not their own board", () => {
+    // The world is viewer-scoped, so a matter the viewer cannot see is not in it
+    // to be counted — the colleague's number is the matters they *share*.
+    const shared: Case = {
+      ...listed("shared", 0, 15),
+      signatories: [senior.id],
+      advocates: [senior.id, senior2.id],
+    };
+    const mineAlone: Case = {
+      ...listed("mine", 0, 16),
+      signatories: [senior.id],
+      advocates: [senior.id],
+    };
+    const theirs: Case = {
+      ...otherCase,
+      id: "theirs",
+      court: kase.court,
+      nextHearingAt: at(0, 17),
+      signatories: [senior2.id],
+      advocates: [senior2.id],
+    };
+    const roster = advocateRosterOn(
+      world([shared, mineAlone, theirs]),
+      today(),
+      NOW_MS
+    );
+
+    assert.deepEqual(
+      roster.map((o) => [o.person.id, o.count]),
+      [
+        [senior.id, 2],
+        [senior2.id, 1],
+      ]
+    );
+  });
+
+  it("counts everyone on the case, whether or not they hold the vakalatnama", () => {
+    const c: Case = {
+      ...listed("c", 0, 15),
+      signatories: [senior.id],
+      advocates: [senior.id, junior.id],
+    };
+    const roster = advocateRosterOn(world([c]), today(), NOW_MS);
+    assert.deepEqual(
+      roster.map((o) => o.person.id),
+      [senior.id, junior.id]
+    );
+  });
+
+  it("keeps the signed-in advocate on a day that lists nothing", () => {
+    const roster = advocateRosterOn(world([listed("later", 4, 15)]), today(), NOW_MS);
+    assert.deepEqual(
+      roster.map((o) => [o.person.id, o.count, o.you]),
+      [[senior.id, 0, true]]
+    );
+  });
+
+  it("counts a matter once, however many courts the day spans", () => {
+    const w = world([
+      listed("on", 0, 15),
+      listed("jmfc", 0, 15, "JMFC Court 1, Kollam"),
+    ]);
+    const roster = advocateRosterOn(w, today(), NOW_MS);
+    assert.equal(roster[0].count, 2);
   });
 });
 

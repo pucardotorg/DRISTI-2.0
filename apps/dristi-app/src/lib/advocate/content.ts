@@ -180,6 +180,17 @@ export const advHome = {
   /* Board */
   inSession: t("in session", "സെഷനിൽ"),
   nowLabel: t("Now — item {n} · {at}", "ഇപ്പോൾ — ഇനം {n} · {at}"),
+  /** The establishment every court name shares, said once above the stack. */
+  courtsAt: t("Courts at {place}", "{place}-ലെ കോടതികൾ"),
+  jumpToCourt: t("Jump to court", "കോടതിയിലേക്ക് പോകുക"),
+  /** Courts the viewer can see that have nothing on the selected day. */
+  nothingListedIn: t(
+    "Nothing listed in {courts}",
+    "{courts}-ൽ ഒന്നും പട്ടികയിലില്ല",
+  ),
+  /** A property of the matter, on its own metadata line — not a status chip.
+      "View only" reads as a UI mode; this is the word an advocate says. */
+  notOnVakalatnama: t("Not on the vakalatnama", "വക്കാലത്തിൽ ഇല്ല"),
   /** Above the tasks well inside a hearing card — it is not self-evidently a task list. */
   blockersHeading: t(
     "Pending before this hearing",
@@ -223,6 +234,20 @@ export const advHome = {
   prevWeek: t("Previous week", "കഴിഞ്ഞ ആഴ്ച"),
   nextWeek: t("Next week", "അടുത്ത ആഴ്ച"),
   pickDate: t("Pick a date", "തീയതി തിരഞ്ഞെടുക്കുക"),
+
+  /* Whose matters — the board's advocate switcher. Names, not a permission
+     model: "view access" is the system's vocabulary, an advocate says a name. */
+  whoseMatters: t("Whose matters", "ആരുടെ വിഷയങ്ങൾ"),
+  switcherYou: t("{name} (you)", "{name} (നിങ്ങൾ)"),
+  showYourMatters: t("Show your matters", "നിങ്ങളുടെ വിഷയങ്ങൾ കാണിക്കുക"),
+  emptyAdvocateTitle: t(
+    "Nothing listed for {name}",
+    "{name}-ന് ഒന്നും പട്ടികയിലില്ല",
+  ),
+  emptyAdvocateBody: t(
+    "No matters listed on this day where {name} is on the case. Switch back to your own matters to see the full board.",
+    "ഈ ദിവസം {name} കേസിലുള്ള വിഷയങ്ങളൊന്നും പട്ടികയിലില്ല. മുഴുവൻ ബോർഡ് കാണാൻ നിങ്ങളുടെ വിഷയങ്ങളിലേക്ക് മടങ്ങുക.",
+  ),
 
   /* Access */
   filterAll: t("All matters", "എല്ലാ വിഷയങ്ങളും"),
