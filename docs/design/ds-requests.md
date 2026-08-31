@@ -313,3 +313,38 @@ hover affordance.
 
 **Request:** document the pattern (and ideally ship the mapping helper) before a third
 caller appears. It does not need to be a component; it needs to be a decision.
+
+---
+
+## Stacked (multi-segment) progress bar
+
+Raised: 2026-08-30, from the e-filing "File a case" screen (`BatchProgress` in
+`components/filing/dashboard/bulk-import-card.tsx`).
+
+`Progress` is single-valued. A batch of filings is not: its cases sit across registered /
+in scrutiny / defect / not filed at once, and the useful picture is the proportions in one
+bar. Composed here from a flex row of token-filled spans, with the bar `aria-hidden` and a
+legend carrying every count as text, so colour never carries the meaning alone.
+
+**Request:** a `Progress` variant (or a `SegmentedProgress`) that takes ordered segments
+with a value and a semantic token each, and owns the accessible summary. Three things are
+easy to get wrong per-composition and worth deciding once: rounding when segments do not
+sum to the total, the minimum visible width of a non-zero segment, and whether the
+remainder renders as `track` or as an explicit segment.
+
+---
+
+## `Card` clips its children, so a panel cannot hold sticky content
+
+Raised: 2026-08-30, from the e-filing "File a case" work queue
+(`components/filing/dashboard/filings-queue.tsx`).
+
+The `Card` master carries `overflow-hidden`. A clipping ancestor makes `position: sticky`
+inert for every descendant, so a panel cannot keep its own header, tab strip or table
+head pinned while its content scrolls — a normal pattern for any long list inside a card.
+Worked around here with `overflow-visible` on the one Card, which gives up the corner
+clip the master was buying.
+
+**Request:** either drop `overflow-hidden` from the master (rounding already clips
+backgrounds; it is mainly there for images bleeding to the edge) or add a variant that
+opts out, so composition does not have to fight the primitive to pin a header.
