@@ -2,6 +2,12 @@
   "fixtureId": "DRISTI-PARTIES-SECTION138-001",
   "isDummyData": true,
   "partyRegister": {
+    "A. Salim": {
+      "kind": "individual"
+    },
+    "Abdul Latheef": {
+      "kind": "individual"
+    },
     "Abdul Salam": {
       "kind": "individual"
     },
@@ -16,11 +22,41 @@
     "Amit Khurana": {
       "kind": "individual"
     },
+    "Ammini George": {
+      "kind": "individual"
+    },
+    "Anand Cements": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
+    "Anand Motors": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
     "Anand Traders": {
       "kind": "entity",
       "entityType": "Partnership firm"
     },
+    "Anchor Marine": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
+    "Anil Kumar K.": {
+      "kind": "individual"
+    },
     "Anil Kumar T": {
+      "kind": "individual"
+    },
+    "Anitha Joseph": {
+      "kind": "individual"
+    },
+    "Anwar Sadath": {
+      "kind": "individual"
+    },
+    "Asha Kumari": {
+      "kind": "individual"
+    },
+    "Ashique P.": {
       "kind": "individual"
     },
     "Aster Pharma Retail": {
@@ -37,11 +73,21 @@
     "Balan Nair": {
       "kind": "individual"
     },
+    "Basheer K.": {
+      "kind": "individual"
+    },
+    "Beena Thomas": {
+      "kind": "individual"
+    },
     "Bhaskaran Nair": {
       "kind": "individual"
     },
     "Bindu Rajan": {
       "kind": "individual"
+    },
+    "Blue Wave Foods": {
+      "kind": "entity",
+      "entityType": "Private limited company"
     },
     "Capitol Stationery": {
       "kind": "entity",
@@ -51,9 +97,21 @@
       "kind": "entity",
       "entityType": "Partnership firm"
     },
+    "Chaithanya Agencies": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Chandy & Sons": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
     "Coastal Agro Exports Pvt Ltd": {
       "kind": "entity",
       "entityType": "Private limited company"
+    },
+    "Coastal Traders": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
     },
     "Copper Leaf Cafe": {
       "kind": "entity",
@@ -63,13 +121,30 @@
       "kind": "entity",
       "entityType": "Proprietorship"
     },
+    "Crescent Steels": {
+      "kind": "entity",
+      "entityType": "Private limited company"
+    },
     "Deepa Pillai": {
       "kind": "individual"
     },
     "Deepa Suresh": {
       "kind": "individual"
     },
+    "Deepak Nambiar": {
+      "kind": "individual"
+    },
+    "Devassy Joseph": {
+      "kind": "individual"
+    },
     "Devi Enterprises": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Divya Suresh": {
+      "kind": "individual"
+    },
+    "Elite Hardwares": {
       "kind": "entity",
       "entityType": "Proprietorship"
     },
@@ -78,6 +153,9 @@
       "entityType": "Proprietorship"
     },
     "Elsa Thomas": {
+      "kind": "individual"
+    },
+    "Faisal Rahman": {
       "kind": "individual"
     },
     "Fathima Beevi": {
@@ -97,6 +175,16 @@
       "kind": "entity",
       "entityType": "Partnership firm"
     },
+    "Girija Kumari": {
+      "kind": "individual"
+    },
+    "Gopinathan Nair": {
+      "kind": "individual"
+    },
+    "Grand Textiles": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
     "Greenfield Nurseries": {
       "kind": "entity",
       "entityType": "Proprietorship"
@@ -111,11 +199,21 @@
     "Hari Govind": {
       "kind": "individual"
     },
+    "Hariharan P.": {
+      "kind": "individual"
+    },
     "Highland Rubber Works": {
       "kind": "entity",
       "entityType": "Partnership firm"
     },
+    "Highrange Estates": {
+      "kind": "entity",
+      "entityType": "Private limited company"
+    },
     "Ibrahim Kutty": {
+      "kind": "individual"
+    },
+    "Jaseela Beegum": {
       "kind": "individual"
     },
     "Jaspreet Bedi": {
@@ -130,8 +228,29 @@
     "Joseph Antony": {
       "kind": "individual"
     },
+    "Joseph Mathew": {
+      "kind": "individual"
+    },
+    "K. Radhakrishnan": {
+      "kind": "individual"
+    },
+    "K. Salim": {
+      "kind": "individual"
+    },
+    "Kadavil Motors": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Kairali Motors": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
     "Karun Malhotra": {
       "kind": "individual"
+    },
+    "Kerala Spice Board": {
+      "kind": "entity",
+      "entityType": "Statutory body"
     },
     "Kerala Spice Traders Association": {
       "kind": "entity",
@@ -144,9 +263,25 @@
     "Kiran Mathew": {
       "kind": "individual"
     },
+    "Kochu Varkey": {
+      "kind": "individual"
+    },
     "Kohli Electricals": {
       "kind": "entity",
       "entityType": "Proprietorship"
+    },
+    "Kollam Cashew Co.": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
+    "Krishnan Kutty": {
+      "kind": "individual"
+    },
+    "Kuttan Pillai": {
+      "kind": "individual"
+    },
+    "Lakshmi Menon": {
+      "kind": "individual"
     },
     "Lakshmi Priya R": {
       "kind": "individual"
@@ -154,10 +289,33 @@
     "Latha Krishnan": {
       "kind": "individual"
     },
+    "Latheef M.": {
+      "kind": "individual"
+    },
+    "Leelamma Joy": {
+      "kind": "individual"
+    },
+    "M. Haneefa": {
+      "kind": "individual"
+    },
+    "Malabar Gold Mart": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Malabar Traders": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
     "Mandeep Kaur": {
       "kind": "individual"
     },
+    "Manoj Kurian": {
+      "kind": "individual"
+    },
     "Manoj Pillai": {
+      "kind": "individual"
+    },
+    "Mariyam Bee": {
       "kind": "individual"
     },
     "Mathew Philip": {
@@ -173,10 +331,30 @@
     "Muhammed Ashraf": {
       "kind": "individual"
     },
+    "N. Pillai": {
+      "kind": "individual"
+    },
     "Nazeer Hussain": {
       "kind": "individual"
     },
+    "Nazeer M.": {
+      "kind": "individual"
+    },
+    "Nila Finance": {
+      "kind": "entity",
+      "entityType": "Private limited company"
+    },
+    "Nilgiri Rubbers": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
+    "Nirmala T.": {
+      "kind": "individual"
+    },
     "Nithin Jose": {
+      "kind": "individual"
+    },
+    "Noor Jahan": {
       "kind": "individual"
     },
     "Noushad M": {
@@ -190,6 +368,20 @@
       "kind": "entity",
       "entityType": "Partnership firm"
     },
+    "Ouseph Varkey": {
+      "kind": "individual"
+    },
+    "P. J. Thomas": {
+      "kind": "individual"
+    },
+    "Padma Textiles": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Padmini Traders": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
     "Palm Grove Resorts": {
       "kind": "entity",
       "entityType": "Private limited company"
@@ -202,10 +394,22 @@
       "kind": "entity",
       "entityType": "Partnership firm"
     },
+    "Peter Varghese": {
+      "kind": "individual"
+    },
+    "Ponnamma K.": {
+      "kind": "individual"
+    },
     "Prakash Chandran": {
       "kind": "individual"
     },
+    "Prakash Kumar": {
+      "kind": "individual"
+    },
     "Prasad Kumar": {
+      "kind": "individual"
+    },
+    "Radhamani T.": {
       "kind": "individual"
     },
     "Radhika Menon": {
@@ -214,11 +418,20 @@
     "Rajeev Menon": {
       "kind": "individual"
     },
+    "Ramesh P.": {
+      "kind": "individual"
+    },
     "Rapid Freight Movers": {
       "kind": "entity",
       "entityType": "Partnership firm"
     },
+    "Ravi Chandran": {
+      "kind": "individual"
+    },
     "Ravi Sankar": {
+      "kind": "individual"
+    },
+    "Remani Amma": {
       "kind": "individual"
     },
     "Remya S": {
@@ -234,9 +447,20 @@
     "Ritu Bansal": {
       "kind": "individual"
     },
+    "Rukhiya Beevi": {
+      "kind": "individual"
+    },
+    "Sabari Traders": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
     "Sagar Fisheries": {
       "kind": "entity",
       "entityType": "Proprietorship"
+    },
+    "Sagara Fisheries": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
     },
     "Sajeev Kumar": {
       "kind": "individual"
@@ -244,6 +468,16 @@
     "Salim Traders": {
       "kind": "entity",
       "entityType": "Proprietorship"
+    },
+    "Salini Mohan": {
+      "kind": "individual"
+    },
+    "Sarala Devi": {
+      "kind": "individual"
+    },
+    "Sea Pearl Exports": {
+      "kind": "entity",
+      "entityType": "Private limited company"
     },
     "Seaside Marine Foods": {
       "kind": "entity",
@@ -253,7 +487,13 @@
       "kind": "entity",
       "entityType": "Proprietorship"
     },
+    "Shaji P.": {
+      "kind": "individual"
+    },
     "Shanmugam V": {
+      "kind": "individual"
+    },
+    "Sheeba Rasheed": {
       "kind": "individual"
     },
     "Sheeba Varghese": {
@@ -270,6 +510,13 @@
       "kind": "entity",
       "entityType": "Proprietorship"
     },
+    "Sree Devi Traders": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Sreekumar N.": {
+      "kind": "individual"
+    },
     "Sreekumar P": {
       "kind": "individual"
     },
@@ -277,19 +524,47 @@
       "kind": "entity",
       "entityType": "Private limited company"
     },
+    "Star Traders": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Sujatha R.": {
+      "kind": "individual"
+    },
     "Sunil Varghese": {
       "kind": "individual"
+    },
+    "Sunlight Agro": {
+      "kind": "entity",
+      "entityType": "Private limited company"
     },
     "Sunlit Solar Systems": {
       "kind": "entity",
       "entityType": "Private limited company"
     },
+    "Sunrise Plywoods": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
+    },
     "Sunrise Tours": {
       "kind": "entity",
       "entityType": "Proprietorship"
     },
+    "Suresh Babu": {
+      "kind": "individual"
+    },
     "Susan Jacob": {
       "kind": "individual"
+    },
+    "Susheela Devi": {
+      "kind": "individual"
+    },
+    "Thankamani P.": {
+      "kind": "individual"
+    },
+    "Thejas Marine": {
+      "kind": "entity",
+      "entityType": "Partnership firm"
     },
     "Thomas Kurian": {
       "kind": "individual"
@@ -308,15 +583,36 @@
     "Vasanth Kumar S": {
       "kind": "individual"
     },
+    "Vasanthi Amma": {
+      "kind": "individual"
+    },
+    "Vayalar Traders": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
+    "Vel Murugan Stores": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
     "Vijayan Pillai": {
+      "kind": "individual"
+    },
+    "Vinod Chandran": {
       "kind": "individual"
     },
     "Vinod Sharma": {
       "kind": "individual"
     },
+    "Vismaya Traders": {
+      "kind": "entity",
+      "entityType": "Proprietorship"
+    },
     "Western Ghats Timber": {
       "kind": "entity",
       "entityType": "Partnership firm"
+    },
+    "Zainaba M.": {
+      "kind": "individual"
     },
     "Zenith Publishers": {
       "kind": "entity",

@@ -451,6 +451,68 @@
           }
         ]
       }
+    ],
+    "tw-c-412": [
+      {
+        "id": "sub-tw412-bail",
+        "kind": "Application",
+        "type": "Bail",
+        "title": "Bail",
+        "status": "Completed",
+        "addedOn": "2026-08-11",
+        "submittedById": "tw-c-412-counsel-a-0",
+        "submissionId": "KL-000412-2025-AP2",
+        "request": "Enlarge the accused's proprietor on bail on such terms as this court directs; he has appeared and undertakes to attend every posting.",
+        "courtResult": "Allowed — bail granted; surety bond of Rs. 50,000 with two sureties ordered by 28 August 2026.",
+        "linkedOrder": null,
+        "defects": [],
+        "documents": [
+          {
+            "label": "Filed application",
+            "href": "/case-file/08-examination-of-accused.pdf"
+          }
+        ]
+      },
+      {
+        "id": "sub-tw412-advance",
+        "kind": "Application",
+        "type": "Advancement/reschedule",
+        "title": "Advancement/reschedule",
+        "status": "Completed",
+        "addedOn": "2026-06-24",
+        "submittedById": "tw-c-412-counsel-c-0",
+        "submissionId": "KL-000412-2025-AP1",
+        "request": "Advance the evidence of the complainant; PW-1 is available through the first half of August.",
+        "courtResult": "Allowed — evidence advanced to 11 August 2026.",
+        "linkedOrder": null,
+        "defects": [],
+        "documents": [
+          {
+            "label": "Filed application",
+            "href": "/case-file/14-application-advancement.pdf"
+          }
+        ]
+      },
+      {
+        "id": "sub-tw412-affidavit",
+        "kind": "Document submission",
+        "type": "Affidavits",
+        "title": "PW-1 chief affidavit under section 145 of the Negotiable Instruments Act",
+        "status": "Completed",
+        "addedOn": "2026-07-30",
+        "submittedById": "tw-c-412-counsel-c-0",
+        "submissionId": "KL-000412-2025-DS1",
+        "request": null,
+        "courtResult": null,
+        "linkedOrder": null,
+        "defects": [],
+        "documents": [
+          {
+            "label": "Filed affidavit",
+            "href": "/case-file/05-evidence-of-complainant.pdf"
+          }
+        ]
+      }
     ]
   }
 }

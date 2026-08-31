@@ -595,9 +595,12 @@ export function selectApplications(options: {
   submittedById: string | null;
   typeId: SubmissionTypeId | null;
   status: FilingStatus | null;
+  /** Case-insensitive submission-id fragment; empty/whitespace = no search. */
+  submissionQuery?: string;
   pageSize: ApplicationsPageSize;
   page: number;
 }): ApplicationsSelection {
+  const query = options.submissionQuery?.trim().toLowerCase() ?? "";
   const matched = options.submissions.filter((submission) => {
     if (
       options.submittedById &&
@@ -607,6 +610,14 @@ export function selectApplications(options: {
     }
     if (options.typeId && submission.type !== options.typeId) return false;
     if (options.status && submission.status !== options.status) return false;
+    // Drafts and unsigned filings have no submission id yet, so an id search
+    // rightly excludes them.
+    if (
+      query &&
+      !(submission.submissionId ?? "").toLowerCase().includes(query)
+    ) {
+      return false;
+    }
     return true;
   });
 

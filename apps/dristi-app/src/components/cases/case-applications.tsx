@@ -6,6 +6,7 @@ import {
   CircleAlertIcon,
   FileSearchIcon,
   FileTextIcon,
+  SearchIcon,
 } from "lucide-react";
 
 import { DownloadFilingButton } from "@/components/cases/download-filing-button";
@@ -42,6 +43,7 @@ import {
   ItemGroup,
   ItemTitle,
 } from "@/components/ui/item";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Pagination,
@@ -186,6 +188,7 @@ function ApplicationsReady({ file }: { file: ApplicationsFile }) {
   const [submittedById, setSubmittedById] = useState<string | null>(null);
   const [typeId, setTypeId] = useState<SubmissionTypeId | null>(null);
   const [status, setStatus] = useState<FilingStatus | null>(null);
+  const [submissionQuery, setSubmissionQuery] = useState("");
   const [pageSize, setPageSize] = useState<ApplicationsPageSize>(
     APPLICATIONS_PAGE_SIZE
   );
@@ -248,6 +251,7 @@ function ApplicationsReady({ file }: { file: ApplicationsFile }) {
     submittedById,
     typeId,
     status,
+    submissionQuery,
     pageSize,
     page,
   });
@@ -256,7 +260,10 @@ function ApplicationsReady({ file }: { file: ApplicationsFile }) {
   const hasRows = selection.total > 0;
 
   const filtered =
-    submittedById !== null || typeId !== null || status !== null;
+    submittedById !== null ||
+    typeId !== null ||
+    status !== null ||
+    submissionQuery.trim() !== "";
 
   function resetPage() {
     setPage(1);
@@ -266,6 +273,7 @@ function ApplicationsReady({ file }: { file: ApplicationsFile }) {
     setSubmittedById(null);
     setTypeId(null);
     setStatus(null);
+    setSubmissionQuery("");
     resetPage();
   }
 
@@ -291,9 +299,32 @@ function ApplicationsReady({ file }: { file: ApplicationsFile }) {
     );
   }
 
+  /* The register-wide search from the legacy screens, at the header's right
+     corner — the same seat the Documents register gives its filing-ID
+     search. */
+  const search = (
+    <div className="relative w-full md:w-64">
+      <SearchIcon
+        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+        aria-hidden
+      />
+      <Input
+        type="search"
+        aria-label="Search submission ID"
+        placeholder="Search submission ID"
+        className="pl-9"
+        value={submissionQuery}
+        onChange={(event) => {
+          setSubmissionQuery(event.target.value);
+          resetPage();
+        }}
+      />
+    </div>
+  );
+
   return (
     <>
-      <ApplicationsPanel>
+      <ApplicationsPanel search={search}>
         <div className={filterBarClass}>
           <Field className={filterFieldClass}>
             <FieldLabel
@@ -526,16 +557,22 @@ function uniqueSubmitters(
 
 function ApplicationsPanel({
   children,
+  search,
   busy = false,
 }: {
   children: ReactNode;
+  /** Submission-id search, seated at the header row's right corner. */
+  search?: ReactNode;
   busy?: boolean;
 }) {
   return (
     <section className="min-w-0" aria-busy={busy || undefined}>
       <Card className="hover:bg-card">
         <CardHeader>
-          <h2 className="text-title-s font-semibold">Applications</h2>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <h2 className="text-title-s font-semibold">Applications</h2>
+            {search}
+          </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">{children}</CardContent>
       </Card>

@@ -119,14 +119,15 @@ export default async function CaseDetailPage(
       <CaseSectionTabs caseId={caseId} section={section}>
         {section === "overview" ? (
           <div className="flex min-w-0 flex-col gap-6">
-            {/* The bond lifecycle is a pending task, so it lives with the
-                Overview's task content rather than floating above the strip
-                as page chrome (Aug 31 correction round). */}
-            <BondLifecycleCard />
             <CaseOverview
               record={record}
               now={new Date(FIXTURE_TODAY).getTime()}
             />
+            {/* The bond lifecycle is a pending task, so it lives with the
+                Overview's task content rather than floating above the strip
+                as page chrome — and after the overview card, which leads the
+                section (Aug 31 correction round). */}
+            <BondLifecycleCard />
           </div>
         ) : section === "case-file" ? (
           <CaseFile record={record} docId={docId} view={view} />
