@@ -13,13 +13,19 @@ import { firstNameOf, useProfile } from "@/lib/filing/profile";
 import { useMounted } from "@/lib/filing/store";
 import { useDrafts } from "@/lib/filing/use-drafts";
 import { useTasks } from "@/lib/tasks/store";
-import { DEMO_BATCH } from "@/lib/filing/demo-drafts";
 import { ConfirmDialog } from "@/components/filing/confirm-dialog";
 
-import { BulkImportCard } from "./bulk-import-card";
+import { BulkImportCard, type BulkBatch } from "./bulk-import-card";
 import { FilingsQueue, type QueueData } from "./filings-queue";
-import { SandboxStrip } from "./sandbox-strip";
 import { StartFilingCard } from "./start-filing-card";
+
+/**
+ * No client has pushed a batch across, because nothing in the app can receive one yet.
+ * The card renders its empty state until that question is answered — see
+ * docs/design/proposals/e-filing.md, W4. Do not seed this with an example batch: the
+ * screen would then claim a capability the product does not have.
+ */
+const BATCH: BulkBatch | null = null;
 
 /**
  * File a case — the entry to e-filing and the state of everything already filed.
@@ -33,12 +39,9 @@ import { StartFilingCard } from "./start-filing-card";
 export function FilingsDashboard() {
   const mounted = useMounted();
   const { profile } = useProfile();
-  const { ready, error, readAt, drafts, filed, discard, reload } = useDrafts();
+  const { ready, error, readAt, drafts, filed, discard } = useDrafts();
   const { tasks, cases: taskCases } = useTasks();
   const [confirmId, setConfirmId] = React.useState<string | null>(null);
-  // The batch is shown only when the sandbox strip asks for it: nothing in the app can
-  // receive a client batch yet, so the card must not claim one on its own (W4).
-  const [showBatch, setShowBatch] = React.useState(false);
 
   const showData = mounted && ready;
   const firstName = firstNameOf(profile?.name ?? "");
@@ -70,19 +73,13 @@ export function FilingsDashboard() {
 
       <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
         <StartFilingCard filedCount={showData ? filed.length : null} />
-        <BulkImportCard batch={showBatch ? DEMO_BATCH : null} />
+        <BulkImportCard batch={BATCH} />
       </div>
 
       {/* Gated on the drafts read only. Cases are a static import and the tasks store
           fills the "returned" tab whenever it finishes; waiting for all three would blank
           the whole table because one tab is not ready yet. */}
       <FilingsQueue data={data} ready={showData} onDiscard={setConfirmId} />
-
-      <SandboxStrip
-        batchLoaded={showBatch}
-        onToggleBatch={() => setShowBatch((on) => !on)}
-        onDraftsChanged={reload}
-      />
 
       <ConfirmDialog
         open={confirmId !== null}

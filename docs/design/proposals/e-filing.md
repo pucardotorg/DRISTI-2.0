@@ -633,6 +633,14 @@ Recorded in `docs/design/ds-requests.md` when round 2 confirms them.
   that claimed an order and had none. Rows now carry an optional `tieAt`, set on registered
   rows to the date the column actually shows, so past listings read most-recent-first.
 
+- 2026-08-31 (sandbox removed) — Owner: delete the sandbox. `demo-drafts.ts` and
+  `sandbox-strip.tsx` are gone and the screen is back to claiming nothing it cannot
+  source: the bulk card holds `BATCH = null` behind the same comment as before, and an
+  account with no drafts shows the drafts empty state and its "Start a cheque-bounce
+  filing" action. Sample drafts already written to a browser's IndexedDB by the strip
+  outlive the code — the ids all start `demo_`, so they can be cleared from devtools on
+  the app's origin.
+
 ### Round 2 candidates (design pass)
 Card title scale vs demo (16/600); select trigger truncation on half-width fields;
 DatePicker display format vs dd/mm/yyyy; DocumentSlot progress + actions row; the
