@@ -7,7 +7,7 @@
  *
  * Only the steps a defect can currently be raised against are mapped — and `FieldTarget`
  * is typed from that map, so a defect cannot be *authored* against a step the form cannot
- * show. It used to admit `accused`, `witnesses`, `advocate` and `adr-prayer`: those
+ * show. It used to admit `accused`, `witnesses`, `advocate` and `settlement`: those
  * sections have no `name=` on their fields and no `CorrectionInstance` around their
  * repeating records, so a defect pointing at one rendered no frame at all — invisible on
  * the screen, and permanently short of the submit gate. A type that admits a target the

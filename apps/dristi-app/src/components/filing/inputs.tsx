@@ -151,6 +151,51 @@ export function PrefixInput({
 }
 
 /**
+ * Input with a fixed unit after it — "%" for a discount, "days" for a window.
+ *
+ * The mirror of `PrefixInput`: the unit is chrome, not something to type, so it sits in
+ * the group's own addon rather than being spelled out in the label and left to the
+ * person to remember.
+ */
+export function SuffixInput({
+  suffix,
+  value,
+  onChange,
+  className,
+  ...props
+}: Omit<React.ComponentProps<"input">, "value" | "onChange"> & {
+  suffix: React.ReactNode;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const disabled = useLockedDisabled(props.disabled);
+  const readOnly = useFieldReadOnly();
+  const hint = useFieldReadOnlyHint();
+  return (
+    <InputGroup
+      data-disabled={disabled || undefined}
+      className={cn(
+        disabled && "bg-surface-sunken!",
+        readOnly && "bg-muted",
+        className
+      )}
+    >
+      <InputGroupInput
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-describedby={hint}
+        {...props}
+        readOnly={readOnly || props.readOnly}
+        disabled={disabled}
+      />
+      <InputGroupAddon align="inline-end" variant="field">
+        <InputGroupText>{suffix}</InputGroupText>
+      </InputGroupAddon>
+    </InputGroup>
+  );
+}
+
+/**
  * Select over an `Option[]` with a placeholder row. `prefilled` applies the amber fill;
  * `onViewSource` opens the source panel from the trigger's pointer-down (the menu still opens).
  */

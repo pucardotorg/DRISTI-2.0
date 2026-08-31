@@ -52,7 +52,7 @@ import {
   INTERIM_RELIEF_SUMMARY,
   NOT_PROVIDED,
   accusedSummaries,
-  adrLabel,
+  settlementLabel,
   advocateSummaries,
   amountClaimedText,
   chequeSummaries,
@@ -152,7 +152,7 @@ type PanelKey =
   | "cheque"
   | "demand"
   | "jurisdiction"
-  | "adr"
+  | "settlement"
   | "witnesses"
   | "documents";
 
@@ -269,11 +269,11 @@ function buildPanels(draft: FilingDraft): Record<PanelKey, EditPanel> {
       ]),
       files: uploads("return-memo"),
     },
-    adr: {
-      title: "ADR, other details & prayer",
-      step: "adr-prayer",
+    settlement: {
+      title: "Settlement options, other details & prayer",
+      step: "settlement",
       fields: entered([
-        { label: "Open to settlement (ADR)", value: adrLabel(draft) },
+        { label: "Open to settling out of court", value: settlementLabel(draft) },
         { label: "Interim relief", value: INTERIM_RELIEF_SUMMARY },
         { label: "Final relief", value: finalReliefSummary(draft) },
       ]),
@@ -588,18 +588,18 @@ export function PreviewSection() {
             </FormCard>
 
             <FormCard
-              title="ADR, other details & prayer"
+              title="Settlement options, other details & prayer"
               action={
                 <CardActions
-                  complete={done("adr")}
-                  section="ADR, other details and prayer"
-                  onEdit={() => setEditKey("adr")}
+                  complete={done("settlement")}
+                  section="settlement options, other details and prayer"
+                  onEdit={() => setEditKey("settlement")}
                 />
               }
             >
               <KeyValues
                 rows={[
-                  { term: "Open to settlement (ADR)", value: adrLabel(draft) },
+                  { term: "Open to settling out of court", value: settlementLabel(draft) },
                   { term: "Interim relief", value: INTERIM_RELIEF_SUMMARY },
                   { term: "Final relief", value: finalReliefSummary(draft) },
                 ]}

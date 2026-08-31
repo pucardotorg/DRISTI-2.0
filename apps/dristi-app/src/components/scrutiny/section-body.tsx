@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/empty";
 import { FileTextIcon } from "lucide-react";
 import { AccusedSection } from "@/components/filing/sections/accused-section";
-import { AdrPrayerSection } from "@/components/filing/sections/adr-prayer-section";
+import { SettlementSection } from "@/components/filing/sections/settlement-section";
 import { AdvocateSection } from "@/components/filing/sections/advocate-section";
 import { AffidavitSection } from "@/components/filing/sections/affidavit-section";
 import { ChequeSection } from "@/components/filing/sections/cheque-section";
@@ -47,7 +47,7 @@ export const CORRECTABLE_SECTIONS: Partial<Record<StepId, React.ComponentType>> 
   cheque: ChequeSection,
   "demand-notice": DemandNoticeSection,
   jurisdiction: JurisdictionSection,
-  "adr-prayer": AdrPrayerSection,
+  settlement: SettlementSection,
   witnesses: WitnessesSection,
   documents: DocumentsSection,
   affidavit: AffidavitSection,

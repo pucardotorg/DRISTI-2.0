@@ -60,7 +60,7 @@ complainant framing is carried as-is.
 - `/filings/new` — creates a blank draft and opens it (no screen of its own).
 - `/filings/<draftId>/upload` — Case documents upload (no rail; narrow centred column).
 - `/filings/<draftId>/(form)/{complainant,advocate,accused,cheque,demand-notice,
-  jurisdiction,adr-prayer,witnesses,documents,preview}` — the form sections inside a
+  jurisdiction,settlement,witnesses,documents,preview}` — the form sections inside a
   Sections rail.
 - `/filings/<draftId>/sign` — Sign (own three-column layout; fees are modals here).
 - The rail lists Affidavit and Pay fees as non-link placeholders exactly as the demo did

@@ -7,11 +7,11 @@
 
 import type { LucideIcon } from "lucide-react";
 import {
-  ClipboardCheckIcon,
   CreditCardIcon,
   EyeIcon,
   FileCheckIcon,
   FileTextIcon,
+  HandshakeIcon,
   MailIcon,
   MapPinIcon,
   MessageCircleIcon,
@@ -49,7 +49,7 @@ export const FILING_STEPS: FilingStep[] = [
   { id: "cheque", title: "Cheque & return memo", group: "Case details", segment: "cheque", icon: CreditCardIcon },
   { id: "demand-notice", title: "Demand notice & debt", group: "Case details", segment: "demand-notice", icon: MailIcon },
   { id: "jurisdiction", title: "Jurisdiction & limitation", group: "Case details", segment: "jurisdiction", icon: MapPinIcon },
-  { id: "adr-prayer", title: "ADR, other & prayer", group: "Case details", segment: "adr-prayer", icon: ClipboardCheckIcon },
+  { id: "settlement", title: "Settlement options", group: "Case details", segment: "settlement", icon: HandshakeIcon },
   { id: "witnesses", title: "Witnesses", group: "Evidence", segment: "witnesses", icon: MessageCircleIcon },
   { id: "documents", title: "Documents", group: "Evidence", segment: "documents", icon: FileTextIcon },
   { id: "affidavit", title: "Affidavit", group: "Affidavit", segment: "affidavit", icon: FileCheckIcon },
@@ -76,7 +76,7 @@ export const WALK_ORDER: StepId[] = [
   "cheque",
   "demand-notice",
   "jurisdiction",
-  "adr-prayer",
+  "settlement",
   "witnesses",
   "documents",
   "affidavit",

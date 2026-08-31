@@ -8,6 +8,7 @@ import {
   PROCESS_FEE_LINES,
   PROCESS_TYPES,
 } from "./options";
+import { settlementValid } from "./settlement";
 import { WALK_ORDER } from "./steps";
 import type {
   Accused,
@@ -278,8 +279,14 @@ export function sectionComplete(draft: FilingDraft, step: StepId): boolean {
         !!draft.jurisdiction.causeDate &&
         (draft.jurisdiction.deposited === "no" || !!draft.jurisdiction.payeeBankName.trim())
       );
-    case "adr-prayer":
-      return !!draft.adr.finalRelief.trim();
+    case "settlement":
+      /* The prayer is what the court reads; the offer is what goes out over WhatsApp.
+         Both have to hold, so an offer above the amount claimed leaves the section
+         unfinished rather than shipping an error the Preview reports as complete. */
+      return (
+        !!draft.settlement.finalRelief.trim() &&
+        settlementValid(draft.settlement, totalChequeAmount(draft.cheques))
+      );
     case "witnesses":
       return true; // optional
     case "documents":

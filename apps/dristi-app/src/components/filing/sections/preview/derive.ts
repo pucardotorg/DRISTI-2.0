@@ -347,14 +347,15 @@ export function jurisdictionSummary(draft: FilingDraft) {
   };
 }
 
-const ADR_LABELS: Record<FilingDraft["adr"]["adr"], string> = {
+/* The complaint prints the court form's own ADR answer, whatever the screen calls it. */
+const WILLING_LABELS: Record<FilingDraft["settlement"]["willing"], string> = {
   yes: "Yes",
   no: "No",
   maybe: "Maybe",
 };
 
-export function adrLabel(draft: FilingDraft): string {
-  return ADR_LABELS[draft.adr.adr] ?? "No";
+export function settlementLabel(draft: FilingDraft): string {
+  return WILLING_LABELS[draft.settlement.willing] ?? "No";
 }
 
 /* ───────────────────────────── Evidence ────────────────────────────── */

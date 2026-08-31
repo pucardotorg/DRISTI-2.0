@@ -18,7 +18,6 @@ import {
   INTERIM_RELIEF_SUMMARY,
   NOT_PROVIDED,
   accusedSummaries,
-  adrLabel,
   advocateSummaries,
   chequeSummaries,
   complainantSummary,
@@ -32,6 +31,7 @@ import {
   noticeSummary,
   optionLabel,
   orNot,
+  settlementLabel,
   witnessSummaries,
 } from "./derive";
 
@@ -120,9 +120,9 @@ export function CourtDocument({ draft }: { draft: FilingDraft }) {
   const longDate = (iso: string) => orNot(toLongDate(iso));
 
   const firstAccused = accused[0];
-  const otherDetails = htmlToParagraphs(draft.adr.otherDetails);
-  const interimRelief = htmlToParagraphs(draft.adr.interimRelief);
-  const finalRelief = htmlToParagraphs(draft.adr.finalRelief);
+  const otherDetails = htmlToParagraphs(draft.settlement.otherDetails);
+  const interimRelief = htmlToParagraphs(draft.settlement.interimRelief);
+  const finalRelief = htmlToParagraphs(draft.settlement.finalRelief);
 
   return (
     <Card className={cn(PANEL_CLASS, "gap-0 p-6 font-sans text-foreground sm:p-8")}>
@@ -495,7 +495,7 @@ export function CourtDocument({ draft }: { draft: FilingDraft }) {
               label="Would you like to settle the case outside the court through alternative methods of dispute resolution?"
               span={3}
             >
-              {adrLabel(draft)}
+              {settlementLabel(draft)}
             </DocCell>
           </tr>
         </tbody>

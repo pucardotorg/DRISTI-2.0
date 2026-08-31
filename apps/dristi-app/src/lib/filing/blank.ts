@@ -27,6 +27,9 @@ import type {
   IntakeGroup,
   IntakeSlot,
   Jurisdiction,
+  SettlementBand,
+  SettlementOffer,
+  SettlementPrayer,
   UserProfile,
   Representative,
   Witness,
@@ -166,6 +169,38 @@ export const blankJurisdiction = (): Jurisdiction => ({
   causeDate: "",
   filingDate: "",
   condonationReason: "",
+});
+
+/**
+ * A fixed offer starts as a blank line, not as a guess: the amount the complainant will
+ * take is the one number nobody but them can supply. The window defaults to 30 days —
+ * the same month the demand notice already gave the accused to pay.
+ */
+export const blankSettlementOffer = (): SettlementOffer => ({
+  id: uid("offer"),
+  amount: "",
+  within: { value: "30", unit: "days" },
+});
+
+/**
+ * A band starts empty on both sides. A prefilled window would be the same number on every
+ * band the advocate adds, and a ladder whose rungs are all "90 days" is not a ladder.
+ */
+export const blankSettlementBand = (): SettlementBand => ({
+  id: uid("band"),
+  within: { value: "", unit: "days" },
+  discount: "",
+});
+
+export const blankSettlement = (): SettlementPrayer => ({
+  willing: "yes",
+  mode: "packaged",
+  offers: [blankSettlementOffer()],
+  maxPeriod: { value: "12", unit: "months" },
+  bands: [blankSettlementBand()],
+  otherDetails: "",
+  interimRelief: INTERIM_RELIEF_TEMPLATE,
+  finalRelief: FINAL_RELIEF_TEMPLATE,
 });
 
 export const blankWitness = (): Witness => ({
@@ -409,7 +444,7 @@ export function buildDocumentGroups(draft: FilingDraft): DocumentGroup[] {
 export function createBlankDraft(id: string, profile?: UserProfile | null): FilingDraft {
   const now = new Date().toISOString();
   const draft: FilingDraft = {
-    version: 3,
+    version: 4,
     id,
     caseType: "s138",
     status: "draft",
@@ -425,12 +460,7 @@ export function createBlankDraft(id: string, profile?: UserProfile | null): Fili
     cheques: [blankCheque()],
     notices: [blankNotice()],
     jurisdiction: blankJurisdiction(),
-    adr: {
-      adr: "yes",
-      otherDetails: "",
-      interimRelief: INTERIM_RELIEF_TEMPLATE,
-      finalRelief: FINAL_RELIEF_TEMPLATE,
-    },
+    settlement: blankSettlement(),
     witnesses: [blankWitness()],
     affidavit: "",
     documents: [],
@@ -496,6 +526,40 @@ export function migrateDraft(draft: FilingDraft): FilingDraft {
   draft.sign.deferProcessFees ??= false;
   draft.sign.paidAmount ??= null;
   draft.affidavit ??= "";
-  draft.version = 3;
+  migrateSettlement(draft);
+  draft.version = 4;
   return draft;
+}
+
+/**
+ * `adr` became `settlement`.
+ *
+ * The old section asked one yes/no/maybe question and held the two prayer editors; the
+ * new one keeps both and adds the offer the advocate sets up. A draft written before the
+ * change carries answers the filer typed — the prayer especially, which they may have
+ * rewritten line by line — so it is moved across rather than replaced with a blank.
+ */
+function migrateSettlement(draft: FilingDraft) {
+  const legacy = (draft as unknown as { adr?: Partial<SettlementPrayer> & { adr?: SettlementPrayer["willing"] } }).adr;
+  if (legacy && !draft.settlement) {
+    draft.settlement = {
+      ...blankSettlement(),
+      willing: legacy.adr ?? "yes",
+      otherDetails: legacy.otherDetails ?? "",
+      interimRelief: legacy.interimRelief ?? INTERIM_RELIEF_TEMPLATE,
+      finalRelief: legacy.finalRelief ?? FINAL_RELIEF_TEMPLATE,
+    };
+  }
+  delete (draft as unknown as { adr?: unknown }).adr;
+
+  draft.settlement ??= blankSettlement();
+  const s = draft.settlement;
+  s.willing ??= "yes";
+  s.mode ??= "packaged";
+  s.maxPeriod ??= { value: "12", unit: "months" };
+  s.offers = s.offers?.length ? s.offers : [blankSettlementOffer()];
+  s.bands = s.bands?.length ? s.bands : [blankSettlementBand()];
+
+  /* The step this draft was last on may be the id the route no longer has. */
+  if ((draft.lastStep as string) === "adr-prayer") draft.lastStep = "settlement";
 }

@@ -22,7 +22,7 @@ export type StepId =
   | "cheque"
   | "demand-notice"
   | "jurisdiction"
-  | "adr-prayer"
+  | "settlement"
   | "witnesses"
   | "documents"
   | "affidavit"
@@ -292,14 +292,63 @@ export type Jurisdiction = {
   condonationReason: string;
 };
 
-/* ───────────────────────────── ADR, other details, prayer ───────────────────────── */
+/* ──────────────────────── Settlement options, other details, prayer ─────────────── */
 
-export type AdrPrayer = {
-  adr: "yes" | "no" | "maybe";
+/** How long the accused gets to pay. Days for weeks, months and years for the rest. */
+export type PeriodUnit = "days" | "months" | "years";
+
+export type Period = {
+  /** Digits as typed; "" until entered. */
+  value: string;
+  unit: PeriodUnit;
+};
+
+/**
+ * How the offer reaches the accused.
+ *
+ * `packaged` — the complainant's side names the terms and the accused picks one of them.
+ * `blind` — the accused names their own terms and a bot accepts anything inside the
+ * limits set here, without either side seeing the other's floor.
+ */
+export type SettlementMode = "packaged" | "blind";
+
+/** One fixed offer the accused can take as it stands. */
+export type SettlementOffer = {
+  id: string;
+  /** What the accused pays, in rupees. Digits as typed, like every other amount. */
+  amount: string;
+  /** Paid in full within this window. */
+  within: Period;
+};
+
+/**
+ * One rung of the blind-bid ladder: pay this fast and you may take up to this much off
+ * the amount claimed. Bands are what the bot checks a bid against.
+ */
+export type SettlementBand = {
+  id: string;
+  within: Period;
+  /** The most the accused may knock off the claim, in percent. */
+  discount: string;
+};
+
+export type SettlementPrayer = {
+  /** The court form's own ADR question — this answer is printed in the complaint. */
+  willing: "yes" | "no" | "maybe";
+  mode: SettlementMode;
+  /** Between one and `MAX_SETTLEMENT_OFFERS` fixed offers. */
+  offers: SettlementOffer[];
+  /** The outer limit on any bid, whatever the bands allow. */
+  maxPeriod: Period;
+  bands: SettlementBand[];
   otherDetails: string;
   interimRelief: string;
   finalRelief: string;
 };
+
+/** The most fixed offers or discount bands one settlement may carry. */
+export const MAX_SETTLEMENT_OFFERS = 4;
+export const MAX_SETTLEMENT_BANDS = 4;
 
 /* ─────────────────────────────────── Witnesses ──────────────────────────────────── */
 
@@ -373,7 +422,7 @@ export type DismissedNotices = {
 };
 
 export type FilingDraft = {
-  version: 3;
+  version: 4;
   id: string;
   caseType: "s138";
   status: "draft" | "filed";
@@ -386,7 +435,7 @@ export type FilingDraft = {
   cheques: ChequeDetails[];
   notices: DemandNotice[];
   jurisdiction: Jurisdiction;
-  adr: AdrPrayer;
+  settlement: SettlementPrayer;
   witnesses: Witness[];
   /**
    * The affidavit as the filer edited it (HTML). Empty means it is still the standard
