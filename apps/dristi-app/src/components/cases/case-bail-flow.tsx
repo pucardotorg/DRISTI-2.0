@@ -4,7 +4,13 @@ import * as React from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemTitle,
+} from "@/components/ui/item";
+import { DueStatusLine } from "@/components/cases/case-overview-card";
 import { BailApplicationDialog } from "@/components/filing/bail-application-dialog";
 import {
   BailBondDialog,
@@ -21,11 +27,11 @@ import {
   BOND_ID,
   BOND_LITIGANT,
   BOND_SURETIES,
-  BOND_TASK_DUE,
+  BOND_TASK_DUE_ON,
   BOND_THIRD_SURETY,
   bondCopy,
-  fillCopy,
 } from "@/lib/filing/content";
+import { dueStatusView } from "@/lib/cases/peek";
 import { pick } from "@/lib/onboarding/content";
 
 /**
@@ -149,56 +155,81 @@ export function CaseBailProvider({
 }
 
 /**
- * The lifecycle surface on the case page: the pending bond task the magistrate's approval
- * created, and — once a bond exists — its signing/review status. Sits above the case tabs.
+ * Whether the bond lifecycle currently owes the case a Pending-tasks row.
+ * Context-tolerant on purpose: Overview calls this to size the card's count,
+ * and a surface rendered outside the provider simply has no bond work.
  */
-export function BondLifecycleCard() {
-  const { locale } = useLocale();
-  const { bondPhase, openBondTask, openStatus } = useCaseBail();
+export function useBondTaskVisible(): boolean {
+  const value = React.useContext(CaseBailContext);
+  return value !== null && value.bondPhase !== "none";
+}
 
-  if (bondPhase === "none") return null;
+/**
+ * The bond lifecycle as a row of the Overview's own Pending-tasks card —
+ * merged there from a standalone card above the tabs (Aug 31 correction
+ * round: one card, the bond task a listing in it). Two shapes, mirroring the
+ * card it replaced: the task the magistrate's approval created, then — once
+ * a bond exists — its signing/review status. Markup and metrics follow the
+ * card's other task rows (`TaskRow` in case-overview) so the merged row is
+ * indistinguishable from its authored siblings.
+ */
+export function BondTaskRow({
+  nextHearingOn,
+  now,
+}: {
+  nextHearingOn: string | null | undefined;
+  now: number;
+}) {
+  const { locale } = useLocale();
+  const value = React.useContext(CaseBailContext);
+  if (!value || value.bondPhase === "none") return null;
+  const { bondPhase, openBondTask, openStatus } = value;
 
   if (bondPhase === "task") {
     return (
-      <Card size="sm">
-        <CardContent className="flex flex-col gap-3">
-          <p className="text-body-compact font-semibold">
-            {pick(bondCopy.pendingTitle, locale)}
-          </p>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <Button
-              type="button"
-              variant="link"
-              className="h-auto p-0"
-              onClick={openBondTask}
-            >
-              {pick(bondCopy.taskRaiseBond, locale)}
-            </Button>
-            <span className="text-caption text-muted-foreground tabular-nums">
-              {fillCopy(bondCopy.taskDue, locale, { date: BOND_TASK_DUE })}
-            </span>
+      <Item
+        role="listitem"
+        size="sm"
+        className="min-h-10 items-start px-0 hover:bg-transparent"
+      >
+        <ItemContent className="gap-2">
+          <ItemTitle className="line-clamp-none min-w-0 text-body font-medium text-foreground">
+            {pick(bondCopy.taskRaiseBond, locale)}
+          </ItemTitle>
+          <div className="flex min-w-0 flex-col gap-1">
+            <DueStatusLine
+              {...dueStatusView(BOND_TASK_DUE_ON, nextHearingOn, now)}
+            />
+            <p className="text-body text-muted-foreground">
+              {pick(bondCopy.taskNote, locale)}
+            </p>
           </div>
-          <p className="text-caption text-pretty text-muted-foreground">
-            {pick(bondCopy.taskNote, locale)}
-          </p>
-        </CardContent>
-      </Card>
+        </ItemContent>
+        <ItemActions className="shrink-0 max-sm:basis-full">
+          <Button
+            type="button"
+            variant="outline"
+            className="max-sm:w-full"
+            onClick={openBondTask}
+          >
+            {pick(bondCopy.taskRaiseBond, locale)}
+          </Button>
+        </ItemActions>
+      </Item>
     );
   }
 
   return (
-    <Card size="sm">
-      <CardContent className="flex flex-col gap-3">
-        <p className="text-body-compact font-semibold">
-          {pick(bondCopy.bondsTitle, locale)}
-        </p>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <p className="text-body-compact font-medium">
-              {pick(bondCopy.bondTypeSurety, locale)}
-            </p>
-            <p className="font-mono text-caption text-muted-foreground">{BOND_ID}</p>
-          </div>
+    <Item
+      role="listitem"
+      size="sm"
+      className="min-h-10 items-start px-0 hover:bg-transparent"
+    >
+      <ItemContent className="gap-2">
+        <ItemTitle className="line-clamp-none min-w-0 text-body font-medium text-foreground">
+          {pick(bondCopy.bondTypeSurety, locale)}
+        </ItemTitle>
+        <div className="flex flex-wrap items-center gap-2">
           <Badge variant="warning">
             {pick(
               bondPhase === "signing"
@@ -207,11 +238,21 @@ export function BondLifecycleCard() {
               locale,
             )}
           </Badge>
-          <Button type="button" variant="ghost" size="sm" onClick={openStatus}>
-            Open
-          </Button>
+          <span className="font-mono text-caption text-muted-foreground">
+            {BOND_ID}
+          </span>
         </div>
-      </CardContent>
-    </Card>
+      </ItemContent>
+      <ItemActions className="shrink-0 max-sm:basis-full">
+        <Button
+          type="button"
+          variant="outline"
+          className="max-sm:w-full"
+          onClick={openStatus}
+        >
+          Open
+        </Button>
+      </ItemActions>
+    </Item>
   );
 }

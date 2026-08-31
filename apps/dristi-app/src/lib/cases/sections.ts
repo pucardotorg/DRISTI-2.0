@@ -14,10 +14,12 @@ import { FEATURE_NAME as NOTICE_PROCESS_STATUS } from "./service";
  * that screen lands on the wrong page with no error and nothing to debug.
  *
  * `UNLISTED_SECTIONS` is the removal instead: the member keeps its route and
- * its label, and only leaves the strip. Hearings is the one today — product
- * took the tab out and kept the screen, which is still reached from
- * Overview's "View hearing details", the pending-task rows, the case-peek
- * drawer, and four case-history entries.
+ * its label, and only leaves the strip. Two today — Hearings, where product
+ * took the tab out and kept the screen (still reached from Overview's "View
+ * hearing details", the pending-task rows, the case-peek drawer, and four
+ * case-history entries), and Complaint, dropped from the strip on the Aug 31
+ * design-correction round (its content belongs to the Case File; links into
+ * it keep working).
  *
  * Labels are sentence case per Laws except where the product names the tab in
  * title case (`Case File`, `Orders & Notifications`) or names the feature
@@ -56,7 +58,7 @@ export type CaseSection = (typeof CASE_SECTIONS)[number]["value"];
  * one uniform list and the exception sits in the one place a reader looking
  * for it would look.
  */
-const UNLISTED_SECTIONS: readonly CaseSection[] = ["hearings"];
+const UNLISTED_SECTIONS: readonly CaseSection[] = ["hearings", "complaint"];
 
 /** What the strip renders, in strip order. */
 export const CASE_NAV_SECTIONS = CASE_SECTIONS.filter(

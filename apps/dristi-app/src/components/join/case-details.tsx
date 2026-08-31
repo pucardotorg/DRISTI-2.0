@@ -29,6 +29,61 @@ import { cn } from "@/lib/utils";
  * registry list (CNR, filing number, court, both sides' advocates) for advocates, who
  * work by those identifiers rather than being intimidated by them.
  */
+/**
+ * The cause title with its "and 1 other" made explorable — the marker
+ * becomes a dotted-underline trigger and the remaining accused list rides a
+ * popover. Extracted from the details block so the access-code step can
+ * show the same title the same way (Aug 31 round): wherever a join surface
+ * prints the title, "1 other" answers who.
+ */
+export function CaseTitleWithOthers({
+  joinCase,
+  locale,
+}: {
+  joinCase: JoinCase;
+  locale: Locale;
+}) {
+  const otherMarker = " and 1 other";
+  const otherAccused = joinCase.accused.slice(1);
+  const hasOtherAccused =
+    joinCase.title.endsWith(otherMarker) && otherAccused.length > 0;
+  const titleLead = hasOtherAccused
+    ? joinCase.title.slice(0, -otherMarker.length)
+    : joinCase.title;
+
+  return (
+    <p className="text-body font-semibold text-pretty">
+      {titleLead}
+      {hasOtherAccused ? (
+        <>
+          {" and "}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex min-h-10 items-center rounded-sm underline decoration-dotted underline-offset-4 hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                aria-label={pick(caseDetails.otherAccused, locale)}
+              >
+                1 other
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-64">
+              <p className="text-caption font-semibold text-muted-foreground">
+                {pick(caseDetails.otherAccused, locale)}
+              </p>
+              <ul className="mt-2 flex flex-col gap-1 text-body-compact">
+                {otherAccused.map((accused) => (
+                  <li key={accused.id}>{accused.name}</li>
+                ))}
+              </ul>
+            </PopoverContent>
+          </Popover>
+        </>
+      ) : null}
+    </p>
+  );
+}
+
 export function CaseDetails({
   joinCase,
   locale,
@@ -63,14 +118,6 @@ export function CaseDetails({
       ? ([{ label: "accusedAdvocate", value: joinCase.accusedAdvocate }] as const)
       : []),
   ];
-  const otherMarker = " and 1 other";
-  const otherAccused = joinCase.accused.slice(1);
-  const hasOtherAccused =
-    joinCase.title.endsWith(otherMarker) && otherAccused.length > 0;
-  const titleLead = hasOtherAccused
-    ? joinCase.title.slice(0, -otherMarker.length)
-    : joinCase.title;
-
   return (
     <div
       className={cn(
@@ -80,35 +127,7 @@ export function CaseDetails({
     >
       <div className="flex flex-col gap-2">
         <Badge variant="default" className="self-start">{pick(caseDetails.caseTypeBadge, locale)}</Badge>
-        <p className="text-body font-semibold text-pretty">
-          {titleLead}
-          {hasOtherAccused ? (
-            <>
-              {" and "}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex min-h-10 items-center rounded-sm underline decoration-dotted underline-offset-4 hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                    aria-label={pick(caseDetails.otherAccused, locale)}
-                  >
-                    1 other
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent align="start" className="w-64">
-                  <p className="text-caption font-semibold text-muted-foreground">
-                    {pick(caseDetails.otherAccused, locale)}
-                  </p>
-                  <ul className="mt-2 flex flex-col gap-1 text-body-compact">
-                    {otherAccused.map((accused) => (
-                      <li key={accused.id}>{accused.name}</li>
-                    ))}
-                  </ul>
-                </PopoverContent>
-              </Popover>
-            </>
-          ) : null}
-        </p>
+        <CaseTitleWithOthers joinCase={joinCase} locale={locale} />
         {compact ? (
           <p className="text-body-compact text-muted-foreground">
             {pick(caseDetails.caseNumber, locale)}: {joinCase.caseNumber}

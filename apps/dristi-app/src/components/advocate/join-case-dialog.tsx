@@ -55,7 +55,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { CaseDetails } from "@/components/join/case-details";
+import {
+  CaseDetails,
+  CaseTitleWithOthers,
+} from "@/components/join/case-details";
 import { DownloadCaseFileButton } from "@/components/join/download-case-file-button";
 import {
   DocumentPreviewDialog,
@@ -64,7 +67,13 @@ import {
 } from "@/components/document-preview";
 import { VakalatnamaPicker } from "@/components/advocate/vakalatnama-picker";
 import { pick, type Locale } from "@/lib/onboarding/content";
-import { fill, joinDialog, type CaseParty, type JoinCase } from "@/lib/join/content";
+import {
+  caseDetails,
+  fill,
+  joinDialog,
+  type CaseParty,
+  type JoinCase,
+} from "@/lib/join/content";
 import {
   advDialog,
   BAR_DIRECTORY,
@@ -385,8 +394,11 @@ export function AdvocateJoinCaseDialog({
     }
     setLookupMiss(false);
     setJoinCase(ADVOCATE_JOIN_CASE);
-    // The access code comes before the case details: nothing about the case is shown
-    // until the advocate proves they hold the litigant's six-digit code.
+    // The access code still gates the case DETAILS (hearing, amounts, parties'
+    // advocates). The code stage itself now shows the public identity of the
+    // case — title, number, court — so the advocate can confirm they are
+    // joining the right case before spending the litigant's code (Aug 31
+    // correction round).
     setStage("code");
   }
 
@@ -650,6 +662,26 @@ export function AdvocateJoinCaseDialog({
           {/* --------------------------------------------------- access code */}
           {stage === "code" && joinCase ? (
             <form id="adv-code" noValidate className="flex flex-col gap-4" onSubmit={submitCode}>
+              {/* Public identity only — enough to confirm this is the right
+                  case: the cause title (with "1 other" explorable, the same
+                  way the details stage shows it), the number, and the amount
+                  claimed — the figure a party recognises faster than a court
+                  address. Everything deeper stays behind the code on the
+                  details stage. */}
+              <div className="flex flex-col gap-1 rounded-xl bg-surface-sunken p-4">
+                <p className="text-caption font-medium text-muted-foreground">
+                  {pick(advDialog.codeCaseLead, locale)}
+                </p>
+                <CaseTitleWithOthers joinCase={joinCase} locale={locale} />
+                <p className="text-caption text-muted-foreground">
+                  <span className="font-mono tabular-nums">
+                    {joinCase.caseNumber}
+                  </span>
+                  <span aria-hidden> · </span>
+                  {pick(caseDetails.chequeAmount, locale)}{" "}
+                  <span className="tabular-nums">{joinCase.chequeAmount}</span>
+                </p>
+              </div>
               <Banner variant="info">{pick(advDialog.codeNote, locale)}</Banner>
               <Field data-invalid={codeTouched && code.length !== CODE_LENGTH}>
                 <FieldLabel>{pick(advDialog.codeLabel, locale)}</FieldLabel>
