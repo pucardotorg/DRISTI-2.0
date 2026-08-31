@@ -13,10 +13,7 @@ import {
   CaseDocuments,
   DocumentsLoading,
 } from "@/components/cases/case-documents";
-import {
-  BondLifecycleCard,
-  CaseBailProvider,
-} from "@/components/cases/case-bail-flow";
+import { CaseBailProvider } from "@/components/cases/case-bail-flow";
 import { CaseFile } from "@/components/cases/case-file";
 import { CaseHeader } from "@/components/cases/case-header";
 import {
@@ -118,17 +115,12 @@ export default async function CaseDetailPage(
 
       <CaseSectionTabs caseId={caseId} section={section}>
         {section === "overview" ? (
-          <div className="flex min-w-0 flex-col gap-6">
-            <CaseOverview
-              record={record}
-              now={new Date(FIXTURE_TODAY).getTime()}
-            />
-            {/* The bond lifecycle is a pending task, so it lives with the
-                Overview's task content rather than floating above the strip
-                as page chrome — and after the overview card, which leads the
-                section (Aug 31 correction round). */}
-            <BondLifecycleCard />
-          </div>
+          /* The bond lifecycle renders inside Overview's own Pending-tasks
+             card, as one of its rows — see BondTaskRow (Aug 31 round). */
+          <CaseOverview
+            record={record}
+            now={new Date(FIXTURE_TODAY).getTime()}
+          />
         ) : section === "case-file" ? (
           <CaseFile record={record} docId={docId} view={view} />
         ) : section === "complaint" ? (

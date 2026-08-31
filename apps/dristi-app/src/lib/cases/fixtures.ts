@@ -26,7 +26,11 @@ const FIXTURE_ROWS: FixtureRow[] = [
     parties: { complainant: "Sunil Varghese", accused: "Anand Traders" },
     court: "JMFC-I, Kollam",
     filedOn: "2026-06-12",
-    updatedOn: "2026-08-10",
+    /* Newest in the register on purpose: this is the fully-populated demo
+       case (documents, applications, parties pack, tasks), so the silent
+       recently-updated-first order puts it at the top of Your Cases where a
+       demo starts (Aug 31 round). */
+    updatedOn: "2026-08-26",
     assignedAdvocate: "Adv. Suresh Menon",
     latestUpdate: "PW-1 examined in chief and partly cross-examined",
     nextHearing: {

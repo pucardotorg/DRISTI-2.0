@@ -513,6 +513,133 @@
           }
         ]
       }
+    ],
+    "tw-c-88": [
+      {
+        "id": "sub-tw88-advance",
+        "kind": "Application",
+        "type": "Advancement/reschedule",
+        "title": "Advancement/reschedule",
+        "status": "Completed",
+        "addedOn": "2026-06-02",
+        "submittedById": "tw-c-88-counsel-c-0",
+        "submissionId": "KL-000088-2026-AP1",
+        "request": "Advance the appearance posting; the accused has entered appearance and consents to an early plea.",
+        "courtResult": "Allowed — plea advanced to 2 September 2026.",
+        "linkedOrder": null,
+        "defects": [],
+        "documents": [
+          {
+            "label": "Filed application",
+            "href": "/case-file/14-application-advancement.pdf"
+          }
+        ]
+      },
+      {
+        "id": "sub-tw88-proof",
+        "kind": "Document submission",
+        "type": "Others",
+        "title": "Proof of service of the legal demand notice",
+        "status": "Pending signature",
+        "addedOn": "2026-08-08",
+        "submittedById": "tw-c-88-counsel-c-0",
+        "submissionId": null,
+        "request": null,
+        "courtResult": null,
+        "linkedOrder": null,
+        "defects": [],
+        "documents": [
+          {
+            "label": "Draft submission"
+          }
+        ]
+      }
+    ],
+    "tw-c-941": [
+      {
+        "id": "sub-tw941-affidavit",
+        "kind": "Document submission",
+        "type": "Affidavits",
+        "title": "PW-1 chief affidavit under section 145 of the Negotiable Instruments Act",
+        "status": "Completed",
+        "addedOn": "2026-07-08",
+        "submittedById": "tw-c-941-counsel-c-0",
+        "submissionId": "KL-000941-2025-DS1",
+        "request": null,
+        "courtResult": null,
+        "linkedOrder": null,
+        "defects": [],
+        "documents": [
+          {
+            "label": "Filed affidavit",
+            "href": "/case-file/05-evidence-of-complainant.pdf"
+          }
+        ]
+      },
+      {
+        "id": "sub-tw941-production",
+        "kind": "Application",
+        "type": "Production of documents",
+        "title": "Production of documents",
+        "status": "Completed",
+        "addedOn": "2026-07-22",
+        "submittedById": "tw-c-941-counsel-c-0",
+        "submissionId": "KL-000941-2025-AP1",
+        "request": "Summon the bank official and direct production of the account statement for the cheque period.",
+        "courtResult": null,
+        "linkedOrder": null,
+        "defects": [],
+        "documents": [
+          {
+            "label": "Filed application",
+            "href": "/case-file/12-application-production-pw2-records.pdf"
+          }
+        ]
+      }
+    ],
+    "tw-c-1102": [
+      {
+        "id": "sub-tw1102-condonation",
+        "kind": "Application",
+        "type": "Condonation of delay",
+        "title": "Condonation of delay",
+        "status": "Completed",
+        "addedOn": "2026-03-18",
+        "submittedById": "tw-c-1102-counsel-c-0",
+        "submissionId": "KL-001102-2026-AP1",
+        "request": "Condone the delay of 6 days in filing the complaint; the complainant was travelling when the notice period ran out.",
+        "courtResult": "Allowed — delay condoned; complaint taken on file.",
+        "linkedOrder": null,
+        "defects": [],
+        "documents": [
+          {
+            "label": "Filed application",
+            "href": "/case-file/02-initial-filings.pdf"
+          }
+        ]
+      }
+    ],
+    "tw-c-217": [
+      {
+        "id": "sub-tw217-reschedule",
+        "kind": "Application",
+        "type": "Advancement/reschedule",
+        "title": "Advancement/reschedule",
+        "status": "Completed",
+        "addedOn": "2026-05-19",
+        "submittedById": "tw-c-217-counsel-c-0",
+        "submissionId": "KL-000217-2025-AP1",
+        "request": "Reschedule the plea posting; counsel for the complainant is before the Sessions Court at Kollam that day.",
+        "courtResult": "Allowed — plea moved to 2 September 2026.",
+        "linkedOrder": null,
+        "defects": [],
+        "documents": [
+          {
+            "label": "Filed application",
+            "href": "/case-file/14-application-advancement.pdf"
+          }
+        ]
+      }
     ]
   }
 }
