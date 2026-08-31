@@ -595,6 +595,11 @@ export const peopleCopy = {
   sortCasesAsc: t("Cases: least to most", "കേസുകൾ: കുറവ് മുതൽ കൂടുതൽ വരെ"),
   caseCount: t("{count} cases", "{count} കേസുകൾ"),
   caseCountOne: t("1 case", "1 കേസ്"),
+  columnPerson: t("Person", "വ്യക്തി"),
+  columnDesignation: t("Designation", "പദവി"),
+  columnCases: t("Cases", "കേസുകൾ"),
+  designationAdvocate: t("Advocate", "അഭിഭാഷകൻ"),
+  designationClerk: t("Clerk", "ക്ലർക്ക്"),
   emptyTitle: t("No one has shared access yet", "ഇതുവരെ ആർക്കും ആക്‌സസ് പങ്കിട്ടിട്ടില്ല"),
   emptyBody: t(
     "Share a case from Your cases to bring your clerks and juniors in.",

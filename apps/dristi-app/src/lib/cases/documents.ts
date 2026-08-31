@@ -240,6 +240,8 @@ export type LinkedRecord = {
 
 export type CaseDocument = {
   id: string;
+  /** The registry's own identifier for the filing — what the search matches. */
+  filingId: string;
   title: string;
   type: DocumentTypeId;
   submissionStatus: DocumentStatus;
@@ -367,7 +369,48 @@ function featuredPeople(): DocumentPerson[] {
   });
 }
 
-type DummyRow = (typeof pack.documents)[number];
+/**
+ * A pack row, whether it comes from the featured case's register or from an
+ * `extraCases` entry. Spelled out rather than inferred off the JSON because
+ * the two sources carry different optional fields and both must parse
+ * through the same throwing validators.
+ */
+type PackDocumentRow = {
+  filingId: string;
+  title: string;
+  type: string;
+  submissionStatus: string;
+  submittedOn: string;
+  submittedById: string;
+  source: string;
+  evidenceNumber: string | null;
+  evidenceStatus: string | null;
+  linkedApplication?: { id: string; label: string } | null;
+  linkedHearing?: { id: string; label: string } | null;
+  href?: string;
+  page?: number;
+};
+
+function documentFromPack(row: PackDocumentRow): CaseDocument {
+  return {
+    id: row.filingId,
+    filingId: row.filingId,
+    title: row.title.trim() || documentTypeLabel(typeFromPack(row.type)),
+    type: typeFromPack(row.type),
+    submissionStatus: submissionStatusFromPack(row.submissionStatus),
+    submittedOn: row.submittedOn,
+    submittedById: row.submittedById,
+    source: sourceFromPack(row.source),
+    linkedApplication: linkedFromPack(row.linkedApplication ?? undefined),
+    linkedHearing: linkedFromPack(row.linkedHearing ?? undefined),
+    evidenceNumber: row.evidenceNumber,
+    evidenceStatus: evidenceStatusFromPack(row.evidenceStatus),
+    // Defensive: href and page are optional on a pack row — a file-less
+    // register entry stays representable.
+    href: row.href,
+    page: row.page,
+  };
+}
 
 function featuredFile(record: CaseRecord): DocumentsFile {
   return {
@@ -375,30 +418,20 @@ function featuredFile(record: CaseRecord): DocumentsFile {
     parties: record.parties,
     court: pack.case.court,
     people: featuredPeople(),
-    documents: pack.documents.map((row: DummyRow) => ({
-      id: row.filingId,
-      title: row.title.trim() || documentTypeLabel(typeFromPack(row.type)),
-      type: typeFromPack(row.type),
-      submissionStatus: submissionStatusFromPack(row.submissionStatus),
-      submittedOn: row.submittedOn,
-      submittedById: row.submittedById,
-      source: sourceFromPack(row.source),
-      linkedApplication: linkedFromPack(
-        "linkedApplication" in row ? row.linkedApplication : undefined
-      ),
-      linkedHearing: linkedFromPack(
-        "linkedHearing" in row ? row.linkedHearing : undefined
-      ),
-      evidenceNumber: row.evidenceNumber,
-      evidenceStatus: evidenceStatusFromPack(row.evidenceStatus),
-      // Defensive: href and page are optional on a pack row. Every row
-      // ships one today — both edges into Pending review produce a signed
-      // artefact — but a file-less register entry stays representable.
-      href: "href" in row ? row.href : undefined,
-      page: "page" in row ? row.page : undefined,
-    })),
+    documents: (pack.documents as PackDocumentRow[]).map(documentFromPack),
   };
 }
+
+/**
+ * Registers for the non-featured cases, keyed by fixture id. Their rows name
+ * people by the generated ids `peopleFrom` produces (`<case>-complainant`,
+ * `<case>-counsel-c-0`, …), so populating a case here needs no people
+ * authoring — the fixture's own cause title and counsel stay the one source.
+ */
+const EXTRA_PACKS = pack.extraCases as Record<
+  string,
+  PackDocumentRow[] | undefined
+>;
 
 function peopleFrom(record: CaseRecord): DocumentPerson[] {
   const people: DocumentPerson[] = [
@@ -445,7 +478,7 @@ export function documentsFile(record: CaseRecord): DocumentsFile {
     parties: record.parties,
     court: record.court,
     people: peopleFrom(record),
-    documents: [],
+    documents: (EXTRA_PACKS[record.id] ?? []).map(documentFromPack),
   };
 }
 
@@ -475,14 +508,22 @@ export function selectDocuments(options: {
   kind: DocumentKind;
   typeId: DocumentTypeId | null;
   submittedById: string | null;
+  /** Case-insensitive filing-id fragment; empty/whitespace means no search. */
+  filingQuery?: string;
   pageSize: DocumentsPageSize;
   page: number;
 }): DocumentsSelection {
+  const query = options.filingQuery?.trim().toLowerCase() ?? "";
   const shared = options.documents.filter((document) => {
     if (
       options.submittedById &&
       document.submittedById !== options.submittedById
     ) {
+      return false;
+    }
+    // The search spans both registers, like the submitter filter, so the
+    // group-tab counts answer "where did my match land".
+    if (query && !document.filingId.toLowerCase().includes(query)) {
       return false;
     }
     return true;

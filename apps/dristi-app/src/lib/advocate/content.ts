@@ -387,6 +387,7 @@ export const advDialog = {
     "ഈ കേസിന്റെ ആറക്ക കോഡ് നൽകുക.",
   ),
   codeLabel: t("Access code", "ആക്‌സസ് കോഡ്"),
+  codeCaseLead: t("You are joining", "നിങ്ങൾ ചേരുന്ന കേസ്"),
   codeNote: t(
     "The code is printed on the summons. Parties who have already joined the case can also share it with you.",
     "കോഡ് സമൻസിൽ അച്ചടിച്ചിട്ടുണ്ട്. കേസിൽ ഇതിനകം ചേർന്ന കക്ഷികൾക്കും ഇത് നിങ്ങളുമായി പങ്കിടാം.",

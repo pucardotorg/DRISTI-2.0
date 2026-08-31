@@ -385,8 +385,11 @@ export function AdvocateJoinCaseDialog({
     }
     setLookupMiss(false);
     setJoinCase(ADVOCATE_JOIN_CASE);
-    // The access code comes before the case details: nothing about the case is shown
-    // until the advocate proves they hold the litigant's six-digit code.
+    // The access code still gates the case DETAILS (hearing, amounts, parties'
+    // advocates). The code stage itself now shows the public identity of the
+    // case — title, number, court — so the advocate can confirm they are
+    // joining the right case before spending the litigant's code (Aug 31
+    // correction round).
     setStage("code");
   }
 
@@ -650,6 +653,22 @@ export function AdvocateJoinCaseDialog({
           {/* --------------------------------------------------- access code */}
           {stage === "code" && joinCase ? (
             <form id="adv-code" noValidate className="flex flex-col gap-4" onSubmit={submitCode}>
+              {/* Public identity only — enough to confirm this is the right
+                  case. Everything deeper (hearing, amounts, advocates) stays
+                  behind the code on the details stage. */}
+              <div className="flex flex-col gap-1 rounded-xl bg-surface-sunken p-4">
+                <p className="text-caption font-medium text-muted-foreground">
+                  {pick(advDialog.codeCaseLead, locale)}
+                </p>
+                <p className="text-body font-semibold">{joinCase.title}</p>
+                <p className="text-caption text-muted-foreground">
+                  <span className="font-mono tabular-nums">
+                    {joinCase.caseNumber}
+                  </span>
+                  <span aria-hidden> · </span>
+                  {joinCase.court}
+                </p>
+              </div>
               <Banner variant="info">{pick(advDialog.codeNote, locale)}</Banner>
               <Field data-invalid={codeTouched && code.length !== CODE_LENGTH}>
                 <FieldLabel>{pick(advDialog.codeLabel, locale)}</FieldLabel>

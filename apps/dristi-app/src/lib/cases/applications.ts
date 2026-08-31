@@ -410,6 +410,52 @@ function featuredPeople(): SubmissionPerson[] {
   });
 }
 
+/**
+ * A pack row from either register — the featured case's `submissions` or an
+ * `extraCases` entry. Spelled out rather than inferred off the JSON because
+ * the two sources carry different optional fields and both must go through
+ * the same throwing validators.
+ */
+type PackSubmissionRow = {
+  id: string;
+  kind: string;
+  type: string;
+  title: string;
+  status: string;
+  addedOn: string;
+  submittedById: string;
+  submissionId: string | null;
+  request: string | null;
+  courtResult: string | null;
+  linkedOrder: LinkedOrder | null;
+  defects: string[];
+  documents: { label: string; href?: string; page?: number }[];
+};
+
+function submissionFromPack(row: PackSubmissionRow): Submission {
+  const kind = kindFromPack(row.kind);
+  const type = typeFromPack(kind, row.type);
+  return {
+    id: row.id,
+    kind,
+    type,
+    title: row.title.trim() || submissionTypeLabel(type),
+    status: statusFromPack(row.status),
+    addedOn: row.addedOn,
+    submittedById: row.submittedById,
+    submissionId: row.submissionId,
+    request: row.request,
+    courtResult: row.courtResult,
+    linkedOrder: row.linkedOrder,
+    defects: row.defects,
+    documents: row.documents.map((doc) => ({
+      label: doc.label,
+      href: doc.href,
+      page: doc.page,
+    })),
+  };
+}
+
 function featuredFile(record: CaseRecord): ApplicationsFile {
   return {
     caseId: record.id,
@@ -417,31 +463,22 @@ function featuredFile(record: CaseRecord): ApplicationsFile {
     parties: record.parties,
     court: pack.case.court,
     people: featuredPeople(),
-    submissions: pack.submissions.map((row) => {
-      const kind = kindFromPack(row.kind);
-      const type = typeFromPack(kind, row.type);
-      return {
-        id: row.id,
-        kind,
-        type,
-        title: row.title.trim() || submissionTypeLabel(type),
-        status: statusFromPack(row.status),
-        addedOn: row.addedOn,
-        submittedById: row.submittedById,
-        submissionId: row.submissionId,
-        request: row.request,
-        courtResult: row.courtResult,
-        linkedOrder: row.linkedOrder,
-        defects: row.defects,
-        documents: row.documents.map((doc) => ({
-          label: doc.label,
-          href: doc.href,
-          page: "page" in doc ? doc.page : undefined,
-        })),
-      };
-    }),
+    submissions: (pack.submissions as PackSubmissionRow[]).map(
+      submissionFromPack
+    ),
   };
 }
+
+/**
+ * Registers for the non-featured cases, keyed by fixture id. Rows name
+ * people by the generated ids `peopleFrom` produces (`<case>-complainant`,
+ * `<case>-counsel-c-0`, …), so populating a case here needs no people
+ * authoring — the fixture's cause title and counsel stay the one source.
+ */
+const EXTRA_PACKS = pack.extraCases as Record<
+  string,
+  PackSubmissionRow[] | undefined
+>;
 
 function peopleFrom(record: CaseRecord): SubmissionPerson[] {
   const people: SubmissionPerson[] = [
@@ -489,7 +526,7 @@ export function applicationsFile(record: CaseRecord): ApplicationsFile {
     parties: record.parties,
     court: record.court,
     people: peopleFrom(record),
-    submissions: [],
+    submissions: (EXTRA_PACKS[record.id] ?? []).map(submissionFromPack),
   };
 }
 

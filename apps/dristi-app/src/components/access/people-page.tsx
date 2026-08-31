@@ -1,7 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircle2Icon, InfoIcon, SearchIcon, UsersIcon, XIcon } from "lucide-react";
+import {
+  CheckCircle2Icon,
+  ChevronRightIcon,
+  InfoIcon,
+  SearchIcon,
+  UsersIcon,
+  XIcon,
+} from "lucide-react";
 
 import {
   AlertDialog,
@@ -78,6 +85,44 @@ function caseById(caseId: string) {
   return ACCESS_CASES.find((c) => c.id === caseId);
 }
 
+/**
+ * The list carries the designation as its own column, so the name drops the
+ * "Adv." salutation — saying it twice made the rows read as a bar roll
+ * rather than a team list. The raw name keeps the prefix (it is how counsel
+ * are addressed everywhere else); only this page's display strips it.
+ */
+function displayName(person: AccessPerson): string {
+  return person.name.replace(/^Adv\.\s*/, "");
+}
+
+/**
+ * A person is an advocate by enrolment (barId) or by holding an advocate
+ * grant; clerks are clerks on every case they touch. Someone with neither —
+ * a pending invite known only by number — gets no designation rather than a
+ * guessed one.
+ */
+function personDesignation(person: AccessPerson, locale: Locale): string | null {
+  if (
+    person.barId ||
+    person.grants.some((g) => g.role === "vakalat" || g.role === "junior")
+  ) {
+    return pick(peopleCopy.designationAdvocate, locale);
+  }
+  if (person.grants.some((g) => g.role === "clerk")) {
+    return pick(peopleCopy.designationClerk, locale);
+  }
+  return null;
+}
+
+/**
+ * One template shared by the header band and every row, so the columns can
+ * never drift: identity, designation (hidden on phones — it folds into the
+ * caption line there), case count pulled in from the right edge, and a
+ * trailing chevron that says the rows open.
+ */
+const PEOPLE_GRID =
+  "grid-cols-[minmax(0,1fr)_6rem_1.5rem] sm:grid-cols-[minmax(0,1fr)_9rem_6rem_1.5rem]";
+
 function PersonListRow({
   person,
   locale,
@@ -90,36 +135,56 @@ function PersonListRow({
   onOpen: () => void;
 }) {
   const count = person.grants.length;
+  const designation = personDesignation(person, locale);
   return (
     <button
       type="button"
       onClick={onOpen}
       aria-current={active || undefined}
       className={cn(
-        "flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+        "grid w-full items-center gap-3 rounded-lg px-2 py-3 text-left transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+        PEOPLE_GRID,
         active && "bg-muted",
       )}
     >
-      <Avatar className="size-10 shrink-0">
-        <AvatarFallback className="text-caption font-medium">
-          {person.pending ? "#" : initials(person.name)}
-        </AvatarFallback>
-      </Avatar>
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="truncate text-body-compact font-medium">{person.name}</p>
-        <p className="truncate text-caption text-muted-foreground">
-          {person.pending ? (
-            pick(listCopy.invitedPending, locale)
-          ) : (
-            <span className="tabular-nums">{person.phone}</span>
-          )}
-        </p>
-      </div>
-      <span className="shrink-0 text-caption text-muted-foreground">
+      <span className="flex min-w-0 items-center gap-3">
+        <Avatar className="size-10 shrink-0">
+          <AvatarFallback className="text-caption font-medium">
+            {person.pending ? "#" : initials(person.name)}
+          </AvatarFallback>
+        </Avatar>
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="truncate text-body-compact font-medium">
+            {displayName(person)}
+          </span>
+          <span className="truncate text-caption text-muted-foreground">
+            {person.pending ? (
+              pick(listCopy.invitedPending, locale)
+            ) : (
+              <span className="tabular-nums">{person.phone}</span>
+            )}
+            {/* Phones have no designation column — it rides the caption line. */}
+            {designation ? (
+              <span className="sm:hidden">
+                <span aria-hidden> · </span>
+                {designation}
+              </span>
+            ) : null}
+          </span>
+        </span>
+      </span>
+      <span className="hidden truncate text-body-compact text-muted-foreground sm:block">
+        {designation ?? "—"}
+      </span>
+      <span className="text-body-compact text-muted-foreground tabular-nums">
         {count === 1
           ? pick(peopleCopy.caseCountOne, locale)
           : fillCopy(peopleCopy.caseCount, locale, { count: String(count) })}
       </span>
+      <ChevronRightIcon
+        className="size-4 justify-self-end text-muted-foreground"
+        aria-hidden
+      />
     </button>
   );
 }
@@ -498,6 +563,27 @@ export function PeoplePage({
                 {pick(peopleCopy.noMatches, locale)}
               </p>
             ) : (
+              <>
+                {/* Column band — same grid template and gutter as the rows,
+                    so the labels sit exactly over their columns. */}
+                <div
+                  aria-hidden
+                  className={cn(
+                    "grid items-center gap-3 border-b border-hairline px-2 pb-2",
+                    PEOPLE_GRID,
+                  )}
+                >
+                  <span className="text-caption font-medium text-muted-foreground">
+                    {pick(peopleCopy.columnPerson, locale)}
+                  </span>
+                  <span className="hidden text-caption font-medium text-muted-foreground sm:block">
+                    {pick(peopleCopy.columnDesignation, locale)}
+                  </span>
+                  <span className="text-caption font-medium text-muted-foreground">
+                    {pick(peopleCopy.columnCases, locale)}
+                  </span>
+                  <span />
+                </div>
               <div className="min-h-0 flex-1 overflow-y-auto">
                 <div className="flex flex-col divide-y divide-hairline">
                   {matches.map((person) => (
@@ -511,6 +597,7 @@ export function PeoplePage({
                   ))}
                 </div>
               </div>
+              </>
             )}
           </>
         ) : (
@@ -548,7 +635,9 @@ export function PeoplePage({
                 </AvatarFallback>
               </Avatar>
               <div className="flex min-w-0 flex-1 flex-col gap-1 pr-10">
-                <h2 className="truncate text-body font-semibold">{openPerson.name}</h2>
+                <h2 className="truncate text-body font-semibold">
+                  {displayName(openPerson)}
+                </h2>
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                   <p className="text-caption text-muted-foreground tabular-nums">
                     {openPerson.pending ? pick(listCopy.invitedPending, locale) : openPerson.phone}

@@ -309,5 +309,148 @@
         }
       ]
     }
-  ]
+  ],
+  "extraCases": {
+    "c-1002": [
+      {
+        "id": "sub-1002-advance",
+        "kind": "Application",
+        "type": "Advancement/reschedule",
+        "title": "Advancement/reschedule",
+        "status": "Completed",
+        "addedOn": "2026-07-06",
+        "submittedById": "c-1002-counsel-c-0",
+        "submissionId": "KL-000342-2026-AP1",
+        "request": "Advance the matter listed for 14 September 2026; the complainant's bank witness is transferring out of Kollam at the end of August.",
+        "courtResult": "Allowed — framing of charge advanced to 2 September 2026.",
+        "linkedOrder": null,
+        "defects": [],
+        "documents": [
+          {
+            "label": "Filed application",
+            "href": "/case-file/14-application-advancement.pdf"
+          }
+        ]
+      },
+      {
+        "id": "sub-1002-objections",
+        "kind": "Document submission",
+        "type": "Objections",
+        "title": "Objections to the framing of charge",
+        "status": "Pending signature",
+        "addedOn": "2026-08-07",
+        "submittedById": "c-1002-counsel-a-0",
+        "submissionId": null,
+        "request": null,
+        "courtResult": null,
+        "linkedOrder": null,
+        "defects": [],
+        "documents": []
+      }
+    ],
+    "c-1004": [
+      {
+        "id": "sub-1004-production",
+        "kind": "Application",
+        "type": "Production of documents",
+        "title": "Production of documents",
+        "status": "Completed",
+        "addedOn": "2026-07-28",
+        "submittedById": "c-1004-counsel-c-0",
+        "submissionId": "KL-001204-2026-AP2",
+        "request": "Recall PW-1 and permit the complainant to produce the bank's dishonour memo and the ledger extract for the disputed period.",
+        "courtResult": null,
+        "linkedOrder": null,
+        "defects": [],
+        "documents": [
+          {
+            "label": "Filed application",
+            "href": "/case-file/17-application-production-return-memo.pdf"
+          }
+        ]
+      },
+      {
+        "id": "sub-1004-reschedule",
+        "kind": "Application",
+        "type": "Advancement/reschedule",
+        "title": "Advancement/reschedule",
+        "status": "Completed",
+        "addedOn": "2026-06-15",
+        "submittedById": "c-1004-counsel-c-0",
+        "submissionId": "KL-001204-2026-AP1",
+        "request": "Reschedule the hearing listed for 24 June 2026; counsel for the complainant is before the Sessions Court at Ernakulam that day.",
+        "courtResult": "Allowed — hearing moved to 23 July 2026.",
+        "linkedOrder": null,
+        "defects": [],
+        "documents": [
+          {
+            "label": "Filed application",
+            "href": "/case-file/14-application-advancement.pdf"
+          }
+        ]
+      },
+      {
+        "id": "sub-1004-affidavit",
+        "kind": "Document submission",
+        "type": "Affidavits",
+        "title": "PW-1 chief affidavit under section 145 of the Negotiable Instruments Act",
+        "status": "Completed",
+        "addedOn": "2026-08-05",
+        "submittedById": "c-1004-counsel-c-0",
+        "submissionId": "KL-001204-2026-DS1",
+        "request": null,
+        "courtResult": null,
+        "linkedOrder": null,
+        "defects": [],
+        "documents": [
+          {
+            "label": "Filed affidavit",
+            "href": "/case-file/05-evidence-of-complainant.pdf"
+          }
+        ]
+      }
+    ],
+    "c-1005": [
+      {
+        "id": "sub-1005-condonation",
+        "kind": "Application",
+        "type": "Condonation of delay",
+        "title": "Condonation of delay",
+        "status": "Completed",
+        "addedOn": "2023-02-14",
+        "submittedById": "c-1005-counsel-c-0",
+        "submissionId": "KL-000221-2023-AP1",
+        "request": "Condone the delay of 11 days in filing the complaint; the complainant was hospitalised through the last week of the limitation period.",
+        "courtResult": "Allowed — delay condoned; complaint taken on file.",
+        "linkedOrder": null,
+        "defects": [],
+        "documents": [
+          {
+            "label": "Filed application",
+            "href": "/case-file/02-initial-filings.pdf"
+          }
+        ]
+      },
+      {
+        "id": "sub-1005-memo",
+        "kind": "Document submission",
+        "type": "Memos",
+        "title": "Memo on the execution of the non-bailable warrant",
+        "status": "Completed",
+        "addedOn": "2026-07-21",
+        "submittedById": "c-1005-counsel-c-0",
+        "submissionId": "KL-000221-2023-DS1",
+        "request": null,
+        "courtResult": null,
+        "linkedOrder": null,
+        "defects": [],
+        "documents": [
+          {
+            "label": "Filed memo",
+            "href": "/case-file/10-memo-cheque-calculation.pdf"
+          }
+        ]
+      }
+    ]
+  }
 }

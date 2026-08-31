@@ -8,6 +8,7 @@ import {
   FileTextIcon,
 } from "lucide-react";
 
+import { DownloadFilingButton } from "@/components/cases/download-filing-button";
 import { SubmissionBatchDialog } from "@/components/cases/submission-batch-dialog";
 import { SubmissionPaymentDialog } from "@/components/cases/submission-payment-dialog";
 import { SubmissionRecordDialog } from "@/components/cases/submission-record-dialog";
@@ -89,6 +90,7 @@ import {
   personIdentity,
   resumeDraftHref,
   selectApplications,
+  submissionDocumentSrc,
   submissionTypeLabel,
   submittedByName,
   submittedBySideLabel,
@@ -991,6 +993,19 @@ type GroupListProps = {
   onOpenRecord: (submission: Submission) => void;
 };
 
+/**
+ * What the row's download hands over: the submission's signed artefact —
+ * the first attached document with a file. Drafts and unsigned filings have
+ * none yet, and the button disables rather than disappearing.
+ */
+function firstDocumentSrc(submission: Submission): string | undefined {
+  for (const doc of submission.documents) {
+    const src = submissionDocumentSrc(doc);
+    if (src) return src;
+  }
+  return undefined;
+}
+
 function ApplicationsTable({
   rows,
   caption,
@@ -1012,17 +1027,21 @@ function ApplicationsTable({
           <TableHead className={cn(headClass, "w-40")}>Status</TableHead>
           <TableHead className={cn(headClass, "w-36")}>Submitted by</TableHead>
           <TableHead className={cn(headClass, "w-40")}>Date added</TableHead>
-          <TableHead className={cn(headClass, "w-32")}>Action</TableHead>
+          <TableHead className={cn(headClass, "w-32")}>Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {/*
-          Open is an explicit control in its own column, as in Orders,
-          Hearings and Documents — the case tabs stay one pattern rather
-          than this one teaching a row-wide click nothing else uses.
+          The row opens the record, exactly as the Documents register does,
+          and the one column action is the download — the legacy three-dot
+          menu held nothing else (Aug 31 correction round).
         */}
         {rows.map((submission) => (
-          <TableRow key={submission.id}>
+          <TableRow
+            key={submission.id}
+            className="cursor-pointer"
+            onClick={() => onOpenRecord(submission)}
+          >
             <TableCell className={cn(cellClass, "min-w-0 whitespace-normal")}>
               <SubmissionTypeCell submission={submission} />
             </TableCell>
@@ -1049,14 +1068,11 @@ function ApplicationsTable({
               {formatCaseDate(submission.addedOn)}
             </TableCell>
             <TableCell className={cellClass}>
-              <Button
-                type="button"
-                variant="outline"
-                aria-label={`Open ${submission.title}`}
-                onClick={() => onOpenRecord(submission)}
-              >
-                Open
-              </Button>
+              <DownloadFilingButton
+                label={`Download submission: ${submission.title}`}
+                tooltip="Download submission"
+                href={firstDocumentSrc(submission)}
+              />
             </TableCell>
           </TableRow>
         ))}
