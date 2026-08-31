@@ -1,7 +1,7 @@
 # E-filing (cheque bounce, S-138 NI Act)
 
 Status: building
-Updated: 2026-08-17
+Updated: 2026-08-30
 Source: the owner's "ON Courts — Demo Master" prototype (Claude Design export, 14 screens;
 decoded to plain HTML for this build) · docs/product/product-foundation.md ·
 docs/product/domain/journey.md · docs/product/domain/practice-notes.md ·
@@ -38,12 +38,64 @@ as inline-styled HTML with per-screen class components, hard-coded pixel values,
 tokens, and no shared state (screens talk via `localStorage`). None of it can be shipped,
 tested, themed or reviewed against the DS.
 
+### Round 3 — the dashboard as it stands (2026-08-30)
+
+Rounds 1–2 built and DS-anchored the whole flow; nobody has yet asked what the *entry*
+screen is for. Diagnosed on the render at 1440 px on `feature/efiling-dashboard`
+(= `main` @ a3d3e48) against
+`apps/dristi-app/src/components/filing/dashboard/filings-dashboard.tsx`:
+
+1. **Five sections, one rank.** Hero, Continue a draft, Received from your clients,
+   Start a new case, Recently filed cases all render through the same local `Section`
+   (`text-title-s` + description + `py-8`). Nothing on the page says which one is
+   today's. The screen is an index of its own features, not a place of work.
+2. **The default account is the worst-built state.** With no drafts and no filings,
+   three of the five sections are a bare `<p>` of grey prose ("No drafts yet. Start a
+   new filing below.", "Nothing filed yet…") — no illustration, no action, no DS
+   `Empty`, which is already synced at `components/ui/empty.tsx` and unused here.
+3. **The stats are decoration, and one of them is a duplicate.** "Drafts in progress: 0"
+   sits directly above a section that says "No drafts yet"; "Cases filed (12 months)" is
+   a vanity count with nothing behind it. Both render "–" until `useMounted`, so the
+   hero visibly changes on load.
+4. **Three of the four case-type cards are dead.** Civil money suit, matrimonial/family
+   and consumer dispute each get a full card — icon tile, description, "~55 min · 8
+   documents" — and a permanently `disabled` "Start filing". The single largest, most
+   prominent grid on the page is 75% non-functional, and the ~minutes/documents figures
+   on those three are invented (no product source).
+5. **More than one primary.** The round-1 log already recorded "two teal actions in
+   separate sections (Continue draft · Start filing)". With a draft present it is three
+   once the batch card populates. `ration teal` (DS Laws) is a per-view rule, not a
+   per-section one.
+6. **The Status column never varies.** Every row in Recently filed renders the same
+   `Badge variant="secondary"` reading "Submitted from this browser". A column with one
+   value is not a column; it is a caption repeated N times.
+7. **Nothing on the screen is about time.** §138 runs on hard clocks — demand notice
+   within 30 days of the dishonour memo, 15 days to pay, complaint within one month of
+   the cause of action (docs/product/domain/journey.md §§1–3). The dashboard shows a
+   draft's *percent complete* and its *last saved* timestamp, and never the only number
+   that can cost a client the case: how long the limitation window has left. Percent
+   complete is a progress bar for the app; days remaining is a fact about the case.
+8. **Cost to the one working action.** On an empty account the only pressable primary
+   (Start filing, cheque bounce) sits ~740 px down a 1261 px page, behind two empty
+   sections.
+
+Problems 1–6 and 8 are composition and can be fixed here. Problem 7 turned out **not** to
+need new data: `limitationView()` already computes it and `feeBill()` already spends it
+(see decision D8).
+
 ## 3. Objective
 
 A user can walk the whole flow in the app on real routes, with one persisted draft, and
 every screen composed only from DS primitives and named tokens — such that round 2 is a
 design pass, not a rebuild. Test: `check:tokens` · `check:typography` · `check:ui-sync`
 pass; the flow completes end to end in the browser; the draft survives a reload.
+
+**Round 3 (dashboard).** On opening `/filings` a person can tell, without scrolling,
+what needs doing and what the next action is; every state on the page is a designed
+state rather than a sentence; nothing on the page advertises a capability that does not
+exist. Observable: one primary action in the viewport at 1440 px and at 375 px; zero
+permanently-disabled controls; no section that renders only prose; the empty account and
+the busy account are both legible screens.
 
 ## 4. Job
 
@@ -101,12 +153,175 @@ Preview; sign by e-sign OTP or upload; fees → process & address → processing
 Sign and pay stay a **labelled sandbox** (any OTP; simulated payment; generated case-file
 number) — the owner's call: the end of the flow is shown, not integrated.
 
+### Dashboard redesign (round 3, 2026-08-30)
+
+Provisional where noted: the Job of the *flow* is confirmed (§4), but who logs in is
+still open (docs/product/open-questions.md), so anything that depends on volume —
+individual Kerala filer vs Gujarat bulk institution — is marked and designed for the
+more constrained case (one person, few drafts, small screen).
+
+- **D1 · One work region, then everything else.** The page leads with the state the
+  person is actually in — resume a draft, or if there is none, start one — and demotes
+  the rest to a second rank. Traces to DS Laws *ration teal* (one primary per view);
+  alternative rejected: keep five equal sections and re-order them, which does not fix
+  problem 1. Given up: the tidy symmetry of the current section stack.
+- **D2 · Kill the stat cards in their present form.** "Drafts in progress" restates the
+  section below it; "Cases filed (12 months)" answers nothing anyone asked. Judgment.
+  Alternative rejected: keep them and add a third — more decoration. Given up: the
+  dashboard *look*. If a number returns it has to be one that changes a decision (e.g.
+  drafts against a closing limitation window) — which needs D6's data.
+- **D3 · One case type, honestly.** Cheque bounce is the only filing this product
+  supports. The other three stop being cards with dead buttons. Recommended: a single
+  "Start a cheque-bounce filing" action plus a plain line naming what is coming, not
+  three disabled facsimiles. Traces to problem 4; DS has no "disabled card" pattern to
+  lean on. Given up: the four-up grid that made the product look broader than it is.
+- **D4 · Every empty state uses DS `Empty`.** `Empty` / `EmptyHeader` / `EmptyMedia` /
+  `EmptyTitle` / `EmptyDescription` / `EmptyContent` are synced and unused
+  (`components/ui/empty.tsx`). Traces to §3 of the DS gate — never hand-write what the
+  DS ships. Given up: nothing.
+- **D5 · Batch and filed rows compose from DS `Item`.** The batch card currently
+  hand-rolls a `size-11` icon tile + text stack + button inside a `Card`; `Item` with
+  `ItemMedia` / `ItemContent` / `ItemTitle` / `ItemDescription` / `ItemActions` is
+  exactly that shape and is already synced (`components/ui/item.tsx`, `variant="outline"`).
+  Given up: the bespoke sm:flex-row breakpoint behaviour, which `Item` handles by
+  `flex-wrap`.
+- **D6 · Recently filed loses the constant Status column** and, if a status column
+  survives at all, it carries registry state — not "Submitted from this browser", which
+  belongs once as a caption on the table. **Provisional**: what a filed case can truthfully
+  say depends on whether anything connects to CIS/eCourts (open question below).
+- **D7 · Reverses the round-1 "two teal actions" call.** Logged 2026-08-17 as acceptable
+  because the actions sat in separate sections; problem 5 says that reading was wrong —
+  Laws ration teal per *view*.
+
+- **D8 · The limitation clock goes on the dashboard, framed as condonation — not as a
+  verdict.** *Owner, 2026-08-30, answering the open question:* "maybe show it as how you
+  need to finish this within x days without delay condonation? I will let you figure this
+  out."
+
+  **No new data and no new derivation is needed.** `limitationView(draft)`
+  (`lib/filing/selectors.ts`) already returns `causeDate` (the filer's typed date, else
+  derived as notice service + `PAYMENT_WINDOW_DAYS` = 15, taking the **earliest** across
+  notices), `filingDate` (today while the draft is unfiled — "freezing the date would hide
+  a growing delay"), `elapsed`, `withinLimit`, `overBy` and `causeDerived`. `feeBill()`
+  already adds the condonation-application fee once `elapsed > LIMITATION_DAYS` (30).
+  So the number is computed today, spent on a fee line three screens deep, and never
+  shown on the screen where someone would act on it. Problem 7 is a *surfacing* problem,
+  not a data problem — which retires the "can we hold the §138 clocks?" question below.
+
+  **What the card says**, by state (`daysLeft = LIMITATION_DAYS − elapsed`):
+  - *No `causeDate` and no served notice* → **no clock at all.** Matches the rule already
+    written into `noticeCauseDate`: "a limitation date guessed from nothing is worse than
+    no date at all." Never a zero, never an estimate.
+  - *In time* → "File by {date} — {n} days left." Neutral; the date leads, the countdown
+    supports it.
+  - *In time, ≤ 7 days* → same sentence, warning treatment (DS `Alert`/`Badge` warning
+    tokens — colour never alone, the words carry it: DS Laws *no alpha status fills*,
+    a11y floor).
+  - *Past 30 days* → "The one-month window closed on {date}. Filing now needs a
+    delay-condonation application (added to the fee bill)." **Never "overdue", never
+    "barred"** — delay is condonable for sufficient cause (NI Act §142(1)(b) proviso), so
+    a hard verdict would be a legal claim the product cannot make. This wording states
+    two facts the app already acts on: the date passed, and the bill changed.
+  - *Derived rather than typed* (`causeDerived`) → the date is shown with a quiet "from
+    your notice service date" so nobody mistakes an inference for a filer's entry.
+
+  Traces to docs/product/domain/journey.md §§2–3 (15 days to pay; complaint within one
+  month of the cause of action) and to the existing selector. Alternative rejected: a
+  red "overdue" state — states a legal conclusion. Given up: a single glanceable
+  traffic-light, in exchange for copy a court would not object to.
+
+### Wireframe reconciliation (round 3, 2026-08-30)
+
+Source: Claude Design project `9464d9bc-a8dd-4060-967b-a9644a1d8728`, `File a Case.dc.html`
++ `theme.css`, read via DesignSync. The owner's instruction: "use this as a wireframe and
+make it a functional part of the design … then anchor it to our context and DS."
+
+**What the wireframe specifies** — page head "File a case"; a two-up entry row
+(*Start a new filing*: most-filed case-type rows + a "Show all 21 case types" disclosure
+containing a live-filtering search over a 21-type catalogue · *Bulk filing*: most-recent
+import with a stacked four-segment progress bar, legend, and three actions); then a
+*Your filings* work queue — **sticky** header+tabs (`top:60px`) over four tabs
+(Drafts · Pending scrutiny · Returned with defects · Registered) each with a count pill,
+a toolbar (search · case type · court · sort), a per-tab column set with one CTA per row
+("status lives in the tab, not the row"), and windowed pagination at 12/page.
+
+- **W1 · The four tabs are buildable from data this repo already has** — the finding that
+  retires the "can a filed case's real status be shown?" question for everything except a
+  live registry link. `CaseRecord` (`lib/cases/types.ts`) already carries `caseNumber`,
+  `parties`, `court`, `filedOn`, `stage` (with `"scrutiny"` among `ACTIVE_STAGES`),
+  `nextHearing {on, purpose}` and `latestUpdate`; `lib/tasks` already models
+  `kind: "returned"` with `returned.defects` and a due date (`sandbox.ts`), and
+  `urgency.ts` already words deadlines. The wireframe's own court names
+  ("JMFC-I, Kollam") are verbatim the fixtures'. So: Drafts ← `useDrafts()`,
+  Pending scrutiny ← cases at `stage: "scrutiny"`, Returned with defects ←
+  `kind: "returned"` tasks, Registered ← cases past scrutiny. **No parallel dataset is
+  invented.**
+- **W2 · …which makes the IA overlap the real risk, not the data.** That queue is close
+  to `/cases` (Your Cases — which already has `selectCases`, filters, buckets and
+  pagination) and overlaps `/tasks`. Building it as drawn would be a second case list with
+  its own filter vocabulary — the thing CLAUDE.md forbids ("never quietly introduce a
+  second way"). **Resolution:** the queue is a *view over the same stores*, scoped to
+  "filings I made", never its own data or its own truth; anything about working a case
+  still links out to `/cases/<id>` and `/tasks/<id>`. Registered rows therefore open the
+  case, they do not restate it.
+- **W3 · 21 case types → the one we actually file, plus an honest reference list.**
+  The wireframe lists 21 types with personal counts ("128 filed by you"). DRISTI files
+  one: cheque bounce. Keeping 20 more as pressable rows is problem 4 twenty times over.
+  Decision: the primary list carries only what can be filed, with **real** counts derived
+  from the person's own filed drafts; the disclosure + search survive, but as a labelled
+  reference list of what is not yet on DRISTI — no chevrons, no dead affordances.
+  Consistent with D3; the wireframe's *pattern* is kept, its *inventory* is not.
+- **W4 · Bulk filing keeps its card, and stops claiming an import that does not exist.**
+  The Tata Capital / Provakil batch is demo data. The card, the stacked bar and the
+  legend are built; with no import they render the DS `Empty` state and the actions
+  point at `/filings/bulk`. Still **provisional** pending the "do client batches exist?"
+  question.
+- **W5 · Sticky queue header is kept — it is the one scroll behaviour that earns itself.**
+  Tabs and counts stay visible while a long table scrolls under them. Anchored to the
+  app's own top bar height rather than the wireframe's `60px` literal.
+- **W6 · Folder tabs → DS tabs.** The wireframe draws tab-shaped chips with a border on
+  three sides sitting on a rule. The DS ships `tabs.tsx` (line variant) and `ui-craft`
+  already settled this for the filing area: "tab underline sits on the band hairline
+  (list `h-10`, `after:-bottom-px`)". DS wins. Count pills stay, as DS `Badge`.
+- **W7 · Values → tokens, throughout.** The wireframe's `theme.css` is a *fork* of the DS
+  (`--radius` 10px, cards 14px, `.card` shadow-sm) with its own literals: `--sb-w:248px`,
+  `#80838d`, `#c1c3cc`, `#fdeceb`, radii 14/11/9/8, padding 22/20/18/16/15/13/11,
+  gap 22/14/18, `.seg` 9px, `min-width:900px`. None of it ships. Everything maps to the
+  Dristi ladder and named tokens (`p-6`, `rounded-xl`, `hairline`, `surface-sunken`,
+  `muted-foreground`, `brand-muted`, `warning-muted`, `track`, `destructive`). The
+  wireframe's `--primary:#007e7e` is already our brand teal, so intent survives the
+  translation.
+- **W8 · The stacked four-segment bar is a composition, not a new primitive.** DS
+  `Progress` is single-value; a stacked bar is composed from a flex row of token-filled
+  spans with an sr-only breakdown (status never by colour alone). Logged as a DS request.
+- **W9 · D2 partially reverses.** D2 killed the stat cards as decoration. The wireframe
+  replaces them with something better and I am taking it: counts move onto the tabs,
+  where a number is a filter with a size rather than a tile. The stat cards still go.
+
+Not decided here (needs the owner, see *Open questions*): whether client batches return
+as a real, populated surface, and whether time-to-limitation lands this round.
+
 ## 6. What I cut (and why)
 
 - Bulk filing (client batches) — out of scope by the ask; stubbed at `/filings/bulk`.
 - Rich text toolbars beyond bold/italic/lists/align — `execCommand` is enough for round 1.
 - The demo's page-fade transitions and iframe navigation — not product behaviour.
 - The demo's separate "Learn more" behaviour on case cards — no target defined.
+
+Round 3 (dashboard):
+
+- **A KPI row.** Considered replacing the two stat cards with four; cut — a filing desk
+  with a handful of live drafts has no numbers worth a tile, and at 375 px a KPI row is
+  four boxes of scroll before the first action.
+- **Tabs / segmented control across draft · filed · batches.** Cut: it hides two of the
+  three states behind a click on an account that usually has one of them, and it fixes
+  the wrong problem (density, not priority).
+- **A calendar or deadline strip.** Cut *this round* only for want of data (D6 / problem
+  7), not because it is wrong — it may be the most valuable thing on the screen.
+- **Long-label / language:** section headings, the case-type name and any status word are
+  the strings a state layer translates. Nothing in this round may depend on a heading
+  fitting one line, and the case-type name ("Cheque bounce (S-138, NI Act)") must be
+  allowed to wrap to two lines at 375 px without the action moving out of reach.
 
 ## 7. Layout & hierarchy
 
@@ -151,6 +366,27 @@ signed/pending · paid. All draft state reloads from storage.
 - Where the "Affidavit" section lives (own screen vs Preview only).
 - The exact order of fees vs process & address (demo left it unwired; wired here as
   Payment → Process & address → Processing → Success).
+
+Round 3 (dashboard), 2026-08-30 — **blocking the build**:
+
+- **Is the attached screenshot the target or the reference?** It is not this codebase:
+  "Tata Capital", "via Provakil", "View all batches" and the "Exported for CIS" badge
+  appear in no commit on any branch (`git log --all -S`, 226 commits), it has no app
+  shell, and its copy is title-case and pre-DS-audit. It matches the owner's original
+  "ON Courts — Demo Master" prototype, whose hard-coded client batch this app
+  deliberately turned into an empty state (log, 2026-08-17 night). So: build *toward*
+  that demo (batches become real, registry status becomes real), or treat it only as
+  "the screen I mean"?
+- **Do client batches exist as a product capability?** Cut in round 1, stubbed at
+  `/filings/bulk`. If they are real, who pushes them (Provakil-style litigation systems?),
+  and does that answer "who logs in" for the bulk-institutional deployment?
+- ~~**Can a filed case's real status be shown?**~~ **Largely answered by W1** — the app
+  already models scrutiny stage, returned defects and hearings, and the queue reads those.
+  What remains open is narrower: a *live* CIS/eCourts link, which nothing here claims.
+- ~~**Can we hold the §138 clocks on a draft?**~~ **Answered 2026-08-30 by the owner** —
+  show it as "finish within X days without needing delay condonation". Moved to decision
+  D8. Found while answering: the derivation already exists (`limitationView`), and the
+  condonation fee already keys off it, so nothing new is claimed.
 
 ## 13. Gaps in the DS
 
@@ -284,6 +520,118 @@ Recorded in `docs/design/ds-requests.md` when round 2 confirms them.
     not using the system's own status fills.
   - Notifications are **not** built: v3 has a bell, this product has no notification data,
     and inventing one would be a claim.
+
+- 2026-08-30 — Owner: redesign the existing `/filings` dashboard; branch
+  `feature/efiling-dashboard` cut from `origin/main` @ a3d3e48 (e-filing, pending tasks,
+  cases, vakalatnama and the `/welcome` role split are all on main now). Screenshot
+  supplied "of what I exactly mean". Verified it is **not** the running app: the strings
+  in it exist in no commit on any branch, and the live screen shows the batch empty state.
+  Recorded as the demo, and as an open question rather than an assumption.
+  Round-3 problems 1–8 diagnosed on the render; decisions D1–D7 proposed; D7 reverses the
+  2026-08-17 "two teal actions" call. Job unchanged (§4). Nothing built this turn.
+
+- 2026-08-30 (later) — Owner: answered the limitation question — frame it as "finish
+  within X days without delay condonation", "I will let you figure this out". Written up
+  as D8; the open question is struck through rather than deleted. Also asked to import a
+  Claude Design wireframe (`File a Case.dc.html`, project 9464d9bc) as the target for this
+  screen. **Not imported: DesignSync needs `/design-login`, which cannot run in a
+  non-interactive session.** The wireframe is therefore not yet reflected anywhere in this
+  brief — D1–D7 stand on the render diagnosis alone and must be re-checked against the
+  wireframe once it can be read.
+
+- 2026-08-30 (evening) — Wireframe imported (DesignSync, after `/design-login`):
+  `File a Case.dc.html` + `theme.css`. Reconciled as W1–W9. Two findings changed earlier
+  positions: the four queue tabs map onto data already in `lib/cases` and `lib/tasks`
+  (so the registry question narrows to a live link only), and the wireframe's queue
+  overlaps `/cases` and `/tasks` — resolved as a scoped view over the same stores, never
+  a second dataset. W9 partially reverses D2. The wireframe's 21-type catalogue is not
+  adopted as pressable inventory (W3, consistent with D3).
+
+- 2026-08-30 (build) — "File a case" built on `feature/efiling-dashboard`. New:
+  `lib/filing/queue.ts` (row model + the limitation clock + filters/paging, 14 tests),
+  `dashboard/start-filing-card.tsx`, `dashboard/bulk-import-card.tsx`,
+  `dashboard/filings-queue.tsx`; `filings-dashboard.tsx` rewritten to compose them.
+  Gates green (`ds-fresh`, `tokens`, `typography`, `ui-sync`, `rails`); 132 tests pass;
+  tsc and lint clean. Deviations from the wireframe, each with its reason:
+  folder tabs → DS line tabs (W6); 21 pressable case types → one real type + a labelled
+  reference list (W3/D3); the stat row stays deleted, counts live on the tabs (W9);
+  a ghost discard action was added to draft rows, which the wireframe has no slot for —
+  removing the old draft card had otherwise left no way to delete a draft.
+  **Two bugs found and fixed while building:** the queue gated its whole table on the
+  tasks store, so one unready tab blanked all four; and a hand-rolled `addDays` parsed
+  local time and formatted UTC, which moved every limitation date a day earlier in IST
+  (now uses `format.ts`'s own helpers — the reason it was caught is the D8 tests).
+  **Verified on the render** (after the owner restarted the server): the "cannot hydrate"
+  symptom was **not** the server — it was the origin. Next.js blocks cross-origin HMR, so
+  `127.0.0.1:3000` serves a client that never hydrates while `localhost:3000` works. Every
+  agent verifying this app must use `localhost`. (`.claude/rules/dev-server.md` names
+  `127.0.0.1` as the address and cites a `npm run dev:stop` script that does not exist —
+  both need correcting.)
+  Exercised end to end at 1200–1440 px: tab switching (columns and the info cell change
+  per tab), counts (Drafts 0 · Pending scrutiny 2 · Returned with defects 3 ·
+  Registered 32, all from the real stores), search (matches either side of the cause
+  title), the court filter (appears only when a tab has more than one court), sort,
+  pagination (Showing 25–32 of 32), the case-type disclosure (expands, focuses its search,
+  lists the 20 counter-only types), and the sticky header pinning flush under the top bar.
+  **Two further defects found on the render and fixed:** the queue's search shared its
+  accessible name with the top bar's command palette; and the sticky header did not stick,
+  because the DS `Card` master carries `overflow-hidden` and a clipping ancestor makes
+  `position: sticky` inert — overridden with `overflow-visible` on that one Card and
+  logged in `docs/design/ds-requests.md`.
+
+- 2026-08-30 (sandbox) — Owner asked to see the screen populated. Added
+  `lib/filing/demo-drafts.ts` and a `SandboxStrip` at the foot of the screen: five sample
+  drafts chosen to walk **every** state of the limitation cue (22 days left · 4 days left,
+  warning · window closed, condonation · no cause of action at all), and a sample client
+  batch behind a toggle. Loaded only on a press, never on open — the standing decision
+  that a new filing starts blank is unchanged, and the bulk card still claims nothing on
+  its own (W4). The strip is plain, last on the page, and says outright that the screen
+  has no backend; `clearDemoDrafts` removes only ids it wrote, so a real typed draft
+  survives. Delete both files together when real data arrives.
+
+- 2026-08-31 — Staff UX review of the built screen, then all 13 findings fixed in the
+  order the review ranked them. The two criticals were mine and were wrong, not merely
+  suboptimal: **Registered opened on the furthest-away hearing** (one sort rule applied to
+  four columns; descending is right for "filed on", inverted for "next hearing"), and
+  **dates already heard were labelled "Next hearing"**. Fixes:
+  - Each tab now owns its **order** (`TAB_SORTS`) and its **columns** (`TAB_LAYOUT`).
+    Defaults are deadline-first / longest-waiting / cure-date-first / next-hearing-first;
+    the label "Newest first" is gone and a test asserts it cannot return. Rows carry two
+    keys — `urgencyAt` and `recencyAt` — so "most pressing" and "most recent" stop being
+    the same question. A past listing or an unlisted case sorts to the end, never above
+    the date being prepared for.
+  - The hearing cell is tense-aware: a passed date reads "Last listed — no new date yet".
+  - **Dead columns removed.** Case type is gone from every tab (one type exists) and court
+    from drafts (a draft has not chosen one) — the same defect this redesign was started
+    to fix, reproduced and now undone. Drafts also lose the reference column: the id shown
+    there was a random string, and a draft has no number.
+  - **View state moved into the URL** (`tab · q · court · sort · page · size`), the way
+    `/cases` already does it, so back, refresh and a shared link restore the view. Only
+    non-default values are written. Switching tabs keeps the search (a party name means
+    the same everywhere) and drops a court filter that does not exist on the new tab —
+    replacing the arbitrary rule that cleared one and kept the other.
+  - **ARIA fixed:** the tablist's `aria-controls` pointed at a panel that did not exist,
+    because the table was rendered outside `TabsContent`. Each tab now has a real panel and
+    each table an accessible name.
+  - Minors: the drafts empty state carries the primary action and a filtered empty state
+    offers "Clear filters"; page size aligned to the cases list's 10 with a per-page
+    control; whole rows are clickable via a stretched link (the discard button sits above
+    it); "At the counter" no longer repeats on all 20 reference rows; only the tab strip
+    pins, not the heading, returning ~90px of every scroll.
+  138 tests pass (20 in `queue.test.ts`, including regression tests for both criticals);
+  tsc, lint and all five gates clean.
+  **Verified on the render.** Drafts order past-window → 3 days → 21 → 26 → no-clock-last;
+  Registered opens on 02/09 "Framing of charge" with every already-heard date below it
+  reading "Last listed — no new date yet"; defects order 31/08 → 01/09 → 02/09 and link
+  into `/tasks/<id>/fix`; per-tab columns, sort labels, page size (`size=25`), the
+  filtered-empty "Clear filters" action, the per-draft discard dialog, and the tablist's
+  panel all behave. Round trip confirmed: a row click opens `/cases/c-1002` and Back
+  returns to `/filings?tab=registered` with the tab still selected; the URL drops params
+  that equal the default.
+  One defect the render caught that the tests could not: rows with nothing pressing all
+  share one sentinel sort key, so the whole tail sat in source order — a Hearing column
+  that claimed an order and had none. Rows now carry an optional `tieAt`, set on registered
+  rows to the date the column actually shows, so past listings read most-recent-first.
 
 ### Round 2 candidates (design pass)
 Card title scale vs demo (16/600); select trigger truncation on half-width fields;

@@ -1,0 +1,360 @@
+/**
+ * The filings work queue — one row model over four sources the app already owns.
+ *
+ * The queue is a *view*, never a dataset. Drafts come from the filing repository,
+ * scrutiny and registered rows from `lib/cases`, returned-defect rows from `lib/tasks`.
+ * Nothing here invents a case, a status or a court: if the row cannot be built from a
+ * record that already exists somewhere else in the app, the tab renders empty. That is
+ * the rule that keeps this screen from becoming a second `/cases` with its own truth
+ * (see docs/design/proposals/e-filing.md, W1–W2).
+ *
+ * The four tabs are four different tables that happen to share a row shape. They do not
+ * share a column set and they do not share an order: a draft is ordered by how long it
+ * has left, a registered case by when it is next in court. Treating them as one table is
+ * what put already-heard dates at the top of a column headed "Next hearing".
+ */
+
+import { CASES } from "@/lib/cases/fixtures";
+import type { CaseRecord } from "@/lib/cases/types";
+import type { Case as TaskCase, Task } from "@/lib/tasks/types";
+import { fixHref } from "@/lib/tasks/routes";
+
+import { addDays, daysBetween, toDisplayDate } from "./format";
+import { draftProgress, draftTitle, limitationView, LIMITATION_DAYS } from "./selectors";
+import { stepHref } from "./steps";
+import type { FilingDraft } from "./types";
+
+export const QUEUE_TABS = [
+  { id: "drafts", label: "Drafts" },
+  { id: "scrutiny", label: "Pending scrutiny" },
+  { id: "returned", label: "Returned with defects" },
+  { id: "registered", label: "Registered" },
+] as const;
+
+export type QueueTab = (typeof QUEUE_TABS)[number]["id"];
+
+export function isQueueTab(value: string | null): value is QueueTab {
+  return !!value && QUEUE_TABS.some((tab) => tab.id === value);
+}
+
+/** How the info cell reads. `tone` never carries the meaning on its own. */
+export type InfoTone = "default" | "warning" | "danger";
+
+/** Sorts last in every ascending (most-pressing-first) order. */
+const NO_URGENCY = "9999-12-31";
+
+export type QueueRow = {
+  id: string;
+  /** The number this row is known by. Absent on drafts — a draft has not got one. */
+  ref?: string;
+  parties: string;
+  /** Empty while no court applies; the column is dropped on tabs where none ever does. */
+  court: string;
+  info: { lead: string; sub?: string; tone: InfoTone };
+  action: { label: string; href: string };
+  /** When this row needs attention — ascending puts the most pressing first. */
+  urgencyAt: string;
+  /** When this row last moved — descending puts the freshest first. */
+  recencyAt: string;
+  /**
+   * Secondary key, descending, for rows whose primary key ties — which every row with
+   * nothing pressing does, since they all share one sentinel. It should be whatever the
+   * *visible* column shows, or that column reads as unsorted. Defaults to `recencyAt`.
+   */
+  tieAt?: string;
+  /** Drafts can be thrown away; a filed case cannot. Drives the row's ghost action. */
+  discardable?: boolean;
+  /** Everything the search box matches against, pre-lowered. */
+  haystack: string;
+};
+
+export type ColumnId = "ref" | "parties" | "court" | "info" | "action";
+
+/**
+ * What each tab actually shows.
+ *
+ * Case type is gone from every tab: DRISTI files one case type, so a column repeating
+ * "S-138, NI Act" down the page carried nothing. Court is gone from drafts for the same
+ * reason — a draft has not chosen one. A column with a single value is a caption printed
+ * once per row.
+ */
+export const TAB_LAYOUT: Record<
+  QueueTab,
+  { columns: ColumnId[]; ref?: string; info: string; label: string }
+> = {
+  drafts: {
+    columns: ["parties", "info", "action"],
+    info: "Time to file",
+    label: "Drafts you have not filed yet",
+  },
+  scrutiny: {
+    columns: ["ref", "parties", "court", "info", "action"],
+    ref: "E-filing no.",
+    info: "Filed",
+    label: "Filings waiting on the registry's check",
+  },
+  returned: {
+    columns: ["ref", "parties", "court", "info", "action"],
+    ref: "E-filing no.",
+    info: "Defects raised",
+    label: "Filings scrutiny returned with defects",
+  },
+  registered: {
+    columns: ["ref", "parties", "court", "info", "action"],
+    ref: "Case no.",
+    info: "Hearing",
+    label: "Cases the court has numbered",
+  },
+};
+
+export type SortOption = {
+  value: string;
+  label: string;
+  key: "urgencyAt" | "recencyAt";
+  dir: "asc" | "desc";
+};
+
+/**
+ * Each tab's own orders, most useful first — which is also its default.
+ *
+ * "Newest first" is meaningless on a forward-looking column: sorted that way a list of
+ * hearings opens on the one furthest away and buries the next one under dates that have
+ * already been heard.
+ */
+export const TAB_SORTS: Record<QueueTab, SortOption[]> = {
+  drafts: [
+    { value: "deadline", label: "Deadline first", key: "urgencyAt", dir: "asc" },
+    { value: "recent", label: "Recently saved", key: "recencyAt", dir: "desc" },
+  ],
+  scrutiny: [
+    { value: "waiting", label: "Longest waiting", key: "urgencyAt", dir: "asc" },
+    { value: "recent", label: "Recently filed", key: "recencyAt", dir: "desc" },
+  ],
+  returned: [
+    { value: "cure", label: "Cure date first", key: "urgencyAt", dir: "asc" },
+    { value: "recent", label: "Recently returned", key: "recencyAt", dir: "desc" },
+  ],
+  registered: [
+    { value: "hearing", label: "Next hearing first", key: "urgencyAt", dir: "asc" },
+    { value: "updated", label: "Recently updated", key: "recencyAt", dir: "desc" },
+  ],
+};
+
+export function defaultSortFor(tab: QueueTab): string {
+  return TAB_SORTS[tab][0].value;
+}
+
+export function sortOptionFor(tab: QueueTab, value: string | null): SortOption {
+  return TAB_SORTS[tab].find((option) => option.value === value) ?? TAB_SORTS[tab][0];
+}
+
+function partiesOf(record: CaseRecord): string {
+  return `${record.parties.complainant} v. ${record.parties.accused}`;
+}
+
+/**
+ * What a draft's limitation clock says — the one number on this screen that can cost a
+ * client the case.
+ *
+ * The complaint is due within one month of the cause of action (NI Act §142(1)(b)); past
+ * that, delay may be condoned for sufficient cause, so the copy never says "barred" or
+ * "overdue" — it says what filing now costs, which is a condonation application and the
+ * fee `feeBill()` already adds. With no cause date and no served notice there is no clock
+ * at all: `noticeCauseDate` refuses to guess one, and so does this.
+ */
+export function draftClock(draft: FilingDraft): {
+  lead: string;
+  sub: string;
+  tone: InfoTone;
+  dueOn: string;
+} {
+  const progress = `${draftProgress(draft)}% complete`;
+  const saved = `Last saved ${toDisplayDate(draft.updatedAt.slice(0, 10))}`;
+  const lim = limitationView(draft);
+  if (!lim.causeDate) {
+    return { lead: progress, sub: saved, tone: "default", dueOn: "" };
+  }
+
+  const dueOn = addDays(lim.causeDate, LIMITATION_DAYS);
+  const left = daysBetween(lim.filingDate, dueOn);
+  if (left === null) return { lead: progress, sub: saved, tone: "default", dueOn: "" };
+
+  if (left < 0) {
+    return {
+      lead: `Window closed ${toDisplayDate(dueOn)}`,
+      sub: `Filing now needs a condonation application · ${progress}`,
+      tone: "danger",
+      dueOn,
+    };
+  }
+  return {
+    lead: `File by ${toDisplayDate(dueOn)}`,
+    sub: `${left} ${left === 1 ? "day" : "days"} left · ${progress}`,
+    tone: left <= 7 ? "warning" : "default",
+    dueOn,
+  };
+}
+
+export function draftRows(drafts: FilingDraft[]): QueueRow[] {
+  return drafts.map((draft) => {
+    const parties = draftTitle(draft);
+    const { dueOn, ...info } = draftClock(draft);
+    return {
+      id: draft.id,
+      parties,
+      court: "",
+      info,
+      action: { label: "Continue filing", href: stepHref(draft.id, draft.lastStep) },
+      // A draft past its window keeps its real date rather than being pushed to the end:
+      // it is the most pressing row on the tab, not a finished one.
+      urgencyAt: dueOn || NO_URGENCY,
+      recencyAt: draft.updatedAt.slice(0, 10),
+      discardable: true,
+      haystack: parties.toLowerCase(),
+    };
+  });
+}
+
+/** Cases the registry has not cleared — the filing is in, the case is not. */
+export function scrutinyRows(today: string, cases: CaseRecord[] = CASES): QueueRow[] {
+  return cases
+    .filter((record) => record.stage === "scrutiny" && !record.disposal)
+    .map((record) => {
+      const days = daysBetween(record.filedOn, today);
+      const parties = partiesOf(record);
+      return {
+        id: record.id,
+        ref: record.caseNumber,
+        parties,
+        court: record.court,
+        info: {
+          lead: toDisplayDate(record.filedOn),
+          sub:
+            days === null || days < 0
+              ? record.latestUpdate
+              : `In scrutiny ${days} ${days === 1 ? "day" : "days"}`,
+          tone: "default" as InfoTone,
+        },
+        action: { label: "View case file", href: `/cases/${record.id}` },
+        // The one waiting longest is the one to chase, so the oldest filing date is the
+        // most pressing — ascending order does that without a second rule.
+        urgencyAt: record.filedOn,
+        recencyAt: record.filedOn,
+        haystack: `${parties} ${record.caseNumber} ${record.court}`.toLowerCase(),
+      };
+    });
+}
+
+/**
+ * Filings scrutiny sent back. These are tasks, not cases: the defect list, the cure
+ * deadline and the fix route all belong to `lib/tasks`, and the row links straight into
+ * the existing cure flow rather than restating it here.
+ */
+export function returnedRows(tasks: Task[], cases: TaskCase[]): QueueRow[] {
+  const byId = new Map(cases.map((c) => [c.id, c]));
+  return tasks
+    .filter(
+      (task) =>
+        task.kind === "returned" &&
+        task.returned !== undefined &&
+        (task.status === "open" || task.status === "draft" || task.status === "ready")
+    )
+    .map((task) => {
+      const c = byId.get(task.caseId);
+      const count = task.returned?.defects.length ?? 0;
+      const due = task.dueAt ? task.dueAt.slice(0, 10) : "";
+      const parties = c?.parties ?? task.title;
+      return {
+        id: task.id,
+        ref: c?.stNumber || c?.cnr || task.id.toUpperCase(),
+        parties,
+        court: c?.court ?? "",
+        info: {
+          lead: count === 1 ? "1 defect raised" : `${count} defects raised`,
+          sub: due ? `Cure by ${toDisplayDate(due)}` : undefined,
+          tone: "danger" as InfoTone,
+        },
+        action: { label: "Cure defects", href: fixHref(task.id) },
+        urgencyAt: due || NO_URGENCY,
+        recencyAt: task.returned?.at.slice(0, 10) ?? task.createdAt.slice(0, 10),
+        haystack:
+          `${parties} ${c?.stNumber ?? ""} ${c?.cnr ?? ""} ${c?.court ?? ""}`.toLowerCase(),
+      };
+    });
+}
+
+/**
+ * Numbered by the court and on the board — the filing is done, the case has begun.
+ *
+ * The hearing cell is tense-aware. A listing date that has passed is stated as one that
+ * passed; calling it "Next hearing" told people their next hearing was a fortnight ago.
+ */
+export function registeredRows(today: string, cases: CaseRecord[] = CASES): QueueRow[] {
+  return cases
+    .filter((record) => record.stage !== "scrutiny" && !record.disposal)
+    .map((record) => {
+      const parties = partiesOf(record);
+      const on = record.nextHearing?.on ?? "";
+      const upcoming = !!on && on >= today;
+      return {
+        id: record.id,
+        ref: record.caseNumber,
+        parties,
+        court: record.court,
+        info: on
+          ? {
+              lead: toDisplayDate(on),
+              sub: upcoming ? record.nextHearing?.purpose : "Last listed — no new date yet",
+              tone: "default" as InfoTone,
+            }
+          : {
+              lead: "Awaiting listing",
+              sub: "No hearing date yet",
+              tone: "default" as InfoTone,
+            },
+        action: { label: "Open case", href: `/cases/${record.id}` },
+        // Only a hearing still to come is pressing. Past listings and unlisted cases fall
+        // to the end rather than crowding out the date being prepared for.
+        urgencyAt: upcoming ? on : NO_URGENCY,
+        recencyAt: record.updatedOn.slice(0, 10),
+        // Under the upcoming hearings sit the ones already heard; they read in the order
+        // the Hearing column shows, most recently listed first.
+        tieAt: on || "",
+        haystack: `${parties} ${record.caseNumber} ${record.court}`.toLowerCase(),
+      };
+    });
+}
+
+export type QueueFilters = { q: string; court: string; sort: SortOption };
+
+export function courtsOf(rows: QueueRow[]): string[] {
+  return [...new Set(rows.map((row) => row.court).filter(Boolean))].sort();
+}
+
+export function applyQueueFilters(rows: QueueRow[], filters: QueueFilters): QueueRow[] {
+  const q = filters.q.trim().toLowerCase();
+  const { key, dir } = filters.sort;
+  return rows
+    .filter(
+      (row) =>
+        (!q || row.haystack.includes(q)) && (!filters.court || row.court === filters.court)
+    )
+    .sort((a, b) => {
+      const primary = dir === "asc" ? a[key].localeCompare(b[key]) : b[key].localeCompare(a[key]);
+      if (primary !== 0) return primary;
+      // Everything with no date to be pressing about shares one sentinel key, so without
+      // a tie-break the whole tail sits in whatever order the source happened to hold —
+      // visibly unsorted under a column that claims an order.
+      return (b.tieAt ?? b.recencyAt).localeCompare(a.tieAt ?? a.recencyAt);
+    });
+}
+
+/** The windowed page list — 1 … 4 5 6 … 16, matching the cases list's own helper. */
+export function pageWindow(page: number, pageCount: number): (number | "gap")[] {
+  if (pageCount <= 7) return Array.from({ length: pageCount }, (_, i) => i + 1);
+  const pages = new Set([1, pageCount, page, page - 1, page + 1]);
+  const visible = [...pages].filter((p) => p >= 1 && p <= pageCount).sort((a, b) => a - b);
+  return visible.flatMap((entry, index) =>
+    index > 0 && entry - visible[index - 1] > 1 ? (["gap", entry] as const) : [entry]
+  );
+}

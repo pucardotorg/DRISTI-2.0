@@ -1,0 +1,247 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+import { createBlankDraft } from "./blank";
+import { addDays } from "./format";
+import {
+  applyQueueFilters,
+  defaultSortFor,
+  draftClock,
+  draftRows,
+  pageWindow,
+  registeredRows,
+  scrutinyRows,
+  sortOptionFor,
+  TAB_LAYOUT,
+  TAB_SORTS,
+  type QueueRow,
+} from "./queue";
+import type { FilingDraft } from "./types";
+
+const TODAY = "2026-08-31";
+
+/**
+ * A draft whose cause of action is `daysAgo` days before `today`, with the filing date
+ * pinned so the clock is deterministic. The complaint is due one month (30 days) after
+ * the cause of action — NI Act §142(1)(b).
+ */
+function draftAt(daysAgo: number, today = TODAY): FilingDraft {
+  const draft = createBlankDraft("d1");
+  draft.jurisdiction.causeDate = addDays(today, -daysAgo);
+  draft.jurisdiction.filingDate = today;
+  return draft;
+}
+
+describe("draftClock — the limitation cue", () => {
+  it("says nothing when no cause of action is known", () => {
+    const clock = draftClock(createBlankDraft("d1"));
+    assert.equal(clock.tone, "default");
+    assert.equal(clock.dueOn, "");
+    assert.match(clock.lead, /% complete$/);
+    assert.doesNotMatch(clock.lead, /File by/);
+  });
+
+  it("counts down to the due date while in time", () => {
+    const clock = draftClock(draftAt(10));
+    assert.match(clock.lead, /^File by /);
+    assert.match(clock.sub, /^20 days left/);
+    assert.equal(clock.tone, "default");
+  });
+
+  it("warns inside the last week without changing the words", () => {
+    const clock = draftClock(draftAt(25));
+    assert.match(clock.sub, /^5 days left/);
+    assert.equal(clock.tone, "warning");
+  });
+
+  it("singularises the last day", () => {
+    assert.match(draftClock(draftAt(29)).sub, /^1 day left/);
+  });
+
+  it("on the final day it is still in time, not late", () => {
+    const clock = draftClock(draftAt(30));
+    assert.match(clock.lead, /^File by /);
+    assert.equal(clock.tone, "warning");
+  });
+
+  it("past the window it names condonation — never 'overdue' or 'barred'", () => {
+    const clock = draftClock(draftAt(45));
+    assert.match(clock.lead, /^Window closed /);
+    assert.match(clock.sub, /condonation application/);
+    assert.equal(clock.tone, "danger");
+    const words = `${clock.lead} ${clock.sub}`.toLowerCase();
+    for (const banned of ["overdue", "barred", "time-barred", "expired"]) {
+      assert.equal(words.includes(banned), false, `must not say "${banned}"`);
+    }
+  });
+
+  it("derives the cause date from a served notice when none was typed", () => {
+    const draft = createBlankDraft("d1");
+    draft.jurisdiction.filingDate = "2026-08-30";
+    // Served 1 Aug → the drawer's 15 days end 16 Aug → due 15 Sep.
+    draft.notices[0].delivered = "yes";
+    draft.notices[0].deliveryDate = "2026-08-01";
+    assert.match(draftClock(draft).lead, /^File by 15\/09\/2026$/);
+  });
+});
+
+describe("each tab has its own order, and the default is the useful one", () => {
+  it("registered opens on the next hearing, not the furthest one", () => {
+    const rows = registeredRows(TODAY);
+    const sorted = applyQueueFilters(rows, {
+      q: "",
+      court: "",
+      sort: sortOptionFor("registered", defaultSortFor("registered")),
+    });
+    const upcoming = sorted.filter((r) => r.urgencyAt !== "9999-12-31");
+    assert.ok(upcoming.length > 0, "fixtures should hold at least one upcoming hearing");
+    // Ascending, and every dated row still to come sits above every past/unlisted one.
+    for (let i = 1; i < upcoming.length; i++) {
+      assert.ok(upcoming[i - 1].urgencyAt <= upcoming[i].urgencyAt);
+    }
+    assert.equal(sorted[0].urgencyAt, upcoming[0].urgencyAt);
+    assert.ok(sorted[0].urgencyAt >= TODAY, "the top row must not be a date already heard");
+  });
+
+  it("a hearing that has passed is not called the next hearing", () => {
+    const past = registeredRows(TODAY).filter(
+      (r) => r.urgencyAt === "9999-12-31" && r.info.lead !== "Awaiting listing"
+    );
+    assert.ok(past.length > 0, "fixtures should hold at least one past listing");
+    for (const row of past) assert.equal(row.info.sub, "Last listed — no new date yet");
+  });
+
+  it("drafts lead with the tightest deadline", () => {
+    const comfortable = draftAt(5);
+    comfortable.id = "a";
+    const tight = draftAt(28);
+    tight.id = "b";
+    const none = createBlankDraft("c");
+    const sorted = applyQueueFilters(draftRows([comfortable, none, tight]), {
+      q: "",
+      court: "",
+      sort: sortOptionFor("drafts", defaultSortFor("drafts")),
+    });
+    assert.deepEqual(
+      sorted.map((r) => r.id),
+      ["b", "a", "c"],
+      "tightest deadline first; a draft with no clock sorts last"
+    );
+  });
+
+  it("scrutiny leads with the one waiting longest", () => {
+    const sorted = applyQueueFilters(scrutinyRows(TODAY), {
+      q: "",
+      court: "",
+      sort: sortOptionFor("scrutiny", defaultSortFor("scrutiny")),
+    });
+    for (let i = 1; i < sorted.length; i++) {
+      assert.ok(sorted[i - 1].urgencyAt <= sorted[i].urgencyAt);
+    }
+  });
+
+  it("every tab's default is its first option, and no two tabs share a label set", () => {
+    for (const [tab, options] of Object.entries(TAB_SORTS)) {
+      assert.equal(defaultSortFor(tab as never), options[0].value);
+      assert.ok(options.length >= 2, `${tab} needs a second order to be worth a control`);
+    }
+    // "Newest first" is the label that caused the defect — it must not come back.
+    const labels = Object.values(TAB_SORTS).flatMap((o) => o.map((s) => s.label));
+    assert.equal(labels.includes("Newest first"), false);
+  });
+
+  it("an unknown sort in the URL falls back to the tab's default", () => {
+    assert.equal(sortOptionFor("registered", "nonsense").value, defaultSortFor("registered"));
+    assert.equal(sortOptionFor("registered", null).value, defaultSortFor("registered"));
+    // A sort that belongs to another tab is not silently accepted either.
+    assert.equal(sortOptionFor("drafts", "hearing").value, defaultSortFor("drafts"));
+  });
+});
+
+describe("columns carry information", () => {
+  it("no tab shows a column whose value never changes", () => {
+    const sets: Record<string, QueueRow[]> = {
+      drafts: draftRows([draftAt(5)]),
+      scrutiny: scrutinyRows(TODAY),
+      registered: registeredRows(TODAY),
+    };
+    for (const [tab, rows] of Object.entries(sets)) {
+      const layout = TAB_LAYOUT[tab as keyof typeof TAB_LAYOUT];
+      if (layout.columns.includes("court")) {
+        assert.ok(
+          rows.every((r) => r.court),
+          `${tab} shows a court column, so every row must have one`
+        );
+      } else {
+        assert.ok(rows.every((r) => !r.court), `${tab} hides court, so none should be set`);
+      }
+    }
+  });
+
+  it("drafts carry no reference number, so the column is not offered", () => {
+    assert.equal(TAB_LAYOUT.drafts.columns.includes("ref"), false);
+    assert.equal(draftRows([draftAt(5)])[0].ref, undefined);
+  });
+
+  it("case type is gone from every tab — one type exists", () => {
+    for (const layout of Object.values(TAB_LAYOUT)) {
+      assert.equal(layout.columns.includes("parties"), true);
+      assert.equal((layout.columns as string[]).includes("caseType"), false);
+    }
+  });
+});
+
+describe("filters and paging", () => {
+  const rows: QueueRow[] = [
+    row("a", "JMFC-I, Kollam", "2026-08-01", "meera nair v. anwar s."),
+    row("b", "JMFC-II, Kollam", "2026-08-20", "suresh menon v. k. menon"),
+    row("c", "JMFC-I, Kollam", "2026-08-10", "latha r. v. riya jacob"),
+  ];
+
+  function row(id: string, court: string, at: string, haystack: string): QueueRow {
+    return {
+      id,
+      ref: id.toUpperCase(),
+      parties: haystack,
+      court,
+      info: { lead: "", tone: "default" },
+      action: { label: "Open", href: "#" },
+      urgencyAt: at,
+      recencyAt: at,
+      haystack,
+    };
+  }
+
+  const asc = { value: "x", label: "x", key: "urgencyAt", dir: "asc" } as const;
+  const desc = { value: "y", label: "y", key: "recencyAt", dir: "desc" } as const;
+
+  it("sorts both ways on the key it is given", () => {
+    assert.deepEqual(
+      applyQueueFilters(rows, { q: "", court: "", sort: asc }).map((r) => r.id),
+      ["a", "c", "b"]
+    );
+    assert.deepEqual(
+      applyQueueFilters(rows, { q: "", court: "", sort: desc }).map((r) => r.id),
+      ["b", "c", "a"]
+    );
+  });
+
+  it("search and court filter compose", () => {
+    const out = applyQueueFilters(rows, { q: "menon", court: "JMFC-II, Kollam", sort: asc });
+    assert.deepEqual(
+      out.map((r) => r.id),
+      ["b"]
+    );
+  });
+
+  it("search is case-insensitive and matches either party", () => {
+    assert.equal(applyQueueFilters(rows, { q: "ANWAR", court: "", sort: asc }).length, 1);
+    assert.equal(applyQueueFilters(rows, { q: "  Riya ", court: "", sort: asc }).length, 1);
+  });
+
+  it("page window collapses long runs and always keeps the ends", () => {
+    assert.deepEqual(pageWindow(1, 5), [1, 2, 3, 4, 5]);
+    assert.deepEqual(pageWindow(5, 16), [1, "gap", 4, 5, 6, "gap", 16]);
+    assert.deepEqual(pageWindow(1, 16), [1, 2, "gap", 16]);
+  });
+});
