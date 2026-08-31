@@ -67,7 +67,17 @@ hard clocks, so deadline pressure and the cost of a missed window are real — c
 domain doc. Where the user is unknown, design for the more constrained case and **say
 that you did**, so the assumption stays visible and reversible.
 
-## 2. Read the design system
+## 2. Run the staff passes
+
+Before writing or updating any brief or audit, read `references/staff-ux-thinking.md`
+in this skill's folder and run its eight passes in order — Walk the Tuesday, domain
+layout, control vocabulary, real weather, exception vs. norm, pattern census, sibling
+sweep, render judgment. The passes interrogate the screen as it is **before** the DS
+tells you what it may become; their findings go in the brief (*Problem*, *Decisions*,
+*States*), and the brief says which passes ran. Skipping the walk turns every later
+pass into rule-checking.
+
+## 3. Read the design system
 
 DS root: `vendor/pucar-design-system` (from `npm install`), or `PUCAR_DS_ROOT` if set.
 Verify origin contains `neer-ideasbeforenoon/pucar-design-system` (or `.pucar-ds-id`).
@@ -85,7 +95,7 @@ Then skim `apps/dristi-app/src/app` and `.../components`. If Dristi already solv
 shape of problem, propose that way or argue explicitly why it should change. Never
 quietly introduce a second way.
 
-## 3. Decide, with restraint
+## 4. Decide, with restraint
 
 New component, step, or field must prove the existing one is **insufficient** — not
 merely that the new one is nicer. Cite the DS file behind each call, or label it as
@@ -94,7 +104,7 @@ judgment. Name the tradeoff and recommend; don't hand over a menu.
 If the request itself is wrong — a screen that shouldn't exist, a step that should be
 automatic — say that first.
 
-## 4. Write it as a document, not a checklist
+## 5. Write it as a document, not a checklist
 
 A brief is read by someone who wasn't in the room, weeks later, deciding whether to
 build what it says. It has to carry the reasoning, not just the outcome: **what is wrong
@@ -167,7 +177,7 @@ absent section reads as an unasked question.
 Cover the long-label / long-language case: one core deploys per state with local
 languages over identical national law.
 
-## 5. Keep it current — the file is the record, not the chat
+## 6. Keep it current — the file is the record, not the chat
 
 Briefs get written across a conversation, and the conversation is not the deliverable.
 Someone builds from the file later with no transcript, so **when a decision lands, the
@@ -190,6 +200,7 @@ brief changes in the same turn as your reply.**
 ## Done means
 
 - Every recommendation traces to a DS file or product doc, or is labelled judgment
+- The eight passes of `references/staff-ux-thinking.md` ran, and the brief says so
 - Problem is evidenced and numbered; Objective is observable (and provisional if Job is)
 - **Job is either (a) quoted/attributed to product or the user, or (b) explicitly
   `unconfirmed` with an open question — never a coined purpose presented as fact**

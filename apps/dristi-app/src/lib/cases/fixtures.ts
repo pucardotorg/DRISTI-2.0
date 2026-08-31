@@ -6,7 +6,7 @@
  * labels that must wrap, both registered number formats, and enough rows to
  * page at 10 per page.
  */
-import type { CaseCounsel, CaseRecord } from "./types";
+import type { ActiveStage, CaseCounsel, CaseRecord } from "./types";
 
 /**
  * The day this fixture set describes. Relative filters ("in the last 30 days")
@@ -898,10 +898,129 @@ function counselForFixture(
   return { complainant, accused };
 }
 
-export const CASES: CaseRecord[] = FIXTURE_ROWS.map((row, index) => {
+const FIXTURE_CASES: CaseRecord[] = FIXTURE_ROWS.map((row, index) => {
   const { assignedAdvocate, ...record } = row;
   return {
     ...record,
     counsel: counselForFixture({ ...record, assignedAdvocate }, index),
   };
 });
+
+/* ────────────────── matters bridged from the tasks sandbox ────────────────── */
+
+/**
+ * The tasks sandbox (`lib/tasks/sandbox.ts`) runs its own world of matters — the
+ * advocate home's cause list and pending tasks. Until now none of them existed
+ * here, so the home screen and Your Cases disagreed about what cases the person
+ * has. These records are the bridge: one row per numbered sandbox case, id
+ * `tw-<sandbox id>`, so the shared case peek and the case file open for them.
+ * Pre-filing sandbox matters are deliberately absent — an unregistered complaint
+ * is not yet a case this list can hold.
+ *
+ * Hearing dates here are placeholders: the sandbox lists hearings relative to
+ * the real clock, and the home screen overrides `nextHearing` at runtime. This
+ * static copy only has to be plausible for the /cases list.
+ */
+type TwSeed = {
+  id: string;
+  st: string;
+  parties: string;
+  court: string;
+  stage: ActiveStage;
+  substage?: string;
+  counsel: string[];
+  filedOn: string;
+};
+
+const TW_ACCUSED_COUNSEL = [
+  "Adv. P. Balachandran",
+  "Adv. K. Ramesh",
+  "Adv. Latha Nambiar",
+  "Adv. Farooq Ali",
+];
+
+function tw(seed: TwSeed, index: number): CaseRecord {
+  const [complainant, accused] = seed.parties.split(" v. ");
+  return {
+    id: `tw-${seed.id}`,
+    caseNumber: seed.st,
+    parties: { complainant, accused },
+    counsel: {
+      complainant: seed.counsel,
+      accused: [TW_ACCUSED_COUNSEL[index % TW_ACCUSED_COUNSEL.length]],
+    },
+    court: seed.court,
+    filedOn: seed.filedOn,
+    updatedOn: "2026-08-25",
+    latestUpdate: seed.substage
+      ? `Listed — ${seed.substage.toLowerCase()}`
+      : "Listed for the next posting",
+    stage: seed.stage,
+    substage: seed.substage,
+    nextHearing: { on: "2026-09-02", purpose: seed.substage ?? "Hearing" },
+    previousHearingOn: "2026-08-11",
+    longPending: false,
+    bookmarked: false,
+  };
+}
+
+const AN = "Adv. Anjali Nair";
+const SP = "Adv. S. Prakash";
+const DV = "Adv. Deepa Varghese";
+const RM = "Adv. R. Manoj";
+const RI = "Adv. Rahul Iyer";
+const ON_COURT = "24×7 ON Court, Kollam";
+const JMFC1 = "JMFC Court 1, Kollam";
+const JMFC2 = "JMFC Court 2, Kollam";
+const CJM = "CJM Court, Kollam";
+
+const TASKS_WORLD_CASES: CaseRecord[] = ([
+  { id: "c-412", st: "ST 412/2025", parties: "Sreekumar N. v. Vismaya Traders", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN, RM], filedOn: "2025-02-14" },
+  { id: "c-88", st: "ST 88/2026", parties: "Fathima Beevi v. Anil Kumar K.", court: ON_COURT, stage: "appearance", substage: "Plea", counsel: [AN, RI], filedOn: "2026-01-22" },
+  { id: "c-941", st: "ST 941/2025", parties: "Anitha Joseph v. Latheef M.", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [DV], filedOn: "2025-06-03" },
+  { id: "c-1102", st: "ST 1102/2026", parties: "Nirmala T. v. Ashique P.", court: ON_COURT, stage: "appearance", counsel: [RM], filedOn: "2026-03-18" },
+  { id: "c-217", st: "ST 217/2025", parties: "Suresh Babu v. Kairali Motors", court: JMFC1, stage: "appearance", substage: "Plea", counsel: [RM, DV], filedOn: "2025-03-09" },
+  { id: "c-509", st: "ST 509/2025", parties: "Lakshmi Menon v. P. J. Thomas", court: JMFC1, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN, SP], filedOn: "2025-04-27" },
+  { id: "c-144", st: "ST 144/2025", parties: "K. Radhakrishnan v. Chandy & Sons", court: JMFC1, stage: "arguments", counsel: [AN, DV], filedOn: "2025-01-30" },
+  { id: "c-71", st: "ST 71/2025", parties: "Joseph Mathew v. Star Traders", court: JMFC2, stage: "evidence", substage: "Evidence of the complainant", counsel: [DV], filedOn: "2025-02-02" },
+  { id: "c-381", st: "ST 381/2025", parties: "Rukhiya Beevi v. N. Pillai", court: JMFC2, stage: "cognizance", counsel: [AN], filedOn: "2025-05-16" },
+  { id: "c-52", st: "ST 52/2025", parties: "Shaji P. v. Kollam Cashew Co.", court: CJM, stage: "evidence", substage: "Evidence of the complainant", counsel: [DV, AN], filedOn: "2025-01-12" },
+  { id: "c-221", st: "ST 221/2025", parties: "Ramesh P. v. Coastal Traders", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [RM], filedOn: "2025-03-21" },
+  { id: "c-377", st: "ST 377/2025", parties: "Sujatha R. v. M. Haneefa", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [RM], filedOn: "2025-04-08" },
+  { id: "c-633", st: "ST 633/2025", parties: "Sheeba Rasheed v. Muhammed Ashraf", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [RM], filedOn: "2025-05-29" },
+  { id: "c-702", st: "ST 702/2025", parties: "Manoj Kurian v. Highrange Estates", court: JMFC1, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN], filedOn: "2025-06-11" },
+  { id: "c-815", st: "ST 815/2025", parties: "Vinod Chandran v. Sabari Traders", court: CJM, stage: "arguments", counsel: [AN, DV], filedOn: "2025-02-25" },
+  { id: "c-1044", st: "ST 1044/2026", parties: "Beena Thomas v. A. Salim", court: JMFC2, stage: "appearance", counsel: [DV], filedOn: "2026-02-13" },
+  { id: "c-hd1", st: "ST 268/2025", parties: "Prakash Kumar v. Malabar Traders", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN], filedOn: "2025-03-02" },
+  { id: "c-hd2", st: "ST 743/2025", parties: "Divya Suresh v. K. Salim", court: ON_COURT, stage: "appearance", substage: "Plea", counsel: [AN, RM], filedOn: "2025-07-19" },
+  { id: "c-hd3", st: "ST 512/2025", parties: "Gopinathan Nair v. Chaithanya Agencies", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN], filedOn: "2025-04-15" },
+  { id: "c-hd4", st: "ST 391/2026", parties: "Mariyam Bee v. Anwar Sadath", court: ON_COURT, stage: "appearance", counsel: [DV], filedOn: "2026-02-06" },
+  { id: "c-hd5", st: "ST 129/2026", parties: "Ravi Chandran v. Sea Pearl Exports", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN, DV], filedOn: "2026-01-08" },
+  { id: "c-hd6", st: "ST 84/2026", parties: "Salini Mohan v. Grand Textiles", court: JMFC1, stage: "appearance", substage: "Plea", counsel: [AN], filedOn: "2026-01-27" },
+  { id: "c-hd7", st: "ST 610/2025", parties: "Peter Varghese v. Nila Finance", court: JMFC1, stage: "arguments", counsel: [RM], filedOn: "2025-05-07" },
+  { id: "c-hd8", st: "ST 233/2025", parties: "Asha Kumari v. Vel Murugan Stores", court: JMFC1, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN], filedOn: "2025-02-19" },
+  { id: "c-hd9", st: "ST 47/2025", parties: "Krishnan Kutty v. Sree Devi Traders", court: CJM, stage: "arguments", counsel: [AN], filedOn: "2025-01-05" },
+  { id: "c-hd10", st: "ST 902/2025", parties: "Noor Jahan v. Kadavil Motors", court: CJM, stage: "appearance", counsel: [DV, AN], filedOn: "2025-06-24" },
+  { id: "c-hd11", st: "ST 318/2025", parties: "Vasanthi Amma v. Deepak Nambiar", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN, DV, SP, RI], filedOn: "2025-03-11" },
+  { id: "c-hd12", st: "ST 655/2026", parties: "Faisal Rahman v. Ponnamma K.", court: ON_COURT, stage: "appearance", counsel: [RM, AN, SP], filedOn: "2026-02-24" },
+  { id: "c-hd13", st: "ST 205/2026", parties: "Leelamma Joy v. Sunrise Plywoods", court: ON_COURT, stage: "evidence", substage: "Cross-examination", counsel: [AN, SP], filedOn: "2026-01-15" },
+  { id: "c-hd14", st: "ST 471/2025", parties: "Abdul Latheef v. Thejas Marine", court: ON_COURT, stage: "appearance", substage: "Plea", counsel: [AN, RM, DV, SP], filedOn: "2025-05-29" },
+  { id: "c-hd15", st: "ST 830/2025", parties: "Sarala Devi v. Kochu Varkey", court: ON_COURT, stage: "arguments", counsel: [DV, AN, RI], filedOn: "2025-06-12" },
+  { id: "c-hd16", st: "ST 96/2026", parties: "Jaseela Beegum v. Anand Motors", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN, RI, SP], filedOn: "2026-01-30" },
+  { id: "c-hd17", st: "ST 1190/2026", parties: "Rajeev Menon v. Padmini Traders", court: ON_COURT, stage: "appearance", counsel: [AN, SP], filedOn: "2026-04-02" },
+  { id: "c-pa1", st: "ST 559/2025", parties: "Girija Kumari v. Elite Hardwares", court: ON_COURT, stage: "evidence", substage: "Cross-examination", counsel: [AN, DV, SP], filedOn: "2025-04-08" },
+  { id: "c-pa2", st: "ST 1073/2026", parties: "Hariharan P. v. Blue Wave Foods", court: ON_COURT, stage: "arguments", counsel: [AN, RI], filedOn: "2026-02-17" },
+  { id: "c-pa3", st: "ST 284/2026", parties: "Zainaba M. v. Crescent Steels", court: JMFC1, stage: "evidence", substage: "Evidence of the accused", counsel: [DV, AN, SP], filedOn: "2026-01-19" },
+  { id: "c-up1", st: "ST 447/2025", parties: "Thankamani P. v. Vayalar Traders", court: ON_COURT, stage: "evidence", substage: "Cross-examination", counsel: [AN, SP], filedOn: "2025-03-24" },
+  { id: "c-up2", st: "ST 918/2026", parties: "Basheer K. v. Malabar Gold Mart", court: JMFC1, stage: "appearance", counsel: [RM, AN], filedOn: "2026-03-05" },
+  { id: "c-up3", st: "ST 122/2026", parties: "Susheela Devi v. Anand Cements", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN, DV, RI], filedOn: "2026-01-12" },
+  { id: "c-up4", st: "ST 736/2025", parties: "Ibrahim Kutty v. Sagara Fisheries", court: CJM, stage: "arguments", counsel: [DV, AN], filedOn: "2025-05-20" },
+  { id: "c-up5", st: "ST 65/2026", parties: "Remani Amma v. Kuttan Pillai", court: ON_COURT, stage: "appearance", substage: "Plea", counsel: [AN, SP, RI], filedOn: "2026-01-09" },
+  { id: "c-up6", st: "ST 1281/2026", parties: "Nazeer M. v. Kerala Spice Board", court: JMFC1, stage: "evidence", substage: "Cross-examination", counsel: [AN, RM, SP], filedOn: "2026-04-14" },
+  { id: "c-up7", st: "ST 503/2025", parties: "Ammini George v. Padma Textiles", court: JMFC2, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN, DV], filedOn: "2025-04-02" },
+  { id: "c-up8", st: "ST 194/2026", parties: "Devassy Joseph v. Anchor Marine", court: ON_COURT, stage: "appearance", counsel: [RM, AN], filedOn: "2026-02-11" },
+  { id: "c-up9", st: "ST 872/2025", parties: "Radhamani T. v. Sunlight Agro", court: ON_COURT, stage: "evidence", substage: "Evidence of the accused", counsel: [AN, DV, SP], filedOn: "2025-06-18" },
+  { id: "c-up10", st: "ST 331/2026", parties: "Ouseph Varkey v. Nilgiri Rubbers", court: CJM, stage: "arguments", counsel: [AN, RI], filedOn: "2026-02-27" },
+] as TwSeed[]).map(tw);
+
+export const CASES: CaseRecord[] = [...FIXTURE_CASES, ...TASKS_WORLD_CASES];

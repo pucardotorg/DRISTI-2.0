@@ -157,21 +157,166 @@ export const advShell = {
   role: t("Advocate", "അഭിഭാഷക"),
 } as const;
 
-/* ---------------------------------------------------------- home (wireframe) */
+/* ----------------------------------------------------------------------- home */
 
-/** The hearings dashboard is another designer's screen. This wireframe keeps its
- *  structure — greeting, court tabs, in-session card, up-next list — so the shell
- *  and flows can be reviewed together, and will be replaced wholesale. */
+/**
+ * The advocate hearings dashboard. Chrome copy only — everything derived from data
+ * (parties, stages, due phrases) comes through `lib/tasks/format` and stays English,
+ * exactly as it does on /tasks: bilingual rendering is the citizen screens' rule.
+ */
 export const advHome = {
-  greeting: t("Good morning, {name}", "സുപ്രഭാതം, {name}"),
-  subline: t("Monday 10 August · 12 matters", "തിങ്കൾ 10 ഓഗസ്റ്റ് · 12 വിഷയങ്ങൾ"),
-  wireframeNote: t(
-    "Wireframe — the hearings dashboard is designed separately and will replace this screen.",
-    "വയർഫ്രെയിം — ഹിയറിംഗ് ഡാഷ്‌ബോർഡ് പ്രത്യേകം രൂപകൽപ്പന ചെയ്യുന്നു; ഈ സ്ക്രീൻ മാറ്റിസ്ഥാപിക്കും.",
+  greetingMorning: t("Good morning, {name}", "സുപ്രഭാതം, {name}"),
+  greetingAfternoon: t("Good afternoon, {name}", "നമസ്കാരം, {name}"),
+  greetingEvening: t("Good evening, {name}", "ശുഭ സന്ധ്യ, {name}"),
+  mattersOne: t("1 matter listed", "1 വിഷയം പട്ടികയിൽ"),
+  mattersMany: t("{n} matters listed", "{n} വിഷയങ്ങൾ പട്ടികയിൽ"),
+  mattersNone: t("Nothing listed", "ഒന്നും പട്ടികയിലില്ല"),
+  /** Appended to the subline when the selected day carries task consequences —
+      the words behind the week strip's amber dot, so it never means by colour alone. */
+  dueOne: t("1 task due", "1 ജോലി അവസാനിക്കുന്നു"),
+  dueMany: t("{n} tasks due", "{n} ജോലികൾ അവസാനിക്കുന്നു"),
+  today: t("Today", "ഇന്ന്"),
+
+  /* Board */
+  inSession: t("in session", "സെഷനിൽ"),
+  /** The state, and only the state: the item number is on the chip and the
+      listed time is in the row's rest cell, so nothing is said twice. */
+  nowLabel: t("Now", "ഇപ്പോൾ"),
+  /** A property of the matter, on its own metadata line — not a status chip.
+      "View only" reads as a UI mode; this is the word an advocate says. */
+  notOnVakalatnama: t("Not on the vakalatnama", "വക്കാലത്തിൽ ഇല്ല"),
+  /** Above the tasks well inside a hearing card — it is not self-evidently a task list. */
+  blockersHeading: t(
+    "Pending before this hearing",
+    "ഈ ഹിയറിംഗിന് മുൻപ് ബാക്കി",
   ),
-  concluded: t("2 concluded earlier — items 1, 2", "നേരത്തെ തീർന്നത് 2 — ഇനം 1, 2"),
-  nowLabel: t("Now — item 4", "ഇപ്പോൾ — ഇനം 4"),
-  upNext: t("Up next", "അടുത്തത്"),
+  itemN: t("Item {n}", "ഇനം {n}"),
+  concludedStrip: t(
+    "{n} concluded earlier — items {items}",
+    "നേരത്തെ തീർന്നത് {n} — ഇനം {items}",
+  ),
+  viewCases: t("View cases", "കേസുകൾ കാണുക"),
+  layoutCards: t("Cards", "കാർഡുകൾ"),
+  layoutList: t("List", "പട്ടിക"),
+  layoutLabel: t("Cause list layout", "കോസ് ലിസ്റ്റ് രൂപം"),
+  /** The overflow chip past ~7 advocates — the rest of the day's roster in a menu. */
+  moreAdvocates: t("More advocates", "കൂടുതൽ അഭിഭാഷകർ"),
+  /** Per-court: the court's full official day cause list, all matters. */
+  viewCauseList: t("View cause list", "കോസ് ലിസ്റ്റ് കാണുക"),
+  joinCourtroom: t("Join this courtroom", "ഈ കോടതിമുറിയിൽ ചേരുക"),
+  emptyDayTitle: t("Nothing listed this day", "ഈ ദിവസം ഒന്നും പട്ടികയിലില്ല"),
+  /** Board-level since the courts stack: the empty state is the whole day's,
+      not one court's, and no court can be selected away from any more. */
+  emptyDayBody: t(
+    "No matters are listed in your courts on the selected day.",
+    "തിരഞ്ഞെടുത്ത ദിവസം നിങ്ങളുടെ കോടതികളിൽ വിഷയങ്ങളൊന്നും പട്ടികയിലില്ല.",
+  ),
+  jumpNext: t("Next hearing day: {day} — {n} listed", "അടുത്ത ഹിയറിംഗ് ദിവസം: {day} — {n} ഇനം"),
+
+  /* A load that failed, said apart from a load that is slow — the spinner used
+     to stand for both, so a failure spun forever with no way out. */
+  loadErrorTitle: t("Could not load the day", "ഈ ദിവസത്തെ വിവരങ്ങൾ ലഭിച്ചില്ല"),
+  loadErrorBody: t(
+    "The cause list and your pending tasks did not load. Check your connection and try again.",
+    "കോസ് ലിസ്റ്റും ബാക്കിയുള്ള ജോലികളും ലഭിച്ചില്ല. കണക്ഷൻ പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.",
+  ),
+  retry: t("Try again", "വീണ്ടും ശ്രമിക്കുക"),
+
+  /* Week strip */
+  prevWeek: t("Previous week", "കഴിഞ്ഞ ആഴ്ച"),
+  nextWeek: t("Next week", "അടുത്ത ആഴ്ച"),
+  pickDate: t("Pick a date", "തീയതി തിരഞ്ഞെടുക്കുക"),
+
+  /* Whose matters — the board's advocate switcher. Names, not a permission
+     model: "view access" is the system's vocabulary, an advocate says a name. */
+  whoseMatters: t("Whose matters", "ആരുടെ വിഷയങ്ങൾ"),
+  switcherYou: t("{name} (you)", "{name} (നിങ്ങൾ)"),
+  showYourMatters: t("Show your matters", "നിങ്ങളുടെ വിഷയങ്ങൾ കാണിക്കുക"),
+  emptyAdvocateTitle: t(
+    "Nothing listed for {name}",
+    "{name}-ന് ഒന്നും പട്ടികയിലില്ല",
+  ),
+  emptyAdvocateBody: t(
+    "No matters listed on this day where {name} is on the case. Switch back to your own matters to see the full board.",
+    "ഈ ദിവസം {name} കേസിലുള്ള വിഷയങ്ങളൊന്നും പട്ടികയിലില്ല. മുഴുവൻ ബോർഡ് കാണാൻ നിങ്ങളുടെ വിഷയങ്ങളിലേക്ക് മടങ്ങുക.",
+  ),
+  // The filter is now multi-select, so an empty board is not one named
+  // colleague's — it is the set the viewer picked.
+  emptyFilterTitle: t(
+    "No matters for the chosen advocates",
+    "തിരഞ്ഞെടുത്ത അഭിഭാഷകർക്ക് വിഷയങ്ങളൊന്നുമില്ല",
+  ),
+  emptyFilterBody: t(
+    "No listed matters on this day for the advocates you have picked. Show your own matters to see the full board.",
+    "നിങ്ങൾ തിരഞ്ഞെടുത്ത അഭിഭാഷകർക്ക് ഈ ദിവസം പട്ടികയിലുള്ള വിഷയങ്ങളൊന്നുമില്ല. മുഴുവൻ ബോർഡ് കാണാൻ നിങ്ങളുടെ വിഷയങ്ങൾ കാണിക്കുക.",
+  ),
+
+  /* Companion rail */
+  railTitle: t("Pending tasks", "ബാക്കിയുള്ള ജോലികൾ"),
+  /** The panel lists the coming week; the strip's badge counts every open task.
+      The two can never agree, so the header says which one this is. */
+  railScope: t(
+    "Due in the next 7 days",
+    "അടുത്ത 7 ദിവസത്തിനുള്ളിൽ അവസാനിക്കുന്നവ",
+  ),
+  prepTitle: t(
+    "Important upcoming hearings",
+    "വരാനിരിക്കുന്ന പ്രധാന ഹിയറിംഗുകൾ",
+  ),
+  prepCaption: t(
+    "Evidence, cross, plea and arguments coming up",
+    "വരാനിരിക്കുന്ന തെളിവ്, വിസ്താരം, ബോധിപ്പിക്കൽ, വാദം",
+  ),
+  prepOpen: t(
+    "Open important upcoming hearings, {n} ahead",
+    "പ്രധാന ഹിയറിംഗുകൾ തുറക്കുക, {n} വരാനുണ്ട്",
+  ),
+  prepGroupWeek: t("Next 7 days", "അടുത്ത 7 ദിവസം"),
+  prepGroupLater: t("The fortnight after", "അതിനു ശേഷമുള്ള രണ്ടാഴ്ച"),
+  prepTomorrow: t("Tomorrow", "നാളെ"),
+  prepInDays: t("In {n} days", "{n} ദിവസത്തിൽ"),
+  prepEmptyTitle: t("Nothing substantial ahead", "സുപ്രധാനമായി ഒന്നുമില്ല"),
+  prepEmptyBody: t(
+    "No evidence, plea or arguments posting in the next three weeks.",
+    "അടുത്ത മൂന്നാഴ്ചയിൽ തെളിവോ ബോധിപ്പിക്കലോ വാദമോ ഇല്ല.",
+  ),
+  prepPendingOne: t("1 pending", "1 ബാക്കി"),
+  prepPendingMany: t("{n} pending", "{n} ബാക്കി"),
+  viewCase: t("View case", "കേസ് കാണുക"),
+  groupToday: t("Due today", "ഇന്ന് അവസാനം"),
+  groupSoon: t("Next 3 days", "അടുത്ത 3 ദിവസം"),
+  groupWeek: t("Later this week", "ഈ ആഴ്ച പിന്നീട്"),
+  railResize: t("Resize the pending tasks rail", "പാനലിന്റെ വീതി ക്രമീകരിക്കുക"),
+  railOpen: t("Open pending tasks, {n} need action", "ബാക്കിയുള്ള ജോലികൾ തുറക്കുക, {n} എണ്ണം"),
+  railCollapse: t("Collapse pending tasks", "ജോലികളുടെ പാനൽ ചുരുക്കുക"),
+  railViewAll: t("View all {n} tasks", "എല്ലാ {n} ജോലികളും കാണുക"),
+  railEmptyTitle: t("Nothing needs you", "ഒന്നും ബാക്കിയില്ല"),
+  railEmptyBody: t(
+    "Every task is done or waiting on the court.",
+    "എല്ലാം തീർന്നു, അല്ലെങ്കിൽ കോടതിയുടെ ഊഴം.",
+  ),
+  railClose: t("Close this panel", "ഈ പാനൽ അടയ്ക്കുക"),
+  open: t("Open", "തുറക്കുക"),
+  blocksHearing: t("blocks the hearing", "ഹിയറിംഗ് തടയുന്നു"),
+
+  /* Who is on the matter — a case is rarely one advocate's */
+  teamLabel: t("On this matter", "ഈ വിഷയത്തിൽ"),
+  teamMore: t("{n} more on this matter", "ഈ വിഷയത്തിൽ വേറെ {n} പേർ"),
+  teamHoldsVakalatnama: t("{name} — vakalatnama", "{name} — വക്കാലത്ത്"),
+  teamCaseAccess: t("{name} — case access", "{name} — കേസ് ആക്‌സസ്"),
+  /* Case peek */
+  peekLabel: t("Case peek", "കേസ് ഒറ്റനോട്ടം"),
+  peekClose: t("Close", "അടയ്ക്കുക"),
+  peekStage: t("Stage", "ഘട്ടം"),
+  peekHearing: t("This hearing", "ഈ ഹിയറിംഗ്"),
+  peekAdvocates: t("On the vakalatnama", "വക്കാലത്തിൽ"),
+  peekTeam: t("Also on the case", "കേസിൽ ഒപ്പം"),
+  peekTasks: t("Pending on this case", "ഈ കേസിൽ ബാക്കി"),
+  peekNoTasks: t("Nothing pending", "ഒന്നും ബാക്കിയില്ല"),
+  peekNoTasksBody: t(
+    "This matter is ready for the hearing.",
+    "ഈ വിഷയം ഹിയറിംഗിന് തയ്യാറാണ്.",
+  ),
 } as const;
 
 /* -------------------------------------------------------------- join stub page */

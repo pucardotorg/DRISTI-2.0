@@ -35,7 +35,7 @@ import { useFilters } from "@/components/tasks/filters";
 import { OverviewCards } from "@/components/tasks/overview-cards";
 import { TaskDetailPanel } from "@/components/tasks/task-detail-panel";
 import { TasksTable, TasksTableSkeleton } from "@/components/tasks/tasks-table";
-import { type ActMode, actModeOf, actPathOf, useTaskActions } from "@/components/tasks/use-task-actions";
+import { type ActMode, type Flow, actModeOf, actPathOf, draftFlowOf, FLOW_DIALOG, flowPathOf, useTaskActions } from "@/components/tasks/use-task-actions";
 
 const VIEWS: TaskView[] = ["needs-action", "waiting", "completed", "archived"];
 
@@ -57,45 +57,6 @@ function useNow(): Date {
   return now;
 }
 
-/**
- * The flows that leave this screen for their own page, each behind a dialog that says
- * so. Signing and the scrutiny correction round are both built and live in their own
- * flows; e-filing (drafts) is not built yet, so its page is still interim.
- */
-type Flow = "sign" | "scrutiny" | "filing";
-
-const FLOW_DIALOG: Record<Flow, { title: string; description: string }> = {
-  sign: {
-    title: "Continuing in the signing flow",
-    description: "Signing happens in its own flow. We'll bring you back here when it's done.",
-  },
-  scrutiny: {
-    title: "Continuing in the scrutiny flow",
-    description:
-      "Correcting the defects happens in the scrutiny flow, on the filing itself. We'll bring you back here when the corrections have gone to the Registry.",
-  },
-  filing: {
-    title: "Continuing in the filing flow",
-    description:
-      "Drafting and filing happens in the e-filing flow, which is not built yet — this is an interim screen. We'll bring you back here when it's done.",
-  },
-};
-
-/** Where each flow's page lives for a task. */
-function flowPathOf(flow: Flow, task: Task): string {
-  const id = encodeURIComponent(task.id);
-  if (flow === "sign") return `/tasks/${id}/sign`;
-  if (flow === "scrutiny") return `/tasks/${id}/fix`;
-  return `/tasks/${id}/continue`;
-}
-
-/** The flow a Continue verb hands its draft to — by the kind the draft will become. */
-function draftFlowOf(task: Task): Flow | null {
-  if (task.kind === "sign") return "sign";
-  if (task.kind === "returned") return "scrutiny";
-  if (task.kind === "pay") return null; // paying acts in place — the modal
-  return "filing";
-}
 
 /**
  * Pending tasks — the command centre. A dated header, four ability-based tabs, then the

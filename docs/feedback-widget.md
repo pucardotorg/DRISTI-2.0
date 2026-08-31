@@ -94,7 +94,7 @@ the current package expects.)
 
 **2. Connect GitHub**
 In the project's integrations, connect GitHub and authorise it against
-`neer-ideasbeforenoon/Pucar-Dristi-2.0`. Point it at the repo and label new issues so
+`pucardotorg/DRISTI-2.0`. Point it at the repo and label new issues so
 widget-filed issues are separable from hand-written ones (`feedback` works).
 
 This step grants a third party write access to the repository's issues. Grant it to the
