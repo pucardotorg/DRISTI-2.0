@@ -55,7 +55,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { CaseDetails } from "@/components/join/case-details";
+import {
+  CaseDetails,
+  CaseTitleWithOthers,
+} from "@/components/join/case-details";
 import { DownloadCaseFileButton } from "@/components/join/download-case-file-button";
 import {
   DocumentPreviewDialog,
@@ -64,7 +67,13 @@ import {
 } from "@/components/document-preview";
 import { VakalatnamaPicker } from "@/components/advocate/vakalatnama-picker";
 import { pick, type Locale } from "@/lib/onboarding/content";
-import { fill, joinDialog, type CaseParty, type JoinCase } from "@/lib/join/content";
+import {
+  caseDetails,
+  fill,
+  joinDialog,
+  type CaseParty,
+  type JoinCase,
+} from "@/lib/join/content";
 import {
   advDialog,
   BAR_DIRECTORY,
@@ -654,19 +663,23 @@ export function AdvocateJoinCaseDialog({
           {stage === "code" && joinCase ? (
             <form id="adv-code" noValidate className="flex flex-col gap-4" onSubmit={submitCode}>
               {/* Public identity only — enough to confirm this is the right
-                  case. Everything deeper (hearing, amounts, advocates) stays
-                  behind the code on the details stage. */}
+                  case: the cause title (with "1 other" explorable, the same
+                  way the details stage shows it), the number, and the amount
+                  claimed — the figure a party recognises faster than a court
+                  address. Everything deeper stays behind the code on the
+                  details stage. */}
               <div className="flex flex-col gap-1 rounded-xl bg-surface-sunken p-4">
                 <p className="text-caption font-medium text-muted-foreground">
                   {pick(advDialog.codeCaseLead, locale)}
                 </p>
-                <p className="text-body font-semibold">{joinCase.title}</p>
+                <CaseTitleWithOthers joinCase={joinCase} locale={locale} />
                 <p className="text-caption text-muted-foreground">
                   <span className="font-mono tabular-nums">
                     {joinCase.caseNumber}
                   </span>
                   <span aria-hidden> · </span>
-                  {joinCase.court}
+                  {pick(caseDetails.chequeAmount, locale)}{" "}
+                  <span className="tabular-nums">{joinCase.chequeAmount}</span>
                 </p>
               </div>
               <Banner variant="info">{pick(advDialog.codeNote, locale)}</Banner>

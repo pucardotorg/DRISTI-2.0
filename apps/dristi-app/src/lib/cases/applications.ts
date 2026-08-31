@@ -134,10 +134,13 @@ export function filingStatusLabel(status: FilingStatus): string {
  */
 export function filingStatusVariant(
   status: FilingStatus
-): "warning" | "destructive" | "secondary" | "outline" {
+): "warning" | "destructive" | "secondary" | "success" {
   if (status === "rejected") return "destructive";
   if (status === "expired") return "secondary";
-  if (status === "completed") return "outline";
+  /* Success tint, matching the Documents register — the two tables sit two
+     tabs apart and a Completed that is green in one and grey in the other
+     reads as two different states (Aug 31 round). */
+  if (status === "completed") return "success";
   return "warning";
 }
 

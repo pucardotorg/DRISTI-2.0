@@ -214,15 +214,15 @@ export function documentStatusLabel(status: DocumentStatus): string {
 }
 
 /**
- * Documents use success tint for completed; every colour remains paired with
- * text. Pending states stay in the amber family. This register has no
- * Needs-attention pinning the way Applications does, so amber here reads
- * "in flight" rather than "you owe a step" — Pending review is waiting on
- * the magistrate, not on you (Laws: colour is never the only carrier).
+ * Completed carries the success tint via the shared filing variant; every
+ * colour remains paired with text. Pending states stay in the amber family.
+ * This register has no Needs-attention pinning the way Applications does,
+ * so amber here reads "in flight" rather than "you owe a step" — Pending
+ * review is waiting on the magistrate, not on you (Laws: colour is never
+ * the only carrier).
  */
 export function documentStatusVariant(status: DocumentStatus) {
   if (status === "pending-review") return "warning";
-  if (status === "completed") return "success";
   return filingStatusVariant(status);
 }
 

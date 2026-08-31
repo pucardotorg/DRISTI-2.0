@@ -117,11 +117,13 @@ function personDesignation(person: AccessPerson, locale: Locale): string | null 
 /**
  * One template shared by the header band and every row, so the columns can
  * never drift: identity, designation (hidden on phones — it folds into the
- * caption line there), case count pulled in from the right edge, and a
- * trailing chevron that says the rows open.
+ * caption line there), case count, and a trailing chevron that says the
+ * rows open. Proportional tracks rather than fixed right-edge widths, so on
+ * a wide list the designation and count sit around the middle instead of
+ * hugging the chevron with dead space after the name (Aug 31 round).
  */
 const PEOPLE_GRID =
-  "grid-cols-[minmax(0,1fr)_6rem_1.5rem] sm:grid-cols-[minmax(0,1fr)_9rem_6rem_1.5rem]";
+  "grid-cols-[minmax(0,1fr)_6rem_1.5rem] sm:grid-cols-[minmax(0,3fr)_2fr_2fr_1.5rem]";
 
 function PersonListRow({
   person,
