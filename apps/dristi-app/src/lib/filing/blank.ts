@@ -409,7 +409,7 @@ export function buildDocumentGroups(draft: FilingDraft): DocumentGroup[] {
 export function createBlankDraft(id: string, profile?: UserProfile | null): FilingDraft {
   const now = new Date().toISOString();
   const draft: FilingDraft = {
-    version: 3,
+    version: 4,
     id,
     caseType: "s138",
     status: "draft",
@@ -438,6 +438,7 @@ export function createBlankDraft(id: string, profile?: UserProfile | null): Fili
       mode: null,
       signed: {},
       signedCopy: null,
+      confirmed: {},
       deliveryChannel: "",
       processTypes: ["notice"],
       processAddresses: [],
@@ -496,6 +497,8 @@ export function migrateDraft(draft: FilingDraft): FilingDraft {
   draft.sign.deferProcessFees ??= false;
   draft.sign.paidAmount ??= null;
   draft.affidavit ??= "";
-  draft.version = 3;
+  // Phone confirmation on the upload path is newer than these drafts.
+  draft.sign.confirmed ??= {};
+  draft.version = 4;
   return draft;
 }
