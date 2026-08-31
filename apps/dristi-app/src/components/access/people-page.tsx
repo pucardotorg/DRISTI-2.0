@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { initials } from "@/components/access/access-list";
 import { useAccess } from "@/components/access/access-state";
@@ -58,10 +59,20 @@ import { cn } from "@/lib/utils";
  * The panel splits their cases in two: "Access through Vakalatnama" (open only —
  * removal is a court application) and "Administrative access" (checkbox
  * select, red remove, invited-by attribution). Bulk removal therefore only
- * ever touches the administrative group.
+ * ever touches the administrative group. When a person has both kinds, the two
+ * sit behind tabs; with only one kind, that section fills the panel on its own.
  */
 
 type PeopleSort = "name-asc" | "name-desc" | "cases-desc" | "cases-asc";
+type PanelTab = "vakalat" | "admin";
+
+/**
+ * Underline (line) tab — label + count as muted tabular text, the same presentation the
+ * Pending Tasks views use. Text seated low (`pb-2.5`) with `-mb-px` + `after:bottom-0` so
+ * the active underline lands ON the band's rule rather than a line below it.
+ */
+const PANEL_TAB_CLASS =
+  "-mb-px flex-none items-end gap-1.5 rounded-none px-0 pb-2.5 text-body-compact group-data-horizontal/tabs:h-10 group-data-horizontal/tabs:after:bottom-0 group-data-[variant=line]/tabs-list:data-active:after:bg-brand-accent";
 
 function caseById(caseId: string) {
   return ACCESS_CASES.find((c) => c.id === caseId);
@@ -204,6 +215,7 @@ export function PeoplePage({
   const [caseQuery, setCaseQuery] = React.useState("");
   const [peopleSort, setPeopleSort] = React.useState<PeopleSort>("name-asc");
   const [openPersonId, setOpenPersonId] = React.useState<string | null>(null);
+  const [panelTab, setPanelTab] = React.useState<PanelTab>("vakalat");
   const [checkedCases, setCheckedCases] = React.useState<string[]>([]);
   const [confirmRemove, setConfirmRemove] = React.useState(false);
   const [removedNote, setRemovedNote] = React.useState<string | null>(null);
@@ -248,6 +260,11 @@ export function PeoplePage({
 
   function openPanel(personId: string) {
     setOpenPersonId(personId);
+    // Open on the tab the person actually has — Vakalatnama when present, since it is
+    // the primary form of access; a person with only administrative access lands there.
+    const person = people.find((entry) => entry.id === personId);
+    const hasVakalat = person?.grants.some((g) => g.role === "vakalat");
+    setPanelTab(hasVakalat ? "vakalat" : "admin");
     setCheckedCases([]);
     setCaseQuery("");
     setRemovedNote(null);
@@ -284,28 +301,6 @@ export function PeoplePage({
 
     return (
       <section className="flex h-full min-h-0 flex-col overflow-hidden">
-        <div className="flex h-12 shrink-0 items-center gap-2 border-b border-hairline px-1">
-          <h4 className="min-w-0 truncate text-body-compact font-semibold">
-            {pick(peopleCopy.vakalatCasesHeading, locale)}
-          </h4>
-          <Badge variant="secondary">{vakalatGrants.length}</Badge>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="ml-auto"
-                aria-label={pick(peopleCopy.vakalatTooltipLabel, locale)}
-              >
-                <InfoIcon aria-hidden />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-64 text-pretty">
-              {pick(listCopy.vakalatLocked, locale)}
-            </TooltipContent>
-          </Tooltip>
-        </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1">
           {visibleVakalatGrants.length ? (
             <div className="flex flex-col divide-y divide-hairline">
@@ -339,28 +334,6 @@ export function PeoplePage({
 
     return (
       <section className="flex h-full min-h-0 flex-col overflow-hidden">
-        <div className="flex h-12 shrink-0 items-center gap-2 border-b border-hairline px-1">
-          <h4 className="min-w-0 truncate text-body-compact font-semibold">
-            {pick(peopleCopy.staffCasesHeading, locale)}
-          </h4>
-          <Badge variant="secondary">{staffGrants.length}</Badge>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="ml-auto"
-                aria-label={pick(peopleCopy.staffTooltipLabel, locale)}
-              >
-                <InfoIcon aria-hidden />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-64 text-pretty">
-              {pick(peopleCopy.staffTooltip, locale)}
-            </TooltipContent>
-          </Tooltip>
-        </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1">
           {visibleStaffGrants.length ? (
             <div className="flex flex-col divide-y divide-hairline">
@@ -421,8 +394,50 @@ export function PeoplePage({
     );
   }
 
+  // The panel's two access kinds render as line tabs — one tab when the person has only
+  // one kind, two when they have both. Building them from a list keeps the single- and
+  // both-section cases visually identical (same underline chrome, same muted count),
+  // rather than the old split where a lone section wore a different bold-heading header.
+  const panelSections = [
+    vakalatGrants.length && {
+      key: "vakalat" as PanelTab,
+      label: pick(peopleCopy.vakalatCasesHeading, locale),
+      count: vakalatGrants.length,
+      tooltipLabel: pick(peopleCopy.vakalatTooltipLabel, locale),
+      tooltip: pick(listCopy.vakalatLocked, locale),
+      body: renderVakalatnamaSection(),
+    },
+    staffGrants.length && {
+      key: "admin" as PanelTab,
+      label: pick(peopleCopy.staffCasesHeading, locale),
+      count: staffGrants.length,
+      tooltipLabel: pick(peopleCopy.staffTooltipLabel, locale),
+      tooltip: pick(peopleCopy.staffTooltip, locale),
+      body: renderAdministrativeSection(),
+    },
+  ].filter(Boolean) as Array<{
+    key: PanelTab;
+    label: string;
+    count: number;
+    tooltipLabel: string;
+    tooltip: string;
+    body: React.ReactNode;
+  }>;
+  // Removing every grant of the open tab's kind can leave it pointing at a tab that no
+  // longer exists — fall back to whichever section remains.
+  const activeTab = panelSections.some((s) => s.key === panelTab)
+    ? panelTab
+    : panelSections[0]?.key;
+  const activeSection = panelSections.find((s) => s.key === activeTab);
+
   return (
-    <div className="flex min-h-0 w-full flex-1 items-stretch overflow-hidden">
+    // The portal shell is page-scroll (its column is `min-h-svh`, growing with content).
+    // The People panel scrolls its lists internally instead, so it needs a real height to
+    // bound against — the viewport minus the sticky `h-14` top bar. (The old draggable
+    // layout got this height from react-resizable-panels' JS measurement; tabs don't, so
+    // the bound is stated here.) On phones the panel is `fixed inset-0`, so this only
+    // shapes the desktop split.
+    <div className="flex h-[calc(100svh---spacing(14))] min-h-0 w-full flex-1 items-stretch overflow-hidden">
       <ResizablePanelGroup
         key={openPerson ? "detail-open" : "detail-closed"}
         orientation="horizontal"
@@ -592,31 +607,75 @@ export function PeoplePage({
                 </div>
               </div>
 
-              <ResizablePanelGroup orientation="vertical" className="min-h-0 flex-1">
-                {vakalatGrants.length ? (
-                  <ResizablePanel
-                    defaultSize={staffGrants.length ? "35%" : "100%"}
-                    minSize={staffGrants.length ? "18%" : "100%"}
-                  >
-                    {renderVakalatnamaSection()}
-                  </ResizablePanel>
-                ) : null}
-                {vakalatGrants.length && staffGrants.length ? (
-                  <ResizableHandle
-                    withHandle
-                    className="my-3 shrink-0"
+              {panelSections.length ? (
+                // One line-tab per access kind — a single tab when the person has one
+                // kind, two when both. The active tab's info button beside the list
+                // explains that kind. (Removal still only ever touches the admin tab.)
+                <Tabs
+                  value={activeTab}
+                  onValueChange={(value) => setPanelTab(value as PanelTab)}
+                  className="min-h-0 flex-1 gap-4"
+                >
+                  <div
+                    className="flex items-end justify-between gap-2 border-b border-hairline"
                     data-preserve-admin-selection
-                  />
-                ) : null}
-                {staffGrants.length ? (
-                  <ResizablePanel
-                    defaultSize={vakalatGrants.length ? "65%" : "100%"}
-                    minSize={vakalatGrants.length ? "30%" : "100%"}
                   >
-                    {renderAdministrativeSection()}
-                  </ResizablePanel>
-                ) : null}
-              </ResizablePanelGroup>
+                    <TabsList
+                      variant="line"
+                      className="min-w-0 justify-start gap-6 overflow-x-auto p-0 pb-0 group-data-horizontal/tabs:h-auto"
+                    >
+                      {panelSections.map((section) => (
+                        <TabsTrigger
+                          key={section.key}
+                          value={section.key}
+                          className={PANEL_TAB_CLASS}
+                        >
+                          {section.label}
+                          {/* The active tab's count picks up the brand tint so the pill
+                              reads as part of the selected tab; inactive tabs stay neutral. */}
+                          <Badge
+                            variant="secondary"
+                            className={cn(
+                              "tabular-nums",
+                              section.key === activeTab &&
+                                "bg-brand-muted text-brand-muted-foreground",
+                            )}
+                          >
+                            {section.count}
+                          </Badge>
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                    {activeSection ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="mb-1 shrink-0"
+                            aria-label={activeSection.tooltipLabel}
+                          >
+                            <InfoIcon aria-hidden />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-64 text-pretty">
+                          {activeSection.tooltip}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : null}
+                  </div>
+                  {panelSections.map((section) => (
+                    <TabsContent
+                      key={section.key}
+                      value={section.key}
+                      className="min-h-0 flex flex-col"
+                    >
+                      {section.body}
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              ) : null}
             </div>
           </aside>
           </ResizablePanel>
