@@ -8,12 +8,14 @@ import {
   DownloadIcon,
   ExternalLinkIcon,
   FileTextIcon,
+  HandshakeIcon,
   HourglassIcon,
   InfoIcon,
   SearchIcon,
 } from "lucide-react";
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,8 +48,10 @@ import { DownloadCaseFileButton } from "@/components/join/download-case-file-but
 import { pick, type Locale } from "@/lib/onboarding/content";
 import {
   DEMO_JOIN_CASE,
+  DEMO_SETTLEMENT_OFFER,
   fill,
   joinDialog,
+  settlementOffer,
   summonsModal,
   type CaseParty,
   type JoinCase,
@@ -70,7 +74,7 @@ import {
  * the magistrate — never direct access.
  */
 
-type Stage = "lookup" | "details" | "identity" | "done";
+type Stage = "lookup" | "details" | "identity" | "done" | "offer" | "offerDone";
 type JoinerKind = "self" | "poa" | "";
 type Appearance = "hire" | "advocate" | "self" | "";
 
@@ -122,6 +126,9 @@ export function JoinCaseDialog({
   const [doneNotice, setDoneNotice] = React.useState<"" | "case" | "bail" | "advocate">("");
   const [downloadNotice, setDownloadNotice] = React.useState(false);
 
+  const [offerId, setOfferId] = React.useState("");
+  const [offerTouched, setOfferTouched] = React.useState(false);
+
   const party = joinCase?.accused.find((entry) => entry.id === partyId);
   // A duplicate self-join is blocked by the party's own account; a further PoA join
   // is blocked only by another PoA holder — the accused having joined in person does
@@ -156,6 +163,8 @@ export function JoinCaseDialog({
     setPoaSampleNotice(false);
     setDoneNotice("");
     setDownloadNotice(false);
+    setOfferId("");
+    setOfferTouched(false);
   }
 
   function handleOpenChange(next: boolean) {
@@ -197,8 +206,26 @@ export function JoinCaseDialog({
     });
   }
 
+  function submitOffer(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setOfferTouched(true);
+    if (!offerId) return;
+    setStage("offerDone");
+  }
+
   const isSummonsIntro = mode === "summons" && stage === "details";
   const poaPending = stage === "done" && kind === "poa";
+
+  /*
+   * The offer the complainant's side has already set up, if this case carries one.
+   *
+   * A power-of-attorney join is still waiting on the magistrate and holds no access
+   * yet, so there is nothing to show them — the offer follows the access, not the
+   * request for it.
+   */
+  const offer = joinCase?.cnr === DEMO_JOIN_CASE.cnr ? DEMO_SETTLEMENT_OFFER : undefined;
+  const hasOffer = Boolean(offer) && kind !== "poa";
+  const chosenOffer = offer?.options.find((option) => option.id === offerId);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -206,7 +233,13 @@ export function JoinCaseDialog({
         lang={locale}
         className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
       >
-        {stage === "done" ? (
+        {stage === "done" || stage === "offer" || stage === "offerDone" ? (
+          /*
+           * The three outcome stages share one header: a mark, a sentence saying what
+           * has happened, and nothing else. The offer's mark is brand rather than
+           * success because nothing has succeeded yet — something has arrived and is
+           * waiting on the person.
+           */
           <DialogHeader
             className={`shrink-0 px-6 py-5 pr-14 text-left ${poaPending ? "" : "border-b border-hairline"}`}
           >
@@ -215,11 +248,15 @@ export function JoinCaseDialog({
                 className={
                   poaPending
                     ? "flex size-14 shrink-0 items-center justify-center rounded-full bg-info-muted text-info-muted-foreground"
-                    : "flex size-14 shrink-0 items-center justify-center rounded-full bg-success-muted text-success-muted-foreground"
+                    : stage === "offer"
+                      ? "flex size-14 shrink-0 items-center justify-center rounded-full bg-brand-muted text-brand-muted-foreground"
+                      : "flex size-14 shrink-0 items-center justify-center rounded-full bg-success-muted text-success-muted-foreground"
                 }
               >
                 {poaPending ? (
                   <HourglassIcon className="size-7" aria-hidden />
+                ) : stage === "offer" ? (
+                  <HandshakeIcon className="size-7" aria-hidden />
                 ) : (
                   <CheckCircle2Icon className="size-7" aria-hidden />
                 )}
@@ -227,16 +264,35 @@ export function JoinCaseDialog({
               <div className="flex min-w-0 flex-col gap-1.5">
                 <DialogTitle className="text-title-s font-semibold text-balance">
                   {pick(
-                    poaPending ? joinDialog.poaPendingTitle : joinDialog.joinedTitle,
+                    stage === "offer"
+                      ? settlementOffer.title
+                      : stage === "offerDone"
+                        ? settlementOffer.acceptedTitle
+                        : poaPending
+                          ? joinDialog.poaPendingTitle
+                          : joinDialog.joinedTitle,
                     locale,
                   )}
                 </DialogTitle>
                 <DialogDescription className="text-pretty">
-                  {fill(
-                    poaPending ? joinDialog.poaPendingBody : joinDialog.joinedBody,
-                    locale,
-                    { name: party?.name ?? "" },
-                  )}
+                  {stage === "offer" && offer
+                    ? fill(settlementOffer.body, locale, {
+                        from: offer.from,
+                        through: offer.through,
+                      })
+                    : stage === "offerDone" && offer && chosenOffer
+                      ? fill(settlementOffer.acceptedBody, locale, {
+                          through: offer.through,
+                          amount: chosenOffer.amount,
+                          within: pick(chosenOffer.within, locale).toLowerCase(),
+                        })
+                      : fill(
+                          poaPending
+                            ? joinDialog.poaPendingBody
+                            : joinDialog.joinedBody,
+                          locale,
+                          { name: party?.name ?? "" },
+                        )}
                 </DialogDescription>
               </div>
             </div>
@@ -638,6 +694,110 @@ export function JoinCaseDialog({
               ) : null}
             </div>
           ) : null}
+
+          {/* ------------------------------------------------- settlement offer */}
+          {stage === "offer" && offer ? (
+            <form
+              id="join-offer"
+              noValidate
+              className="flex flex-col gap-5"
+              onSubmit={submitOffer}
+            >
+              {/*
+                What is at stake, before what is on the table. Someone reading this has
+                just learned they are a criminal defendant; the offer means nothing until
+                they know what the alternative is.
+              */}
+              <Alert variant="info">
+                <AlertTitle>{pick(settlementOffer.whyTitle, locale)}</AlertTitle>
+                <AlertDescription>{pick(settlementOffer.why, locale)}</AlertDescription>
+              </Alert>
+
+              {/* The two facts every offer below is measured against. */}
+              <dl className="flex flex-col gap-3 rounded-lg bg-surface-sunken p-4 sm:flex-row sm:items-baseline sm:justify-between">
+                <div className="flex items-baseline justify-between gap-4 sm:flex-col sm:justify-start sm:gap-1">
+                  <dt className="text-caption text-muted-foreground">
+                    {pick(settlementOffer.claimedLabel, locale)}
+                  </dt>
+                  <dd className="text-body font-semibold tabular-nums">{offer.claimed}</dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-4 sm:flex-col sm:items-end sm:justify-start sm:gap-1">
+                  <dt className="text-caption text-muted-foreground">
+                    {pick(settlementOffer.openUntilLabel, locale)}
+                  </dt>
+                  <dd className="text-body-compact font-medium">{offer.openUntil}</dd>
+                </div>
+              </dl>
+
+              <Field data-invalid={offerTouched && !offerId}>
+                <FieldLabel>{pick(settlementOffer.chooseLegend, locale)}</FieldLabel>
+                <RadioGroup
+                  value={offerId}
+                  onValueChange={setOfferId}
+                  aria-label={pick(settlementOffer.chooseLegend, locale)}
+                  className="gap-3"
+                >
+                  {offer.options.map((option) => {
+                    const chosen = option.id === offerId;
+                    return (
+                      <label
+                        key={option.id}
+                        htmlFor={`offer-${option.id}`}
+                        className={`flex cursor-pointer items-start gap-3 rounded-lg border border-hairline p-4 transition-colors ${
+                          chosen ? "bg-accent-strong" : "bg-surface-sunken hover:bg-accent"
+                        }`}
+                      >
+                        <RadioGroupItem
+                          id={`offer-${option.id}`}
+                          value={option.id}
+                          aria-labelledby={`offer-${option.id}-amount`}
+                          aria-describedby={`offer-${option.id}-terms`}
+                          className="mt-1 shrink-0"
+                        />
+                        <span className="flex min-w-0 flex-col gap-1">
+                          <span
+                            id={`offer-${option.id}-amount`}
+                            className="text-title-s font-semibold tabular-nums"
+                          >
+                            {option.amount}
+                          </span>
+                          <span id={`offer-${option.id}-terms`} className="flex flex-col">
+                            <span className="text-body-compact">
+                              {pick(option.within, locale)}
+                            </span>
+                            <span className="text-body-compact text-muted-foreground tabular-nums">
+                              {pick(option.saving, locale)}
+                            </span>
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </RadioGroup>
+                {offerTouched && !offerId ? (
+                  <FieldError>{pick(settlementOffer.chooseError, locale)}</FieldError>
+                ) : (
+                  <FieldDescription>{pick(settlementOffer.advice, locale)}</FieldDescription>
+                )}
+              </Field>
+            </form>
+          ) : null}
+
+          {/* --------------------------------------------- offer accepted */}
+          {stage === "offerDone" && offer && chosenOffer ? (
+            <div className="flex flex-col gap-5">
+              <div className="flex flex-col gap-1 rounded-lg bg-surface-sunken p-4">
+                <span className="text-title-s font-semibold tabular-nums">
+                  {chosenOffer.amount}
+                </span>
+                <span className="text-body-compact">{pick(chosenOffer.within, locale)}</span>
+                <span className="text-body-compact text-muted-foreground tabular-nums">
+                  {pick(chosenOffer.saving, locale)}
+                </span>
+              </div>
+              <Banner variant="info">{pick(settlementOffer.acceptedNote, locale)}</Banner>
+            </div>
+          ) : null}
         </div>
 
         {/* ------------------------------------------------------------ footer */}
@@ -720,7 +880,54 @@ export function JoinCaseDialog({
             </>
           ) : null}
 
-          {stage === "done" ? (
+          {/*
+            An offer outranks the other next steps. It is time-limited, it is the one
+            thing on this screen that can end the case, and it is the reason the
+            complainant's side filled in the Settlement options screen at all — so when
+            a case carries one it takes the primary slot, and View case moves to home.
+          */}
+          {stage === "done" && hasOffer ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleOpenChange(false)}
+              >
+                {pick(joinDialog.backHome, locale)}
+              </Button>
+              <Button type="button" onClick={() => setStage("offer")} data-icon="inline-end">
+                {pick(settlementOffer.seeOffer, locale)}
+                <ArrowRightIcon aria-hidden />
+              </Button>
+            </>
+          ) : null}
+
+          {stage === "offer" ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleOpenChange(false)}
+              >
+                {pick(settlementOffer.notNow, locale)}
+              </Button>
+              <Button type="submit" form="join-offer" data-icon="inline-end">
+                {pick(settlementOffer.accept, locale)}
+                <ArrowRightIcon aria-hidden />
+              </Button>
+            </>
+          ) : null}
+
+          {stage === "offerDone" ? (
+            <>
+              <span aria-hidden className="hidden sm:block" />
+              <Button type="button" onClick={() => handleOpenChange(false)}>
+                {pick(joinDialog.backHome, locale)}
+              </Button>
+            </>
+          ) : null}
+
+          {stage === "done" && !hasOffer ? (
             poaPending || doneAction === "case" ? (
               // No further action — Back to home, then View case as the primary.
               <>

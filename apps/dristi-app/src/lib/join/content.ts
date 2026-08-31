@@ -438,6 +438,126 @@ export const idUpload = {
   ),
 } as const;
 
+/* --------------------------------------------------- settlement offer (accused) */
+
+/**
+ * The offer the complainant's side set up on the Settlement options screen, as it
+ * reaches the accused after they join.
+ *
+ * `packaged` is the pre-packaged shape: fixed offers, every term already decided, the
+ * accused takes one of them or none. (Blind bidding — where the accused names their own
+ * terms against limits they never see — is the other shape and is not simulated yet.)
+ *
+ * The offers themselves travel over WhatsApp in the real journey. What this screen does
+ * is make sure the accused has seen them once, in the case record, next to what the
+ * case is actually about.
+ */
+export type SettlementOption = {
+  id: string;
+  /** What the accused pays, in full. */
+  amount: string;
+  /** The window they have to pay it in, counted from accepting. */
+  within: Copy;
+  /** What taking this one saves against the amount claimed. */
+  saving: Copy;
+};
+
+export type SettlementOffer = {
+  kind: "packaged";
+  /** The complainant, who is making the offer. */
+  from: string;
+  /** The advocate it comes through. */
+  through: string;
+  claimed: string;
+  openUntil: string;
+  options: SettlementOption[];
+};
+
+/**
+ * Stand-in for the offer endpoint — three offers against the demo case's ₹1,85,000, at
+ * 15%, 10% and 5% off. The faster the payment, the more comes off: that is the shape an
+ * advocate builds on the Settlement options screen, so it is the shape the accused sees.
+ */
+export const DEMO_SETTLEMENT_OFFER: SettlementOffer = {
+  kind: "packaged",
+  from: "South Indian Bank Ltd.",
+  through: "Adv. Meera Pillai",
+  claimed: "₹1,85,000",
+  openUntil: "30 September 2026",
+  options: [
+    {
+      id: "opt-1",
+      amount: "₹1,57,250",
+      within: t("Paid in full within 30 days", "30 ദിവസത്തിനുള്ളിൽ പൂർണമായി അടയ്ക്കണം"),
+      saving: t(
+        "₹27,750 less than the amount claimed",
+        "ആവശ്യപ്പെട്ട തുകയേക്കാൾ ₹27,750 കുറവ്",
+      ),
+    },
+    {
+      id: "opt-2",
+      amount: "₹1,66,500",
+      within: t("Paid in full within 90 days", "90 ദിവസത്തിനുള്ളിൽ പൂർണമായി അടയ്ക്കണം"),
+      saving: t(
+        "₹18,500 less than the amount claimed",
+        "ആവശ്യപ്പെട്ട തുകയേക്കാൾ ₹18,500 കുറവ്",
+      ),
+    },
+    {
+      id: "opt-3",
+      amount: "₹1,75,750",
+      within: t("Paid in full within 6 months", "6 മാസത്തിനുള്ളിൽ പൂർണമായി അടയ്ക്കണം"),
+      saving: t(
+        "₹9,250 less than the amount claimed",
+        "ആവശ്യപ്പെട്ട തുകയേക്കാൾ ₹9,250 കുറവ്",
+      ),
+    },
+  ],
+};
+
+export const settlementOffer = {
+  title: t(
+    "You have received a settlement offer",
+    "നിങ്ങൾക്ക് ഒരു ഒത്തുതീർപ്പ് വാഗ്ദാനം ലഭിച്ചു",
+  ),
+  body: t(
+    "{from} has offered to settle this case out of court, through {through}.",
+    "{through} മുഖേന {from} ഈ കേസ് കോടതിക്ക് പുറത്ത് ഒത്തുതീർക്കാൻ വാഗ്ദാനം ചെയ്തിരിക്കുന്നു.",
+  ),
+
+  /* Why it matters — the S-138 stakes, and what S-147 compounding does to them. */
+  whyTitle: t("What settling does", "ഒത്തുതീർപ്പ് എന്ത് ചെയ്യും"),
+  why: t(
+    "A bounced cheque case under Section 138 is a criminal case. If it runs to judgment and goes against you, the court can order a fine of up to twice the cheque amount, imprisonment of up to two years, or both. Settling ends the prosecution instead: once you pay what you agree, the complainant asks the court to close the case, and there is no conviction and no criminal record.",
+    "സെക്ഷൻ 138 പ്രകാരമുള്ള ചെക്ക് മടക്ക കേസ് ഒരു ക്രിമിനൽ കേസാണ്. കേസ് വിധി വരെ പോയി നിങ്ങൾക്ക് എതിരായാൽ, ചെക്ക് തുകയുടെ ഇരട്ടി വരെ പിഴ, രണ്ട് വർഷം വരെ തടവ്, അല്ലെങ്കിൽ രണ്ടും കോടതിക്ക് വിധിക്കാം. ഒത്തുതീർപ്പ് ഇതിന് പകരം പ്രോസിക്യൂഷൻ അവസാനിപ്പിക്കുന്നു: സമ്മതിച്ച തുക അടച്ചുകഴിഞ്ഞാൽ കേസ് അവസാനിപ്പിക്കാൻ പരാതിക്കാരൻ കോടതിയോട് ആവശ്യപ്പെടും; ശിക്ഷയോ ക്രിമിനൽ രേഖയോ ഉണ്ടാകില്ല.",
+  ),
+
+  claimedLabel: t("Amount claimed", "ആവശ്യപ്പെടുന്ന തുക"),
+  openUntilLabel: t("Offer open until", "വാഗ്ദാനത്തിന്റെ അവസാന തീയതി"),
+
+  chooseLegend: t("Choose one of these offers", "ഈ വാഗ്ദാനങ്ങളിൽ ഒന്ന് തിരഞ്ഞെടുക്കുക"),
+  chooseError: t("Choose an offer to continue.", "തുടരാൻ ഒരു വാഗ്ദാനം തിരഞ്ഞെടുക്കുക."),
+  advice: t(
+    "You do not have to accept. Nothing is decided until you choose, and it is worth speaking to an advocate first.",
+    "നിങ്ങൾ സ്വീകരിക്കണമെന്ന് നിർബന്ധമില്ല. നിങ്ങൾ തിരഞ്ഞെടുക്കുന്നത് വരെ ഒന്നും തീരുമാനമാകുന്നില്ല; ആദ്യം ഒരു അഭിഭാഷകനോട് സംസാരിക്കുന്നത് നല്ലതാണ്.",
+  ),
+
+  notNow: t("Not now", "ഇപ്പോൾ വേണ്ട"),
+  accept: t("Accept this offer", "ഈ വാഗ്ദാനം സ്വീകരിക്കുക"),
+
+  acceptedTitle: t("Offer accepted", "വാഗ്ദാനം സ്വീകരിച്ചു"),
+  acceptedBody: t(
+    "{through} has been told. Pay {amount} — {within} — and the complainant will ask the court to close the case.",
+    "{through}-നെ അറിയിച്ചിട്ടുണ്ട്. {amount} അടയ്ക്കുക — {within} — തുടർന്ന് കേസ് അവസാനിപ്പിക്കാൻ പരാതിക്കാരൻ കോടതിയോട് ആവശ്യപ്പെടും.",
+  ),
+  acceptedNote: t(
+    "Payment is arranged directly with the complainant's advocate. Until the court closes the case, the hearing date still stands.",
+    "പണമടയ്ക്കൽ പരാതിക്കാരന്റെ അഭിഭാഷകനുമായി നേരിട്ട് ക്രമീകരിക്കണം. കോടതി കേസ് അവസാനിപ്പിക്കുന്നത് വരെ ഹിയറിംഗ് തീയതി നിലനിൽക്കും.",
+  ),
+
+  seeOffer: t("See the settlement offer", "ഒത്തുതീർപ്പ് വാഗ്ദാനം കാണുക"),
+} as const;
+
 /* ------------------------------------------------------------------ case details */
 
 export const caseDetails = {
