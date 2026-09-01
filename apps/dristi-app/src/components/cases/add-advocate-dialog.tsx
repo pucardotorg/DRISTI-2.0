@@ -32,7 +32,7 @@
  */
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CheckCircle2Icon, FilePlus2Icon, XIcon } from "lucide-react";
 
 import {
@@ -91,6 +91,7 @@ import {
   UploadedDocField,
 } from "@/components/cases/uploaded-doc-field";
 import { VAKALATNAMAS } from "@/lib/advocate/content";
+import { createVak } from "@/lib/vakalatnama/store";
 import {
   ADVOCATE_DEMO_NUMBERS,
   ADVOCATE_LOOKUP,
@@ -140,6 +141,7 @@ export function AddAdvocateDialog({
   /** The viewer's own clients only; never the opposing side. */
   litigants: PartyOption[];
 }) {
+  const router = useRouter();
   const [step, setStep] = useState<AdvocateStep>(1);
   const [phoneInput, setPhoneInput] = useState("");
   const [focused, setFocused] = useState(false);
@@ -679,14 +681,20 @@ export function AddAdvocateDialog({
                     <p className="text-body-compact font-medium">
                       Don&apos;t have a vakalatnama yet?
                     </p>
-                    {/* A real jump to the e-sign wizard's home; the draft
-                        here is lost on navigation, which is the same trade
+                    {/* Straight into a fresh e-sign draft, the same way the
+                        Vakalatnama section's own New button starts one. The
+                        dialog draft is lost on navigation, the same trade
                         the person makes by going off to prepare a deed. */}
-                    <Button asChild variant="outline" data-icon="inline-start">
-                      <Link href="/vakalatnama">
-                        <FilePlus2Icon aria-hidden />
-                        Generate one in the portal
-                      </Link>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      data-icon="inline-start"
+                      onClick={() =>
+                        router.push(`/vakalatnama/${createVak("advocate")}`)
+                      }
+                    >
+                      <FilePlus2Icon aria-hidden />
+                      Generate one in the portal
                     </Button>
                   </div>
                 </>
