@@ -194,7 +194,7 @@ export function RemoveAdvocateDialog({
                     </DialogTitle>
                     <DialogDescription className="text-pretty">
                       {route === "consent"
-                        ? "They can accept or reject it from their Pending tasks. You'll be notified either way."
+                        ? "They can accept or reject it. You'll be notified either way."
                         : `${advocateName} stays on the case until the order is passed.`}
                     </DialogDescription>
                   </div>
@@ -219,7 +219,10 @@ export function RemoveAdvocateDialog({
                 <DialogTitle className="text-title-s font-semibold text-balance">
                   {step === 1 ? `Remove ${advocateName}` : current.title}
                 </DialogTitle>
-                <DialogDescription className="text-pretty">
+                {/* No text-pretty here: it balanced the last line by breaking
+                    early mid-sentence, which read as a stray line break
+                    (owner, Sept 1). */}
+                <DialogDescription>
                   {step === 3 && route
                     ? route === "consent"
                       ? `Once ${advocateName} accepts, they come off the vakalatnama.`
@@ -312,8 +315,8 @@ export function RemoveAdvocateDialog({
                               </Label>
                             </div>
                             <p className="-mt-2 pb-1 text-caption text-muted-foreground">
-                              They accept or reject the request from their
-                              Pending tasks. Quicker when the exit is amicable.
+                              They accept or reject the request. Quicker when
+                              the exit is amicable.
                             </p>
                           </div>
                         </div>

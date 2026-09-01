@@ -585,15 +585,22 @@ function LitigantDetail({
     facts: litigant.partyInPerson ? (
       <FactWell primary="Party in person" />
     ) : litigant.advocates.length > 0 ? (
-      /* Each advocate's well carries the removal entry point (3a/3b) —
-         a client island in an otherwise server pane. */
-      litigant.advocates.map((advocate) => (
-        <RepresentationWell
-          key={advocate}
-          advocate={advocate}
-          partyName={litigant.name}
-        />
-      ))
+      /* Each advocate's well carries the removal entry point (3a/3b), a
+         client island in an otherwise server pane — but only on the
+         viewer's own side: an advocate cannot seek the removal of
+         opposing counsel (owner, Sept 1). The other side's advocates
+         stay plain fact wells. */
+      litigant.advocates.map((advocate) =>
+        litigant.side === VIEWER_SIDE ? (
+          <RepresentationWell
+            key={advocate}
+            advocate={advocate}
+            partyName={litigant.name}
+          />
+        ) : (
+          <FactWell key={advocate} primary={advocate} />
+        )
+      )
     ) : (
       <SectionNote>No advocate on record</SectionNote>
     ),

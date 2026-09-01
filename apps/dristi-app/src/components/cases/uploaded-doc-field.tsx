@@ -1,16 +1,28 @@
 "use client";
 
 /**
- * The Add-people dialogs' upload control, matching the join-a-case pattern
- * exactly (owner's call, Sept 1): DocumentSlot with a real thumbnail once a
- * file lands, a full-screen preview behind it, and Change/Remove links.
- * The advocate join dialog and both bail dialogs each carry a private
- * bilingual copy of this; this one is the cases-side EN variant.
+ * The Add-people dialogs' upload control.
+ *
+ * Empty = the DS DocumentSlot (dashed target, Choose file). Filled = the DS
+ * Attachment row, the same grammar the e-filing shared forms use: thumbnail
+ * (tap for the full-screen preview), label over filename and size centred
+ * beside it, and Change/Remove riding the row's right edge instead of a
+ * second line under the box (owner's call, Sept 1 — the right side was dead
+ * space and the slot's top-aligned text read off-balance).
  */
 
 import * as React from "react";
+import { RefreshCwIcon, Trash2Icon } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import {
+  Attachment,
+  AttachmentAction,
+  AttachmentActions,
+  AttachmentContent,
+  AttachmentDescription,
+  AttachmentMedia,
+  AttachmentTitle,
+} from "@/components/ui/attachment";
 import { DocumentSlot } from "@/components/ui/document-slot";
 import {
   DocumentPreviewDialog,
@@ -58,15 +70,9 @@ export function UploadedDocField({
           event.target.value = "";
         }}
       />
-      <DocumentSlot
-        status={file ? "filled" : "empty"}
-        media={file ? "thumbnail" : "icon"}
-        label={label}
-        required={required}
-        filename={file?.name}
-        meta={file ? fileSize(file.size) : undefined}
-        thumbnail={
-          file ? (
+      {file ? (
+        <Attachment className="w-full">
+          <AttachmentMedia className="w-14">
             <DocumentThumbnailButton
               file={file}
               url={url}
@@ -74,30 +80,42 @@ export function UploadedDocField({
               onOpen={() => setPreviewOpen(true)}
               className="size-full rounded-md"
             />
-          ) : undefined
-        }
-        onChooseFile={() => inputRef.current?.click()}
-      />
-      {file ? (
-        <div className="flex items-center gap-4">
-          <Button
-            type="button"
-            variant="link"
-            className="h-auto p-0"
-            onClick={() => inputRef.current?.click()}
-          >
-            Change file
-          </Button>
-          <Button
-            type="button"
-            variant="link"
-            className="h-auto p-0 text-destructive-ink"
-            onClick={() => onFileChange(null)}
-          >
-            Remove
-          </Button>
-        </div>
-      ) : null}
+          </AttachmentMedia>
+          <AttachmentContent>
+            <AttachmentTitle>{label}</AttachmentTitle>
+            <AttachmentDescription>
+              {file.name} · {fileSize(file.size)}
+            </AttachmentDescription>
+          </AttachmentContent>
+          <AttachmentActions className="gap-1">
+            <AttachmentAction
+              type="button"
+              size="sm"
+              onClick={() => inputRef.current?.click()}
+            >
+              <RefreshCwIcon aria-hidden />
+              Change file
+            </AttachmentAction>
+            <AttachmentAction
+              type="button"
+              variant="destructive-ghost"
+              size="icon-sm"
+              aria-label={`Remove ${file.name}`}
+              onClick={() => onFileChange(null)}
+            >
+              <Trash2Icon aria-hidden />
+            </AttachmentAction>
+          </AttachmentActions>
+        </Attachment>
+      ) : (
+        <DocumentSlot
+          status="empty"
+          media="icon"
+          label={label}
+          required={required}
+          onChooseFile={() => inputRef.current?.click()}
+        />
+      )}
       <DocumentPreviewDialog
         open={previewOpen}
         onOpenChange={setPreviewOpen}
