@@ -270,20 +270,24 @@ export function AddAdvocateDialog({
         }}
       >
         <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
-          <DialogHeader className="shrink-0 gap-4 border-b border-hairline px-6 py-5 pr-14 text-left">
+          {/* The stepper gets its own full-width band with symmetric
+              padding and a hairline under it: inside the header, the
+              close button's pr-14 pushed it off the dialog's center and
+              it sat crammed against the step heading (owner, Sept 1). */}
+          <div className="shrink-0 border-b border-hairline px-6 py-4">
             <FlowStepper
               steps={STEPS}
               current={step}
               label="Add advocates progress"
             />
-            <div className="flex flex-col gap-1.5">
-              <DialogTitle className="text-title-s font-semibold text-balance">
-                {current.title}
-              </DialogTitle>
-              <DialogDescription className="text-pretty">
-                {current.description}
-              </DialogDescription>
-            </div>
+          </div>
+          <DialogHeader className="shrink-0 gap-1.5 border-b border-hairline px-6 py-5 pr-14 text-left">
+            <DialogTitle className="text-title-s font-semibold text-balance">
+              {current.title}
+            </DialogTitle>
+            <DialogDescription className="text-pretty">
+              {current.description}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
@@ -340,38 +344,40 @@ export function AddAdvocateDialog({
                     ) : null}
 
                     {pendingInvite ? (
-                      /* The same control, second stage: the number just
-                         picked moves into the prefix and the field asks
-                         for the name, so whose name is never a question. */
+                      /* The picked number keeps its own box, read-only,
+                         and the name gets its own box beside it. One
+                         combined field ran the two together with nothing
+                         separating them (owner, Sept 1). */
                       <div className="flex items-center gap-2">
-                        <InputGroup className="flex-1">
-                          <InputGroupAddon>
-                            <InputGroupText className="tabular-nums">
-                              +91 {formatAdvocatePhone(pendingInvite)}
-                            </InputGroupText>
-                          </InputGroupAddon>
-                          <InputGroupInput
-                            id="advocate-phone"
-                            autoFocus
-                            autoComplete="off"
-                            placeholder="Advocate's name"
-                            aria-label={`Name for +91 ${formatAdvocatePhone(pendingInvite)}`}
-                            value={inviteName}
-                            onChange={(event) => {
-                              setInviteName(event.target.value);
-                              setErrors((c) => ({
-                                ...c,
-                                advocates: undefined,
-                              }));
-                            }}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") {
-                                event.preventDefault();
-                                commitInvite();
-                              }
-                            }}
-                          />
-                        </InputGroup>
+                        <Input
+                          readOnly
+                          tabIndex={-1}
+                          aria-label="Mobile number"
+                          className="w-40 shrink-0 text-muted-foreground tabular-nums"
+                          value={`+91 ${formatAdvocatePhone(pendingInvite)}`}
+                        />
+                        <Input
+                          id="advocate-phone"
+                          autoFocus
+                          autoComplete="off"
+                          className="min-w-0 flex-1"
+                          placeholder="Advocate's name"
+                          aria-label={`Name for +91 ${formatAdvocatePhone(pendingInvite)}`}
+                          value={inviteName}
+                          onChange={(event) => {
+                            setInviteName(event.target.value);
+                            setErrors((c) => ({
+                              ...c,
+                              advocates: undefined,
+                            }));
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              commitInvite();
+                            }
+                          }}
+                        />
                         <Button
                           type="button"
                           variant="outline"

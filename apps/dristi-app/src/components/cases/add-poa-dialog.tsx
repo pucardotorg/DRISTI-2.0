@@ -234,20 +234,21 @@ export function AddPoaDialog({
         }}
       >
         <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
-          <DialogHeader className="shrink-0 gap-4 border-b border-hairline px-6 py-5 pr-14 text-left">
+          {/* Own band + hairline for the stepper; see add-advocate-dialog. */}
+          <div className="shrink-0 border-b border-hairline px-6 py-4">
             <FlowStepper
               steps={STEPS}
               current={step}
               label="Add Power of Attorney holder progress"
             />
-            <div className="flex flex-col gap-1.5">
-              <DialogTitle className="text-title-s font-semibold text-balance">
-                {current.title}
-              </DialogTitle>
-              <DialogDescription className="text-pretty">
-                {current.description}
-              </DialogDescription>
-            </div>
+          </div>
+          <DialogHeader className="shrink-0 gap-1.5 border-b border-hairline px-6 py-5 pr-14 text-left">
+            <DialogTitle className="text-title-s font-semibold text-balance">
+              {current.title}
+            </DialogTitle>
+            <DialogDescription className="text-pretty">
+              {current.description}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
