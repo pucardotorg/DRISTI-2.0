@@ -114,9 +114,11 @@ const STEPS: Array<{ step: WitnessStep; title: string; description: string }> = 
   },
 ];
 
-/** Shared by every Add-people stepper dialog so the three flows read as one. */
+/* 1rem offsets, matching the circle's own radius, so the connector meets
+   the circle's edge instead of floating 0.5rem short of it on both sides
+   (the gap the owner flagged on Sept 1). */
 export const STEPPER_ITEM_CLASS =
-  "items-center [&>div:first-child]:relative [&>div:first-child]:justify-center [&_[data-slot=stepper-connector]]:absolute [&_[data-slot=stepper-connector]]:inset-y-0 [&_[data-slot=stepper-connector]]:left-[calc(50%+1.5rem)] [&_[data-slot=stepper-connector]]:right-[calc(-50%+1.5rem)] [&_[data-slot=stepper-connector]]:mx-0 [&_[data-slot=stepper-connector]]:my-auto [&_[data-slot=stepper-connector]]:h-px [&_[data-slot=stepper-connector]]:min-w-0 [&_[data-slot=stepper-connector]]:w-auto [&_[data-slot=stepper-connector]]:flex-none [&>div:last-child]:w-full [&>div:last-child]:pr-0 [&>div:last-child]:text-center";
+  "items-center [&>div:first-child]:relative [&>div:first-child]:justify-center [&_[data-slot=stepper-connector]]:absolute [&_[data-slot=stepper-connector]]:inset-y-0 [&_[data-slot=stepper-connector]]:left-[calc(50%+1rem)] [&_[data-slot=stepper-connector]]:right-[calc(-50%+1rem)] [&_[data-slot=stepper-connector]]:mx-0 [&_[data-slot=stepper-connector]]:my-auto [&_[data-slot=stepper-connector]]:h-px [&_[data-slot=stepper-connector]]:min-w-0 [&_[data-slot=stepper-connector]]:w-auto [&_[data-slot=stepper-connector]]:flex-none [&>div:last-child]:w-full [&>div:last-child]:pr-0 [&>div:last-child]:text-center";
 
 const EMPTY_DETAILS_ERRORS: WitnessDetailsErrors = { documents: {} };
 const EMPTY_CONTACT_ERRORS: WitnessContactErrors = { addresses: {} };

@@ -3,20 +3,27 @@
 /**
  * Add a Power of Attorney holder — scenarios 5 and 8 of the party-actions
  * spec, one flow. An **application**: unlike an advocate (whose vakalatnama
- * is the authority), a PoA-holder is added only by a magistrate's order, and
- * the flow says so before asking for anything.
+ * is the authority), a PoA-holder is added only by a magistrate's order,
+ * and the flow says so before asking for anything.
  *
- * Scenario 8 lives inside scenario 5 rather than as a fourth menu entry: "an
- * existing party becomes the PoA-holder" is the same application with the
- * person picked from the case instead of entered fresh, so it is a choice on
- * the holder step — one flow, two ways to name the person.
+ * Scenario 8 lives inside scenario 5 rather than as a fourth menu entry:
+ * "an existing party becomes the PoA-holder" is the same application with
+ * the person picked from the case instead of entered fresh, so it is a
+ * choice on the holder step. One flow, two ways to name the person.
  *
- * A party carries at most one PoA-holder, so a party that already has one is
- * shown but not selectable — replacing them is its own action (scenario 7),
- * not a second add.
+ * A party carries at most one PoA-holder, so a party that already has one
+ * is shown but not selectable; replacing them is its own action
+ * (scenario 7), not a second add.
+ *
+ * Composed in the owner's dialog grammar (join-case dialog): sm:max-w-xl,
+ * hairline header, semibold field labels as section headings on the body
+ * fill, Banner for the process notice, DocumentSlot for the deed, plain
+ * hairline footer. The first cut aped the witness dialog's oversized
+ * case-screen style and was rejected (Sept 1).
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { FileTextIcon } from "lucide-react";
 
 import {
   AlertDialog,
@@ -28,15 +35,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   DescriptionDetails,
   DescriptionList,
@@ -47,28 +47,21 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DocumentSlot } from "@/components/ui/document-slot";
 import {
   Field,
   FieldDescription,
   FieldError,
-  FieldGroup,
   FieldLabel,
-  FieldLegend,
-  FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Stepper, StepperItem } from "@/components/ui/stepper";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  STEPPER_ITEM_CLASS,
-  stepStatus,
-} from "@/components/cases/add-witness-form";
-import { IdUpload } from "@/components/vakalatnama/id-upload";
+import { FlowStepper } from "@/components/cases/flow-stepper";
 import {
   PARTY_SIDE_LABEL,
   POA_REASON_MAX_LENGTH,
@@ -77,7 +70,7 @@ import {
 
 type PoaStep = 1 | 2 | 3;
 
-const STEPS: Array<{ step: PoaStep; title: string; description: string }> = [
+const STEPS = [
   {
     step: 1,
     title: "Holder and party",
@@ -87,15 +80,15 @@ const STEPS: Array<{ step: PoaStep; title: string; description: string }> = [
   {
     step: 2,
     title: "Grounds and deed",
-    description:
-      "State why the party needs a PoA-holder and attach the deed.",
+    description: "State why the party needs a PoA-holder and attach the deed.",
   },
   {
     step: 3,
     title: "Review",
-    description: "Confirm the application before submitting it to the court.",
+    description:
+      "The application goes to the magistrate. The PoA-holder is added when the order is passed.",
   },
-];
+] as const;
 
 type HolderMode = "new" | "existing";
 
@@ -108,6 +101,11 @@ type Errors = {
   deed?: string;
 };
 
+function fileSize(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export function AddPoaDialog({
   open,
   onOpenChange,
@@ -116,11 +114,12 @@ export function AddPoaDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The viewer's own clients only; never the opposing side. */
   litigants: PartyOption[];
-  /** Advocate names on record — scenario 8's pool alongside the litigants. */
+  /** Own-side advocate names on record; scenario 8's pool with the litigants. */
   advocates: string[];
 }) {
-  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<PoaStep>(1);
   const [partyId, setPartyId] = useState("");
   const [holderMode, setHolderMode] = useState<HolderMode>("new");
@@ -128,41 +127,30 @@ export function AddPoaDialog({
   const [holderPhone, setHolderPhone] = useState("");
   const [existingKey, setExistingKey] = useState("");
   const [reason, setReason] = useState("");
-  const [deed, setDeed] = useState("");
+  const [deedFile, setDeedFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Errors>({});
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
 
-  const currentStep = STEPS.find((item) => item.step === step) ?? STEPS[0];
+  const current = STEPS.find((item) => item.step === step) ?? STEPS[0];
   const isDirty = useMemo(
     () =>
       Boolean(
-        partyId || holderName || holderPhone || existingKey || reason || deed
+        partyId || holderName || holderPhone || existingKey || reason || deedFile
       ),
-    [partyId, holderName, holderPhone, existingKey, reason, deed]
+    [partyId, holderName, holderPhone, existingKey, reason, deedFile]
   );
 
-  useEffect(() => {
-    if (!open) return;
-    stepHeadingRef.current?.focus();
-  }, [open, step]);
-
-  const grantingSide = litigants.find((party) => party.id === partyId)?.side;
+  const grantingParty = litigants.find((party) => party.id === partyId);
 
   /**
-   * Scenario 8's pool: everyone already on the case except the granting party
-   * themselves — the other litigants, and the advocates on record. Litigants
-   * are limited to the granting party's own side once one is picked: a
-   * co-accused officer holding PoA for the company is the real case, an
-   * opposing party holding it is a contradiction the form should not offer.
-   * Keys are prefixed so a litigant and an advocate can never collide.
+   * Scenario 8's pool: everyone already on the case except the granting
+   * party themselves. The other own-side litigants (a co-accused officer
+   * holding PoA for the company is the real case), and the advocates on
+   * record. Keys are prefixed so a litigant and an advocate never collide.
    */
   const existingPeople = [
     ...litigants
-      .filter(
-        (party) =>
-          party.id !== partyId &&
-          (!grantingSide || party.side === grantingSide)
-      )
+      .filter((party) => party.id !== partyId)
       .map((party) => ({
         key: `party:${party.id}`,
         name: party.name,
@@ -175,7 +163,6 @@ export function AddPoaDialog({
     })),
   ];
 
-  const grantingParty = litigants.find((party) => party.id === partyId);
   const holderDisplayName =
     holderMode === "new"
       ? holderName.trim()
@@ -189,7 +176,7 @@ export function AddPoaDialog({
     setHolderPhone("");
     setExistingKey("");
     setReason("");
-    setDeed("");
+    setDeedFile(null);
     setErrors({});
     setExitConfirmationOpen(false);
   }
@@ -229,10 +216,8 @@ export function AddPoaDialog({
 
     if (step === 2) {
       const next: Errors = {};
-      if (!reason.trim()) {
-        next.reason = "State why the party needs a PoA-holder.";
-      }
-      if (!deed) next.deed = "Upload the Power of Attorney deed to continue.";
+      if (!reason.trim()) next.reason = "State why the party needs a PoA-holder.";
+      if (!deedFile) next.deed = "Upload the Power of Attorney deed to continue.";
       setErrors(next);
       if (Object.values(next).some(Boolean)) return;
       setStep(3);
@@ -248,435 +233,350 @@ export function AddPoaDialog({
           else requestExit();
         }}
       >
-        <DialogContent className="flex max-h-[90svh] flex-col gap-6 overflow-hidden sm:max-w-2xl">
-          <div className="flex shrink-0 flex-col gap-6">
-            <nav aria-label="Add Power of Attorney holder progress">
-              <Stepper className="mx-auto w-full max-w-xl">
-                {STEPS.map((item) => (
-                  <StepperItem
-                    key={item.step}
-                    step={item.step}
-                    title={item.title}
-                    status={stepStatus(item.step, step)}
-                    aria-current={item.step === step ? "step" : undefined}
-                    className={STEPPER_ITEM_CLASS}
-                  />
-                ))}
-              </Stepper>
-            </nav>
-            <DialogHeader className="pr-12">
-              <DialogTitle
-                ref={stepHeadingRef}
-                tabIndex={-1}
-                className="text-title font-semibold outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                {currentStep.title}
+        <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+          <DialogHeader className="shrink-0 gap-4 border-b border-hairline px-6 py-5 pr-14 text-left">
+            <FlowStepper
+              steps={STEPS}
+              current={step}
+              label="Add Power of Attorney holder progress"
+            />
+            <div className="flex flex-col gap-1.5">
+              <DialogTitle className="text-title-s font-semibold text-balance">
+                {current.title}
               </DialogTitle>
-              <DialogDescription className="text-body text-muted-foreground">
-                {currentStep.description}
+              <DialogDescription className="text-pretty">
+                {current.description}
               </DialogDescription>
-            </DialogHeader>
+            </div>
+          </DialogHeader>
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+            <form
+              id="add-poa-form"
+              noValidate
+              onSubmit={handleSubmit}
+              className="flex flex-col gap-6"
+            >
+              {step === 1 ? (
+                <>
+                  <Banner variant="info">
+                    This is an application to the court. The PoA-holder joins
+                    the case only after the magistrate passes an order.
+                  </Banner>
+
+                  <Field data-invalid={Boolean(errors.party)}>
+                    <FieldLabel className="block w-full text-body font-semibold leading-snug">
+                      Who is granting the Power of Attorney?
+                    </FieldLabel>
+                    <FieldDescription>
+                      A party can have at most one PoA-holder.
+                    </FieldDescription>
+                    <RadioGroup
+                      value={partyId}
+                      onValueChange={(value) => {
+                        setPartyId(value);
+                        /* The pool excludes the granting party, so a pick
+                           made before the party changes can go stale. */
+                        setExistingKey("");
+                        setErrors((c) => ({ ...c, party: undefined }));
+                      }}
+                      className="flex flex-col gap-1"
+                    >
+                      {litigants.map((party) => {
+                        const taken = Boolean(party.poaHolder);
+                        return (
+                          <div
+                            key={party.id}
+                            className="flex items-start gap-2"
+                          >
+                            <RadioGroupItem
+                              id={`poa-party-${party.id}`}
+                              value={party.id}
+                              disabled={taken}
+                              className="mt-2.5"
+                              aria-invalid={Boolean(errors.party)}
+                            />
+                            <div className="flex min-w-0 flex-col gap-0.5">
+                              <div className="flex min-h-10 items-center">
+                                <Label
+                                  htmlFor={`poa-party-${party.id}`}
+                                  className={
+                                    taken ? "text-muted-foreground" : undefined
+                                  }
+                                >
+                                  {party.name}
+                                  <span className="font-normal text-muted-foreground">
+                                    {" "}
+                                    · {PARTY_SIDE_LABEL[party.side]}
+                                  </span>
+                                </Label>
+                              </div>
+                              {taken ? (
+                                <p className="-mt-2 pb-2 text-caption text-muted-foreground">
+                                  Already has a PoA-holder ({party.poaHolder}).
+                                  Replace them instead of adding a second.
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </RadioGroup>
+                    <FieldError>{errors.party}</FieldError>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel className="block w-full text-body font-semibold leading-snug">
+                      Who will hold it?
+                    </FieldLabel>
+                    <RadioGroup
+                      value={holderMode}
+                      onValueChange={(value) => {
+                        setHolderMode(value as HolderMode);
+                        setErrors((c) => ({
+                          ...c,
+                          holderName: undefined,
+                          holderPhone: undefined,
+                          existing: undefined,
+                        }));
+                      }}
+                      className="flex flex-col gap-1"
+                    >
+                      <div className="flex min-h-10 items-center gap-2">
+                        <RadioGroupItem id="poa-holder-new" value="new" />
+                        <Label htmlFor="poa-holder-new">Someone new</Label>
+                      </div>
+                      <div className="flex min-h-10 items-center gap-2">
+                        <RadioGroupItem
+                          id="poa-holder-existing"
+                          value="existing"
+                        />
+                        <Label htmlFor="poa-holder-existing">
+                          Someone already on this case
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </Field>
+
+                  {holderMode === "new" ? (
+                    <>
+                      <Field data-invalid={Boolean(errors.holderName)}>
+                        <FieldLabel htmlFor="poa-holder-name">
+                          Full name
+                        </FieldLabel>
+                        <Input
+                          id="poa-holder-name"
+                          autoComplete="off"
+                          value={holderName}
+                          onChange={(event) => {
+                            setHolderName(event.target.value);
+                            setErrors((c) => ({ ...c, holderName: undefined }));
+                          }}
+                        />
+                        <FieldError>{errors.holderName}</FieldError>
+                      </Field>
+                      <Field data-invalid={Boolean(errors.holderPhone)}>
+                        <FieldLabel htmlFor="poa-holder-phone">
+                          Mobile number (optional)
+                        </FieldLabel>
+                        <Input
+                          id="poa-holder-phone"
+                          type="tel"
+                          inputMode="numeric"
+                          autoComplete="off"
+                          maxLength={10}
+                          value={holderPhone}
+                          onChange={(event) => {
+                            setHolderPhone(
+                              event.target.value.replace(/\D/g, "").slice(0, 10)
+                            );
+                            setErrors((c) => ({ ...c, holderPhone: undefined }));
+                          }}
+                        />
+                        <FieldError>{errors.holderPhone}</FieldError>
+                      </Field>
+                    </>
+                  ) : (
+                    <Field data-invalid={Boolean(errors.existing)}>
+                      <FieldLabel className="block w-full text-body font-semibold leading-snug">
+                        Who takes on the role?
+                      </FieldLabel>
+                      <FieldDescription>
+                        No new person joins the case. They take on the PoA role
+                        alongside what they already are.
+                      </FieldDescription>
+                      <RadioGroup
+                        value={existingKey}
+                        onValueChange={(value) => {
+                          setExistingKey(value);
+                          setErrors((c) => ({ ...c, existing: undefined }));
+                        }}
+                        className="flex flex-col gap-1"
+                      >
+                        {existingPeople.map((person) => (
+                          <div
+                            key={person.key}
+                            className="flex min-h-10 items-center gap-2"
+                          >
+                            <RadioGroupItem
+                              id={`poa-existing-${person.key}`}
+                              value={person.key}
+                              aria-invalid={Boolean(errors.existing)}
+                            />
+                            <Label htmlFor={`poa-existing-${person.key}`}>
+                              {person.name}
+                              <span className="font-normal text-muted-foreground">
+                                {" "}
+                                · {person.detail}
+                              </span>
+                            </Label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                      <FieldError>{errors.existing}</FieldError>
+                    </Field>
+                  )}
+                </>
+              ) : step === 2 ? (
+                <>
+                  <Field data-invalid={Boolean(errors.reason)}>
+                    <FieldLabel
+                      className="block w-full text-body font-semibold leading-snug"
+                      htmlFor="poa-reason"
+                    >
+                      Why does {grantingParty?.name ?? "the party"} need a
+                      PoA-holder?
+                    </FieldLabel>
+                    <FieldDescription>
+                      The magistrate reads this to decide the application.
+                    </FieldDescription>
+                    <Textarea
+                      id="poa-reason"
+                      className="min-h-24"
+                      maxLength={POA_REASON_MAX_LENGTH}
+                      value={reason}
+                      onChange={(event) => {
+                        setReason(event.target.value);
+                        setErrors((c) => ({ ...c, reason: undefined }));
+                      }}
+                    />
+                    <FieldDescription className="flex justify-end">
+                      {reason.length.toLocaleString("en-IN")} /{" "}
+                      {POA_REASON_MAX_LENGTH.toLocaleString("en-IN")}
+                    </FieldDescription>
+                    <FieldError>{errors.reason}</FieldError>
+                  </Field>
+
+                  <Field data-invalid={Boolean(errors.deed)}>
+                    <FieldLabel className="block w-full text-body font-semibold leading-snug">
+                      Power of Attorney deed
+                    </FieldLabel>
+                    <FieldDescription>
+                      The executed deed naming {holderDisplayName || "the holder"}{" "}
+                      for {grantingParty?.name ?? "the party"}.
+                    </FieldDescription>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      tabIndex={-1}
+                      aria-hidden="true"
+                      accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) {
+                          setDeedFile(file);
+                          setErrors((c) => ({ ...c, deed: undefined }));
+                        }
+                        event.target.value = "";
+                      }}
+                    />
+                    <DocumentSlot
+                      status={deedFile ? "filled" : "empty"}
+                      media="icon"
+                      label="Power of Attorney deed"
+                      required
+                      filename={deedFile?.name}
+                      meta={deedFile ? fileSize(deedFile.size) : undefined}
+                      thumbnail={<FileTextIcon className="size-5" aria-hidden />}
+                      onChooseFile={() => fileInputRef.current?.click()}
+                    />
+                    <FieldDescription>
+                      Accepts an image or PDF of the executed deed.
+                    </FieldDescription>
+                    <FieldError>{errors.deed}</FieldError>
+                  </Field>
+                </>
+              ) : (
+                <DescriptionList>
+                  <ReviewRow term="Granting party">
+                    {grantingParty?.name}
+                  </ReviewRow>
+                  <ReviewRow term="PoA-holder">
+                    {holderDisplayName}
+                    {holderMode === "existing" ? (
+                      <span className="text-muted-foreground">
+                        {" "}
+                        (already on this case)
+                      </span>
+                    ) : null}
+                  </ReviewRow>
+                  {holderMode === "new" && holderPhone ? (
+                    <ReviewRow term="Mobile number">
+                      <span className="tabular-nums">{holderPhone}</span>
+                    </ReviewRow>
+                  ) : null}
+                  <ReviewRow term="Grounds">
+                    <span className="whitespace-pre-wrap">{reason.trim()}</span>
+                  </ReviewRow>
+                  <ReviewRow term="Deed">
+                    {deedFile?.name}
+                    {deedFile ? (
+                      <span className="text-muted-foreground">
+                        {" "}
+                        · {fileSize(deedFile.size)}
+                      </span>
+                    ) : null}
+                  </ReviewRow>
+                </DescriptionList>
+              )}
+            </form>
           </div>
 
-          <form
-            noValidate
-            onSubmit={handleSubmit}
-            className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden"
-          >
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]">
-              {step === 1 ? (
-                <div className="flex flex-col gap-8">
-                  {/* Process first, then the form: the reader should know this
-                      goes to the magistrate before they invest in filling it. */}
-                  <Alert>
-                    <AlertDescription>
-                      This is an application to the court. The PoA-holder
-                      joins the case only after the magistrate passes an
-                      order.
-                    </AlertDescription>
-                  </Alert>
-
-                  <Card className="hover:bg-card">
-                    <CardHeader className="border-b border-border">
-                      <CardTitle className="text-title-s font-semibold">
-                        Granting party
-                      </CardTitle>
-                      <CardDescription className="text-body-compact">
-                        A party can have at most one PoA-holder.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <FieldSet data-invalid={Boolean(errors.party)}>
-                        <FieldLegend className="sr-only">
-                          The party granting the Power of Attorney
-                        </FieldLegend>
-                        <RadioGroup
-                          value={partyId}
-                          onValueChange={(value) => {
-                            setPartyId(value);
-                            /* The pool excludes the granting party, so a pick
-                               made before the party changes can go stale. */
-                            setExistingKey("");
-                            setErrors((current) => ({
-                              ...current,
-                              party: undefined,
-                            }));
-                          }}
-                          className="flex flex-col gap-1"
-                        >
-                          {litigants.map((party) => {
-                            const taken = Boolean(party.poaHolder);
-                            return (
-                              <label
-                                key={party.id}
-                                className={
-                                  taken
-                                    ? "flex min-h-12 items-center gap-3 rounded-md px-3 py-2"
-                                    : "flex min-h-12 cursor-pointer items-center gap-3 rounded-md px-3 py-2 transition-colors hover:bg-accent"
-                                }
-                              >
-                                <RadioGroupItem
-                                  value={party.id}
-                                  disabled={taken}
-                                  aria-invalid={Boolean(errors.party)}
-                                />
-                                <span className="flex min-w-0 flex-1 flex-col">
-                                  <span
-                                    className={
-                                      taken
-                                        ? "truncate text-body font-medium text-muted-foreground"
-                                        : "truncate text-body font-medium"
-                                    }
-                                  >
-                                    {party.name}
-                                  </span>
-                                  <span className="text-caption text-muted-foreground">
-                                    {taken
-                                      ? `${PARTY_SIDE_LABEL[party.side]} · Already has a PoA-holder (${party.poaHolder}). Replace them instead of adding a second.`
-                                      : PARTY_SIDE_LABEL[party.side]}
-                                  </span>
-                                </span>
-                              </label>
-                            );
-                          })}
-                        </RadioGroup>
-                        <FieldError className="text-body-compact">
-                          {errors.party}
-                        </FieldError>
-                      </FieldSet>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="hover:bg-card">
-                    <CardHeader className="border-b border-border">
-                      <CardTitle className="text-title-s font-semibold">
-                        Who will hold it
-                      </CardTitle>
-                      <CardDescription className="text-body-compact">
-                        Someone new, or someone already on this case taking on
-                        the role.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <FieldGroup className="gap-4">
-                        <RadioGroup
-                          value={holderMode}
-                          onValueChange={(value) => {
-                            setHolderMode(value as HolderMode);
-                            setErrors((current) => ({
-                              ...current,
-                              holderName: undefined,
-                              holderPhone: undefined,
-                              existing: undefined,
-                            }));
-                          }}
-                          className="flex flex-col gap-4 sm:flex-row sm:gap-8"
-                        >
-                          <Field orientation="horizontal">
-                            <RadioGroupItem id="poa-holder-new" value="new" />
-                            <FieldLabel
-                              className="text-body"
-                              htmlFor="poa-holder-new"
-                            >
-                              Someone new
-                            </FieldLabel>
-                          </Field>
-                          <Field orientation="horizontal">
-                            <RadioGroupItem
-                              id="poa-holder-existing"
-                              value="existing"
-                            />
-                            <FieldLabel
-                              className="text-body"
-                              htmlFor="poa-holder-existing"
-                            >
-                              Someone already on this case
-                            </FieldLabel>
-                          </Field>
-                        </RadioGroup>
-
-                        {holderMode === "new" ? (
-                          <>
-                            <Field data-invalid={Boolean(errors.holderName)}>
-                              <FieldLabel className="text-body">
-                                Full name
-                              </FieldLabel>
-                              <Input
-                                autoComplete="off"
-                                value={holderName}
-                                onChange={(event) => {
-                                  setHolderName(event.target.value);
-                                  setErrors((current) => ({
-                                    ...current,
-                                    holderName: undefined,
-                                  }));
-                                }}
-                              />
-                              <FieldError className="text-body-compact">
-                                {errors.holderName}
-                              </FieldError>
-                            </Field>
-                            <Field data-invalid={Boolean(errors.holderPhone)}>
-                              <FieldLabel className="text-body">
-                                Mobile number (optional)
-                              </FieldLabel>
-                              <Input
-                                type="tel"
-                                inputMode="numeric"
-                                autoComplete="off"
-                                maxLength={10}
-                                value={holderPhone}
-                                onChange={(event) => {
-                                  setHolderPhone(
-                                    event.target.value
-                                      .replace(/\D/g, "")
-                                      .slice(0, 10)
-                                  );
-                                  setErrors((current) => ({
-                                    ...current,
-                                    holderPhone: undefined,
-                                  }));
-                                }}
-                              />
-                              <FieldError className="text-body-compact">
-                                {errors.holderPhone}
-                              </FieldError>
-                            </Field>
-                          </>
-                        ) : (
-                          <FieldSet data-invalid={Boolean(errors.existing)}>
-                            <FieldLegend className="sr-only">
-                              Who on the case will take on the role
-                            </FieldLegend>
-                            <RadioGroup
-                              value={existingKey}
-                              onValueChange={(value) => {
-                                setExistingKey(value);
-                                setErrors((current) => ({
-                                  ...current,
-                                  existing: undefined,
-                                }));
-                              }}
-                              className="flex flex-col gap-1"
-                            >
-                              {existingPeople.map((person) => (
-                                <label
-                                  key={person.key}
-                                  className="flex min-h-12 cursor-pointer items-center gap-3 rounded-md px-3 py-2 transition-colors hover:bg-accent"
-                                >
-                                  <RadioGroupItem
-                                    value={person.key}
-                                    aria-invalid={Boolean(errors.existing)}
-                                  />
-                                  <span className="flex min-w-0 flex-1 flex-col">
-                                    <span className="truncate text-body font-medium">
-                                      {person.name}
-                                    </span>
-                                    <span className="text-caption text-muted-foreground">
-                                      {person.detail}
-                                    </span>
-                                  </span>
-                                </label>
-                              ))}
-                            </RadioGroup>
-                            <FieldDescription className="text-body-compact">
-                              No new person joins the case. They take on the
-                              PoA role alongside what they already are.
-                            </FieldDescription>
-                            <FieldError className="text-body-compact">
-                              {errors.existing}
-                            </FieldError>
-                          </FieldSet>
-                        )}
-                      </FieldGroup>
-                    </CardContent>
-                  </Card>
-                </div>
-              ) : step === 2 ? (
-                <div className="flex flex-col gap-8">
-                  <Card className="hover:bg-card">
-                    <CardHeader className="border-b border-border">
-                      <CardTitle className="text-title-s font-semibold">
-                        Grounds
-                      </CardTitle>
-                      <CardDescription className="text-body-compact">
-                        The magistrate reads this to decide the application.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Field data-invalid={Boolean(errors.reason)}>
-                        <FieldLabel className="text-body">
-                          Why does {grantingParty?.name ?? "the party"} need a
-                          PoA-holder?
-                        </FieldLabel>
-                        <Textarea
-                          className="min-h-24"
-                          maxLength={POA_REASON_MAX_LENGTH}
-                          value={reason}
-                          onChange={(event) => {
-                            setReason(event.target.value);
-                            setErrors((current) => ({
-                              ...current,
-                              reason: undefined,
-                            }));
-                          }}
-                        />
-                        <FieldDescription className="flex justify-end text-body-compact">
-                          {reason.length.toLocaleString("en-IN")} /{" "}
-                          {POA_REASON_MAX_LENGTH.toLocaleString("en-IN")}
-                        </FieldDescription>
-                        <FieldError className="text-body-compact">
-                          {errors.reason}
-                        </FieldError>
-                      </Field>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="hover:bg-card">
-                    <CardHeader className="border-b border-border">
-                      <CardTitle className="text-title-s font-semibold">
-                        Power of Attorney deed
-                      </CardTitle>
-                      <CardDescription className="text-body-compact">
-                        The executed deed naming{" "}
-                        {holderDisplayName || "the holder"} for{" "}
-                        {grantingParty?.name ?? "the party"}.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Field data-invalid={Boolean(errors.deed)}>
-                        <IdUpload
-                          value={deed}
-                          onChange={(filename) => {
-                            setDeed(filename);
-                            setErrors((current) => ({
-                              ...current,
-                              deed: undefined,
-                            }));
-                          }}
-                          label="Upload the PoA deed"
-                        />
-                        <FieldDescription className="text-body-compact">
-                          Accepts an image or PDF of the executed deed.
-                        </FieldDescription>
-                        <FieldError className="text-body-compact">
-                          {errors.deed}
-                        </FieldError>
-                      </Field>
-                    </CardContent>
-                  </Card>
-                </div>
-              ) : (
-                <Card className="hover:bg-card">
-                  <CardHeader className="border-b border-border">
-                    <CardTitle className="text-title-s font-semibold">
-                      Review
-                    </CardTitle>
-                    <CardDescription className="text-body-compact">
-                      The application goes to the magistrate; the PoA-holder is
-                      added when the order is passed.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <DescriptionList>
-                      <ReviewRow term="Granting party">
-                        {grantingParty?.name}
-                      </ReviewRow>
-                      <ReviewRow term="PoA-holder">
-                        {holderDisplayName}
-                        {holderMode === "existing" ? (
-                          <span className="text-muted-foreground">
-                            {" "}
-                            (already on this case)
-                          </span>
-                        ) : null}
-                      </ReviewRow>
-                      {holderMode === "new" && holderPhone ? (
-                        <ReviewRow term="Mobile number">
-                          <span className="tabular-nums">{holderPhone}</span>
-                        </ReviewRow>
-                      ) : null}
-                      <ReviewRow term="Grounds">
-                        <span className="whitespace-pre-wrap">
-                          {reason.trim()}
-                        </span>
-                      </ReviewRow>
-                      <ReviewRow term="Deed">{deed}</ReviewRow>
-                    </DescriptionList>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-
-            <DialogFooter
-              className={step > 1 ? "shrink-0 sm:justify-between" : "shrink-0"}
-            >
-              {step > 1 ? (
+          <footer className="flex shrink-0 flex-col-reverse gap-2 border-t border-hairline px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+            {step > 1 ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setStep((s) => (s - 1) as PoaStep)}
+              >
+                Back
+              </Button>
+            ) : (
+              <span aria-hidden className="hidden sm:block" />
+            )}
+            {step < 3 ? (
+              <Button type="submit" form="add-poa-form">
+                Continue
+              </Button>
+            ) : (
+              <div className="flex flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3">
+                <p
+                  id="poa-save-unavailable"
+                  className="text-caption text-muted-foreground sm:text-end"
+                >
+                  Submission is not connected yet.
+                </p>
                 <Button
                   type="button"
-                  variant="ghost"
-                  className="w-full sm:w-auto"
-                  onClick={() => setStep((current) => (current - 1) as PoaStep)}
+                  disabled
+                  aria-describedby="poa-save-unavailable"
                 >
-                  Back
+                  Submit application
                 </Button>
-              ) : null}
-              <div className="flex w-full flex-col gap-2 sm:w-auto">
-                <div className="flex w-full flex-col gap-2 sm:flex-row">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full sm:w-auto"
-                    onClick={requestExit}
-                  >
-                    Cancel
-                  </Button>
-                  {step < 3 ? (
-                    <Button type="submit" className="w-full sm:w-auto">
-                      Continue
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      disabled
-                      aria-describedby="poa-save-unavailable"
-                      className="w-full sm:w-auto"
-                    >
-                      Submit application
-                    </Button>
-                  )}
-                </div>
-                {step === 3 ? (
-                  <p
-                    id="poa-save-unavailable"
-                    className="text-body-compact text-muted-foreground sm:text-end"
-                  >
-                    Submission is not connected yet.
-                  </p>
-                ) : null}
               </div>
-            </DialogFooter>
-          </form>
+            )}
+          </footer>
         </DialogContent>
       </Dialog>
 
