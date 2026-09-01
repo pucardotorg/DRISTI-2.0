@@ -6,6 +6,7 @@ import { ArrowLeftIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { causeTitle, formatCourtDay, isoDay } from "@/lib/employee/hearings";
+import { useCourtNavLayout } from "@/lib/employee/nav-layout";
 import { type AsyncAction, type AsyncSection } from "@/lib/employee/todays-actions";
 
 /**
@@ -24,7 +25,15 @@ const readToday = () => isoDay(new Date());
 
 export function TodaysActionsQueueScreen({ section }: { section: AsyncSection }) {
   const today = React.useSyncExternalStore(NEVER_CHANGES, readToday, readToday);
+  const [layout] = useCourtNavLayout();
   const due = section.items.length;
+
+  /* The way back follows how the reader got here: the combined layout enters queues
+     from the day's schedule, the split layout from the Today's actions hub. */
+  const back =
+    layout === "split"
+      ? { href: "/employee/todays-actions", label: "Back to today’s actions" }
+      : { href: "/employee/todays-schedule", label: "Back to today’s schedule" };
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-8 p-6 md:p-8">
@@ -35,9 +44,9 @@ export function TodaysActionsQueueScreen({ section }: { section: AsyncSection })
           size="xs"
           className="self-start text-muted-foreground"
         >
-          <Link href="/employee/todays-actions">
+          <Link href={back.href}>
             <ArrowLeftIcon data-icon="inline-start" aria-hidden />
-            Back to today&rsquo;s actions
+            {back.label}
           </Link>
         </Button>
         <header className="flex flex-col gap-2">

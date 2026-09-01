@@ -1,7 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { CalendarX2Icon, SearchIcon, SearchXIcon, VideoIcon } from "lucide-react";
+import Link from "next/link";
+import {
+  ArrowLeftIcon,
+  CalendarX2Icon,
+  SearchIcon,
+  SearchXIcon,
+  VideoIcon,
+} from "lucide-react";
 
 import { CounselCell } from "@/components/employee/counsel-cell";
 import { HearingsTable } from "@/components/employee/hearings-table";
@@ -55,6 +62,7 @@ import {
   type HearingFilters,
   type HearingsPageSize,
 } from "@/lib/employee/hearings";
+import { useCourtNavLayout } from "@/lib/employee/nav-layout";
 
 /**
  * The day the bench is sitting on is the reader's, not the server's — a court in Kollam
@@ -83,6 +91,7 @@ export function HearingsScreen() {
     readToday,
     readToday,
   );
+  const [navLayout] = useCourtNavLayout();
 
   /* `null` means "the day the court is sitting" — resolved against the reader's clock
      rather than frozen at first render, so the screen is right whenever it is opened. */
@@ -123,15 +132,34 @@ export function HearingsScreen() {
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-8 p-6 md:p-8">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-title text-balance font-semibold sm:text-title-l">
-          Today&rsquo;s hearings
-        </h1>
-        <p className="text-body text-muted-foreground">
-          {activeDay === today ? "Today, " : ""}
-          {formatCourtDay(activeDay)}
-        </p>
-      </header>
+      <div className="flex flex-col gap-3">
+        {/* In the combined layout the cause list is entered from the schedule's
+            "Conduct hearings" block, so the way back is the first thing on the page —
+            the same idiom every screen under the schedule uses. In the split layout
+            this screen is a rail destination of its own and needs no way back. */}
+        {navLayout === "schedule" ? (
+          <Button
+            asChild
+            variant="ghost"
+            size="xs"
+            className="self-start text-muted-foreground"
+          >
+            <Link href="/employee/todays-schedule">
+              <ArrowLeftIcon data-icon="inline-start" aria-hidden />
+              Back to today&rsquo;s schedule
+            </Link>
+          </Button>
+        ) : null}
+        <header className="flex flex-col gap-2">
+          <h1 className="text-title text-balance font-semibold sm:text-title-l">
+            Today&rsquo;s hearings
+          </h1>
+          <p className="text-body text-muted-foreground">
+            {activeDay === today ? "Today, " : ""}
+            {formatCourtDay(activeDay)}
+          </p>
+        </header>
+      </div>
 
       {/* One panel: filters, list and footer are one unit of work, so they share one
           lifted sheet — the same recipe and the same `gap-6` / `p-6` the cases panel

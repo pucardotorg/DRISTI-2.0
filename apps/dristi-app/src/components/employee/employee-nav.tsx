@@ -4,10 +4,14 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { SettingsIcon } from "lucide-react";
+
 import { CURRENT_STAFF, greetingFor } from "@/lib/employee/content";
+import { cn } from "@/lib/utils";
+import { useCourtNavLayout, type CourtNavLayout } from "@/lib/employee/nav-layout";
 import {
+  courtNavWork,
   COURT_NAV_VIEWS,
-  COURT_NAV_WORK,
   type CourtNavItem,
 } from "@/lib/employee/navigation";
 import { BrandLockup } from "@/components/brand-lockup";
@@ -27,6 +31,14 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -70,7 +82,14 @@ function spokenNote(item: CourtNavItem): string {
  * that is not there. The row stays and the absence is the answer; a screen reader is told
  * "nothing waiting" outright rather than left with silence.
  */
-function RowContents({ item }: { item: CourtNavItem }) {
+function RowContents({
+  item,
+  primary = false,
+}: {
+  item: CourtNavItem;
+  /** The row is sitting on the primary fill — inks switch to its foreground pair. */
+  primary?: boolean;
+}) {
   const Icon = item.icon;
   const note = spokenNote(item);
   return (
@@ -78,15 +97,33 @@ function RowContents({ item }: { item: CourtNavItem }) {
       {/* Every rail row carries a mark now that every row is a destination; the
           placeholder branch keeps the labels aligned if a markless row ever returns.
           16px in muted ink — the same box and ink the group-label glyphs used — so the
-          marks read as wayfinding, not as a louder species of icon than the labels. */}
+          marks read as wayfinding, not as a louder species of icon than the labels.
+          On the primary fill the mark takes the fill's own foreground, never grey on
+          colour. */}
       {Icon ? (
-        <Icon aria-hidden className="size-4! text-(--rail-muted)" />
+        <Icon
+          aria-hidden
+          className={cn(
+            "size-4!",
+            primary ? "text-primary-foreground" : "text-(--rail-muted)",
+          )}
+        />
       ) : (
         <span aria-hidden className="size-4 shrink-0" />
       )}
       <span className="min-w-0 flex-1 truncate">{item.label}</span>
       {note ? <span className="sr-only">, {note}</span> : null}
-      {item.count !== undefined && item.count > 0 ? (
+      {primary && item.count !== undefined && item.count > 0 ? (
+        /* On the primary fill the numeral rides the fill's own foreground and the red
+           spark stays home: the fill already says "this is the one", and a destructive-
+           family dot on the teal would be a second, wrong claim. */
+        <span
+          aria-hidden
+          className="shrink-0 text-caption tabular-nums text-primary-foreground"
+        >
+          {item.count.toLocaleString("en-IN")}
+        </span>
+      ) : item.count !== undefined && item.count > 0 ? (
         /* How much is waiting: a quiet numeral with a small spark beside it.
            This is the advocate rail's `TasksCount` treatment, adopted rather than
            re-derived. That rail was deliberately pulled back from a full red pill —
@@ -131,11 +168,25 @@ function CourtNavRow({ item }: { item: CourtNavItem }) {
 
   if (item.href) {
     const isActive = pathname === item.href;
+    /* The primary fill sits on the row at rest; the standard white-card inversion
+       still says "you are here" when the row is the open page, so the two states
+       never fight — primary is what the row is, active is where the reader is. The
+       `!` marks beat the plate's own row inks, which are var-driven and would
+       otherwise win the cascade. */
+    const primaryAtRest = !!item.primary && !isActive;
     return (
       <SidebarMenuItem>
-        <SidebarMenuButton asChild isActive={isActive} className={RAIL_ROW}>
+        <SidebarMenuButton
+          asChild
+          isActive={isActive}
+          className={cn(
+            RAIL_ROW,
+            primaryAtRest &&
+              "bg-primary! text-primary-foreground! hover:bg-primary-hover!",
+          )}
+        >
           <Link href={item.href} aria-current={isActive ? "page" : undefined}>
-            <RowContents item={item} />
+            <RowContents item={item} primary={primaryAtRest} />
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -215,7 +266,60 @@ function CourtRailHeader() {
   );
 }
 
+/**
+ * The rail's settings — one control at the foot of the plate, and inside it the one
+ * setting there is: which shape the day's navigation takes. Both layouts are the
+ * owner's, kept side by side on purpose; the radio wording names what each one shows
+ * rather than a version number. The choice is this browser's only — it lives in
+ * `nav-layout.ts`, not in any court record.
+ */
+function RailSettings({
+  layout,
+  onLayoutChange,
+}: {
+  layout: CourtNavLayout;
+  onLayoutChange: (layout: CourtNavLayout) => void;
+}) {
+  return (
+    <SidebarGroup>
+      <SidebarGroupContent>
+        <SidebarMenu className="gap-1">
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton type="button" className={RAIL_ROW}>
+                  <SettingsIcon aria-hidden className="size-4! text-(--rail-muted)" />
+                  <span className="min-w-0 flex-1 truncate">Settings</span>
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              {/* Opens upward off the rail's foot so it never runs off-screen. */}
+              <DropdownMenuContent side="top" align="start" className="w-64">
+                <DropdownMenuLabel>Day navigation</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={layout}
+                  onValueChange={(value) =>
+                    onLayoutChange(value as CourtNavLayout)
+                  }
+                >
+                  <DropdownMenuRadioItem value="schedule">
+                    One combined schedule
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="split">
+                    Hearings and actions apart
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
 export function EmployeeNav() {
+  const [layout, setLayout] = useCourtNavLayout();
+
   return (
     /* Rows that go nowhere explain themselves on hover and on focus; at the DS default of
        0ms that turns a sweep down the rail into a strobe. */
@@ -226,14 +330,15 @@ export function EmployeeNav() {
         sheetTitle="Court navigation"
         sheetDescription="Hearings, today's actions, applications and signing for this court."
         header={<CourtRailHeader />}
+        footer={<RailSettings layout={layout} onLayoutChange={setLayout} />}
       >
         {/* Two flat runs with one rule between them: the courtroom's work above, the
-            views out of DRISTI below. The rows' order and destinations live in
-            `lib/employee/navigation.ts`. */}
+            views out of DRISTI below. The work run follows the layout the Settings
+            control holds; the rows themselves live in `lib/employee/navigation.ts`. */}
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
-              {COURT_NAV_WORK.map((item) => (
+              {courtNavWork(layout).map((item) => (
                 <CourtNavRow key={item.id} item={item} />
               ))}
             </SidebarMenu>

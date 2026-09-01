@@ -10,8 +10,10 @@ import {
 } from "lucide-react";
 
 import { TODAYS_HEARING_COUNT } from "./hearings";
+import type { CourtNavLayout } from "./nav-layout";
 import { SIGN_TOTAL } from "./sign";
 import { ASYNC_DUE_TOTAL } from "./todays-actions";
+import { SCHEDULE_TOTAL } from "./todays-schedule";
 
 /**
  * What the bench navigates between, as data.
@@ -20,10 +22,12 @@ import { ASYNC_DUE_TOTAL } from "./todays-actions";
  * then the views out of DRISTI — the shape the owner set on 2026-09-01, replacing the
  * earlier reference-transcribed disclosure groups: the grouped Actions and Review
  * applications rows folded into the Today's actions screen, signing collapsed to one
- * row, and the outside-DRISTI links became "View …" rows below the rule. It is
- * deliberately data and not markup: the rail renders whatever is here, so a row's
- * destination, its count or its position is a change to this file rather than to a
- * component.
+ * row, and the outside-DRISTI links became "View …" rows below the rule. The work run
+ * comes in two layouts the owner keeps side by side — one combined schedule, or
+ * hearings and actions apart — switched from the rail's Settings control and read from
+ * `nav-layout.ts`. It is deliberately data and not markup: the rail renders whatever
+ * is here, so a row's destination, its count or its position is a change to this file
+ * rather than to a component.
  *
  * **Not all of it is wired.** A row without an `href` is a real, focusable control that
  * says plainly it goes nowhere — no stub routes, no hrefs that 404. Giving a row its
@@ -58,28 +62,15 @@ export type CourtNavItem = {
   external?: boolean;
   /** How much of this kind of work is waiting on the bench. Derived; see above. */
   count?: number;
+  /**
+   * The rail's one primary row — the day's schedule, filled the way a primary action
+   * is. At most one row may carry this (the Ration Teal Law: one strong mark per view).
+   */
+  primary?: boolean;
 };
 
-/**
- * The courtroom's work, in the owner's order: the day first — hearings, then the day's
- * paper actions — then the rest. "Today's hearings" is also the default view —
- * `/employee` lands there, so the day's cause list is the first thing the bench sees.
- */
-export const COURT_NAV_WORK: CourtNavItem[] = [
-  {
-    id: "todays-hearings",
-    label: "Today's hearings",
-    icon: CalendarDaysIcon,
-    href: "/employee/hearings",
-    count: TODAYS_HEARING_COUNT,
-  },
-  {
-    id: "todays-actions",
-    label: "Today's actions",
-    icon: ListChecksIcon,
-    href: "/employee/todays-actions",
-    count: ASYNC_DUE_TOTAL,
-  },
+/** The rows both layouts share, after the day's own rows. */
+const COMMON_WORK: CourtNavItem[] = [
   {
     id: "bulk-reschedule",
     label: "Bulk reschedule hearings",
@@ -102,6 +93,53 @@ export const COURT_NAV_WORK: CourtNavItem[] = [
     count: SIGN_TOTAL,
   },
 ];
+
+/**
+ * The combined layout: the day as one schedule — the owner's clubbing (2026-09-01) of
+ * the earlier "Today's hearings" and "Today's actions" rows. The schedule is the
+ * primary view: `/employee` lands there, its row carries the primary fill, and its
+ * count is the whole day (hearings and actions summed). The cause list and the action
+ * queues are reached through it.
+ */
+export const COURT_NAV_WORK_SCHEDULE: CourtNavItem[] = [
+  {
+    id: "todays-schedule",
+    label: "Today's schedule",
+    icon: CalendarDaysIcon,
+    href: "/employee/todays-schedule",
+    count: SCHEDULE_TOTAL,
+    primary: true,
+  },
+  ...COMMON_WORK,
+];
+
+/**
+ * The split layout: the day as two rows — the shape the rail had before the clubbing,
+ * kept demonstrable behind the rail's Settings switcher. Hearings and the paper
+ * actions stand apart, no row is primary, and `/employee` lands on the cause list.
+ */
+export const COURT_NAV_WORK_SPLIT: CourtNavItem[] = [
+  {
+    id: "todays-hearings",
+    label: "Today's hearings",
+    icon: CalendarDaysIcon,
+    href: "/employee/hearings",
+    count: TODAYS_HEARING_COUNT,
+  },
+  {
+    id: "todays-actions",
+    label: "Today's actions",
+    icon: ListChecksIcon,
+    href: "/employee/todays-actions",
+    count: ASYNC_DUE_TOTAL,
+  },
+  ...COMMON_WORK,
+];
+
+/** The work rows for a layout — the one switch the rail renders from. */
+export function courtNavWork(layout: CourtNavLayout): CourtNavItem[] {
+  return layout === "split" ? COURT_NAV_WORK_SPLIT : COURT_NAV_WORK_SCHEDULE;
+}
 
 /**
  * Below the rule: the ways out of DRISTI to look at things, not courtroom work. The
