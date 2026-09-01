@@ -571,8 +571,8 @@ export const shareCopy = {
   you: t("(you)", "(നിങ്ങൾ)"),
   statusInvited: t("Yet to join", "ചേരാനുണ്ട്"),
   advocateNotice: t(
-    "{name} is an advocate — sharing gives office access only. To have them act on this case, add them from the Parties tab with a vakalatnama.",
-    "{name} ഒരു അഭിഭാഷകനാണ് — പങ്കിടുന്നത് ഓഫീസ് ആക്‌സസ് മാത്രമേ നൽകൂ. ഈ കേസിൽ പ്രവർത്തിക്കാൻ, വക്കാലത്ത്നാമയോടെ പാർട്ടീസ് ടാബിൽ നിന്ന് അവരെ ചേർക്കുക.",
+    "{name} is an advocate. Sharing gives office access only. To have them act on this case, add them from the Parties tab with a vakalatnama.",
+    "{name} ഒരു അഭിഭാഷകനാണ്. പങ്കിടുന്നത് ഓഫീസ് ആക്‌സസ് മാത്രമേ നൽകൂ. ഈ കേസിൽ പ്രവർത്തിക്കാൻ, വക്കാലത്ത്നാമയോടെ പാർട്ടീസ് ടാബിൽ നിന്ന് അവരെ ചേർക്കുക.",
   ),
 };
 

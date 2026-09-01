@@ -290,8 +290,9 @@ export function AddPoaDialog({
                       goes to the magistrate before they invest in filling it. */}
                   <Alert>
                     <AlertDescription>
-                      This is an application to the court. The PoA-holder joins
-                      the case only after the magistrate passes an order.
+                      This is an application to the court. The PoA-holder
+                      joins the case only after the magistrate passes an
+                      order.
                     </AlertDescription>
                   </Alert>
 
@@ -351,7 +352,7 @@ export function AddPoaDialog({
                                   </span>
                                   <span className="text-caption text-muted-foreground">
                                     {taken
-                                      ? `${PARTY_SIDE_LABEL[party.side]} · already has a PoA-holder (${party.poaHolder}) — replace them instead of adding a second`
+                                      ? `${PARTY_SIDE_LABEL[party.side]} · Already has a PoA-holder (${party.poaHolder}). Replace them instead of adding a second.`
                                       : PARTY_SIDE_LABEL[party.side]}
                                   </span>
                                 </span>
@@ -499,7 +500,7 @@ export function AddPoaDialog({
                               ))}
                             </RadioGroup>
                             <FieldDescription className="text-body-compact">
-                              No new person joins the case — they take on the
+                              No new person joins the case. They take on the
                               PoA role alongside what they already are.
                             </FieldDescription>
                             <FieldError className="text-body-compact">

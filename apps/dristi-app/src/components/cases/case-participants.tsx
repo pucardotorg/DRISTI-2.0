@@ -92,6 +92,9 @@ import { cn } from "@/lib/utils";
  */
 const HEADING_ID = "parties-heading";
 
+/** Demo assumption: the signed-in advocate is complainant-side counsel. */
+const VIEWER_SIDE: PartySideId = "complainant";
+
 export function CaseParticipants({
   file,
   caseId,
@@ -127,17 +130,28 @@ export function CaseParticipants({
             </p>
           </div>
           {/* The one teal in the region (Ration teal). The universal
-              Add-people entry — advocate, witness, PoA-holder — with the
+              Add-people entry (advocate, witness, PoA-holder), with the
               party options built here, on the server, so the dialogs never
-              import the authored pack. */}
+              import the authored pack.
+
+              Own side only: an advocate acts for their own clients, so the
+              add-advocate and PoA flows get the viewer's parties and
+              advocates, never the opposing side's. The demo has no per-case
+              record of which side the signed-in advocate is on, so the
+              viewer is taken to be complainant-side counsel; the real seam
+              is the signed-in user's brief on this case. */}
           <CaseAddPeople
-            litigants={file.litigants.map((row) => ({
-              id: row.id,
-              name: row.name,
-              side: row.side,
-              poaHolder: row.powerOfAttorneyHolder,
-            }))}
-            advocates={file.legalTeams.map((team) => team.advocate)}
+            litigants={file.litigants
+              .filter((row) => row.side === VIEWER_SIDE)
+              .map((row) => ({
+                id: row.id,
+                name: row.name,
+                side: row.side,
+                poaHolder: row.powerOfAttorneyHolder,
+              }))}
+            advocates={file.legalTeams
+              .filter((team) => team.side === VIEWER_SIDE)
+              .map((team) => team.advocate)}
           />
         </CardContent>
 
