@@ -1,0 +1,438 @@
+"use client";
+
+/**
+ * Remove an advocate — scenarios 3a and 3b of the party-actions spec, one
+ * flow with a fork. The grounds are stated once (reason + supporting
+ * document); what forks is who approves the removal:
+ *
+ * - **Their consent (3b)** — a request the outgoing advocate accepts or
+ *   rejects from their own Pending tasks. Quicker when the exit is amicable.
+ * - **The magistrate (3a)** — a formal application; the advocate stays on
+ *   the case until the order is passed.
+ *
+ * Two entry points, one dialog: the advocate's well in the Parties tab's
+ * Representation section, and the vakalatnama rows of the Share-access
+ * dialog (which could until now only explain why Remove was locked).
+ * Office staff never come here; their access is revoked in one click in
+ * the share dialog. This flow is only for advocates on the vakalatnama.
+ *
+ * Composed in the owner's dialog grammar; ends in the done stage, not a
+ * disabled button (both Sept 1 rulings).
+ */
+
+import { useMemo, useState } from "react";
+import { HourglassIcon } from "lucide-react";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  DescriptionDetails,
+  DescriptionList,
+  DescriptionRow,
+  DescriptionTerm,
+} from "@/components/ui/description-list";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
+import { FlowStepper } from "@/components/cases/flow-stepper";
+import {
+  UPLOAD_HELP,
+  UploadedDocField,
+} from "@/components/cases/uploaded-doc-field";
+
+type RemoveStep = 1 | 2 | 3;
+
+const STEPS = [
+  {
+    step: 1,
+    title: "Grounds",
+    description: "State why the advocate should be removed and attach proof.",
+  },
+  {
+    step: 2,
+    title: "Approval",
+    description: "Removal from the vakalatnama needs one of two approvals.",
+  },
+  {
+    step: 3,
+    title: "Review",
+    description: "Confirm the request before sending it.",
+  },
+] as const;
+
+const REASON_MAX_LENGTH = 500;
+
+type Route = "consent" | "magistrate" | "";
+
+type Errors = {
+  reason?: string;
+  document?: string;
+  route?: string;
+};
+
+export function RemoveAdvocateDialog({
+  open,
+  onOpenChange,
+  advocateName,
+  partyName,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** The advocate being removed from the vakalatnama. */
+  advocateName: string;
+  /** The party they represent, where the entry point knows it. */
+  partyName?: string;
+}) {
+  const [step, setStep] = useState<RemoveStep>(1);
+  const [reason, setReason] = useState("");
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [route, setRoute] = useState<Route>("");
+  const [done, setDone] = useState(false);
+  const [errors, setErrors] = useState<Errors>({});
+  const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
+
+  const current = STEPS.find((item) => item.step === step) ?? STEPS[0];
+  const isDirty = useMemo(
+    () => Boolean(reason || docFile || route),
+    [reason, docFile, route]
+  );
+
+  function resetForm() {
+    setStep(1);
+    setReason("");
+    setDocFile(null);
+    setRoute("");
+    setDone(false);
+    setErrors({});
+    setExitConfirmationOpen(false);
+  }
+
+  function closeClean() {
+    resetForm();
+    onOpenChange(false);
+  }
+
+  function requestExit() {
+    if (isDirty && !done) {
+      setExitConfirmationOpen(true);
+      return;
+    }
+    closeClean();
+  }
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (step === 1) {
+      const next: Errors = {};
+      if (!reason.trim()) {
+        next.reason = "State why the advocate should be removed.";
+      }
+      if (!docFile) {
+        next.document = "Upload a supporting document to continue.";
+      }
+      setErrors(next);
+      if (next.reason || next.document) return;
+      setStep(2);
+      return;
+    }
+
+    if (step === 2) {
+      if (!route) {
+        setErrors((c) => ({ ...c, route: "Pick who approves the removal." }));
+        return;
+      }
+      setStep(3);
+    }
+  }
+
+
+  return (
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (next) onOpenChange(true);
+          else requestExit();
+        }}
+      >
+        <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+          {done ? (
+            <>
+              <DialogHeader className="shrink-0 px-6 py-5 pr-14 text-left">
+                <div className="flex items-center gap-4">
+                  <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-info-muted text-info-muted-foreground">
+                    <HourglassIcon className="size-7" aria-hidden />
+                  </span>
+                  <div className="flex min-w-0 flex-col gap-1.5">
+                    <DialogTitle className="text-title-s font-semibold text-balance">
+                      {route === "consent"
+                        ? `Request sent to ${advocateName}`
+                        : "Application sent to the magistrate"}
+                    </DialogTitle>
+                    <DialogDescription className="text-pretty">
+                      {route === "consent"
+                        ? "They can accept or reject it from their Pending tasks. You'll be notified either way."
+                        : `${advocateName} stays on the case until the order is passed.`}
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+              <footer className="flex shrink-0 justify-end border-t border-hairline px-6 py-4">
+                <Button type="button" onClick={closeClean}>
+                  Done
+                </Button>
+              </footer>
+            </>
+          ) : (
+            <>
+              <div className="shrink-0 border-b border-hairline px-6 pt-6 pb-4">
+                <FlowStepper
+                  steps={STEPS}
+                  current={step}
+                  label="Remove advocate progress"
+                />
+              </div>
+              <DialogHeader className="shrink-0 gap-1.5 border-b border-hairline px-6 py-5 pr-14 text-left">
+                <DialogTitle className="text-title-s font-semibold text-balance">
+                  {step === 1 ? `Remove ${advocateName}` : current.title}
+                </DialogTitle>
+                <DialogDescription className="text-pretty">
+                  {step === 3 && route
+                    ? route === "consent"
+                      ? `Once ${advocateName} accepts, they come off the vakalatnama.`
+                      : `Once the magistrate orders it, ${advocateName} comes off the vakalatnama.`
+                    : current.description}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+                <form
+                  id="remove-advocate-form"
+                  noValidate
+                  onSubmit={handleSubmit}
+                  className="flex flex-col gap-6"
+                >
+                  {step === 1 ? (
+                    <>
+                      <Field data-invalid={Boolean(errors.reason)}>
+                        <FieldLabel
+                          className="block w-full text-body font-semibold leading-snug"
+                          htmlFor="remove-reason"
+                        >
+                          Why should they be removed?
+                        </FieldLabel>
+                        <FieldDescription>
+                          Whoever approves the removal reads this first.
+                        </FieldDescription>
+                        <Textarea
+                          id="remove-reason"
+                          className="min-h-24"
+                          maxLength={REASON_MAX_LENGTH}
+                          value={reason}
+                          onChange={(event) => {
+                            setReason(event.target.value);
+                            setErrors((c) => ({ ...c, reason: undefined }));
+                          }}
+                        />
+                        <FieldDescription className="flex justify-end">
+                          {reason.length.toLocaleString("en-IN")} /{" "}
+                          {REASON_MAX_LENGTH.toLocaleString("en-IN")}
+                        </FieldDescription>
+                        <FieldError>{errors.reason}</FieldError>
+                      </Field>
+
+                      <Field data-invalid={Boolean(errors.document)}>
+                        <FieldLabel className="block w-full text-body font-semibold leading-snug">
+                          Supporting document
+                        </FieldLabel>
+                        <FieldDescription>
+                          Whatever evidences the grounds: correspondence, a
+                          client instruction, a notice.
+                        </FieldDescription>
+                        <UploadedDocField
+                          label="Supporting document"
+                          required
+                          file={docFile}
+                          onFileChange={(file) => {
+                            setDocFile(file);
+                            setErrors((c) => ({ ...c, document: undefined }));
+                          }}
+                        />
+                        <FieldDescription>{UPLOAD_HELP}</FieldDescription>
+                        <FieldError>{errors.document}</FieldError>
+                      </Field>
+                    </>
+                  ) : step === 2 ? (
+                    <Field data-invalid={Boolean(errors.route)}>
+                      <FieldLabel className="block w-full text-body font-semibold leading-snug">
+                        Who approves the removal?
+                      </FieldLabel>
+                      <RadioGroup
+                        value={route}
+                        onValueChange={(value) => {
+                          setRoute(value as Route);
+                          setErrors((c) => ({ ...c, route: undefined }));
+                        }}
+                        className="flex flex-col gap-3"
+                      >
+                        <div className="flex items-start gap-2">
+                          <RadioGroupItem
+                            id="remove-route-consent"
+                            value="consent"
+                            className="mt-2.5"
+                            aria-invalid={Boolean(errors.route)}
+                          />
+                          <div className="flex min-w-0 flex-col gap-0.5">
+                            <div className="flex min-h-10 items-center">
+                              <Label htmlFor="remove-route-consent">
+                                Ask {advocateName} to consent
+                              </Label>
+                            </div>
+                            <p className="-mt-2 pb-1 text-caption text-muted-foreground">
+                              They accept or reject the request from their
+                              Pending tasks. Quicker when the exit is amicable.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <RadioGroupItem
+                            id="remove-route-magistrate"
+                            value="magistrate"
+                            className="mt-2.5"
+                            aria-invalid={Boolean(errors.route)}
+                          />
+                          <div className="flex min-w-0 flex-col gap-0.5">
+                            <div className="flex min-h-10 items-center">
+                              <Label htmlFor="remove-route-magistrate">
+                                Apply to the magistrate
+                              </Label>
+                            </div>
+                            <p className="-mt-2 pb-1 text-caption text-muted-foreground">
+                              The magistrate hears the application and passes
+                              an order. Use this when consent is unlikely.
+                            </p>
+                          </div>
+                        </div>
+                      </RadioGroup>
+                      <FieldError>{errors.route}</FieldError>
+                    </Field>
+                  ) : (
+                    <DescriptionList>
+                      <ReviewRow term="Advocate">
+                        {advocateName}
+                        {partyName ? (
+                          <span className="text-muted-foreground">
+                            {" "}
+                            · representing {partyName}
+                          </span>
+                        ) : null}
+                      </ReviewRow>
+                      <ReviewRow term="Grounds">
+                        <span className="whitespace-pre-wrap">
+                          {reason.trim()}
+                        </span>
+                      </ReviewRow>
+                      <ReviewRow term="Document">{docFile?.name}</ReviewRow>
+                      <ReviewRow term="Approved by">
+                        {route === "consent"
+                          ? `${advocateName}, by consent`
+                          : "The magistrate, by order"}
+                      </ReviewRow>
+                    </DescriptionList>
+                  )}
+                </form>
+              </div>
+
+              <footer className="flex shrink-0 flex-col-reverse gap-2 border-t border-hairline px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                {step > 1 ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setStep((s) => (s - 1) as RemoveStep)}
+                  >
+                    Back
+                  </Button>
+                ) : (
+                  <span aria-hidden className="hidden sm:block" />
+                )}
+                {step < 3 ? (
+                  <Button type="submit" form="remove-advocate-form">
+                    Continue
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="destructive-solid"
+                    onClick={() => setDone(true)}
+                  >
+                    {route === "consent" ? "Send request" : "Submit application"}
+                  </Button>
+                )}
+              </footer>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={exitConfirmationOpen}
+        onOpenChange={setExitConfirmationOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard this request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The details entered here will be lost if you discard this draft.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <AlertDialogAction variant="destructive-solid" onClick={closeClean}>
+              Discard draft
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+function ReviewRow({
+  term,
+  children,
+}: {
+  term: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <DescriptionRow className="grid-cols-1 sm:grid-cols-[minmax(7rem,10rem)_1fr]">
+      <DescriptionTerm className="text-body-compact">{term}</DescriptionTerm>
+      <DescriptionDetails className="text-body-compact">
+        {children}
+      </DescriptionDetails>
+    </DescriptionRow>
+  );
+}

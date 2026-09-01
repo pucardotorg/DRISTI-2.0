@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { CaseAccessList, initials } from "@/components/access/access-list";
 import { formatPhone, useAccess, type InviteResult } from "@/components/access/access-state";
+import { RemoveAdvocateDialog } from "@/components/cases/remove-advocate-dialog";
 import { pick, type Locale } from "@/lib/onboarding/content";
 import {
   FREQUENT_COLLABORATORS,
@@ -63,6 +64,9 @@ export function ShareDialog({
   const [focused, setFocused] = React.useState(false);
   const [result, setResult] = React.useState<InviteResult | null>(null);
   const [accessQuery, setAccessQuery] = React.useState("");
+  /* An on-nama advocate whose Remove was clicked; opens the formal removal
+     flow (3a/3b) over this dialog. Staff removal stays the one-click revoke. */
+  const [removeTarget, setRemoveTarget] = React.useState<string | null>(null);
 
   const bulk = cases.length > 1;
   const single = cases.length === 1 ? cases[0] : null;
@@ -373,12 +377,21 @@ export function ShareDialog({
                   locale={locale}
                   query={accessQuery}
                   onRemove={(personId) => removeGrant(personId, single.id)}
+                  onRemoveVakalat={(person) => setRemoveTarget(person.name)}
                 />
               </section>
             </>
           ) : null}
         </div>
       </DialogContent>
+
+      <RemoveAdvocateDialog
+        open={Boolean(removeTarget)}
+        onOpenChange={(next) => {
+          if (!next) setRemoveTarget(null);
+        }}
+        advocateName={removeTarget ?? ""}
+      />
     </Dialog>
   );
 }

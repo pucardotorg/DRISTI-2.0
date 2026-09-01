@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { CaseAddPeople } from "@/components/cases/case-add-people";
 import { RestingCard } from "@/components/cases/case-overview-card";
+import { RepresentationWell } from "@/components/cases/representation-well";
 import { Badge } from "@/components/ui/badge";
 import { CardContent } from "@/components/ui/card";
 import {
@@ -584,8 +585,14 @@ function LitigantDetail({
     facts: litigant.partyInPerson ? (
       <FactWell primary="Party in person" />
     ) : litigant.advocates.length > 0 ? (
+      /* Each advocate's well carries the removal entry point (3a/3b) —
+         a client island in an otherwise server pane. */
       litigant.advocates.map((advocate) => (
-        <FactWell key={advocate} primary={advocate} />
+        <RepresentationWell
+          key={advocate}
+          advocate={advocate}
+          partyName={litigant.name}
+        />
       ))
     ) : (
       <SectionNote>No advocate on record</SectionNote>

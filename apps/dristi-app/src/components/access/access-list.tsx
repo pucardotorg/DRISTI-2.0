@@ -59,6 +59,7 @@ export function PersonRow({
   grant,
   locale,
   onRemove,
+  onRemoveVakalat,
 }: {
   person: AccessPerson;
   /** The person's grant on the case this list is scoped to. */
@@ -66,6 +67,12 @@ export function PersonRow({
   locale: Locale;
   /** Omit to render the row without a remove affordance (read-only contexts). */
   onRemove?: () => void;
+  /**
+   * Makes Remove live on on-nama rows, opening the formal removal flow
+   * (3a/3b) instead of the locked-button explanation. Contexts without the
+   * flow wired keep the locked button.
+   */
+  onRemoveVakalat?: () => void;
 }) {
   const isVakalat = grant.role === "vakalat";
   const grantInviter = grant.addedBy ?? person.addedBy;
@@ -102,7 +109,18 @@ export function PersonRow({
           <span className="text-caption text-muted-foreground">
             {pick(roleCopy.vakalat, locale)}
           </span>
-          <LockedRemove locale={locale} />
+          {onRemoveVakalat ? (
+            <Button
+              type="button"
+              variant="destructive-ghost"
+              size="sm"
+              onClick={onRemoveVakalat}
+            >
+              {pick(listCopy.remove, locale)}
+            </Button>
+          ) : (
+            <LockedRemove locale={locale} />
+          )}
         </div>
       ) : onRemove ? (
         <Button type="button" variant="destructive-ghost" size="sm" onClick={onRemove}>
@@ -143,12 +161,15 @@ export function CaseAccessList({
   locale,
   query = "",
   onRemove,
+  onRemoveVakalat,
 }: {
   caseId: string;
   people: AccessPerson[];
   locale: Locale;
   query?: string;
   onRemove?: (personId: string) => void;
+  /** See PersonRow — makes Remove live on on-nama rows. */
+  onRemoveVakalat?: (person: AccessPerson) => void;
 }) {
   const q = query.trim().toLowerCase();
   const phoneQ = q.replace(/\D/g, "");
@@ -181,6 +202,9 @@ export function CaseAccessList({
           grant={grant}
           locale={locale}
           onRemove={onRemove ? () => onRemove(person.id) : undefined}
+          onRemoveVakalat={
+            onRemoveVakalat ? () => onRemoveVakalat(person) : undefined
+          }
         />
       ))}
     </div>
