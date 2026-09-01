@@ -12,17 +12,16 @@
  */
 
 import * as React from "react";
-import { Trash2Icon } from "lucide-react";
 
 import {
   Attachment,
-  AttachmentAction,
   AttachmentActions,
   AttachmentContent,
   AttachmentDescription,
   AttachmentMedia,
   AttachmentTitle,
 } from "@/components/ui/attachment";
+import { Button } from "@/components/ui/button";
 import { DocumentSlot } from "@/components/ui/document-slot";
 import {
   DocumentPreviewDialog,
@@ -87,20 +86,26 @@ export function UploadedDocField({
               {file.name} · {fileSize(file.size)}
             </AttachmentDescription>
           </AttachmentContent>
-          {/* One action, the e-filing attachment rows' own: the trash.
-              Removing lands back on the Choose-file slot, which IS the
-              change-file path — a second labelled button restated it
+          {/* The join flow's own Change file / Remove link pair, riding
+              the row's right edge rather than a line under the box
               (owner, Sept 1). */}
-          <AttachmentActions>
-            <AttachmentAction
+          <AttachmentActions className="gap-4 pr-2">
+            <Button
               type="button"
-              variant="destructive-ghost"
-              size="icon"
-              aria-label={`Remove ${file.name}`}
+              variant="link"
+              className="h-auto p-0"
+              onClick={() => inputRef.current?.click()}
+            >
+              Change file
+            </Button>
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto p-0 text-destructive-ink"
               onClick={() => onFileChange(null)}
             >
-              <Trash2Icon aria-hidden />
-            </AttachmentAction>
+              Remove
+            </Button>
           </AttachmentActions>
         </Attachment>
       ) : (
