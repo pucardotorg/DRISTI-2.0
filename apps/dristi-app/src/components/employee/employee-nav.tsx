@@ -3,34 +3,25 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MinusIcon, PlusIcon } from "lucide-react";
 
 import { CURRENT_STAFF, greetingFor } from "@/lib/employee/content";
 import {
-  COURT_NAV_GROUPS,
-  COURT_NAV_LINKS,
-  type CourtNavGroup,
+  COURT_NAV_VIEWS,
+  COURT_NAV_WORK,
   type CourtNavItem,
 } from "@/lib/employee/navigation";
 import { BrandLockup } from "@/components/brand-lockup";
 import {
   ChromeRail,
   RAIL_BRAND_ROW,
-  RAIL_GROUP_LABEL,
   RAIL_MUTED,
   RAIL_ROW,
   railRowNote,
 } from "@/components/chrome/app-chrome";
 import { CHARCOAL_PLATE } from "@/components/chrome/rail-plate";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -48,8 +39,9 @@ import {
  *
  * Everything about how it looks comes from the shared chrome frame: the plate, the row
  * and section metrics, the seam, the off-canvas behaviour below `md`. What lives here is
- * only what is the bench's — who is greeted, what the four groups of work are, and which
- * of them the court can actually reach yet.
+ * only what is the bench's — who is greeted, what the main rows of work are (see
+ * `lib/employee/navigation.ts` for the shape and its history), and which of them the
+ * court can actually reach yet.
  *
  * The plate is charcoal, always. A magistrate's rail is institutional chrome; it does not
  * read a preference store and it offers no picker.
@@ -59,7 +51,9 @@ import {
 function spokenNote(item: CourtNavItem): string {
   return railRowNote([
     item.count !== undefined &&
-      (item.count === 0 ? "nothing waiting" : `${item.count} waiting`),
+      (item.count === 0
+        ? "nothing waiting"
+        : `${item.count.toLocaleString("en-IN")} waiting`),
     item.external && "opens outside DRISTI",
     !item.href && "not available yet",
   ]);
@@ -69,7 +63,7 @@ function spokenNote(item: CourtNavItem): string {
  * What a row is made of, in both the link and the not-yet-a-link case.
  *
  * The label truncates and the count does not: a count is the whole point of the row, and
- * `1312` losing a digit would be a lie where a clipped label is only an inconvenience.
+ * a count losing a digit would be a lie where a clipped label is only an inconvenience.
  *
  * A zero count renders no mark at all. The count exists to say how much is waiting, and
  * an empty queue has nothing to say — a spark against a nought would report an obligation
@@ -81,18 +75,11 @@ function RowContents({ item }: { item: CourtNavItem }) {
   const note = spokenNote(item);
   return (
     <>
-      {/* The glyph column is reserved on every row, not just the rows that fill it, so
-          all 17 labels in the rail start at the same x. Only the two standalone links
-          carry a mark; a group's rows hold the space and show nothing. Without the
-          placeholder the two marked rows indent past the fifteen unmarked ones, which is
-          the misalignment this rail was pulled up on. `size-4` matches the icon box above, so the two branches are the same width by construction. */}
+      {/* Every rail row carries a mark now that every row is a destination; the
+          placeholder branch keeps the labels aligned if a markless row ever returns.
+          16px in muted ink — the same box and ink the group-label glyphs used — so the
+          marks read as wayfinding, not as a louder species of icon than the labels. */}
       {Icon ? (
-        /* Matched to the group headers' mark, not to this row's text: the same 16px box
-           the DS gives a `SidebarGroupLabel` glyph, and the same `--rail-muted` ink.
-           `RAIL_ROW` sizes row glyphs at 20px for a rail whose every row is marked; here
-           only two rows are, and at 20px in full-strength ink they read as a louder
-           species of icon than the four section marks they sit above. Muted also keeps
-           the mark under its own label, which stays at the row's ink. */
         <Icon aria-hidden className="size-4! text-(--rail-muted)" />
       ) : (
         <span aria-hidden className="size-4 shrink-0" />
@@ -103,12 +90,11 @@ function RowContents({ item }: { item: CourtNavItem }) {
         /* How much is waiting: a quiet numeral with a small spark beside it.
            This is the advocate rail's `TasksCount` treatment, adopted rather than
            re-derived. That rail was deliberately pulled back from a full red pill —
-           it "read as an alarm bolted to the nav" — and this rail had twelve of them at
-           rest, since every group opens by default. The red also claimed the wrong thing:
+           it "read as an alarm bolted to the nav". The red also claimed the wrong thing:
            `--rail-badge` resolves to `--destructive-solid`, and the DS reserves that
-           family for irreversible or dangerous actions. A signing queue is workload.
-           The red survives as the 6px spark — enough to say "live obligation" without
-           shouting a number that is already legible as text.
+           family for irreversible or dangerous actions. A queue is workload. The red
+           survives as the 6px spark — enough to say "live obligation" without shouting
+           a number that is already legible as text.
 
            The ink has to change with the row's ground. Idle, the numeral sits on the
            charcoal plate at `--rail-muted` (6.28:1). Selected, the row inverts to the
@@ -126,7 +112,9 @@ function RowContents({ item }: { item: CourtNavItem }) {
           ].join(" ")}
         >
           <span className="size-1.5 rounded-full bg-(--rail-badge)" />
-          {item.count}
+          {/* Grouped the way the screens write the same number — two surfaces should
+              not spell one count two ways. */}
+          {item.count.toLocaleString("en-IN")}
         </span>
       ) : null}
     </>
@@ -169,51 +157,6 @@ function CourtNavRow({ item }: { item: CourtNavItem }) {
         </TooltipContent>
       </Tooltip>
     </SidebarMenuItem>
-  );
-}
-
-/**
- * A group of rows behind its own disclosure. Open by default; the whole header toggles.
- *
- * The toggle is a plus when the group is shut and a minus when it is open — the sign
- * names what pressing it does, which a chevron only implies. It is decorative on purpose:
- * `aria-expanded` on the header already carries the state, and announcing the glyph too
- * would say the same thing twice and disagree with it half the time.
- */
-function CourtNavGroupSection({ group }: { group: CourtNavGroup }) {
-  const Icon = group.icon;
-  return (
-    <Collapsible defaultOpen className="group/court-group">
-      <SidebarGroup>
-        <SidebarGroupLabel asChild className={RAIL_GROUP_LABEL}>
-          <CollapsibleTrigger>
-            <Icon aria-hidden />
-            <span className="min-w-0 flex-1 truncate text-left">
-              {group.label}
-            </span>
-            {/* Both signs are rendered and one is hidden, so the toggle's width never
-                changes as it flips and the label's truncation point holds still. */}
-            <PlusIcon
-              aria-hidden
-              className="hidden group-data-[state=closed]/court-group:block"
-            />
-            <MinusIcon
-              aria-hidden
-              className="group-data-[state=closed]/court-group:hidden"
-            />
-          </CollapsibleTrigger>
-        </SidebarGroupLabel>
-        <CollapsibleContent>
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-1">
-              {group.items.map((item) => (
-                <CourtNavRow key={item.id} item={item} />
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </CollapsibleContent>
-      </SidebarGroup>
-    </Collapsible>
   );
 }
 
@@ -281,22 +224,31 @@ export function EmployeeNav() {
         plate={CHARCOAL_PLATE}
         navLabel="Court navigation"
         sheetTitle="Court navigation"
-        sheetDescription="Hearings, actions, applications and signing for this court."
+        sheetDescription="Hearings, today's actions, applications and signing for this court."
         header={<CourtRailHeader />}
       >
+        {/* Two flat runs with one rule between them: the courtroom's work above, the
+            views out of DRISTI below. The rows' order and destinations live in
+            `lib/employee/navigation.ts`. */}
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
-              {COURT_NAV_LINKS.map((item) => (
+              {COURT_NAV_WORK.map((item) => (
                 <CourtNavRow key={item.id} item={item} />
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
         <SidebarSeparator />
-        {COURT_NAV_GROUPS.map((group) => (
-          <CourtNavGroupSection key={group.id} group={group} />
-        ))}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-1">
+              {COURT_NAV_VIEWS.map((item) => (
+                <CourtNavRow key={item.id} item={item} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </ChromeRail>
     </TooltipProvider>
   );
