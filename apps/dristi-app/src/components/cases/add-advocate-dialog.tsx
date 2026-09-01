@@ -23,12 +23,15 @@
  * clients; you cannot put an advocate on record for the opposing party.
  *
  * The lookup resolves registered advocates on the tenth digit, the share
- * dialog's gesture. An unknown number is an invite, not a dead end: their
- * name is asked for right at the input (once, before the chip stacks) and
- * they register when they join.
+ * dialog's gesture. An unknown number is an invite, not a dead end: the
+ * phone field itself morphs to ask for their name (the number moves into
+ * the field's prefix, so whose name is never a question), and the chip
+ * stacks once the name lands. Chips carry no "invited" tag; nothing is
+ * sent until the review is submitted, and saying otherwise would claim an
+ * act that has not happened (owner's call, Sept 1).
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { FileTextIcon, XIcon } from "lucide-react";
 
 import {
@@ -72,6 +75,7 @@ import {
   InputGroupText,
 } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { initials } from "@/components/access/access-list";
 import { FlowStepper } from "@/components/cases/flow-stepper";
 import {
@@ -130,7 +134,6 @@ export function AddAdvocateDialog({
   litigants: PartyOption[];
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const inviteNameRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<AdvocateStep>(1);
   const [phoneInput, setPhoneInput] = useState("");
   const [focused, setFocused] = useState(false);
@@ -160,10 +163,6 @@ export function AddAdvocateDialog({
   const alreadyStacked = chips.some((chip) => chip.phone === phoneInput);
   const lookup =
     inputValid && !alreadyStacked ? (ADVOCATE_LOOKUP[phoneInput] ?? null) : null;
-
-  useEffect(() => {
-    if (pendingInvite) inviteNameRef.current?.focus();
-  }, [pendingInvite]);
 
   function resetForm() {
     setStep(1);
@@ -213,7 +212,6 @@ export function AddAdvocateDialog({
     if (!pendingInvite) return;
     if (!inviteName.trim()) {
       setErrors((c) => ({ ...c, advocates: "Enter the advocate's name." }));
-      inviteNameRef.current?.focus();
       return;
     }
     stack({ phone: pendingInvite, name: inviteName.trim() });
@@ -229,7 +227,6 @@ export function AddAdvocateDialog({
       if (pendingInvite) {
         if (!inviteName.trim()) {
           setErrors((c) => ({ ...c, advocates: "Enter the advocate's name." }));
-          inviteNameRef.current?.focus();
           return;
         }
         commitInvite();
@@ -320,13 +317,15 @@ export function AddAdvocateDialog({
                               <span className="font-medium">{chip.name}</span>
                               <span className="text-muted-foreground tabular-nums">
                                 {formatAdvocatePhone(chip.phone)}
-                                {chip.barId ? null : " · invited"}
                               </span>
                             </span>
+                            {/* Centered on the chip, not self-start: with
+                                two lines of text a top-pinned cross reads
+                                misaligned (owner's call, Sept 1). */}
                             <button
                               type="button"
                               aria-label={`Remove ${chip.name}`}
-                              className="flex size-5 items-center justify-center self-start rounded-sm text-muted-foreground hover:text-foreground"
+                              className="flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
                               onClick={() =>
                                 setChips((existing) =>
                                   existing.filter((c) => c.phone !== chip.phone)
@@ -340,6 +339,62 @@ export function AddAdvocateDialog({
                       </div>
                     ) : null}
 
+                    {pendingInvite ? (
+                      /* The same control, second stage: the number just
+                         picked moves into the prefix and the field asks
+                         for the name, so whose name is never a question. */
+                      <div className="flex items-center gap-2">
+                        <InputGroup className="flex-1">
+                          <InputGroupAddon>
+                            <InputGroupText className="tabular-nums">
+                              +91 {formatAdvocatePhone(pendingInvite)}
+                            </InputGroupText>
+                          </InputGroupAddon>
+                          <InputGroupInput
+                            id="advocate-phone"
+                            autoFocus
+                            autoComplete="off"
+                            placeholder="Advocate's name"
+                            aria-label={`Name for +91 ${formatAdvocatePhone(pendingInvite)}`}
+                            value={inviteName}
+                            onChange={(event) => {
+                              setInviteName(event.target.value);
+                              setErrors((c) => ({
+                                ...c,
+                                advocates: undefined,
+                              }));
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                commitInvite();
+                              }
+                            }}
+                          />
+                        </InputGroup>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={commitInvite}
+                        >
+                          Add
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground"
+                          aria-label="Cancel this invite"
+                          onClick={() => {
+                            setPendingInvite(null);
+                            setInviteName("");
+                            setErrors((c) => ({ ...c, advocates: undefined }));
+                          }}
+                        >
+                          <XIcon aria-hidden />
+                        </Button>
+                      </div>
+                    ) : (
                     <div className="relative">
                       <InputGroup>
                         <InputGroupAddon>
@@ -415,6 +470,7 @@ export function AddAdvocateDialog({
                         </div>
                       ) : null}
                     </div>
+                    )}
 
                     {alreadyStacked ? (
                       <FieldDescription>
@@ -422,66 +478,17 @@ export function AddAdvocateDialog({
                       </FieldDescription>
                     ) : null}
 
-                    {pendingInvite ? (
-                      <div className="flex items-start gap-2">
-                        <div className="flex min-w-0 flex-1 flex-col gap-1">
-                          <Label
-                            htmlFor="invite-name"
-                            className="text-caption text-muted-foreground"
-                          >
-                            Name for +91 {formatAdvocatePhone(pendingInvite)}
-                          </Label>
-                          <Input
-                            id="invite-name"
-                            ref={inviteNameRef}
-                            autoComplete="off"
-                            placeholder="Advocate's name"
-                            value={inviteName}
-                            onChange={(event) => {
-                              setInviteName(event.target.value);
-                              setErrors((c) => ({
-                                ...c,
-                                advocates: undefined,
-                              }));
-                            }}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") {
-                                event.preventDefault();
-                                commitInvite();
-                              }
-                            }}
-                          />
-                        </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="mt-5"
-                          onClick={commitInvite}
-                        >
-                          Add
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="mt-5 text-muted-foreground"
-                          aria-label="Cancel this invite"
-                          onClick={() => {
-                            setPendingInvite(null);
-                            setInviteName("");
-                            setErrors((c) => ({ ...c, advocates: undefined }));
-                          }}
-                        >
-                          <XIcon aria-hidden />
-                        </Button>
-                      </div>
-                    ) : null}
-
                     <FieldError>{errors.advocates}</FieldError>
+                    {/* While naming an invitee the demo numbers are noise;
+                        the line explains the register-on-join instead. */}
                     <p className="text-caption text-muted-foreground tabular-nums">
-                      {ADVOCATE_DEMO_NUMBERS}
+                      {pendingInvite
+                        ? "Not on DRISTI yet. They'll be asked to register when they join."
+                        : ADVOCATE_DEMO_NUMBERS}
                     </p>
                   </Field>
+
+                  <Separator />
 
                   <Field data-invalid={Boolean(errors.parties)}>
                     <FieldLabel className="block w-full text-body font-semibold leading-snug">
