@@ -12,9 +12,11 @@
  * cross-reference each other instead — the share dialog notices when a typed
  * number belongs to an advocate and points here.
  *
- * The lookup resolves registered advocates only: an advocate joins on their
- * registered identity, not on a name somebody typed. An unknown number gets
- * an explanation, never a free-text name field.
+ * The lookup resolves registered advocates on the tenth digit; an unknown
+ * number is an invite, not a dead end — the advocate registers when they
+ * join, the same pattern the share dialog uses for staff (user's call,
+ * Sept 1: the vakalatnama carries the identity, so the registry need not).
+ * An invited advocate needs their name typed, since nothing can resolve it.
  *
  * Same three-step grammar as the witness dialog on purpose — one Add-people
  * entry, one shape per flow.
@@ -65,6 +67,7 @@ import {
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import {
   InputGroup,
   InputGroupAddon,
@@ -109,7 +112,8 @@ const STEPS: Array<{ step: AdvocateStep; title: string; description: string }> =
     },
   ];
 
-type SelectedAdvocate = { phone: string; name: string; barId: string };
+/** `barId` absent = not on DRISTI yet; the name is typed, not resolved. */
+type SelectedAdvocate = { phone: string; name: string; barId?: string };
 
 type Errors = {
   advocate?: string;
@@ -188,9 +192,9 @@ export function AddAdvocateDialog({
     if (step === 1) {
       const next: Errors = {};
       if (!advocate) {
-        next.advocate = inputValid
-          ? "This number is not registered as an advocate on DRISTI. Check the number, or ask them to register first."
-          : "Find the advocate by their registered mobile number.";
+        next.advocate = "Find the advocate by their mobile number.";
+      } else if (!advocate.name.trim()) {
+        next.advocate = "Enter the advocate's name.";
       }
       if (partyIds.length === 0) {
         next.parties = "Pick at least one party for the advocate to represent.";
@@ -270,39 +274,81 @@ export function AddAdvocateDialog({
                         Advocate
                       </CardTitle>
                       <CardDescription className="text-body-compact">
-                        Only advocates registered on DRISTI can be added.
+                        Find them by mobile number. An advocate not on DRISTI
+                        yet can still be added — they register when they join.
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
                       {advocate ? (
-                        <div className="flex items-center gap-3 rounded-lg bg-surface-sunken p-3">
-                          <Avatar className="size-9 shrink-0">
-                            <AvatarFallback className="text-caption font-medium">
-                              {initials(advocate.name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                            <p className="truncate text-body font-medium">
-                              {advocate.name}
-                            </p>
-                            <p className="truncate text-caption text-muted-foreground">
-                              <span className="tabular-nums">
-                                {formatAdvocatePhone(advocate.phone)}
-                              </span>
-                              {" · Bar ID "}
-                              <span className="font-mono">{advocate.barId}</span>
-                            </p>
+                        <div className="flex flex-col gap-4">
+                          <div className="flex items-center gap-3 rounded-lg bg-surface-sunken p-3">
+                            <Avatar className="size-9 shrink-0">
+                              <AvatarFallback className="text-caption font-medium">
+                                {advocate.name ? initials(advocate.name) : "#"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                              <p className="truncate text-body font-medium">
+                                {advocate.name.trim() ||
+                                  `+91 ${formatAdvocatePhone(advocate.phone)}`}
+                              </p>
+                              <p className="truncate text-caption text-muted-foreground">
+                                <span className="tabular-nums">
+                                  {formatAdvocatePhone(advocate.phone)}
+                                </span>
+                                {advocate.barId ? (
+                                  <>
+                                    {" · Bar ID "}
+                                    <span className="font-mono">
+                                      {advocate.barId}
+                                    </span>
+                                  </>
+                                ) : (
+                                  " · Not on DRISTI yet — they'll be asked to register when they join"
+                                )}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Remove the advocate"
+                              className="text-muted-foreground"
+                              onClick={() => setAdvocate(null)}
+                            >
+                              <XIcon aria-hidden />
+                            </Button>
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            aria-label={`Remove ${advocate.name}`}
-                            className="text-muted-foreground"
-                            onClick={() => setAdvocate(null)}
-                          >
-                            <XIcon aria-hidden />
-                          </Button>
+                          {/* Nothing can resolve an invited advocate's name,
+                              so it is the one thing the inviter types. */}
+                          {!advocate.barId ? (
+                            <Field data-invalid={Boolean(errors.advocate)}>
+                              <FieldLabel
+                                className="text-body"
+                                htmlFor="advocate-name"
+                              >
+                                Advocate&apos;s name
+                              </FieldLabel>
+                              <Input
+                                id="advocate-name"
+                                autoComplete="off"
+                                value={advocate.name}
+                                onChange={(event) => {
+                                  const name = event.target.value;
+                                  setAdvocate((current) =>
+                                    current ? { ...current, name } : current
+                                  );
+                                  setErrors((current) => ({
+                                    ...current,
+                                    advocate: undefined,
+                                  }));
+                                }}
+                              />
+                              <FieldError className="text-body-compact">
+                                {errors.advocate}
+                              </FieldError>
+                            </Field>
+                          ) : null}
                         </div>
                       ) : (
                         <Field data-invalid={Boolean(errors.advocate)}>
@@ -370,10 +416,39 @@ export function AddAdvocateDialog({
                             </button>
                           ) : null}
                           {inputValid && !lookup ? (
-                            <FieldDescription className="text-body-compact">
-                              No registered advocate has this number. Check the
-                              number, or ask them to register on DRISTI first.
-                            </FieldDescription>
+                            /* An unknown number is an invite, not a wall:
+                               they register when they join, like invited
+                               staff in the share dialog. */
+                            <button
+                              type="button"
+                              className="flex w-full items-center gap-3 rounded-lg border border-hairline px-3 py-2.5 text-left transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:outline-1 focus-visible:outline-ring"
+                              onClick={() => {
+                                setAdvocate({ phone: phoneInput, name: "" });
+                                setPhoneInput("");
+                                setErrors((current) => ({
+                                  ...current,
+                                  advocate: undefined,
+                                }));
+                              }}
+                            >
+                              <Avatar className="size-8 shrink-0">
+                                <AvatarFallback className="text-caption font-medium">
+                                  #
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="flex min-w-0 flex-1 flex-col">
+                                <span className="truncate text-body-compact font-medium tabular-nums">
+                                  +91 {formatAdvocatePhone(phoneInput)}
+                                </span>
+                                <span className="truncate text-caption text-muted-foreground">
+                                  Not on DRISTI yet — they&apos;ll be asked to
+                                  register when they join
+                                </span>
+                              </span>
+                              <span className="shrink-0 text-caption font-medium text-muted-foreground">
+                                Select
+                              </span>
+                            </button>
                           ) : null}
                           <FieldDescription className="text-caption tabular-nums">
                             {ADVOCATE_DEMO_NUMBERS}
@@ -480,10 +555,18 @@ export function AddAdvocateDialog({
                     <DescriptionList>
                       <ReviewRow term="Advocate">
                         {advocate?.name}
+                        {advocate && !advocate.barId ? (
+                          <span className="text-muted-foreground">
+                            {" "}
+                            (will be asked to register when they join)
+                          </span>
+                        ) : null}
                       </ReviewRow>
-                      <ReviewRow term="Bar ID">
-                        <span className="font-mono">{advocate?.barId}</span>
-                      </ReviewRow>
+                      {advocate?.barId ? (
+                        <ReviewRow term="Bar ID">
+                          <span className="font-mono">{advocate.barId}</span>
+                        </ReviewRow>
+                      ) : null}
                       <ReviewRow term="Representing">
                         {formatNames(chosenParties.map((party) => party.name))}
                       </ReviewRow>

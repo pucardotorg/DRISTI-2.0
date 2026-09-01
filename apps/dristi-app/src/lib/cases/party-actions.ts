@@ -39,11 +39,12 @@ export const PARTY_SIDE_LABEL: Record<PartyOption["side"], string> = {
  * lookup resolves against this the moment the tenth digit lands, the same
  * gesture as the share dialog's staff lookup.
  *
- * Registered advocates only: an unknown number is a person the registry
- * cannot vouch for, and the flow says so rather than letting a name be typed
- * over it — an advocate joins on their registered identity, not on spelling.
- * Thomas and Rajesh share their numbers with `PHONE_DIRECTORY` in
- * lib/access/content.ts so the two demo worlds agree about who is who.
+ * An unknown number is not a wall: the advocate is invited and registers
+ * when they join (user's call, Sept 1 — the vakalatnama carries the
+ * identity, so the registry need not). The lookup's job is only to save
+ * typing and show the Bar ID when the person IS registered. Thomas and
+ * Rajesh share their numbers with `PHONE_DIRECTORY` in lib/access/content.ts
+ * so the two demo worlds agree about who is who.
  */
 export const ADVOCATE_LOOKUP: Record<string, { name: string; barId: string }> = {
   "9847012345": { name: "Adv. Thomas K. George", barId: "K/1021/2011" },
