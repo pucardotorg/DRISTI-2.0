@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { AddWitnessDialog } from "@/components/cases/add-witness-form";
+import { CaseAddPeople } from "@/components/cases/case-add-people";
 import { RestingCard } from "@/components/cases/case-overview-card";
 import { Badge } from "@/components/ui/badge";
 import { CardContent } from "@/components/ui/card";
@@ -126,8 +126,19 @@ export function CaseParticipants({
               </span>
             </p>
           </div>
-          {/* The one teal in the region (Ration teal). */}
-          <AddWitnessDialog />
+          {/* The one teal in the region (Ration teal). The universal
+              Add-people entry — advocate, witness, PoA-holder — with the
+              party options built here, on the server, so the dialogs never
+              import the authored pack. */}
+          <CaseAddPeople
+            litigants={file.litigants.map((row) => ({
+              id: row.id,
+              name: row.name,
+              side: row.side,
+              poaHolder: row.powerOfAttorneyHolder,
+            }))}
+            advocates={file.legalTeams.map((team) => team.advocate)}
+          />
         </CardContent>
 
         <Separator />

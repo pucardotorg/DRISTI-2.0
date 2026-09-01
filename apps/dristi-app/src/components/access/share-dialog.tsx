@@ -3,6 +3,7 @@
 import * as React from "react";
 import { CheckCircle2Icon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -69,6 +70,19 @@ export function ShareDialog({
 
   const inputValid = /^\d{10}$/.test(input);
   const lookup = inputValid ? (PHONE_DIRECTORY[input] ?? null) : null;
+
+  /* The wrong-door check: an advocate's number in the share box almost
+     always means "add them to the case", which is the Parties tab's job —
+     office access is all this dialog can grant. The notice names whoever is
+     stacked (or currently resolved) and points to the other door; it warns,
+     never blocks, because giving an advocate plain office access is rare but
+     legitimate. */
+  const advocateNames = [
+    ...chips
+      .filter((chip) => PHONE_DIRECTORY[chip.phone.replace(/\D/g, "")]?.advocate)
+      .map((chip) => chip.name ?? chip.phone),
+    ...(lookup?.advocate ? [lookup.name] : []),
+  ];
 
   function handleOpenChange(nextOpen: boolean) {
     // Closing clears transient invite state so reopening any case scope starts
@@ -265,6 +279,16 @@ export function ShareDialog({
                 </Button>
               </div>
             </Field>
+
+            {advocateNames.length ? (
+              <Alert>
+                <AlertDescription>
+                  {fillCopy(shareCopy.advocateNotice, locale, {
+                    name: [...new Set(advocateNames)].join(", "),
+                  })}
+                </AlertDescription>
+              </Alert>
+            ) : null}
 
             {suggestions.length ? (
               <div className="mt-2 flex flex-col gap-2">

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ChevronDownIcon,
   FileTextIcon,
   MailIcon,
   MapPinIcon,
@@ -30,12 +29,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Card,
   CardAction,
@@ -121,7 +114,8 @@ const STEPS: Array<{ step: WitnessStep; title: string; description: string }> = 
   },
 ];
 
-const STEPPER_ITEM_CLASS =
+/** Shared by every Add-people stepper dialog so the three flows read as one. */
+export const STEPPER_ITEM_CLASS =
   "items-center [&>div:first-child]:relative [&>div:first-child]:justify-center [&_[data-slot=stepper-connector]]:absolute [&_[data-slot=stepper-connector]]:inset-y-0 [&_[data-slot=stepper-connector]]:left-[calc(50%+1.5rem)] [&_[data-slot=stepper-connector]]:right-[calc(-50%+1.5rem)] [&_[data-slot=stepper-connector]]:mx-0 [&_[data-slot=stepper-connector]]:my-auto [&_[data-slot=stepper-connector]]:h-px [&_[data-slot=stepper-connector]]:min-w-0 [&_[data-slot=stepper-connector]]:w-auto [&_[data-slot=stepper-connector]]:flex-none [&>div:last-child]:w-full [&>div:last-child]:pr-0 [&>div:last-child]:text-center";
 
 const EMPTY_DETAILS_ERRORS: WitnessDetailsErrors = { documents: {} };
@@ -131,9 +125,9 @@ function createClientId(prefix: "address" | "document"): string {
   return `${prefix}-${crypto.randomUUID()}`;
 }
 
-function stepStatus(
-  itemStep: WitnessStep,
-  currentStep: WitnessStep
+export function stepStatus(
+  itemStep: number,
+  currentStep: number
 ): "complete" | "current" | "upcoming" {
   if (itemStep < currentStep) return "complete";
   if (itemStep === currentStep) return "current";
@@ -1070,10 +1064,20 @@ function ReviewStep({
   );
 }
 
-export function AddWitnessDialog() {
+/**
+ * Controlled from outside: the trigger lives in `CaseAddPeople`, the Parties
+ * tab's universal Add-people menu, alongside the advocate and PoA flows. The
+ * dialog owns only its own steps and draft.
+ */
+export function AddWitnessDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const formRef = useRef<HTMLFormElement>(null);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
-  const [open, setOpen] = useState(false);
   const [step, setStep] = useState<WitnessStep>(1);
   const [draft, setDraft] = useState<WitnessDraft>(createEmptyWitnessDraft);
   const [mobileInput, setMobileInput] = useState("");
@@ -1106,7 +1110,7 @@ export function AddWitnessDialog() {
 
   function closeClean() {
     resetForm();
-    setOpen(false);
+    onOpenChange(false);
   }
 
   function requestExit() {
@@ -1333,36 +1337,10 @@ export function AddWitnessDialog() {
 
   return (
     <>
-      {/* "Case actions" is the label the product asked for, so the control
-          has to be shaped like one: a menu that names the task it opens.
-          A plain button reading "Case actions" with a plus on it promised
-          a menu and an add at the same time, and a screen-reader user
-          activated "Case actions" only to land in "Add witness progress".
-          Same pattern as `case-header-actions.tsx` — chevron trigger, one
-          enabled item. One item is deliberate: nothing else on this screen
-          is a case action yet, and inventing entries to justify the plural
-          would be worse than a short menu. */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button type="button" className="w-full shrink-0 sm:w-auto">
-            Case actions
-            <ChevronDownIcon data-icon="inline-end" aria-hidden />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {/* The menu closes and restores focus to its trigger, then the
-              dialog opens and traps focus; closing the dialog hands focus
-              back to the same trigger. */}
-          <DropdownMenuItem onSelect={() => setOpen(true)}>
-            Add witness
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
       <Dialog
         open={open}
         onOpenChange={(next) => {
-          if (next) setOpen(true);
+          if (next) onOpenChange(true);
           else requestExit();
         }}
       >

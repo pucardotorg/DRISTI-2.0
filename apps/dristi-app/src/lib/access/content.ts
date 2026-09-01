@@ -511,13 +511,22 @@ export const FREQUENT_COLLABORATORS: Array<{ name: string; phone: string; role: 
  * Stand-in for the DRISTI account lookup: the tenth digit resolves the number
  * to the registered name (and, for past team members, their designation).
  */
-export const PHONE_DIRECTORY: Record<string, { name: string; designation?: AccessRole }> = {
+export const PHONE_DIRECTORY: Record<
+  string,
+  { name: string; designation?: AccessRole; advocate?: boolean }
+> = {
   "9447088221": { name: "Anil Raghavan", designation: "clerk" },
   "9495033417": { name: "Adv. Priya Nair", designation: "junior" },
   "9495166778": { name: "Adv. Rahul Menon", designation: "junior" },
   "9072055190": { name: "Sameer K.", designation: "clerk" },
-  "9847012345": { name: "Adv. Thomas K. George" },
-  "9847098765": { name: "Adv. Rajesh Kurup" },
+  /* `advocate` marks independent advocates — people who would act on the
+     case through a vakalatnama rather than as somebody's office staff. The
+     share dialog uses it to notice a wrong-door moment: sharing to an
+     advocate is almost always "add them to the case" intended, and it points
+     to the Parties tab instead of silently granting office access. Juniors
+     stay unmarked — sharing to them is exactly what the dialog is for. */
+  "9847012345": { name: "Adv. Thomas K. George", advocate: true },
+  "9847098765": { name: "Adv. Rajesh Kurup", advocate: true },
   "9876501234": { name: "Ramesh Chandran" },
   "9746140832": { name: "Adv. Leena S. Nair", designation: "junior" },
   "9961472058": { name: "Adv. Sreeja Mohan", designation: "junior" },
@@ -561,6 +570,10 @@ export const shareCopy = {
   accessSearchPlaceholder: t("Search people", "ആളുകളെ തിരയുക"),
   you: t("(you)", "(നിങ്ങൾ)"),
   statusInvited: t("Yet to join", "ചേരാനുണ്ട്"),
+  advocateNotice: t(
+    "{name} is an advocate — sharing gives office access only. To have them act on this case, add them from the Parties tab with a vakalatnama.",
+    "{name} ഒരു അഭിഭാഷകനാണ് — പങ്കിടുന്നത് ഓഫീസ് ആക്‌സസ് മാത്രമേ നൽകൂ. ഈ കേസിൽ പ്രവർത്തിക്കാൻ, വക്കാലത്ത്നാമയോടെ പാർട്ടീസ് ടാബിൽ നിന്ന് അവരെ ചേർക്കുക.",
+  ),
 };
 
 export const roleCopy: Record<AccessRole, Copy> = {
