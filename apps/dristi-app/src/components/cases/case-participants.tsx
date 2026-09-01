@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { CaseAddPeople } from "@/components/cases/case-add-people";
 import { RestingCard } from "@/components/cases/case-overview-card";
+import { PoaHolderWell } from "@/components/cases/poa-holder-actions";
 import { RepresentationWell } from "@/components/cases/representation-well";
 import { Badge } from "@/components/ui/badge";
 import { CardContent } from "@/components/ui/card";
@@ -610,7 +611,38 @@ function LitigantDetail({
     sections.push({
       id: "participant-poa",
       title: "Power of attorney",
-      facts: <FactWell primary={litigant.powerOfAttorneyHolder} />,
+      /* Remove and Replace (scenarios 6/7) ride the holder's own well —
+         own side only, like the Representation wells. The takeover pool
+         (scenario 8's shape) is the viewer's other litigants and the
+         side's advocates, built here so the client island never imports
+         the authored pack. */
+      facts:
+        litigant.side === VIEWER_SIDE ? (
+          <PoaHolderWell
+            holder={litigant.powerOfAttorneyHolder}
+            partyName={litigant.name}
+            existingPeople={[
+              ...file.litigants
+                .filter(
+                  (row) => row.side === VIEWER_SIDE && row.id !== litigant.id
+                )
+                .map((row) => ({
+                  key: `party:${row.id}`,
+                  name: row.name,
+                  detail: PARTY_ROLE_LABEL[row.side],
+                })),
+              ...file.legalTeams
+                .filter((team) => team.side === VIEWER_SIDE)
+                .map((team) => ({
+                  key: `advocate:${team.advocate}`,
+                  name: team.advocate,
+                  detail: "On the vakalatnama",
+                })),
+            ]}
+          />
+        ) : (
+          <FactWell primary={litigant.powerOfAttorneyHolder} />
+        ),
     });
   }
 

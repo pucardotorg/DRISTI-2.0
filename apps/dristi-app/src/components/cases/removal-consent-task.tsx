@@ -17,7 +17,12 @@
  */
 
 import { useState, type ReactNode } from "react";
-import { CheckCircle2Icon, InfoIcon, Maximize2Icon } from "lucide-react";
+import {
+  CheckCircle2Icon,
+  DownloadIcon,
+  InfoIcon,
+  Maximize2Icon,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -310,13 +315,37 @@ function ConsentDocumentDialog({
   onOpenChange: (open: boolean) => void;
   fixture: RemovalConsentFixture;
 }) {
+  const [downloadNotice, setDownloadNotice] = useState(false);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) setDownloadNotice(false);
+        onOpenChange(next);
+      }}
+    >
       <DialogContent className="flex max-h-[90dvh] flex-col gap-4 overflow-hidden sm:max-w-lg">
-        <DialogHeader className="pr-10 text-left">
+        {/* Beside the close control, where a viewer's save action lives. */}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="absolute top-3 right-11 text-muted-foreground"
+          aria-label={`Download ${fixture.document}`}
+          onClick={() => setDownloadNotice(true)}
+        >
+          <DownloadIcon aria-hidden />
+        </Button>
+        <DialogHeader className="pr-20 text-left">
           <DialogTitle>Supporting document</DialogTitle>
           <DialogDescription>{fixture.document}</DialogDescription>
         </DialogHeader>
+        {downloadNotice ? (
+          <p className="text-caption text-muted-foreground">
+            Downloads are not wired in this prototype.
+          </p>
+        ) : null}
         <div className="min-h-0 flex-1 overflow-y-auto rounded-lg bg-surface-sunken p-4">
           <div className="mx-auto flex max-w-sm flex-col gap-5 rounded-md border border-hairline bg-surface px-6 py-8">
             <div className="flex flex-col items-center gap-1 text-center">
