@@ -25,18 +25,9 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   DescriptionDetails,
   DescriptionList,
@@ -70,8 +61,8 @@ import {
 } from "@/components/ui/item";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
-import { Stepper, StepperItem } from "@/components/ui/stepper";
 import { Textarea } from "@/components/ui/textarea";
+import { FlowStepper } from "@/components/cases/flow-stepper";
 import {
   DOCUMENT_MAX_LENGTH,
   PURPOSE_MAX_LENGTH,
@@ -114,26 +105,11 @@ const STEPS: Array<{ step: WitnessStep; title: string; description: string }> = 
   },
 ];
 
-/* 1rem offsets, matching the circle's own radius, so the connector meets
-   the circle's edge instead of floating 0.5rem short of it on both sides
-   (the gap the owner flagged on Sept 1). */
-export const STEPPER_ITEM_CLASS =
-  "items-center [&>div:first-child]:relative [&>div:first-child]:justify-center [&_[data-slot=stepper-connector]]:absolute [&_[data-slot=stepper-connector]]:inset-y-0 [&_[data-slot=stepper-connector]]:left-[calc(50%+1rem)] [&_[data-slot=stepper-connector]]:right-[calc(-50%+1rem)] [&_[data-slot=stepper-connector]]:mx-0 [&_[data-slot=stepper-connector]]:my-auto [&_[data-slot=stepper-connector]]:h-px [&_[data-slot=stepper-connector]]:min-w-0 [&_[data-slot=stepper-connector]]:w-auto [&_[data-slot=stepper-connector]]:flex-none [&>div:last-child]:w-full [&>div:last-child]:pr-0 [&>div:last-child]:text-center";
-
 const EMPTY_DETAILS_ERRORS: WitnessDetailsErrors = { documents: {} };
 const EMPTY_CONTACT_ERRORS: WitnessContactErrors = { addresses: {} };
 
 function createClientId(prefix: "address" | "document"): string {
   return `${prefix}-${crypto.randomUUID()}`;
-}
-
-export function stepStatus(
-  itemStep: number,
-  currentStep: number
-): "complete" | "current" | "upcoming" {
-  if (itemStep < currentStep) return "complete";
-  if (itemStep === currentStep) return "current";
-  return "upcoming";
 }
 
 function focusFirstInvalid(container: HTMLElement | null) {
@@ -166,58 +142,38 @@ function ReviewRow({
 function StepActions({
   step,
   onBack,
-  onCancel,
 }: {
   step: WitnessStep;
   onBack: () => void;
-  onCancel: () => void;
 }) {
   return (
     <>
       {step > 1 ? (
-        <Button
-          type="button"
-          variant="ghost"
-          className="w-full sm:w-auto"
-          onClick={onBack}
-        >
+        <Button type="button" variant="outline" onClick={onBack}>
           Back
         </Button>
-      ) : null}
-      <div className="flex w-full flex-col gap-2 sm:w-auto">
-        <div className="flex w-full flex-col gap-2 sm:flex-row">
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full sm:w-auto"
-            onClick={onCancel}
-          >
-            Cancel
-          </Button>
-          {step < 3 ? (
-            <Button type="submit" className="w-full sm:w-auto">
-              Continue
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              disabled
-              aria-describedby="witness-save-unavailable"
-              className="w-full sm:w-auto"
-            >
-              Add witness
-            </Button>
-          )}
-        </div>
-        {step === 3 ? (
+      ) : (
+        <span aria-hidden className="hidden sm:block" />
+      )}
+      {step < 3 ? (
+        <Button type="submit">Continue</Button>
+      ) : (
+        <div className="flex flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3">
           <p
             id="witness-save-unavailable"
-            className="text-body-compact text-muted-foreground sm:text-end"
+            className="text-caption text-muted-foreground sm:text-end"
           >
             Saving is not connected yet.
           </p>
-        ) : null}
-      </div>
+          <Button
+            type="button"
+            disabled
+            aria-describedby="witness-save-unavailable"
+          >
+            Add witness
+          </Button>
+        </div>
+      )}
     </>
   );
 }
@@ -241,18 +197,17 @@ function WitnessDetailsStep({
   onRemoveDocument: (clientId: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-8">
-      <Card className="hover:bg-card">
-        <CardHeader className="border-b border-border">
-          <CardTitle className="text-title-s font-semibold">
+    <div className="flex flex-col gap-6">
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-body font-semibold leading-snug">
             Basic details
-          </CardTitle>
-          <CardDescription className="text-body-compact">
+          </h3>
+          <p className="text-body-compact text-muted-foreground">
             Enter a personal name, a designation, or both when known.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <FieldGroup className="gap-4">
+          </p>
+        </div>
+        <FieldGroup className="gap-4">
             <Field data-invalid={Boolean(errors.firstName)}>
               <FieldLabel className="text-body">First name</FieldLabel>
               <Input
@@ -323,20 +278,21 @@ function WitnessDetailsStep({
               </FieldError>
             </Field>
           </FieldGroup>
-        </CardContent>
-      </Card>
+      </section>
 
-      <Card className="hover:bg-card">
-        <CardHeader className="border-b border-border">
-          <CardTitle className="text-title-s font-semibold">
+      <Separator />
+
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-body font-semibold leading-snug">
             Purpose and documents
-          </CardTitle>
-          <CardDescription className="text-body-compact">
+          </h3>
+          <p className="text-body-compact text-muted-foreground">
             Record why this witness is being added and any documents they may
             present.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-8">
+          </p>
+        </div>
+        <div className="flex flex-col gap-6">
           <Field data-invalid={Boolean(errors.purposeOfExamination)}>
             <FieldLabel className="text-body">
               Purpose of examination (optional)
@@ -442,8 +398,8 @@ function WitnessDetailsStep({
               </p>
             )}
           </section>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }
@@ -482,17 +438,17 @@ function ContactAndAddressStep({
   onRequestRemoveAddress: (clientId: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-8">
-      <Card className="hover:bg-card">
-        <CardHeader className="border-b border-border">
-          <CardTitle className="text-title-s font-semibold">
+    <div className="flex flex-col gap-6">
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-body font-semibold leading-snug">
             Contact details
-          </CardTitle>
-          <CardDescription className="text-body-compact">
+          </h3>
+          <p className="text-body-compact text-muted-foreground">
             Optional. Accurate contact details can support summon delivery.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-8">
+          </p>
+        </div>
+        <div className="flex flex-col gap-6">
           <section className="flex flex-col gap-4" aria-labelledby="mobile-heading">
             <h3 id="mobile-heading" className="text-body font-medium">
               Mobile numbers
@@ -628,16 +584,18 @@ function ContactAndAddressStep({
               </ItemGroup>
             ) : null}
           </section>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
+
+      <Separator />
 
       <section className="flex flex-col gap-4" aria-labelledby="addresses-heading">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 id="addresses-heading" className="text-title-s font-semibold">
+          <div className="flex flex-col gap-1">
+            <h3 id="addresses-heading" className="text-body font-semibold leading-snug">
               Addresses
-            </h2>
-            <p className="mt-1 text-body text-muted-foreground">
+            </h3>
+            <p className="text-body-compact text-muted-foreground">
               Optional. If any part of an address is entered, complete all its
               fields before continuing.
             </p>
@@ -658,27 +616,27 @@ function ContactAndAddressStep({
             {draft.addresses.map((address, index) => {
               const addressErrors = errors.addresses[address.clientId] ?? {};
               return (
-                <Card key={address.clientId} className="hover:bg-card">
-                  <CardHeader className="border-b border-border">
-                    <CardTitle className="text-title-s font-semibold">
+                /* A repeated removable group, not a panel: hairline frame
+                   like the vakalatnama picker rows, no card chrome. */
+                <div
+                  key={address.clientId}
+                  className="flex flex-col gap-4 rounded-lg border border-hairline p-4"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <h4 className="text-body font-semibold leading-snug">
                       Address {index + 1}
-                    </CardTitle>
-                    <CardAction>
-                      <Button
-                        type="button"
-                        variant="destructive-ghost"
-                        size="sm"
-                        onClick={() =>
-                          onRequestRemoveAddress(address.clientId)
-                        }
-                      >
-                        <Trash2Icon data-icon="inline-start" aria-hidden />
-                        Remove
-                      </Button>
-                    </CardAction>
-                  </CardHeader>
-                  <CardContent>
-                    <FieldGroup className="gap-4">
+                    </h4>
+                    <Button
+                      type="button"
+                      variant="destructive-ghost"
+                      size="sm"
+                      onClick={() => onRequestRemoveAddress(address.clientId)}
+                    >
+                      <Trash2Icon data-icon="inline-start" aria-hidden />
+                      Remove
+                    </Button>
+                  </div>
+                  <FieldGroup className="gap-4">
                       <Field data-invalid={Boolean(addressErrors.addressType)}>
                         <FieldSet>
                           <FieldLegend className="text-body">
@@ -844,20 +802,14 @@ function ContactAndAddressStep({
                         </FieldError>
                       </Field>
                     </FieldGroup>
-                  </CardContent>
-                </Card>
+                </div>
               );
             })}
           </div>
         ) : (
-          <Card className="hover:bg-card">
-            <CardContent className="flex flex-col items-start gap-2">
-              <p className="text-body font-medium">No addresses added</p>
-              <p className="text-body-compact text-muted-foreground">
-                You can continue without an address.
-              </p>
-            </CardContent>
-          </Card>
+          <p className="rounded-lg border border-dashed border-hairline px-4 py-8 text-center text-body-compact text-muted-foreground">
+            No addresses added. You can continue without one.
+          </p>
         )}
       </section>
     </div>
@@ -883,21 +835,21 @@ function ReviewStep({
 
   return (
     <div className="flex flex-col gap-6">
-      <Card className="hover:bg-card">
-        <CardHeader className="border-b border-border">
-          <CardTitle className="text-title-s font-semibold">
-            Witness details
-          </CardTitle>
-          <CardDescription className="text-body-compact">
-            Check the identifying details and purpose.
-          </CardDescription>
-          <CardAction>
-            <Button type="button" variant="outline" size="sm" onClick={() => onEdit(1)}>
-              Edit
-            </Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6">
+      <section className="flex flex-col gap-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-body font-semibold leading-snug">
+              Witness details
+            </h3>
+            <p className="text-body-compact text-muted-foreground">
+              Check the identifying details and purpose.
+            </p>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={() => onEdit(1)}>
+            Edit
+          </Button>
+        </div>
+        <div className="flex flex-col gap-6">
           <DescriptionList>
             {fullName ? <ReviewRow term="Name">{fullName}</ReviewRow> : null}
             {draft.designation.trim() ? (
@@ -941,24 +893,26 @@ function ReviewStep({
               </ItemGroup>
             </section>
           ) : null}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <Card className="hover:bg-card">
-        <CardHeader className="border-b border-border">
-          <CardTitle className="text-title-s font-semibold">
-            Contact and address
-          </CardTitle>
-          <CardDescription className="text-body-compact">
-            Check the optional delivery details.
-          </CardDescription>
-          <CardAction>
-            <Button type="button" variant="outline" size="sm" onClick={() => onEdit(2)}>
-              Edit
-            </Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6">
+      <Separator />
+
+      <section className="flex flex-col gap-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-body font-semibold leading-snug">
+              Contact and address
+            </h3>
+            <p className="text-body-compact text-muted-foreground">
+              Check the optional delivery details.
+            </p>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={() => onEdit(2)}>
+            Edit
+          </Button>
+        </div>
+        <div className="flex flex-col gap-6">
           {hasContactDetails ? (
             <>
               {draft.mobileNumbers.length > 0 ? (
@@ -1056,12 +1010,12 @@ function ReviewStep({
               ) : null}
             </>
           ) : (
-            <p className="text-body text-muted-foreground">
+            <p className="text-body-compact text-muted-foreground">
               No contact or address details provided.
             </p>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }
@@ -1346,43 +1300,37 @@ export function AddWitnessDialog({
           else requestExit();
         }}
       >
-      <DialogContent className="flex max-h-[90svh] flex-col gap-6 overflow-hidden sm:max-w-4xl">
-        <div className="flex shrink-0 flex-col gap-6">
-          <nav aria-label="Add witness progress">
-            <Stepper className="mx-auto w-full max-w-xl">
-              {STEPS.map((item) => (
-                <StepperItem
-                  key={item.step}
-                  step={item.step}
-                  title={item.title}
-                  status={stepStatus(item.step, step)}
-                  aria-current={item.step === step ? "step" : undefined}
-                  className={STEPPER_ITEM_CLASS}
-                />
-              ))}
-            </Stepper>
-          </nav>
-          <DialogHeader className="pr-12">
-            <DialogTitle
-              ref={stepHeadingRef}
-              tabIndex={-1}
-              className="text-title font-semibold outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-            >
-              {currentStep.title}
-            </DialogTitle>
-            <DialogDescription className="text-body text-muted-foreground">
-              {currentStep.description}
-            </DialogDescription>
-          </DialogHeader>
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+        {/* The owner's dialog shell (Sept 1 restyle): stepper in its own
+            divided band, hairline header, plain footer. The questions and
+            steps below are unchanged. */}
+        <div className="shrink-0 border-b border-hairline px-6 py-4">
+          <FlowStepper
+            steps={STEPS}
+            current={step}
+            label="Add witness progress"
+          />
         </div>
+        <DialogHeader className="shrink-0 gap-1.5 border-b border-hairline px-6 py-5 pr-14 text-left">
+          <DialogTitle
+            ref={stepHeadingRef}
+            tabIndex={-1}
+            className="text-title-s font-semibold text-balance outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            {currentStep.title}
+          </DialogTitle>
+          <DialogDescription className="text-pretty">
+            {currentStep.description}
+          </DialogDescription>
+        </DialogHeader>
 
         <form
           ref={formRef}
           noValidate
           onSubmit={handleSubmit}
-          className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             {step === 1 ? (
               <WitnessDetailsStep
                 draft={draft}
@@ -1439,17 +1387,12 @@ export function AddWitnessDialog({
             )}
           </div>
 
-          <DialogFooter
-            className={
-              step > 1 ? "shrink-0 sm:justify-between" : "shrink-0"
-            }
-          >
+          <footer className="flex shrink-0 flex-col-reverse gap-2 border-t border-hairline px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
             <StepActions
               step={step}
               onBack={() => setStep((current) => (current - 1) as WitnessStep)}
-              onCancel={requestExit}
             />
-          </DialogFooter>
+          </footer>
         </form>
       </DialogContent>
     </Dialog>

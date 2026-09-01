@@ -22,8 +22,7 @@
  * case-screen style and was rejected (Sept 1).
  */
 
-import { useMemo, useRef, useState } from "react";
-import { FileTextIcon } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import {
   AlertDialog,
@@ -50,7 +49,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { DocumentSlot } from "@/components/ui/document-slot";
 import {
   Field,
   FieldDescription,
@@ -62,6 +60,10 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { FlowStepper } from "@/components/cases/flow-stepper";
+import {
+  UPLOAD_HELP,
+  UploadedDocField,
+} from "@/components/cases/uploaded-doc-field";
 import {
   PARTY_SIDE_LABEL,
   POA_REASON_MAX_LENGTH,
@@ -101,11 +103,6 @@ type Errors = {
   deed?: string;
 };
 
-function fileSize(bytes: number) {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 export function AddPoaDialog({
   open,
   onOpenChange,
@@ -119,7 +116,6 @@ export function AddPoaDialog({
   /** Own-side advocate names on record; scenario 8's pool with the litigants. */
   advocates: string[];
 }) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<PoaStep>(1);
   const [partyId, setPartyId] = useState("");
   const [holderMode, setHolderMode] = useState<HolderMode>("new");
@@ -476,35 +472,16 @@ export function AddPoaDialog({
                       The executed deed naming {holderDisplayName || "the holder"}{" "}
                       for {grantingParty?.name ?? "the party"}.
                     </FieldDescription>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      className="hidden"
-                      tabIndex={-1}
-                      aria-hidden="true"
-                      accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (file) {
-                          setDeedFile(file);
-                          setErrors((c) => ({ ...c, deed: undefined }));
-                        }
-                        event.target.value = "";
-                      }}
-                    />
-                    <DocumentSlot
-                      status={deedFile ? "filled" : "empty"}
-                      media="icon"
+                    <UploadedDocField
                       label="Power of Attorney deed"
                       required
-                      filename={deedFile?.name}
-                      meta={deedFile ? fileSize(deedFile.size) : undefined}
-                      thumbnail={<FileTextIcon className="size-5" aria-hidden />}
-                      onChooseFile={() => fileInputRef.current?.click()}
+                      file={deedFile}
+                      onFileChange={(file) => {
+                        setDeedFile(file);
+                        setErrors((c) => ({ ...c, deed: undefined }));
+                      }}
                     />
-                    <FieldDescription>
-                      Accepts an image or PDF of the executed deed.
-                    </FieldDescription>
+                    <FieldDescription>{UPLOAD_HELP}</FieldDescription>
                     <FieldError>{errors.deed}</FieldError>
                   </Field>
                 </>
@@ -530,15 +507,7 @@ export function AddPoaDialog({
                   <ReviewRow term="Grounds">
                     <span className="whitespace-pre-wrap">{reason.trim()}</span>
                   </ReviewRow>
-                  <ReviewRow term="Deed">
-                    {deedFile?.name}
-                    {deedFile ? (
-                      <span className="text-muted-foreground">
-                        {" "}
-                        · {fileSize(deedFile.size)}
-                      </span>
-                    ) : null}
-                  </ReviewRow>
+                  <ReviewRow term="Deed">{deedFile?.name}</ReviewRow>
                 </DescriptionList>
               )}
             </form>

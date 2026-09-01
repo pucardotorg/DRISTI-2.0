@@ -31,8 +31,8 @@
  * act that has not happened (owner's call, Sept 1).
  */
 
-import { useMemo, useRef, useState } from "react";
-import { FileTextIcon, XIcon } from "lucide-react";
+import { useMemo, useState } from "react";
+import { FilePlus2Icon, XIcon } from "lucide-react";
 
 import {
   AlertDialog,
@@ -45,6 +45,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -60,7 +61,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { DocumentSlot } from "@/components/ui/document-slot";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Field,
   FieldDescription,
@@ -77,7 +83,13 @@ import {
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { initials } from "@/components/access/access-list";
+import { VakalatnamaPicker } from "@/components/advocate/vakalatnama-picker";
 import { FlowStepper } from "@/components/cases/flow-stepper";
+import {
+  UPLOAD_HELP,
+  UploadedDocField,
+} from "@/components/cases/uploaded-doc-field";
+import { VAKALATNAMAS } from "@/lib/advocate/content";
 import {
   ADVOCATE_DEMO_NUMBERS,
   ADVOCATE_LOOKUP,
@@ -98,14 +110,13 @@ const STEPS = [
   {
     step: 2,
     title: "Vakalatnama",
-    description:
-      "Advocates are added on the strength of one vakalatnama signed by the parties they represent.",
+    description: "Attach the vakalatnama signed by the parties.",
   },
   {
     step: 3,
     title: "Review",
     description:
-      "No approval is needed. The advocates can act on this case as soon as the vakalatnama is on record.",
+      "The advocates can act on this case as soon as the vakalatnama is on record.",
   },
 ] as const;
 
@@ -118,11 +129,6 @@ type Errors = {
   vakalatnama?: string;
 };
 
-function fileSize(bytes: number) {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 export function AddAdvocateDialog({
   open,
   onOpenChange,
@@ -133,7 +139,6 @@ export function AddAdvocateDialog({
   /** The viewer's own clients only; never the opposing side. */
   litigants: PartyOption[];
 }) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<AdvocateStep>(1);
   const [phoneInput, setPhoneInput] = useState("");
   const [focused, setFocused] = useState(false);
@@ -142,7 +147,11 @@ export function AddAdvocateDialog({
   const [pendingInvite, setPendingInvite] = useState<string | null>(null);
   const [inviteName, setInviteName] = useState("");
   const [partyIds, setPartyIds] = useState<string[]>([]);
+  /** The vakalatnama, from one of the three sources the join flow offers. */
+  const [vkTab, setVkTab] = useState<"upload" | "saved">("upload");
   const [vakalatFile, setVakalatFile] = useState<File | null>(null);
+  const [vkSavedId, setVkSavedId] = useState("");
+  const [vkGenerateNotice, setVkGenerateNotice] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
 
@@ -154,9 +163,10 @@ export function AddAdvocateDialog({
           chips.length > 0 ||
           pendingInvite ||
           partyIds.length > 0 ||
-          vakalatFile
+          vakalatFile ||
+          vkSavedId
       ),
-    [phoneInput, chips, pendingInvite, partyIds, vakalatFile]
+    [phoneInput, chips, pendingInvite, partyIds, vakalatFile, vkSavedId]
   );
 
   const inputValid = /^\d{10}$/.test(phoneInput);
@@ -171,7 +181,10 @@ export function AddAdvocateDialog({
     setPendingInvite(null);
     setInviteName("");
     setPartyIds([]);
+    setVkTab("upload");
     setVakalatFile(null);
+    setVkSavedId("");
+    setVkGenerateNotice(false);
     setErrors({});
     setExitConfirmationOpen(false);
   }
@@ -246,10 +259,11 @@ export function AddAdvocateDialog({
     }
 
     if (step === 2) {
-      if (!vakalatFile) {
+      const attached = vkTab === "upload" ? Boolean(vakalatFile) : Boolean(vkSavedId);
+      if (!attached) {
         setErrors((c) => ({
           ...c,
-          vakalatnama: "Upload the signed vakalatnama to continue.",
+          vakalatnama: "Attach a vakalatnama to continue.",
         }));
         return;
       }
@@ -259,6 +273,9 @@ export function AddAdvocateDialog({
 
   const chosenParties = litigants.filter((party) => partyIds.includes(party.id));
   const advocateNames = chips.map((chip) => chip.name);
+  const savedVakalatnama = VAKALATNAMAS.find((item) => item.id === vkSavedId);
+  const vakalatnamaName =
+    vkTab === "upload" ? vakalatFile?.name : savedVakalatnama?.name;
 
   return (
     <>
@@ -537,46 +554,102 @@ export function AddAdvocateDialog({
                   </Field>
                 </>
               ) : step === 2 ? (
-                <Field data-invalid={Boolean(errors.vakalatnama)}>
-                  <FieldLabel className="block w-full text-body font-semibold leading-snug">
-                    Signed vakalatnama
-                  </FieldLabel>
-                  <FieldDescription>
-                    Executed by {formatNames(chosenParties.map((p) => p.name))}{" "}
-                    in favour of {formatNames(advocateNames)}.
-                  </FieldDescription>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    className="hidden"
-                    tabIndex={-1}
-                    aria-hidden="true"
-                    accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (file) {
-                        setVakalatFile(file);
+                <>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-1">
+                      <p className="text-body font-semibold leading-snug">
+                        Vakalatnama
+                      </p>
+                      <p className="text-body-compact text-pretty text-muted-foreground">
+                        Executed by{" "}
+                        <NamesWithOthers
+                          names={chosenParties.map((p) => p.name)}
+                          othersLabel="Other parties"
+                        />{" "}
+                        in favour of{" "}
+                        <NamesWithOthers
+                          names={advocateNames}
+                          othersLabel="Other advocates"
+                        />
+                        .
+                      </p>
+                    </div>
+                    {/* Same three sources as the join flow: upload a signed
+                        copy, pick a generated one, or make one below. */}
+                    <Tabs
+                      value={vkTab}
+                      onValueChange={(value) => {
+                        setVkTab(value as "upload" | "saved");
                         setErrors((c) => ({ ...c, vakalatnama: undefined }));
-                      }
-                      event.target.value = "";
-                    }}
-                  />
-                  <DocumentSlot
-                    status={vakalatFile ? "filled" : "empty"}
-                    media="icon"
-                    label="Signed vakalatnama"
-                    required
-                    filename={vakalatFile?.name}
-                    meta={vakalatFile ? fileSize(vakalatFile.size) : undefined}
-                    thumbnail={<FileTextIcon className="size-5" aria-hidden />}
-                    onChooseFile={() => fileInputRef.current?.click()}
-                  />
-                  <FieldDescription>
-                    Accepts an image or PDF. A vakalatnama can also be prepared
-                    and e-signed on DRISTI.
-                  </FieldDescription>
-                  <FieldError>{errors.vakalatnama}</FieldError>
-                </Field>
+                      }}
+                    >
+                      <TabsList className="w-full border border-hairline bg-surface-sunken">
+                        <TabsTrigger value="upload" className="flex-1">
+                          Upload a file
+                        </TabsTrigger>
+                        <TabsTrigger value="saved" className="flex-1">
+                          Generated vakalatnamas
+                        </TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="upload" className="pt-3">
+                        <Field data-invalid={Boolean(errors.vakalatnama)}>
+                          <UploadedDocField
+                            label="Signed vakalatnama"
+                            required
+                            file={vakalatFile}
+                            onFileChange={(file) => {
+                              setVakalatFile(file);
+                              setErrors((c) => ({
+                                ...c,
+                                vakalatnama: undefined,
+                              }));
+                            }}
+                          />
+                          <FieldDescription>{UPLOAD_HELP}</FieldDescription>
+                          <FieldError>{errors.vakalatnama}</FieldError>
+                        </Field>
+                      </TabsContent>
+                      <TabsContent value="saved" className="flex flex-col gap-2 pt-3">
+                        <Field data-invalid={Boolean(errors.vakalatnama)}>
+                          <VakalatnamaPicker
+                            items={VAKALATNAMAS}
+                            selectedId={vkSavedId}
+                            onSelect={(id) => {
+                              setVkSavedId(id);
+                              setErrors((c) => ({
+                                ...c,
+                                vakalatnama: undefined,
+                              }));
+                            }}
+                            locale="en"
+                          />
+                          <FieldError>{errors.vakalatnama}</FieldError>
+                        </Field>
+                      </TabsContent>
+                    </Tabs>
+                  </div>
+
+                  <div className="flex flex-col gap-3 border-t border-hairline pt-5 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-body-compact font-medium">
+                      Don&apos;t have a vakalatnama yet?
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setVkGenerateNotice(true)}
+                      data-icon="inline-start"
+                    >
+                      <FilePlus2Icon aria-hidden />
+                      Generate one in the portal
+                    </Button>
+                  </div>
+                  {vkGenerateNotice ? (
+                    <Banner variant="info">
+                      Generating a vakalatnama opens the e-sign flow in the
+                      Vakalatnama section. Not wired in this prototype.
+                    </Banner>
+                  ) : null}
+                </>
               ) : (
                 <DescriptionList>
                   <ReviewRow term={chips.length === 1 ? "Advocate" : "Advocates"}>
@@ -592,7 +665,7 @@ export function AddAdvocateDialog({
                           ) : (
                             <span className="text-muted-foreground">
                               {" "}
-                              (will be asked to register when they join)
+                              (not yet registered)
                             </span>
                           )}
                         </span>
@@ -600,17 +673,12 @@ export function AddAdvocateDialog({
                     </span>
                   </ReviewRow>
                   <ReviewRow term="Representing">
-                    {formatNames(chosenParties.map((p) => p.name))}
+                    <NamesWithOthers
+                      names={chosenParties.map((p) => p.name)}
+                      othersLabel="Other parties"
+                    />
                   </ReviewRow>
-                  <ReviewRow term="Vakalatnama">
-                    {vakalatFile?.name}
-                    {vakalatFile ? (
-                      <span className="text-muted-foreground">
-                        {" "}
-                        · {fileSize(vakalatFile.size)}
-                      </span>
-                    ) : null}
-                  </ReviewRow>
+                  <ReviewRow term="Vakalatnama">{vakalatnamaName}</ReviewRow>
                 </DescriptionList>
               )}
             </form>
@@ -699,4 +767,46 @@ function formatNames(names: string[]): string {
     style: "long",
     type: "conjunction",
   }).format(names);
+}
+
+/**
+ * Two names at most in running copy; the rest fold into an explorable
+ * "N more" popover, the join flow's "and 1 other" pattern. Ten advocates
+ * would otherwise turn a one-line sentence into a paragraph.
+ */
+function NamesWithOthers({
+  names,
+  othersLabel,
+}: {
+  names: string[];
+  othersLabel: string;
+}) {
+  if (names.length <= 2) return <>{formatNames(names)}</>;
+  const rest = names.slice(2);
+  return (
+    <>
+      {names.slice(0, 2).join(", ")} and{" "}
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex items-center rounded-sm underline decoration-dotted underline-offset-4 hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            aria-label={othersLabel}
+          >
+            {rest.length} more
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-64">
+          <p className="text-caption font-semibold text-muted-foreground">
+            {othersLabel}
+          </p>
+          <ul className="mt-2 flex flex-col gap-1 text-body-compact">
+            {rest.map((name) => (
+              <li key={name}>{name}</li>
+            ))}
+          </ul>
+        </PopoverContent>
+      </Popover>
+    </>
+  );
 }
