@@ -17,7 +17,7 @@
  *
  * Composed in the owner's dialog grammar (join-case dialog): sm:max-w-xl,
  * hairline header, semibold field labels as section headings on the body
- * fill, Banner for the process notice, DocumentSlot for the deed, plain
+ * fill, DocumentSlot for the deed, plain
  * hairline footer. The first cut aped the witness dialog's oversized
  * case-screen style and was rejected (Sept 1).
  */
@@ -34,7 +34,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import {
   DescriptionDetails,
@@ -152,10 +151,13 @@ export function AddPoaDialog({
         name: party.name,
         detail: PARTY_SIDE_LABEL[party.side],
       })),
+    /* "On the vakalatnama", not "advocate on record": the roles live on the
+       nama in this product's model, and that is exactly where these names
+       come from (the case's legal teams). Owner's wording, Sept 1. */
     ...advocates.map((name) => ({
       key: `advocate:${name}`,
       name,
-      detail: "Advocate on record",
+      detail: "On the vakalatnama",
     })),
   ];
 
@@ -256,11 +258,8 @@ export function AddPoaDialog({
             >
               {step === 1 ? (
                 <>
-                  <Banner variant="info">
-                    This is an application to the court. The PoA-holder joins
-                    the case only after the magistrate passes an order.
-                  </Banner>
-
+                  {/* No process banner here: the review step already says the
+                      application goes to the magistrate (owner, Sept 1). */}
                   <Field data-invalid={Boolean(errors.party)}>
                     <FieldLabel className="block w-full text-body font-semibold leading-snug">
                       Who is granting the Power of Attorney?

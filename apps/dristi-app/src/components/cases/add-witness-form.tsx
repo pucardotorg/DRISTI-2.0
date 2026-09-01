@@ -209,22 +209,22 @@ function WitnessDetailsStep({
         </div>
         <FieldGroup className="gap-4">
             <Field data-invalid={Boolean(errors.firstName)}>
-              <FieldLabel className="text-body">First name</FieldLabel>
+              <FieldLabel>First name</FieldLabel>
               <Input
                 autoComplete="off"
                 value={draft.firstName}
                 onChange={(event) => onChange("firstName", event.target.value)}
               />
-              <FieldDescription className="text-body-compact">
+              <FieldDescription>
                 Required unless a designation is provided below.
               </FieldDescription>
-              <FieldError className="text-body-compact">
+              <FieldError>
                 {errors.firstName}
               </FieldError>
             </Field>
 
             <Field>
-              <FieldLabel className="text-body">Middle name (optional)</FieldLabel>
+              <FieldLabel>Middle name (optional)</FieldLabel>
               <Input
                 autoComplete="off"
                 value={draft.middleName}
@@ -233,7 +233,7 @@ function WitnessDetailsStep({
             </Field>
 
             <Field>
-              <FieldLabel className="text-body">Last name (optional)</FieldLabel>
+              <FieldLabel>Last name (optional)</FieldLabel>
               <Input
                 autoComplete="off"
                 value={draft.lastName}
@@ -242,7 +242,7 @@ function WitnessDetailsStep({
             </Field>
 
             <Field data-invalid={Boolean(errors.designation)}>
-              <FieldLabel className="text-body">
+              <FieldLabel>
                 Witness designation (optional)
               </FieldLabel>
               <Input
@@ -250,17 +250,17 @@ function WitnessDetailsStep({
                 value={draft.designation}
                 onChange={(event) => onChange("designation", event.target.value)}
               />
-              <FieldDescription className="text-body-compact">
+              <FieldDescription>
                 Use a meaningful role, office or title when the witness is known
                 by their capacity, such as Medical Officer or Bank Manager.
               </FieldDescription>
-              <FieldError className="text-body-compact">
+              <FieldError>
                 {errors.designation}
               </FieldError>
             </Field>
 
             <Field data-invalid={Boolean(errors.age)}>
-              <FieldLabel className="text-body">Age (optional)</FieldLabel>
+              <FieldLabel>Age (optional)</FieldLabel>
               <Input
                 inputMode="numeric"
                 autoComplete="off"
@@ -273,7 +273,7 @@ function WitnessDetailsStep({
                   )
                 }
               />
-              <FieldError className="text-body-compact">
+              <FieldError>
                 {errors.age}
               </FieldError>
             </Field>
@@ -294,7 +294,7 @@ function WitnessDetailsStep({
         </div>
         <div className="flex flex-col gap-6">
           <Field data-invalid={Boolean(errors.purposeOfExamination)}>
-            <FieldLabel className="text-body">
+            <FieldLabel>
               Purpose of examination (optional)
             </FieldLabel>
             <Textarea
@@ -305,11 +305,11 @@ function WitnessDetailsStep({
                 onChange("purposeOfExamination", event.target.value)
               }
             />
-            <FieldDescription className="flex justify-end text-body-compact">
+            <FieldDescription className="flex justify-end">
               {draft.purposeOfExamination.length.toLocaleString("en-IN")} /{" "}
               {PURPOSE_MAX_LENGTH.toLocaleString("en-IN")}
             </FieldDescription>
-            <FieldError className="text-body-compact">
+            <FieldError>
               {errors.purposeOfExamination}
             </FieldError>
           </Field>
@@ -352,7 +352,7 @@ function WitnessDetailsStep({
                           errors.documents[document.clientId]
                         )}
                       >
-                        <FieldLabel className="text-body">
+                        <FieldLabel>
                           Description
                           <span className="sr-only">
                             {" "}
@@ -370,10 +370,10 @@ function WitnessDetailsStep({
                             )
                           }
                         />
-                        <FieldDescription className="flex justify-end text-body-compact">
+                        <FieldDescription className="flex justify-end">
                           {document.description.length} / {DOCUMENT_MAX_LENGTH}
                         </FieldDescription>
-                        <FieldError className="text-body-compact">
+                        <FieldError>
                           {errors.documents[document.clientId]}
                         </FieldError>
                       </Field>
@@ -454,7 +454,7 @@ function ContactAndAddressStep({
               Mobile numbers
             </h3>
             <Field data-invalid={Boolean(errors.mobileInput)}>
-              <FieldLabel className="text-body">Mobile number</FieldLabel>
+              <FieldLabel>Mobile number</FieldLabel>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                 <InputGroup className="flex-1">
                   <InputGroupAddon>
@@ -481,10 +481,10 @@ function ContactAndAddressStep({
                   Add number
                 </Button>
               </div>
-              <FieldDescription className="text-body-compact">
+              <FieldDescription>
                 Enter a 10-digit Indian mobile number, then select Add number.
               </FieldDescription>
-              <FieldError className="text-body-compact">
+              <FieldError>
                 {errors.mobileInput}
               </FieldError>
             </Field>
@@ -528,7 +528,7 @@ function ContactAndAddressStep({
               Email addresses
             </h3>
             <Field data-invalid={Boolean(errors.emailInput)}>
-              <FieldLabel className="text-body">Email address</FieldLabel>
+              <FieldLabel>Email address</FieldLabel>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                 <Input
                   className="flex-1"
@@ -549,10 +549,10 @@ function ContactAndAddressStep({
                   Add email
                 </Button>
               </div>
-              <FieldDescription className="text-body-compact">
+              <FieldDescription>
                 Enter an email address, then select Add email.
               </FieldDescription>
-              <FieldError className="text-body-compact">
+              <FieldError>
                 {errors.emailInput}
               </FieldError>
             </Field>
@@ -639,7 +639,7 @@ function ContactAndAddressStep({
                   <FieldGroup className="gap-4">
                       <Field data-invalid={Boolean(addressErrors.addressType)}>
                         <FieldSet>
-                          <FieldLegend className="text-body">
+                          <FieldLegend variant="label">
                             Address type
                           </FieldLegend>
                           <RadioGroup
@@ -672,7 +672,6 @@ function ContactAndAddressStep({
                                 }
                               />
                               <FieldLabel
-                                className="text-body"
                                 htmlFor={`${address.clientId}-residential`}
                               >
                                 Residential
@@ -692,7 +691,6 @@ function ContactAndAddressStep({
                                 }
                               />
                               <FieldLabel
-                                className="text-body"
                                 htmlFor={`${address.clientId}-office`}
                               >
                                 Office
@@ -701,7 +699,6 @@ function ContactAndAddressStep({
                           </RadioGroup>
                           <FieldError
                             id={`${address.clientId}-address-type-error`}
-                            className="text-body-compact"
                           >
                             {addressErrors.addressType}
                           </FieldError>
@@ -709,7 +706,7 @@ function ContactAndAddressStep({
                       </Field>
 
                       <Field data-invalid={Boolean(addressErrors.pincode)}>
-                        <FieldLabel className="text-body">Pincode</FieldLabel>
+                        <FieldLabel>Pincode</FieldLabel>
                         <Input
                           inputMode="numeric"
                           autoComplete="postal-code"
@@ -725,13 +722,13 @@ function ContactAndAddressStep({
                             )
                           }
                         />
-                        <FieldError className="text-body-compact">
+                        <FieldError>
                           {addressErrors.pincode}
                         </FieldError>
                       </Field>
 
                       <Field data-invalid={Boolean(addressErrors.state)}>
-                        <FieldLabel className="text-body">State</FieldLabel>
+                        <FieldLabel>State</FieldLabel>
                         <Input
                           autoComplete="address-level1"
                           value={address.state}
@@ -743,13 +740,13 @@ function ContactAndAddressStep({
                             )
                           }
                         />
-                        <FieldError className="text-body-compact">
+                        <FieldError>
                           {addressErrors.state}
                         </FieldError>
                       </Field>
 
                       <Field data-invalid={Boolean(addressErrors.district)}>
-                        <FieldLabel className="text-body">District</FieldLabel>
+                        <FieldLabel>District</FieldLabel>
                         <Input
                           autoComplete="address-level2"
                           value={address.district}
@@ -761,13 +758,13 @@ function ContactAndAddressStep({
                             )
                           }
                         />
-                        <FieldError className="text-body-compact">
+                        <FieldError>
                           {addressErrors.district}
                         </FieldError>
                       </Field>
 
                       <Field data-invalid={Boolean(addressErrors.cityOrTown)}>
-                        <FieldLabel className="text-body">City or town</FieldLabel>
+                        <FieldLabel>City or town</FieldLabel>
                         <Input
                           autoComplete="address-level3"
                           value={address.cityOrTown}
@@ -779,13 +776,13 @@ function ContactAndAddressStep({
                             )
                           }
                         />
-                        <FieldError className="text-body-compact">
+                        <FieldError>
                           {addressErrors.cityOrTown}
                         </FieldError>
                       </Field>
 
                       <Field data-invalid={Boolean(addressErrors.address)}>
-                        <FieldLabel className="text-body">Address</FieldLabel>
+                        <FieldLabel>Address</FieldLabel>
                         <Textarea
                           autoComplete="street-address"
                           value={address.address}
@@ -797,7 +794,7 @@ function ContactAndAddressStep({
                             )
                           }
                         />
-                        <FieldError className="text-body-compact">
+                        <FieldError>
                           {addressErrors.address}
                         </FieldError>
                       </Field>
