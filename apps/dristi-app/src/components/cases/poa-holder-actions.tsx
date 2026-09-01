@@ -228,13 +228,9 @@ function RemovePoaDialog({
             />
           ) : (
             <>
-              <div className="shrink-0 border-b border-hairline px-6 pt-6 pb-4">
-                <FlowStepper
-                  steps={REMOVE_STEPS}
-                  current={step}
-                  label="Remove PoA-holder progress"
-                />
-              </div>
+              {/* No stepper: two steps do not earn one (owner's rule,
+                  Sept 1 — steppers from three steps up). The title and the
+                  Back button carry the progression. */}
               <DialogHeader className="shrink-0 gap-1.5 border-b border-hairline px-6 py-5 pr-14 text-left">
                 <DialogTitle className="text-title-s font-semibold text-balance">
                   {step === 1 ? `Remove ${holder}` : "Review"}

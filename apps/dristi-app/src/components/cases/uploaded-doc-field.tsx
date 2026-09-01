@@ -12,7 +12,7 @@
  */
 
 import * as React from "react";
-import { RefreshCwIcon, Trash2Icon } from "lucide-react";
+import { Trash2Icon } from "lucide-react";
 
 import {
   Attachment,
@@ -87,19 +87,15 @@ export function UploadedDocField({
               {file.name} · {fileSize(file.size)}
             </AttachmentDescription>
           </AttachmentContent>
-          <AttachmentActions className="gap-1">
-            <AttachmentAction
-              type="button"
-              size="sm"
-              onClick={() => inputRef.current?.click()}
-            >
-              <RefreshCwIcon aria-hidden />
-              Change file
-            </AttachmentAction>
+          {/* One action, the e-filing attachment rows' own: the trash.
+              Removing lands back on the Choose-file slot, which IS the
+              change-file path — a second labelled button restated it
+              (owner, Sept 1). */}
+          <AttachmentActions>
             <AttachmentAction
               type="button"
               variant="destructive-ghost"
-              size="icon-sm"
+              size="icon"
               aria-label={`Remove ${file.name}`}
               onClick={() => onFileChange(null)}
             >

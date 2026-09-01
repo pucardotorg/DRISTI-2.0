@@ -326,12 +326,13 @@ function ConsentDocumentDialog({
       }}
     >
       <DialogContent className="flex max-h-[90dvh] flex-col gap-4 overflow-hidden sm:max-w-lg">
-        {/* Beside the close control, where a viewer's save action lives. */}
+        {/* Clear of the close control — flush against it, a save was one
+            slip from a dismiss (owner, Sept 1). */}
         <Button
           type="button"
           variant="ghost"
           size="icon-sm"
-          className="absolute top-3 right-11 text-muted-foreground"
+          className="absolute top-4 right-14 text-muted-foreground"
           aria-label={`Download ${fixture.document}`}
           onClick={() => setDownloadNotice(true)}
         >
