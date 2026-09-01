@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FileTextIcon,
+  HourglassIcon,
   MailIcon,
   MapPinIcon,
   PhoneIcon,
@@ -142,9 +143,11 @@ function ReviewRow({
 function StepActions({
   step,
   onBack,
+  onFinish,
 }: {
   step: WitnessStep;
   onBack: () => void;
+  onFinish: () => void;
 }) {
   return (
     <>
@@ -158,21 +161,9 @@ function StepActions({
       {step < 3 ? (
         <Button type="submit">Continue</Button>
       ) : (
-        <div className="flex flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3">
-          <p
-            id="witness-save-unavailable"
-            className="text-caption text-muted-foreground sm:text-end"
-          >
-            Saving is not connected yet.
-          </p>
-          <Button
-            type="button"
-            disabled
-            aria-describedby="witness-save-unavailable"
-          >
-            Add witness
-          </Button>
-        </div>
+        <Button type="button" onClick={onFinish}>
+          Add witness
+        </Button>
       )}
     </>
   );
@@ -1039,6 +1030,7 @@ export function AddWitnessDialog({
     useState<WitnessDetailsErrors>(EMPTY_DETAILS_ERRORS);
   const [contactErrors, setContactErrors] =
     useState<WitnessContactErrors>(EMPTY_CONTACT_ERRORS);
+  const [done, setDone] = useState(false);
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
   const [addressPendingRemoval, setAddressPendingRemoval] = useState<
     string | null
@@ -1057,6 +1049,7 @@ export function AddWitnessDialog({
     setEmailInput("");
     setDetailsErrors(EMPTY_DETAILS_ERRORS);
     setContactErrors(EMPTY_CONTACT_ERRORS);
+    setDone(false);
     setExitConfirmationOpen(false);
     setAddressPendingRemoval(null);
   }
@@ -1067,7 +1060,7 @@ export function AddWitnessDialog({
   }
 
   function requestExit() {
-    if (isDirty) {
+    if (isDirty && !done) {
       setExitConfirmationOpen(true);
       return;
     }
@@ -1298,10 +1291,37 @@ export function AddWitnessDialog({
         }}
       >
       <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+        {done ? (
+          /* The join dialog's pending stage: adding a witness is an
+             application, so the ending says where it went (owner, Sept 1). */
+          <>
+            <DialogHeader className="shrink-0 px-6 py-5 pr-14 text-left">
+              <div className="flex items-center gap-4">
+                <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-info-muted text-info-muted-foreground">
+                  <HourglassIcon className="size-7" aria-hidden />
+                </span>
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  <DialogTitle className="text-title-s font-semibold text-balance">
+                    Application sent to the magistrate
+                  </DialogTitle>
+                  <DialogDescription className="text-pretty">
+                    The witness is added to the case once the order is passed.
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+            <footer className="flex shrink-0 justify-end border-t border-hairline px-6 py-4">
+              <Button type="button" onClick={closeClean}>
+                Done
+              </Button>
+            </footer>
+          </>
+        ) : (
+          <>
         {/* The owner's dialog shell (Sept 1 restyle): stepper in its own
             divided band, hairline header, plain footer. The questions and
             steps below are unchanged. */}
-        <div className="shrink-0 border-b border-hairline px-6 py-4">
+        <div className="shrink-0 border-b border-hairline px-6 pt-6 pb-4">
           <FlowStepper
             steps={STEPS}
             current={step}
@@ -1388,9 +1408,12 @@ export function AddWitnessDialog({
             <StepActions
               step={step}
               onBack={() => setStep((current) => (current - 1) as WitnessStep)}
+              onFinish={() => setDone(true)}
             />
           </footer>
         </form>
+          </>
+        )}
       </DialogContent>
     </Dialog>
 

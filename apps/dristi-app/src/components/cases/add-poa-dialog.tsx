@@ -23,6 +23,7 @@
  */
 
 import { useMemo, useState } from "react";
+import { HourglassIcon } from "lucide-react";
 
 import {
   AlertDialog,
@@ -123,6 +124,7 @@ export function AddPoaDialog({
   const [existingKey, setExistingKey] = useState("");
   const [reason, setReason] = useState("");
   const [deedFile, setDeedFile] = useState<File | null>(null);
+  const [done, setDone] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
 
@@ -175,6 +177,7 @@ export function AddPoaDialog({
     setExistingKey("");
     setReason("");
     setDeedFile(null);
+    setDone(false);
     setErrors({});
     setExitConfirmationOpen(false);
   }
@@ -185,7 +188,7 @@ export function AddPoaDialog({
   }
 
   function requestExit() {
-    if (isDirty) {
+    if (isDirty && !done) {
       setExitConfirmationOpen(true);
       return;
     }
@@ -232,8 +235,38 @@ export function AddPoaDialog({
         }}
       >
         <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+          {done ? (
+            /* The join dialog's pending stage: the application is with the
+               magistrate now, and the dialog says so instead of ending on
+               a dead disabled button (owner, Sept 1). */
+            <>
+              <DialogHeader className="shrink-0 px-6 py-5 pr-14 text-left">
+                <div className="flex items-center gap-4">
+                  <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-info-muted text-info-muted-foreground">
+                    <HourglassIcon className="size-7" aria-hidden />
+                  </span>
+                  <div className="flex min-w-0 flex-col gap-1.5">
+                    <DialogTitle className="text-title-s font-semibold text-balance">
+                      Application sent to the magistrate
+                    </DialogTitle>
+                    <DialogDescription className="text-pretty">
+                      {holderDisplayName || "The holder"} is added as{" "}
+                      {grantingParty?.name ?? "the party"}&apos;s PoA-holder
+                      once the order is passed.
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+              <footer className="flex shrink-0 justify-end border-t border-hairline px-6 py-4">
+                <Button type="button" onClick={closeClean}>
+                  Done
+                </Button>
+              </footer>
+            </>
+          ) : (
+            <>
           {/* Own band + hairline for the stepper; see add-advocate-dialog. */}
-          <div className="shrink-0 border-b border-hairline px-6 py-4">
+          <div className="shrink-0 border-b border-hairline px-6 pt-6 pb-4">
             <FlowStepper
               steps={STEPS}
               current={step}
@@ -529,23 +562,13 @@ export function AddPoaDialog({
                 Continue
               </Button>
             ) : (
-              <div className="flex flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3">
-                <p
-                  id="poa-save-unavailable"
-                  className="text-caption text-muted-foreground sm:text-end"
-                >
-                  Submission is not connected yet.
-                </p>
-                <Button
-                  type="button"
-                  disabled
-                  aria-describedby="poa-save-unavailable"
-                >
-                  Submit application
-                </Button>
-              </div>
+              <Button type="button" onClick={() => setDone(true)}>
+                Submit application
+              </Button>
             )}
           </footer>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 

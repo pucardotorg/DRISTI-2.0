@@ -32,7 +32,8 @@
  */
 
 import { useMemo, useState } from "react";
-import { FilePlus2Icon, XIcon } from "lucide-react";
+import Link from "next/link";
+import { CheckCircle2Icon, FilePlus2Icon, XIcon } from "lucide-react";
 
 import {
   AlertDialog,
@@ -151,7 +152,7 @@ export function AddAdvocateDialog({
   const [vkTab, setVkTab] = useState<"upload" | "saved">("upload");
   const [vakalatFile, setVakalatFile] = useState<File | null>(null);
   const [vkSavedId, setVkSavedId] = useState("");
-  const [vkGenerateNotice, setVkGenerateNotice] = useState(false);
+  const [done, setDone] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
 
@@ -184,7 +185,7 @@ export function AddAdvocateDialog({
     setVkTab("upload");
     setVakalatFile(null);
     setVkSavedId("");
-    setVkGenerateNotice(false);
+    setDone(false);
     setErrors({});
     setExitConfirmationOpen(false);
   }
@@ -195,7 +196,7 @@ export function AddAdvocateDialog({
   }
 
   function requestExit() {
-    if (isDirty) {
+    if (isDirty && !done) {
       setExitConfirmationOpen(true);
       return;
     }
@@ -287,11 +288,53 @@ export function AddAdvocateDialog({
         }}
       >
         <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+          {done ? (
+            /* The join dialog's done stage: icon, outcome, one action. A
+               dead disabled button asked the reader to imagine the ending
+               (owner, Sept 1). */
+            <>
+              <DialogHeader className="shrink-0 px-6 py-5 pr-14 text-left">
+                <div className="flex items-center gap-4">
+                  <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-success-muted text-success-muted-foreground">
+                    <CheckCircle2Icon className="size-7" aria-hidden />
+                  </span>
+                  <div className="flex min-w-0 flex-col gap-1.5">
+                    <DialogTitle className="text-title-s font-semibold text-balance">
+                      {chips.length === 1 ? "Advocate added" : "Advocates added"}
+                    </DialogTitle>
+                    <DialogDescription className="text-pretty">
+                      <NamesWithOthers
+                        names={advocateNames}
+                        othersLabel="Other advocates"
+                      />{" "}
+                      can now act on this case for{" "}
+                      <NamesWithOthers
+                        names={chosenParties.map((p) => p.name)}
+                        othersLabel="Other parties"
+                      />
+                      .
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+              <div className="px-6 pb-5">
+                <Banner variant="info">
+                  The Parties list in this prototype does not update yet.
+                </Banner>
+              </div>
+              <footer className="flex shrink-0 justify-end border-t border-hairline px-6 py-4">
+                <Button type="button" onClick={closeClean}>
+                  Done
+                </Button>
+              </footer>
+            </>
+          ) : (
+            <>
           {/* The stepper gets its own full-width band with symmetric
               padding and a hairline under it: inside the header, the
               close button's pr-14 pushed it off the dialog's center and
               it sat crammed against the step heading (owner, Sept 1). */}
-          <div className="shrink-0 border-b border-hairline px-6 py-4">
+          <div className="shrink-0 border-b border-hairline px-6 pt-6 pb-4">
             <FlowStepper
               steps={STEPS}
               current={step}
@@ -303,7 +346,27 @@ export function AddAdvocateDialog({
               {current.title}
             </DialogTitle>
             <DialogDescription className="text-pretty">
-              {current.description}
+              {/* Step 2's description carries the deed's own facts, so the
+                  body below needs no second "Vakalatnama" heading over an
+                  executed-by line (the heading appeared three deep:
+                  stepper, title, section - owner, Sept 1). */}
+              {step === 2 ? (
+                <>
+                  Attach the vakalatnama executed by{" "}
+                  <NamesWithOthers
+                    names={chosenParties.map((p) => p.name)}
+                    othersLabel="Other parties"
+                  />{" "}
+                  in favour of{" "}
+                  <NamesWithOthers
+                    names={advocateNames}
+                    othersLabel="Other advocates"
+                  />
+                  .
+                </>
+              ) : (
+                current.description
+              )}
             </DialogDescription>
           </DialogHeader>
 
@@ -556,26 +619,9 @@ export function AddAdvocateDialog({
               ) : step === 2 ? (
                 <>
                   <div className="flex flex-col gap-3">
-                    <div className="flex flex-col gap-1">
-                      <p className="text-body font-semibold leading-snug">
-                        Vakalatnama
-                      </p>
-                      <p className="text-body-compact text-pretty text-muted-foreground">
-                        Executed by{" "}
-                        <NamesWithOthers
-                          names={chosenParties.map((p) => p.name)}
-                          othersLabel="Other parties"
-                        />{" "}
-                        in favour of{" "}
-                        <NamesWithOthers
-                          names={advocateNames}
-                          othersLabel="Other advocates"
-                        />
-                        .
-                      </p>
-                    </div>
                     {/* Same three sources as the join flow: upload a signed
-                        copy, pick a generated one, or make one below. */}
+                        copy, pick a generated one, or make one below. The
+                        header above already says whose deed this is. */}
                     <Tabs
                       value={vkTab}
                       onValueChange={(value) => {
@@ -633,22 +679,16 @@ export function AddAdvocateDialog({
                     <p className="text-body-compact font-medium">
                       Don&apos;t have a vakalatnama yet?
                     </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setVkGenerateNotice(true)}
-                      data-icon="inline-start"
-                    >
-                      <FilePlus2Icon aria-hidden />
-                      Generate one in the portal
+                    {/* A real jump to the e-sign wizard's home; the draft
+                        here is lost on navigation, which is the same trade
+                        the person makes by going off to prepare a deed. */}
+                    <Button asChild variant="outline" data-icon="inline-start">
+                      <Link href="/vakalatnama">
+                        <FilePlus2Icon aria-hidden />
+                        Generate one in the portal
+                      </Link>
                     </Button>
                   </div>
-                  {vkGenerateNotice ? (
-                    <Banner variant="info">
-                      Generating a vakalatnama opens the e-sign flow in the
-                      Vakalatnama section. Not wired in this prototype.
-                    </Banner>
-                  ) : null}
                 </>
               ) : (
                 <DescriptionList>
@@ -701,23 +741,13 @@ export function AddAdvocateDialog({
                 Continue
               </Button>
             ) : (
-              <div className="flex flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3">
-                <p
-                  id="advocate-save-unavailable"
-                  className="text-caption text-muted-foreground sm:text-end"
-                >
-                  Saving is not connected yet.
-                </p>
-                <Button
-                  type="button"
-                  disabled
-                  aria-describedby="advocate-save-unavailable"
-                >
-                  {chips.length === 1 ? "Add advocate" : "Add advocates"}
-                </Button>
-              </div>
+              <Button type="button" onClick={() => setDone(true)}>
+                {chips.length === 1 ? "Add advocate" : "Add advocates"}
+              </Button>
             )}
           </footer>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
