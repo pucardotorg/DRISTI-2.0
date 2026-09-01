@@ -17,7 +17,7 @@
  */
 
 import { useState, type ReactNode } from "react";
-import { CheckCircle2Icon, InfoIcon } from "lucide-react";
+import { CheckCircle2Icon, InfoIcon, Maximize2Icon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -49,6 +49,8 @@ type RemovalConsentFixture = {
   party: string;
   grounds: string;
   document: string;
+  /** The attached letter's substance, one paragraph per entry. */
+  documentBody: string[];
   requestedOn: string;
 };
 
@@ -60,6 +62,11 @@ const REMOVAL_CONSENT_PACK: Record<string, RemovalConsentFixture> = {
     grounds:
       "The client has consolidated the brief with one counsel ahead of the evidence stage and has asked that co-counsel be relieved.",
     document: "Client_instruction_letter.pdf",
+    documentBody: [
+      "I write regarding my complaint pending before the Judicial First Class Magistrate I, Kollam.",
+      "With the evidence stage ahead, I wish to consolidate my brief with Adv. Ramesh Menon alone, and I request that my other counsel be relieved from the vakalatnama with my thanks for the work done so far.",
+      "I make this request of my own accord and have discussed it with both counsel.",
+    ],
     requestedOn: "30 Aug 2026",
   },
 };
@@ -149,6 +156,7 @@ function RemovalConsentDialog({
 }) {
   const [note, setNote] = useState("");
   const [decision, setDecision] = useState<Decision>(null);
+  const [docOpen, setDocOpen] = useState(false);
 
   function close() {
     const decided = decision !== null;
@@ -212,7 +220,7 @@ function RemovalConsentDialog({
               </DialogTitle>
               <DialogDescription>
                 {fixture.requester} asks that you come off the vakalatnama for{" "}
-                {fixture.party}. Accepting is the approval; no order is needed.
+                {fixture.party}.
               </DialogDescription>
             </DialogHeader>
 
@@ -226,7 +234,21 @@ function RemovalConsentDialog({
                 <ReviewRow term="Grounds">
                   <span className="whitespace-pre-wrap">{fixture.grounds}</span>
                 </ReviewRow>
-                <ReviewRow term="Document">{fixture.document}</ReviewRow>
+                <ReviewRow term="Document">
+                  <span className="flex min-w-0 items-center gap-1">
+                    <span className="min-w-0 truncate">{fixture.document}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="shrink-0 text-muted-foreground"
+                      aria-label={`View ${fixture.document}`}
+                      onClick={() => setDocOpen(true)}
+                    >
+                      <Maximize2Icon aria-hidden />
+                    </Button>
+                  </span>
+                </ReviewRow>
               </DescriptionList>
 
               <Field>
@@ -243,7 +265,9 @@ function RemovalConsentDialog({
               </Field>
             </div>
 
-            <footer className="flex shrink-0 flex-col-reverse gap-2 border-t border-hairline px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+            {/* Both verbs together on the right: parked on the far left,
+                Reject read as a Back button by muscle memory (owner, Sept 1). */}
+            <footer className="flex shrink-0 flex-col-reverse gap-2 border-t border-hairline px-6 py-4 sm:flex-row sm:items-center sm:justify-end">
               <Button
                 type="button"
                 variant="outline"
@@ -261,6 +285,64 @@ function RemovalConsentDialog({
             </footer>
           </>
         )}
+      </DialogContent>
+
+      <ConsentDocumentDialog
+        open={docOpen}
+        onOpenChange={setDocOpen}
+        fixture={fixture}
+      />
+    </Dialog>
+  );
+}
+
+/**
+ * Prototype preview: the attached letter's substance as a paper sheet, the
+ * same facsimile the vakalatnama picker uses. The real portal renders the
+ * stored PDF — same dialog, same trigger.
+ */
+function ConsentDocumentDialog({
+  open,
+  onOpenChange,
+  fixture,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  fixture: RemovalConsentFixture;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[90dvh] flex-col gap-4 overflow-hidden sm:max-w-lg">
+        <DialogHeader className="pr-10 text-left">
+          <DialogTitle>Supporting document</DialogTitle>
+          <DialogDescription>{fixture.document}</DialogDescription>
+        </DialogHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto rounded-lg bg-surface-sunken p-4">
+          <div className="mx-auto flex max-w-sm flex-col gap-5 rounded-md border border-hairline bg-surface px-6 py-8">
+            <div className="flex flex-col items-center gap-1 text-center">
+              <p className="text-caption tracking-widest text-muted-foreground uppercase">
+                Letter of instruction
+              </p>
+              <p className="text-body-compact font-semibold">{fixture.party}</p>
+              <p className="text-caption text-muted-foreground tabular-nums">
+                {fixture.requestedOn}
+              </p>
+            </div>
+            <div className="flex flex-col gap-3">
+              {fixture.documentBody.map((paragraph) => (
+                <p key={paragraph} className="text-body-compact text-pretty">
+                  {paragraph}
+                </p>
+              ))}
+            </div>
+            <div className="flex w-1/2 flex-col gap-1 self-end pt-4">
+              <div className="h-px w-full bg-border" aria-hidden />
+              <p className="text-caption text-muted-foreground">
+                Signature of {fixture.party}
+              </p>
+            </div>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
