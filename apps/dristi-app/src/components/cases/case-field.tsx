@@ -40,10 +40,9 @@ export function CaseField({
     case "advocates":
       return <CaseAdvocatesPair record={record} dense={!list} />;
     case "representation": {
-      /* Which side the viewer appears for. Both is rare but real; a case
-         where the record does not name them at all says so rather than
-         sitting blank, because blank reads as "no data" and the answer is
-         "you hold office access only". */
+      /* Which side the viewer appears for. Both is rare but real. A case
+         whose record does not name them reaches the viewer only through a
+         grant, so the cell says the relationship itself: office access. */
       const sides = viewerSides(record);
       return (
         <CasePlain>
@@ -53,7 +52,7 @@ export function CaseField({
                   side === "complainant" ? "Complainant" : "Accused"
                 )
                 .join(" · ")
-            : "Not on record"}
+            : "Office access"}
         </CasePlain>
       );
     }

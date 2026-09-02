@@ -624,10 +624,12 @@ export const peopleCopy = {
   caseSearchPlaceholder: t("Case name or number", "കേസിന്റെ പേരോ നമ്പറോ"),
   noCaseMatches: t("No matching cases.", "പൊരുത്തപ്പെടുന്ന കേസുകളില്ല."),
   vakalatCasesHeading: t("Access through Vakalatnama", "വക്കാലത്ത്നാമ വഴിയുള്ള ആക്‌സസ്"),
-  staffCasesHeading: t("Administrative access", "അഡ്മിനിസ്ട്രേറ്റീവ് ആക്‌സസ്"),
+  /* "Office access", never "administrative access" (user, Sept 2): admin
+     reads as all-access elsewhere, which is the opposite of what this is. */
+  staffCasesHeading: t("Office access", "ഓഫീസ് ആക്‌സസ്"),
   staffTooltipLabel: t(
-    "What administrative access means",
-    "അഡ്മിനിസ്ട്രേറ്റീവ് ആക്‌സസ് എന്നതിന്റെ അർത്ഥം",
+    "What office access means",
+    "ഓഫീസ് ആക്‌സസ് എന്നതിന്റെ അർത്ഥം",
   ),
   staffTooltip: t(
     "People who are not on the Vakalatnama, such as clerks and junior advocates, but have been given access to work on the case.",

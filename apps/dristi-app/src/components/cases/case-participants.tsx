@@ -98,28 +98,35 @@ const HEADING_ID = "parties-heading";
 const VIEWER_SIDE: PartySideId = "complainant";
 
 /**
- * Everyone attached to the case, as PoA-takeover options (PM, Sept 2):
- * every litigant, every advocate on a vakalatnama, and the administrative-
- * access staff — not just the viewer's side's advocates. Keys are prefixed
- * so populations never collide.
+ * Everyone attached to the case ON THE VIEWER'S SIDE, as PoA-takeover
+ * options (PM, Sept 2; own-side clarified by the owner the same day — the
+ * opposing party's people holding your PoA is a contradiction): the side's
+ * litigants, its advocates on the vakalatnama, and its office staff. Keys
+ * are prefixed so populations never collide.
  */
 function casePeopleOptions(file: ParticipantsFile) {
   return [
-    ...file.litigants.map((row) => ({
-      key: `party:${row.id}`,
-      name: row.name,
-      detail: PARTY_ROLE_LABEL[row.side],
-    })),
-    ...file.legalTeams.map((team) => ({
-      key: `advocate:${team.id}`,
-      name: team.advocate,
-      detail: "On the vakalatnama",
-    })),
-    ...file.supportPeople.map((person) => ({
-      key: `staff:${person.id}`,
-      name: person.name,
-      detail: `${person.role} · administrative access`,
-    })),
+    ...file.litigants
+      .filter((row) => row.side === VIEWER_SIDE)
+      .map((row) => ({
+        key: `party:${row.id}`,
+        name: row.name,
+        detail: PARTY_ROLE_LABEL[row.side],
+      })),
+    ...file.legalTeams
+      .filter((team) => team.side === VIEWER_SIDE)
+      .map((team) => ({
+        key: `advocate:${team.id}`,
+        name: team.advocate,
+        detail: "On the vakalatnama",
+      })),
+    ...file.supportPeople
+      .filter((person) => person.sides.includes(VIEWER_SIDE))
+      .map((person) => ({
+        key: `staff:${person.id}`,
+        name: person.name,
+        detail: `${person.role} · office access`,
+      })),
   ];
 }
 

@@ -115,8 +115,9 @@ export function AddPoaDialog({
   /** The viewer's own clients only; never the opposing side. */
   litigants: PartyOption[];
   /**
-   * Scenario 8's pool: EVERYONE attached to the case (PM, Sept 2) — on-nama
-   * advocates, administrative-access staff, and every litigant.
+   * Scenario 8's pool: everyone attached to the case on the viewer's own
+   * side (PM + owner, Sept 2) — its litigants, its on-nama advocates, and
+   * its office staff.
    */
   casePeople: { key: string; name: string; detail: string }[];
 }) {

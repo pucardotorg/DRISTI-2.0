@@ -239,7 +239,7 @@ export function RemoveAdvocateDialog({
                       ? `Once ${advocateName} accepts, they come off the vakalatnama.`
                       : `Once the magistrate orders it, ${advocateName} comes off the vakalatnama.`
                     : step === 2 && route === "consent"
-                      ? `Optional: give ${advocateName} the context for the request.`
+                      ? `Give ${advocateName} the context for the request.`
                       : current.description}
                 </DialogDescription>
               </DialogHeader>
