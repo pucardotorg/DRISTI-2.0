@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { CaseAddPeople } from "@/components/cases/case-add-people";
 import { RestingCard } from "@/components/cases/case-overview-card";
+import { EditLitigantAction } from "@/components/cases/edit-litigant-dialog";
 import type { CaseRef } from "@/components/cases/party-application";
 import { PoaHolderWell } from "@/components/cases/poa-holder-actions";
 import { RepresentationWell } from "@/components/cases/representation-well";
@@ -70,15 +71,12 @@ import { cn } from "@/lib/utils";
  * confirmed something it has never been asked. Omitted outright rather than
  * stubbed — a stubbed verification is worse than none.
  *
- * **"Edit party" button.** The product treats a change to litigant details as
- * an application to the magistrate, so the button would have to open the Raise
- * application flow. `application-type-guide.ts` ships eight types —
- * advancement/reschedule, bail, condonation of delay, production of documents,
- * settlement, transfer, withdrawal, others — and none is an
- * edit-litigant-details type. "Others" is a free-text catch-all; routing a
- * specific action into it would be inventing the product's mapping rather than
- * reading it. Omitted, because the alternatives were a dead button or an
- * invented flow.
+ * **"Edit party" button** — originally omitted because no application type
+ * carried it. It exists now as the pencil on the detail header (own side
+ * only): the party-actions phase gave corrections their own application flow
+ * (`edit-litigant-dialog.tsx`), pre-filled from the record and ending in the
+ * generated-application chain, so the button no longer has to borrow the
+ * Raise-application flow's types.
  *
  * **"Case timeline associations" tiles.** "Appeared on <date>" is not
  * derivable: `hearings-dummy.json` records attendance as opaque
@@ -718,9 +716,21 @@ function LitigantDetail({
         name={litigant.name}
         subline={litigantSubline(litigant)}
         badge={
-          <Badge variant="secondary" className="shrink-0">
-            {PARTY_ROLE_LABEL[litigant.side]}
-          </Badge>
+          <div className="flex shrink-0 items-center gap-2">
+            <Badge variant="secondary">{PARTY_ROLE_LABEL[litigant.side]}</Badge>
+            {/* Scenario 10 — a correction to the record is an application, so
+                the pencil opens a pre-filled form ending in the application
+                chain. Own side only, like every other party action here. */}
+            {litigant.side === VIEWER_SIDE ? (
+              <EditLitigantAction
+                litigant={{
+                  name: litigant.name,
+                  entityRepresentative: litigant.entityRepresentative?.name,
+                }}
+                caseRef={caseRef}
+              />
+            ) : null}
+          </div>
         }
       />
 
