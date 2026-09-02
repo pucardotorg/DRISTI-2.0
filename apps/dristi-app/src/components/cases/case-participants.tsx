@@ -5,6 +5,10 @@ import { AlternateAddresses } from "@/components/cases/alternate-addresses";
 import { CaseAddPeople } from "@/components/cases/case-add-people";
 import { RestingCard } from "@/components/cases/case-overview-card";
 import { EditLitigantAction } from "@/components/cases/edit-litigant-dialog";
+import {
+  LiveAdvocateWells,
+  PartiesLiveProvider,
+} from "@/components/cases/parties-live";
 import type { CaseRef } from "@/components/cases/party-application";
 import { PoaHolderWell } from "@/components/cases/poa-holder-actions";
 import { RepresentationWell } from "@/components/cases/representation-well";
@@ -148,6 +152,10 @@ export function CaseParticipants({
 
   return (
     <section className="min-w-0" aria-labelledby={HEADING_ID}>
+      {/* Client boundary for session-local additions: the add flow reports
+          what it added, the Representation sections render it live. The
+          section itself stays a server component. */}
+      <PartiesLiveProvider>
       <RestingCard className="min-w-0">
         <CardContent className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 flex-col gap-2">
@@ -228,6 +236,7 @@ export function CaseParticipants({
           )}
         </CardContent>
       </RestingCard>
+      </PartiesLiveProvider>
     </section>
   );
 }
@@ -626,31 +635,47 @@ function LitigantDetail({
   /* "Representation", not the mockup's "Assigned advocates": the section has
      to head a party-in-person and a no-advocate pane too, and a heading naming
      advocates over neither is a contradiction. */
+  /* Advocates this session added arrive through the live layer, in the same
+     well the record's advocates get — the add flow's list update. Own-side
+     only by construction: the add dialog offers only the viewer's parties. */
+  const liveWells = (
+    <LiveAdvocateWells
+      partyId={litigant.id}
+      partyName={litigant.name}
+      caseRef={caseRef}
+    />
+  );
+
   sections.push({
     id: "participant-representation",
     title: "Representation",
     facts: litigant.partyInPerson ? (
       <FactWell primary="Party in person" />
-    ) : litigant.advocates.length > 0 ? (
-      /* Each advocate's well carries the removal entry point (3a/3b), a
-         client island in an otherwise server pane — but only on the
-         viewer's own side: an advocate cannot seek the removal of
-         opposing counsel (owner, Sept 1). The other side's advocates
-         stay plain fact wells. */
-      litigant.advocates.map((advocate) =>
-        litigant.side === viewerSide ? (
-          <RepresentationWell
-            key={advocate}
-            advocate={advocate}
-            partyName={litigant.name}
-            caseRef={caseRef}
-          />
-        ) : (
-          <FactWell key={advocate} primary={advocate} />
-        )
-      )
     ) : (
-      <SectionNote>No advocate on record</SectionNote>
+      <>
+        {litigant.advocates.length > 0 ? (
+          /* Each advocate's well carries the removal entry point (3a/3b), a
+             client island in an otherwise server pane — but only on the
+             viewer's own side: an advocate cannot seek the removal of
+             opposing counsel (owner, Sept 1). The other side's advocates
+             stay plain fact wells. */
+          litigant.advocates.map((advocate) =>
+            litigant.side === viewerSide ? (
+              <RepresentationWell
+                key={advocate}
+                advocate={advocate}
+                partyName={litigant.name}
+                caseRef={caseRef}
+              />
+            ) : (
+              <FactWell key={advocate} primary={advocate} />
+            )
+          )
+        ) : (
+          <SectionNote>No advocate on record</SectionNote>
+        )}
+        {liveWells}
+      </>
     ),
   });
 

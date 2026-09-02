@@ -46,7 +46,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -86,6 +85,7 @@ import { Separator } from "@/components/ui/separator";
 import { initials } from "@/components/access/access-list";
 import { VakalatnamaPicker } from "@/components/advocate/vakalatnama-picker";
 import { FlowStepper } from "@/components/cases/flow-stepper";
+import { usePartiesLive } from "@/components/cases/parties-live";
 import {
   ReviewDocValue,
   UPLOAD_HELP,
@@ -156,6 +156,7 @@ export function AddAdvocateDialog({
   const [vakalatFile, setVakalatFile] = useState<File | null>(null);
   const [vkSavedId, setVkSavedId] = useState("");
   const [done, setDone] = useState(false);
+  const partiesLive = usePartiesLive();
   const [errors, setErrors] = useState<Errors>({});
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
 
@@ -320,11 +321,6 @@ export function AddAdvocateDialog({
                   </div>
                 </div>
               </DialogHeader>
-              <div className="px-6 pb-5">
-                <Banner variant="info">
-                  The Parties list in this prototype does not update yet.
-                </Banner>
-              </div>
               <footer className="flex shrink-0 justify-end border-t border-hairline px-6 py-4">
                 <Button type="button" onClick={closeClean}>
                   Done
@@ -756,7 +752,15 @@ export function AddAdvocateDialog({
                 Continue
               </Button>
             ) : (
-              <Button type="button" onClick={() => setDone(true)}>
+              <Button
+                type="button"
+                onClick={() => {
+                  /* Report the addition so the Parties list updates at once
+                     (session-local; the participants service is the seam). */
+                  partiesLive?.addAdvocates(advocateNames, partyIds);
+                  setDone(true);
+                }}
+              >
                 {chips.length === 1 ? "Add advocate" : "Add advocates"}
               </Button>
             )}
