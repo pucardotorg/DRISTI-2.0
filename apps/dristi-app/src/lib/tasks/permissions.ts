@@ -37,6 +37,8 @@ export function canViewTask(user: Person | PersonId, task: Task, kase: Case): bo
   if (!canView(user, kase)) return false;
   if ((task.visibility ?? "case") === "case") return true;
   if (task.kind === "hearing" || task.status === "draft") return true;
+  // A review task's one actor is its addressee.
+  if (task.kind === "review") return !task.review?.of || idOf(user) === task.review.of;
   return canComplete(user, kase);
 }
 
@@ -63,7 +65,7 @@ export const WAITING: ReadonlySet<TaskStatus> = new Set(["awaiting-court", "paym
 /** States someone on the case can still act on. */
 export const ACTIONABLE: ReadonlySet<TaskStatus> = new Set(["open", "draft", "ready"]);
 /** Verbs that make a task this viewer's move — the Needs-action test. */
-const ACTING: ReadonlySet<Verb> = new Set(["Sign", "Pay", "File", "Re-file", "Continue", "Mark done"]);
+const ACTING: ReadonlySet<Verb> = new Set(["Sign", "Pay", "File", "Re-file", "Continue", "Respond", "Mark done"]);
 
 /**
  * Which tab a task belongs to — viewer-dependent. Needs action means this viewer holds
@@ -147,6 +149,8 @@ export function verbFor(user: Person | PersonId, task: Task, kase: Case): Verb {
   if (!ACTIONABLE.has(task.status)) return "View";
 
   if (task.kind === "hearing") return "Mark done";
+  // A review task waits for its addressee's decision — everyone else watches it wait.
+  if (task.kind === "review") return !task.review?.of || id === task.review.of ? "Respond" : "View";
   if (task.status === "draft") return "Continue";
   return canComplete(id, kase) ? completeVerbOf(task.kind) : "View";
 }

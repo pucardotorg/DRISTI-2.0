@@ -116,6 +116,7 @@ export function saveDraft(task: Task, ctx: Ctx, note?: string, files?: StoredFil
   assertState(task, PREPARABLE, "save");
   assertAllowed(canView(ctx.actor, ctx.kase), "work on");
   if (task.kind === "hearing") throw new TransitionError("invalid", "A hearing task has nothing to draft.");
+  if (task.kind === "review") throw new TransitionError("invalid", "A request is answered, not drafted.");
   const at = nowOf(ctx);
   return withHistory(
     {
@@ -143,6 +144,7 @@ export function markReady(task: Task, ctx: Ctx, note?: string, files?: StoredFil
   assertState(task, ["open", "draft"], "mark ready");
   assertAllowed(canView(ctx.actor, ctx.kase), "prepare");
   if (task.kind === "hearing") throw new TransitionError("invalid", "A hearing task is done in court, not prepared.");
+  if (task.kind === "review") throw new TransitionError("invalid", "A request is answered, not prepared.");
   const at = nowOf(ctx);
   const allFiles = files ?? task.files;
   const text = note?.trim() || task.draft?.note;
@@ -325,6 +327,37 @@ export function refile(task: Task, ctx: Ctx): Task {
     { ...task, status: "awaiting-court", statusNote: undefined, draft: undefined },
     ctx,
     line("submitted the corrections to scrutiny")
+  );
+}
+
+/**
+ * Answer a request addressed to this advocate: accept it or decline it. The addressee
+ * only. The decision closes the task either way — what happens next (the removal goes
+ * ahead, or the requester routes it to the magistrate) is the requester's move, on
+ * their own screens.
+ */
+export function respond(task: Task, ctx: Ctx, accepted: boolean, note?: string): Task {
+  if (task.kind !== "review") throw new TransitionError("invalid", "Not a request to review.");
+  assertState(task, ["open"], "respond to");
+  const addressee = task.review?.of;
+  assertAllowed(
+    canView(ctx.actor, ctx.kase) && (!addressee || ctx.actor.id === addressee),
+    "respond to"
+  );
+  const at = nowOf(ctx);
+  const text = note?.trim() || undefined;
+  return withHistory(
+    {
+      ...task,
+      status: "done",
+      statusNote: undefined,
+      review: task.review
+        ? { ...task.review, decision: { by: ctx.actor.id, at, accepted, note: text } }
+        : task.review,
+      completion: { by: ctx.actor.id, at, how: "event" },
+    },
+    ctx,
+    `${ctx.actor.name} ${accepted ? "accepted" : "declined"} the request${text ? ` — “${text}”` : ""}`
   );
 }
 

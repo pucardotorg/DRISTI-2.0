@@ -34,14 +34,17 @@ export const DEFAULT_FILTERS: Filters = {
 };
 
 /** Every card names an act. "Draft" is a state, so it is not one of them — see `cardKindOf`. */
-export const CARD_ORDER: CardKind[] = ["sign", "pay", "file", "returned", "hearing"];
+export const CARD_ORDER: CardKind[] = ["sign", "pay", "file", "returned", "review", "hearing"];
 
 export const CARD_LABELS: Record<CardKind, string> = {
   sign: "To sign",
   pay: "To pay",
   file: "To file",
   returned: "Returned by scrutiny",
-  hearing: "For a hearing",
+  review: "To review",
+  /* "To submit" over "For a hearing" — the PM's wording (Sept 2026): the card holds
+     what must be produced or presented at a posting, and "submit" names that act. */
+  hearing: "To submit",
   draft: "Drafts",
 };
 

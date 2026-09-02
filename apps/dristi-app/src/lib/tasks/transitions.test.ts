@@ -18,6 +18,7 @@ import {
   recordPayment,
   redate,
   refile,
+  respond,
   saveDraft,
   sign,
   TransitionError,
@@ -207,6 +208,36 @@ describe("the court", () => {
     const filed = file(makeTask({ kind: "file" }), ctx());
     throwsCode(() => courtReturned(filed, ctx(), ["", " "]), "invalid");
     throwsCode(() => courtReturned(makeTask({ kind: "file" }), ctx(), ["x"]), "illegal-state");
+  });
+});
+
+describe("responding (the addressee of a review task)", () => {
+  const request = () =>
+    makeTask({ kind: "review", review: { requestedBy: senior2.id, of: senior.id } });
+
+  it("the addressee accepts; the decision and the closure are recorded", () => {
+    const t = respond(request(), ctx(senior), true, "No objection");
+    assert.equal(t.status, "done");
+    assert.equal(t.review?.decision?.accepted, true);
+    assert.equal(t.review?.decision?.note, "No objection");
+    assert.equal(t.completion?.by, senior.id);
+    assert.equal(t.completion?.how, "event");
+    assert.match(t.history.at(-1)!.text, /accepted the request/);
+  });
+
+  it("declining closes it too — what happens next is the requester's move", () => {
+    const t = respond(request(), ctx(senior), false);
+    assert.equal(t.status, "done");
+    assert.equal(t.review?.decision?.accepted, false);
+    assert.match(t.history.at(-1)!.text, /declined the request/);
+  });
+
+  it("only the addressee responds; a review task is never drafted or prepared", () => {
+    throwsCode(() => respond(request(), ctx(senior2), true), "forbidden");
+    throwsCode(() => respond(request(), ctx(junior), true), "forbidden");
+    throwsCode(() => respond(makeTask({ kind: "sign" }), ctx(senior), true), "invalid");
+    throwsCode(() => saveDraft(request(), ctx(junior)), "invalid");
+    throwsCode(() => markReady(request(), ctx(junior)), "invalid");
   });
 });
 

@@ -148,7 +148,8 @@ function useTaskNotifications() {
     if (state !== "ready") return [];
     const now = new Date();
     const w = { people, cases, tasks, user, now };
-    return tasksInView(w, "needs-action")
+    const pending = tasksInView(w, "needs-action");
+    const overdue: ShellNotification[] = pending
       .filter((t) => isOverdue(t, now))
       .sort((a, b) => compareUrgency(a, b, now))
       .slice(0, 8)
@@ -166,6 +167,22 @@ function useTaskNotifications() {
           persistent: true,
         };
       });
+    // A request addressed to this person is a thing that needs attention the moment it
+    // arrives, deadline or none — still a restatement of their own data, not a feed.
+    const requests: ShellNotification[] = pending
+      .filter((t) => t.kind === "review" && !isOverdue(t, now))
+      .map((t) => {
+        const kase = caseOf(w, t);
+        return {
+          id: t.id,
+          title: t.title,
+          body: `Awaiting your decision${kase ? ` · ${kase.parties}` : ""}`,
+          unread: !readIds.has(t.id),
+          tone: "info" as const,
+          persistent: true,
+        };
+      });
+    return [...requests, ...overdue];
   }, [state, people, cases, tasks, user, readIds]);
 
   const markAllRead = React.useCallback(() => {
