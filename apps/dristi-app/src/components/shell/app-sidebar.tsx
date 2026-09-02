@@ -536,6 +536,16 @@ function ProfileFooter() {
                     <RotateCcwIcon aria-hidden />
                     <span className="flex-1 text-left">Reset sandbox data</span>
                   </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start font-normal text-muted-foreground"
+                    onClick={() => router.push("/join/demo")}
+                  >
+                    <ScrollTextIcon aria-hidden />
+                    <span className="flex-1 text-left">
+                      Join a Case from Summons
+                    </span>
+                  </Button>
                 </div>
 
                 <RailThemePicker />
