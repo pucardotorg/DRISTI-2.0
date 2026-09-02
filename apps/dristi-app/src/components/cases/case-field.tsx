@@ -1,6 +1,6 @@
 import { type TableColumnId } from "@/lib/cases/table-columns";
 import { counselFor, type CaseRecord } from "@/lib/cases/types";
-import { viewerSides } from "@/lib/cases/viewer";
+import { viewerRepresentation } from "@/lib/cases/viewer";
 
 import { CaseAdvocatesPair } from "./case-advocates";
 import {
@@ -40,19 +40,15 @@ export function CaseField({
     case "advocates":
       return <CaseAdvocatesPair record={record} dense={!list} />;
     case "representation": {
-      /* Which side the viewer appears for. Both is rare but real. A case
-         whose record does not name them reaches the viewer only through a
-         grant, so the cell says the relationship itself: office access. */
-      const sides = viewerSides(record);
+      /* Which side the viewer works for — always a side (owner, Sept 2):
+         office access itself belongs to one side's team, so the column
+         never answers anything but complainant or accused. */
+      const sides = viewerRepresentation(record);
       return (
         <CasePlain>
-          {sides.length > 0
-            ? sides
-                .map((side) =>
-                  side === "complainant" ? "Complainant" : "Accused"
-                )
-                .join(" · ")
-            : "Office access"}
+          {sides
+            .map((side) => (side === "complainant" ? "Complainant" : "Accused"))
+            .join(" · ")}
         </CasePlain>
       );
     }

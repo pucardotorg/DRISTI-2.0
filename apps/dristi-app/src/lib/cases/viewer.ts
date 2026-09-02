@@ -17,3 +17,16 @@ export function viewerSides(record: CaseRecord): CounselSide[] {
     counselFor(record, side).some((name) => name.includes(VIEWER_NAME))
   );
 }
+
+/**
+ * The side the viewer works for on this case — never empty (owner, Sept 2):
+ * even office access descends from one side's team, so the answer is always
+ * complainant or accused. Where the record does not name the viewer as
+ * counsel, the grant's side is not yet authored in the fixtures, and the
+ * demo's standing complainant-side assumption stands in until the fixture
+ * pass records the true side per grant.
+ */
+export function viewerRepresentation(record: CaseRecord): CounselSide[] {
+  const sides = viewerSides(record);
+  return sides.length > 0 ? sides : ["complainant"];
+}
