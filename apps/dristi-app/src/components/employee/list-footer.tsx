@@ -25,8 +25,8 @@ import {
 /**
  * How much of a list is in view, how many rows at a time, and the way through it.
  *
- * Shared by every court-side list — the day's cause list and the scheduling queue today,
- * whatever the rail's other rows become next. It is one component rather than the same
+ * Shared by every court-side list — the day's cause list, the scheduling queue, the
+ * register queue, whatever the rail's other rows become next. It is one component rather than the same
  * twenty lines copied per screen because a footer that drifts is a footer the bench has to
  * re-learn: the count sits left, the page size beside it, the pager right, and the pager
  * is absent entirely when there is only one page.

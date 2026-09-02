@@ -7,24 +7,30 @@
  * `lib/cases/hearings.ts`. The *words* are deliberately the same ones — a hearing is
  * "scheduled" or "completed" and its purpose is "Admission" whichever side of the app is
  * looking at it — because the two halves must not drift into disagreeing about the same
- * §138 listing. Only the coupling is avoided, never the shared meaning.
+ * §138 listing. Only the coupling is avoided, never the shared meaning. Passed over is
+ * a sitting overlay this side owns; the citizen hearing record does not carry it yet.
  *
  * **There is no backend.** `CAUSE_LIST` is one sitting day of demo rows, shaped to
- * exercise what the screen has to survive: every status chip, a purpose long enough to
- * wrap its column, a corporate accused long enough to wrap the cause title, sides with
- * one counsel and sides with several, and enough rows to page at 10 and 20. No row is
- * read from a case, a court or a queue, and nothing here performs a court action.
+ * exercise what the screen has to survive: a purpose long enough to wrap its column, a
+ * corporate accused long enough to wrap the cause title, sides with one counsel and
+ * sides with several, and enough rows to page at 10 and 20. No row is read from a case,
+ * a court or a queue.
  *
- * **"Passed over" is not a status.** The reference's row menu offers it, but marking a
- * matter passed over is a real judicial act and this build performs none — so the action
- * is rendered and plainly disabled (see `HearingsTable`) rather than modelled as data the
- * court could reach. The same goes for starting a hearing.
+ * **Starting, ending, and passing over are screen actions, not a court record.** The
+ * listing stands as scheduled until the bench presses Start hearing; only then does
+ * the chip read ongoing, and the case peek opens on that matter — the same glance the
+ * advocate list already ships. End hearing, on the same control, marks that listing
+ * completed and dismisses the peek. Pass over, from the row overflow, marks it passed
+ * over — to be heard on a later date — without completing it. Nothing is filed,
+ * notified, or written back. Choosing that later date is Bulk reschedule / Schedule,
+ * not this mark.
  */
 
 export type CourtHearingStatus =
   | "scheduled"
   | "ongoing"
   | "completed"
+  | "passed-over"
   | "rescheduled"
   | "abandoned";
 
@@ -35,26 +41,65 @@ export const COURT_HEARING_STATUSES: {
   { id: "scheduled", label: "Scheduled" },
   { id: "ongoing", label: "Ongoing" },
   { id: "completed", label: "Completed" },
+  { id: "passed-over", label: "Passed over" },
   { id: "rescheduled", label: "Rescheduled" },
   { id: "abandoned", label: "Abandoned" },
 ];
 
 /**
- * Chip fills follow where the listing sits in the day, matching the citizen side's
- * reading of the same five words: info before it is called and while it is being heard,
- * success once it is done, secondary once it has moved to another date, warning when it
- * did not proceed. The chip always carries the word as well as the fill — status is never
- * colour alone (ACCESSIBILITY §3).
+ * Statuses a listing can hold on today's cause list.
+ *
+ * Today's sitting is the matters listed for this date: still to be called, currently
+ * being heard, already heard, or passed over to a later date. Rescheduled and
+ * abandoned are not on this day's list — they have left it — so they are not offered
+ * as filters here either. Passed over stays: the bench still needs to see what was
+ * deferred versus what was heard.
+ */
+export type TodaysCauseStatus = Extract<
+  CourtHearingStatus,
+  "scheduled" | "ongoing" | "completed" | "passed-over"
+>;
+
+export const TODAYS_CAUSE_STATUSES = COURT_HEARING_STATUSES.filter(
+  (status): status is { id: TodaysCauseStatus; label: string } =>
+    status.id === "scheduled" ||
+    status.id === "ongoing" ||
+    status.id === "completed" ||
+    status.id === "passed-over",
+);
+
+/** A matter that still belongs on this day's cause list. */
+export function isOnTodaysCauseList(status: CourtHearingStatus): boolean {
+  return (
+    status === "scheduled" ||
+    status === "completed" ||
+    status === "passed-over"
+  );
+}
+
+/**
+ * Chip fills follow where the listing sits in the day. Each word gets its own Badge
+ * variant so a scan of the Status column can tell them apart — the chip still carries
+ * the word, so status is never colour alone (ACCESSIBILITY §3).
+ *
+ * Ongoing is the live sitting: Badge `default` (brand solid), the DS mark for now / today
+ * / live. Scheduled stays `info` (listed, not yet called). Success keeps completed.
+ * Passed over and rescheduled share `secondary` (deferred); they never appear together
+ * on this list — rescheduled has left the day, passed over has not. Abandoned stays
+ * `warning`. Sharing `info` between scheduled and ongoing left those two
+ * indistinguishable at a glance.
  */
 export function courtHearingStatusVariant(
   status: CourtHearingStatus,
-): "info" | "success" | "secondary" | "warning" {
+): "default" | "info" | "success" | "secondary" | "warning" {
   switch (status) {
     case "scheduled":
-    case "ongoing":
       return "info";
+    case "ongoing":
+      return "default";
     case "completed":
       return "success";
+    case "passed-over":
     case "rescheduled":
       return "secondary";
     case "abandoned":
@@ -66,6 +111,65 @@ export function courtHearingStatusLabel(status: CourtHearingStatus): string {
   return (
     COURT_HEARING_STATUSES.find((entry) => entry.id === status)?.label ?? status
   );
+}
+
+/** Only a listing that has not yet been called can be started. */
+export function canStartHearing(status: CourtHearingStatus): boolean {
+  return status === "scheduled";
+}
+
+/** Only the listing the bench is currently hearing can be ended. */
+export function canEndHearing(status: CourtHearingStatus): boolean {
+  return status === "ongoing";
+}
+
+/**
+ * A listing still on the call can be passed over — scheduled (skip without
+ * starting) or ongoing (stop without completing). Completed and already
+ * passed-over listings cannot.
+ */
+export function canPassOver(status: CourtHearingStatus): boolean {
+  return status === "scheduled" || status === "ongoing";
+}
+
+/**
+ * Applies this sitting's live progress on top of the fixture.
+ *
+ * Ended listings stay completed. Passed-over listings stay passed over. Fixture
+ * completed, passed-over, rescheduled and abandoned keep the status the data already
+ * named. Everything else is scheduled until Start hearing names one id — and only
+ * that id is ongoing. Starting a second matter without ending the first returns the
+ * first to scheduled: the bench hears one cause at a time. A passed-over listing is
+ * not recalled today.
+ */
+export function withHearingSession(
+  hearings: CourtHearing[],
+  session: {
+    ongoingId: string | null;
+    endedIds: ReadonlySet<string>;
+    passedOverIds: ReadonlySet<string>;
+  },
+): CourtHearing[] {
+  return hearings.map((hearing) => {
+    if (session.endedIds.has(hearing.id)) {
+      return { ...hearing, status: "completed" as const };
+    }
+    if (session.passedOverIds.has(hearing.id)) {
+      return { ...hearing, status: "passed-over" as const };
+    }
+    if (
+      hearing.status === "completed" ||
+      hearing.status === "passed-over" ||
+      hearing.status === "rescheduled" ||
+      hearing.status === "abandoned"
+    ) {
+      return hearing;
+    }
+    return {
+      ...hearing,
+      status: hearing.id === session.ongoingId ? "ongoing" : "scheduled",
+    };
+  });
 }
 
 /**
@@ -215,7 +319,7 @@ export const CAUSE_LIST: CourtHearing[] = [
     ],
     stage: "evidence",
     purpose: "evidence-of-complainant",
-    status: "ongoing",
+    status: "scheduled",
   },
   {
     id: "h-243",
@@ -307,7 +411,7 @@ export const CAUSE_LIST: CourtHearing[] = [
     counsel: [{ name: "Adv. Nisha Thomas", side: "complainant" }],
     stage: "process",
     purpose: "appearance",
-    status: "rescheduled",
+    status: "scheduled",
   },
   {
     id: "h-250",
@@ -396,7 +500,7 @@ export const CAUSE_LIST: CourtHearing[] = [
     counsel: [{ name: "Adv. Saurabh Verma", side: "complainant" }],
     stage: "process",
     purpose: "appearance",
-    status: "abandoned",
+    status: "scheduled",
   },
   {
     id: "h-257",
@@ -509,7 +613,14 @@ export const CAUSE_LIST: CourtHearing[] = [
  * screen can never disagree about the size of the day. The other counts in the rail are
  * still the reference's demo numbers; this one is as real as the data behind it.
  */
-export const TODAYS_HEARING_COUNT = CAUSE_LIST.length;
+export const TODAYS_HEARING_COUNT = CAUSE_LIST.filter((hearing) =>
+  isOnTodaysCauseList(hearing.status),
+).length;
+
+/** One listing from the board, or nothing — the order composer looks a matter up by id. */
+export function hearingById(id: string): CourtHearing | undefined {
+  return CAUSE_LIST.find((hearing) => hearing.id === id);
+}
 
 /** A calendar day as `YYYY-MM-DD` in the reader's own timezone. */
 export function isoDay(date: Date): string {
@@ -568,13 +679,18 @@ export function formatListingDate(day: string): string {
  * and the screen shows its empty state. That is the honest answer for this build: a court
  * that has no listing for the date asked for should say so, not borrow another day's
  * matters to look populated.
+ *
+ * Only scheduled, completed and passed-over listings belong here. Rescheduled and
+ * abandoned have left this day's list; ongoing, newly ended and newly passed over
+ * are a live overlay `withHearingSession` applies after.
  */
 export function hearingsForDay(day: string, today: string): CourtHearing[] {
-  return day === today ? CAUSE_LIST : [];
+  if (day !== today) return [];
+  return CAUSE_LIST.filter((hearing) => isOnTodaysCauseList(hearing.status));
 }
 
 export type HearingFilters = {
-  status: CourtHearingStatus | "all";
+  status: TodaysCauseStatus | "all";
   purpose: CourtHearingPurposeId | "all";
   /** Free text over the cause title and the case number — what the bench can recall. */
   query: string;
@@ -608,6 +724,9 @@ export function filterHearings(
 export const PAGE_SIZES = [10, 20, 30, 50] as const;
 
 export type HearingsPageSize = (typeof PAGE_SIZES)[number];
+
+/** Default page length for every employee list that pages through this vocabulary. */
+export const PAGE_SIZE: HearingsPageSize = 10;
 
 export function isHearingsPageSize(value: number): value is HearingsPageSize {
   return (PAGE_SIZES as readonly number[]).includes(value);

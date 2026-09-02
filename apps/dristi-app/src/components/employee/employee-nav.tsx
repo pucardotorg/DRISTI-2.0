@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MinusIcon, PlusIcon } from "lucide-react";
 
-import { CURRENT_STAFF, greetingFor } from "@/lib/employee/content";
 import {
   COURT_NAV_GROUPS,
   COURT_NAV_LINKS,
@@ -29,12 +28,10 @@ import {
 } from "@/components/ui/collapsible";
 import {
   SidebarGroup,
-  SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import {
   Tooltip,
@@ -48,8 +45,8 @@ import {
  *
  * Everything about how it looks comes from the shared chrome frame: the plate, the row
  * and section metrics, the seam, the off-canvas behaviour below `md`. What lives here is
- * only what is the bench's — who is greeted, what the four groups of work are, and which
- * of them the court can actually reach yet.
+ * only what is the bench's — the four groups of work, and which of them the court can
+ * actually reach yet.
  *
  * The plate is charcoal, always. A magistrate's rail is institutional chrome; it does not
  * read a preference store and it offers no picker.
@@ -134,6 +131,20 @@ function RowContents({ item }: { item: CourtNavItem }) {
 }
 
 /**
+ * A row is current when its href is this page. Today's hearings also owns the
+ * order composer nested under it (`/employee/hearings/<id>/order`) — that is
+ * still the day's list, not a new destination. `startsWith` on `/employee/hearings`
+ * would steal schedule and bulk reschedule, which are siblings, not children.
+ */
+function isCourtNavActive(pathname: string, href: string): boolean {
+  if (pathname === href) return true;
+  if (href === "/employee/hearings") {
+    return /^\/employee\/hearings\/[^/]+\/order\/?$/.test(pathname);
+  }
+  return false;
+}
+
+/**
  * One row: a link when it has somewhere to go, and an explained dead control when it does
  * not. The dead one is still a button and still takes focus — a control that can be
  * reached and asked why it does nothing is worth more than one that cannot be reached.
@@ -142,7 +153,7 @@ function CourtNavRow({ item }: { item: CourtNavItem }) {
   const pathname = usePathname();
 
   if (item.href) {
-    const isActive = pathname === item.href;
+    const isActive = isCourtNavActive(pathname, item.href);
     return (
       <SidebarMenuItem>
         <SidebarMenuButton asChild isActive={isActive} className={RAIL_ROW}>
@@ -175,6 +186,11 @@ function CourtNavRow({ item }: { item: CourtNavItem }) {
 /**
  * A group of rows behind its own disclosure. Open by default; the whole header toggles.
  *
+ * No nested `SidebarGroup`: each one carries `p-2`, and stacking a group per section
+ * doubled the air between "All cases" and "Hearings" (and between every closed
+ * disclosure) while the rows inside a menu only had `gap-1`. The outer group owns the
+ * inset; this section is just another beat in that same `gap-1` column.
+ *
  * The toggle is a plus when the group is shut and a minus when it is open — the sign
  * names what pressing it does, which a chevron only implies. It is decorative on purpose:
  * `aria-expanded` on the header already carries the state, and announcing the glyph too
@@ -183,92 +199,48 @@ function CourtNavRow({ item }: { item: CourtNavItem }) {
 function CourtNavGroupSection({ group }: { group: CourtNavGroup }) {
   const Icon = group.icon;
   return (
-    <Collapsible defaultOpen className="group/court-group">
-      <SidebarGroup>
-        <SidebarGroupLabel asChild className={RAIL_GROUP_LABEL}>
-          <CollapsibleTrigger>
-            <Icon aria-hidden />
-            <span className="min-w-0 flex-1 truncate text-left">
-              {group.label}
-            </span>
-            {/* Both signs are rendered and one is hidden, so the toggle's width never
-                changes as it flips and the label's truncation point holds still. */}
-            <PlusIcon
-              aria-hidden
-              className="hidden group-data-[state=closed]/court-group:block"
-            />
-            <MinusIcon
-              aria-hidden
-              className="group-data-[state=closed]/court-group:hidden"
-            />
-          </CollapsibleTrigger>
-        </SidebarGroupLabel>
-        <CollapsibleContent>
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-1">
-              {group.items.map((item) => (
-                <CourtNavRow key={item.id} item={item} />
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </CollapsibleContent>
-      </SidebarGroup>
+    <Collapsible defaultOpen className="group/court-group flex flex-col gap-1">
+      <SidebarGroupLabel asChild className={RAIL_GROUP_LABEL}>
+        <CollapsibleTrigger>
+          <Icon aria-hidden />
+          <span className="min-w-0 flex-1 truncate text-left">
+            {group.label}
+          </span>
+          {/* Both signs are rendered and one is hidden, so the toggle's width never
+              changes as it flips and the label's truncation point holds still. */}
+          <PlusIcon
+            aria-hidden
+            className="hidden group-data-[state=closed]/court-group:block"
+          />
+          <MinusIcon
+            aria-hidden
+            className="group-data-[state=closed]/court-group:hidden"
+          />
+        </CollapsibleTrigger>
+      </SidebarGroupLabel>
+      <CollapsibleContent>
+        <SidebarMenu className="gap-1">
+          {group.items.map((item) => (
+            <CourtNavRow key={item.id} item={item} />
+          ))}
+        </SidebarMenu>
+      </CollapsibleContent>
     </Collapsible>
   );
 }
 
-/** The greeting is time-of-day, so it is a snapshot of an external clock, not state. */
-const NEVER_CHANGES = () => () => {};
-const readGreeting = () => greetingFor(new Date());
-
 /**
- * Who is at the bench, in the rail's own voice.
+ * The rail's head: the mark at the page origin.
  *
- * Two lines on purpose rather than a sentence left to wrap where it lands: the greeting
- * carries the ink and the name carries the muted ink, and splitting them keeps that
- * reading intact whether the name is "Uddipan" or four words long. The block is body
- * copy, not a title — the rail should not out-shout the page it sits beside.
- *
- * The hour that matters is the reader's, not the server's, so the greeting is read
- * through `useSyncExternalStore`: the server renders its own guess, the browser replaces
- * it on hydration, and there is no mismatch to suppress and no blank first paint. It does
- * not re-subscribe to the clock — a rail that has been open since 16:59 is not worth a
- * timer, and the next navigation settles it.
- */
-function CourtGreeting() {
-  const greeting = React.useSyncExternalStore(
-    NEVER_CHANGES,
-    readGreeting,
-    readGreeting,
-  );
-
-  return (
-    <div className="p-4">
-      <p className="text-body font-semibold wrap-break-word">
-        <span className="block">{greeting},</span>
-        <span className={`block font-normal ${RAIL_MUTED}`}>
-          {CURRENT_STAFF.name}
-        </span>
-      </p>
-    </div>
-  );
-}
-
-/**
- * The rail's head: the mark at the page origin, then who is at the bench.
- *
- * The brand row is the bar's own height and carries the plate's seam, so the rule under
- * it and the rule under the top bar are one continuous line across the whole chrome.
- * `onDark` follows the plate, not the app's mode — charcoal stays charcoal at night.
+ * The brand row is the bar's own height and carries the plate's seam, so on phone widths
+ * the rule under it and the rule under the top bar are one continuous line. `onDark`
+ * follows the plate, not the app's mode — charcoal stays charcoal at night.
  */
 function CourtRailHeader() {
   return (
-    <>
-      <div className={RAIL_BRAND_ROW}>
-        <BrandLockup className="h-8 shrink-0" onDark={CHARCOAL_PLATE.darkPlate} />
-      </div>
-      <CourtGreeting />
-    </>
+    <div className={RAIL_BRAND_ROW}>
+      <BrandLockup className="h-8 shrink-0" onDark={CHARCOAL_PLATE.darkPlate} />
+    </div>
   );
 }
 
@@ -284,19 +256,18 @@ export function EmployeeNav() {
         sheetDescription="Hearings, actions, applications and signing for this court."
         header={<CourtRailHeader />}
       >
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-1">
-              {COURT_NAV_LINKS.map((item) => (
-                <CourtNavRow key={item.id} item={item} />
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
+        {/* One group, one inset, one gap: standalone links and disclosures share the
+            same vertical rhythm instead of each section padding itself. */}
+        <SidebarGroup className="gap-1">
+          <SidebarMenu className="gap-1">
+            {COURT_NAV_LINKS.map((item) => (
+              <CourtNavRow key={item.id} item={item} />
+            ))}
+          </SidebarMenu>
+          {COURT_NAV_GROUPS.map((group) => (
+            <CourtNavGroupSection key={group.id} group={group} />
+          ))}
         </SidebarGroup>
-        <SidebarSeparator />
-        {COURT_NAV_GROUPS.map((group) => (
-          <CourtNavGroupSection key={group.id} group={group} />
-        ))}
       </ChromeRail>
     </TooltipProvider>
   );

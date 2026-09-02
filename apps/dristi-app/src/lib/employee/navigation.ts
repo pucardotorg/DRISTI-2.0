@@ -8,7 +8,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { DELAY_CONDONATION_QUEUE_COUNT } from "./delay-condonation";
 import { TODAYS_HEARING_COUNT } from "./hearings";
+import { REGISTER_QUEUE_COUNT } from "./register-cases";
+import { RESCHEDULING_QUEUE_COUNT } from "./rescheduling-request";
 import { SCHEDULING_QUEUE_COUNT } from "./schedule";
 
 /**
@@ -19,17 +22,20 @@ import { SCHEDULING_QUEUE_COUNT } from "./schedule";
  * not markup: the rail renders whatever is here, so a row's destination, its count or
  * its position is a change to this file rather than to a component.
  *
- * **Most of it is not wired yet.** Only the three Hearings rows have an `href`, and they
- * point at the three court-side routes that exist. Every other row is a
- * real, focusable control that says plainly it goes nowhere — no stub routes, no hrefs
- * that 404. Giving a row its destination later is the one `href` line below.
+ * **Most of it is not wired yet.** The three Hearings rows, Register cases,
+ * Rescheduling request and Delay condonation have an `href`, and they point at
+ * the court-side routes that exist. Every other row is a real, focusable
+ * control that says plainly it goes nowhere — no stub routes, no hrefs that
+ * 404. Giving a row its destination later is the one `href` line below.
  *
- * **The counts are demo data, with two exceptions.** They are the reference's numbers,
+ * **The counts are demo data, with a few exceptions.** They are the reference's numbers,
  * kept so the rail can be judged at the widths it will really see (`1312` is the one that
  * decides how a row truncates). None of these labels describes an action this build
- * performs. The exceptions are the two built rows, whose counts are derived from the lists
- * they lead to (`lib/employee/hearings.ts`, `lib/employee/schedule.ts`) — still demo data
- * underneath, but a real count of it, so the rail cannot claim a different number from the
+ * performs. The exceptions are the built rows whose counts are derived from the lists
+ * they lead to (`lib/employee/hearings.ts`, `lib/employee/schedule.ts`,
+ * `lib/employee/register-cases.ts`, `lib/employee/rescheduling-request.ts`,
+ * `lib/employee/delay-condonation.ts`) — still demo data underneath, but a
+ * real count of it, so the rail cannot claim a different number from the
  * screen it opens.
  *
  * The vocabulary is the court's, taken from the reference — a copy application, a delay
@@ -126,7 +132,12 @@ export const COURT_NAV_GROUPS: CourtNavGroup[] = [
     label: "Actions",
     icon: ListChecksIcon,
     items: [
-      { id: "register-cases", label: "Register cases", count: 4 },
+      {
+        id: "register-cases",
+        label: "Register cases",
+        href: "/employee/register-cases",
+        count: REGISTER_QUEUE_COUNT,
+      },
       { id: "approve-copy", label: "Approve copy application", count: 0 },
     ],
   },
@@ -135,8 +146,18 @@ export const COURT_NAV_GROUPS: CourtNavGroup[] = [
     label: "Review applications",
     icon: FileSearchIcon,
     items: [
-      { id: "rescheduling-request", label: "Rescheduling request", count: 20 },
-      { id: "delay-condonation", label: "Delay condonation", count: 146 },
+      {
+        id: "rescheduling-request",
+        label: "Rescheduling request",
+        href: "/employee/rescheduling-request",
+        count: RESCHEDULING_QUEUE_COUNT,
+      },
+      {
+        id: "delay-condonation",
+        label: "Delay condonation",
+        href: "/employee/delay-condonation",
+        count: DELAY_CONDONATION_QUEUE_COUNT,
+      },
       { id: "other-applications", label: "Others", count: 325 },
     ],
   },

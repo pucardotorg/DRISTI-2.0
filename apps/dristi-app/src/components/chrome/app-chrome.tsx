@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { cn } from "@/lib/utils";
 import type { RailPlate } from "@/components/chrome/rail-plate";
 import {
   Sheet,
@@ -81,15 +82,16 @@ export const RAIL_ROW = [
 /**
  * A section label in the rail — plain, or the header of a disclosure.
  *
- * `h-10` for the same touch reason as the rows. The label is the DS caption role at its
- * eyebrow weight rather than the primitive's bare Tailwind size and 70%-alpha ink: a
- * section label is screen copy, and a named ink beats a transparency. Its mark stays at
- * the DS's 16px — an icon scales with the register of its own row, and this row is
- * caption-sized.
+ * Same type register as `RAIL_ROW`: in the court rail the disclosures sit as peers of
+ * the standalone links (icon + label + optional trailing mark), so caption + semibold
+ * made "Hearings" read as a louder species than "Dashboards". `font-normal` beats the
+ * primitive's `font-medium`; full `--sidebar-foreground` beats its 70% ink. The mark
+ * stays at the DS group-label 16px — rows that share an icon column match that size
+ * themselves rather than the other way around.
  */
 export const RAIL_GROUP_LABEL = [
-  "h-10 w-full gap-3 text-caption font-semibold transition-colors",
-  "text-(--rail-muted)",
+  "h-10 w-full gap-3 text-body-compact font-normal transition-colors",
+  "text-(--sidebar-foreground)",
   "hover:bg-(--sidebar-accent) hover:text-(--sidebar-accent-foreground)",
 ].join(" ");
 
@@ -145,10 +147,11 @@ export function ChromeShell({
     >
       {rail}
       {/* Not `SidebarInset`: that primitive is itself a `<main>`, and the screens below
-          already own that landmark. */}
+          already own that landmark. `min-w-0` on this column is what lets a wide table
+          scroll inside the page instead of stretching the shell past the viewport. */}
       <div className="flex min-h-svh min-w-0 flex-1 flex-col bg-background">
         {topBar}
-        <div className="flex min-h-0 flex-1">{children}</div>
+        <div className="flex min-h-0 min-w-0 flex-1">{children}</div>
       </div>
     </SidebarProvider>
   );
@@ -307,20 +310,25 @@ function ChromeRailSheet({
  * an area can hang a second row under it at full width.
  *
  * Three regions and no opinion about what goes in them. The advocate fills all three; the
- * bench fills two and passes nothing for the third.
+ * bench fills none on desktop and only the rail trigger below `md`.
  */
 export function ChromeTopBar({
   leading,
   trailing,
+  className,
   children,
 }: {
   leading?: React.ReactNode;
   trailing?: React.ReactNode;
+  className?: string;
   children?: React.ReactNode;
 }) {
   return (
     <header
-      className={`sticky top-0 z-30 flex ${BAR} shrink-0 items-center gap-3 border-b border-hairline bg-card px-4 sm:px-6`}
+      className={cn(
+        `sticky top-0 z-30 flex ${BAR} shrink-0 items-center gap-3 border-b border-hairline bg-card px-4 sm:px-6`,
+        className,
+      )}
     >
       {leading}
       {children}

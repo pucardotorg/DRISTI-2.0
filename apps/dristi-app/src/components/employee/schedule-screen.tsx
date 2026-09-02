@@ -29,7 +29,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { causeTitle, counselFor, type HearingsPageSize } from "@/lib/employee/hearings";
+import {
+  causeTitle,
+  counselFor,
+  PAGE_SIZE,
+  type HearingsPageSize,
+} from "@/lib/employee/hearings";
 import {
   caseStageLabel,
   filterSchedulingCases,
@@ -66,7 +71,7 @@ export function ScheduleScreen() {
   const [applied, setApplied] = React.useState<ScheduleFilters>(
     EMPTY_SCHEDULE_FILTERS,
   );
-  const [pageSize, setPageSize] = React.useState<HearingsPageSize>(30);
+  const [pageSize, setPageSize] = React.useState<HearingsPageSize>(PAGE_SIZE);
   const [page, setPage] = React.useState(1);
 
   const rows = filterSchedulingCases(SCHEDULING_QUEUE, applied);
@@ -162,11 +167,10 @@ export function ScheduleScreen() {
  * style (ACCESSIBILITY §12: placeholders may hint format, they are not labels) — so the
  * labels are the deviation, and the smallest one available.
  *
- * "Search" is the teal one here, unlike on the cause list where it is `secondary`. The
- * Ration Teal Law allows one strong action per view and it is spent on the loudest thing
- * present: the cause list has "Join VC" at court level, this screen has nothing above the
- * filters, and the reference paints Search as the primary. A view with no teal at all
- * would be leaving the Law's one allowance unused.
+ * "Search" is the teal one here. The Ration Teal Law allows one strong action per view
+ * and it is spent on the loudest thing present: there is nothing above the filters, and
+ * the reference paints Search as the primary. Today's hearings spends the same allowance
+ * the same way.
  */
 function ScheduleFiltersRow({
   draft,

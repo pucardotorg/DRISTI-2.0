@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { MessageSquareIcon, PaperclipIcon } from "lucide-react";
 
 import { DocumentPreview } from "@/components/cases/document-preview";
@@ -45,6 +45,64 @@ import {
   type DocumentsFile,
 } from "@/lib/cases/documents";
 import { formatCaseDate } from "@/lib/cases/types";
+import { cn } from "@/lib/utils";
+
+/**
+ * The record overlay chrome: header, a scrolling left pane, comments on the
+ * right. Filed documents on the advocate case file open this frame.
+ *
+ * Download and Full view hang off the preview itself (see DocumentPreview),
+ * so they sit beside the thing they act on. Comments live in this dialog
+ * only — they are not a court filing.
+ */
+export function DocumentRecordFrame({
+  title,
+  badge,
+  description,
+  commentId,
+  className,
+  onCloseAutoFocus,
+  children,
+}: {
+  title: string;
+  badge: ReactNode;
+  description: ReactNode;
+  commentId: string;
+  className?: string;
+  onCloseAutoFocus?: (event: Event) => void;
+  children: ReactNode;
+}) {
+  return (
+    <DialogContent
+      className={cn(
+        "flex max-h-[90svh] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl",
+        className,
+      )}
+      onCloseAutoFocus={onCloseAutoFocus}
+    >
+      <DialogHeader className="shrink-0 gap-2 p-6 pr-16">
+        <div className="flex flex-wrap items-center gap-2">
+          <DialogTitle className="text-title font-semibold">{title}</DialogTitle>
+          {badge}
+        </div>
+        <DialogDescription className="text-body text-muted-foreground">
+          {description}
+        </DialogDescription>
+      </DialogHeader>
+      <Separator />
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6 [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]">
+            <div className="flex flex-col gap-6">{children}</div>
+          </div>
+        </div>
+        <Separator className="md:hidden" />
+        <Separator orientation="vertical" className="hidden md:block" />
+        <CommentsPane fieldId={commentId} />
+      </div>
+    </DialogContent>
+  );
+}
 
 /**
  * One filed document: preview on the left, comments on the right.
@@ -100,122 +158,99 @@ function DocumentBody({
   const pendingReview = document.submissionStatus === "pending-review";
 
   return (
-    <DialogContent className="flex max-h-[90svh] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl">
-      <DialogHeader className="shrink-0 gap-2 p-6 pr-16">
-        <div className="flex flex-wrap items-center gap-2">
-          <DialogTitle className="text-title font-semibold">
-            {document.title}
-          </DialogTitle>
-          <Badge variant={documentStatusVariant(document.submissionStatus)}>
-            {documentStatusLabel(document.submissionStatus)}
-          </Badge>
-        </div>
-        <DialogDescription className="text-body text-muted-foreground">
+    <DocumentRecordFrame
+      title={document.title}
+      badge={
+        <Badge variant={documentStatusVariant(document.submissionStatus)}>
+          {documentStatusLabel(document.submissionStatus)}
+        </Badge>
+      }
+      description={documentTypeLabel(document.type)}
+      commentId={commentId}
+    >
+      <DescriptionList>
+        <RecordRow term="Filing ID">
+          <span className="font-mono">{document.id}</span>
+        </RecordRow>
+        <RecordRow term="Case number">
+          <span className="font-mono">{file.caseNumber}</span>
+        </RecordRow>
+        <RecordRow term="Document type">
           {documentTypeLabel(document.type)}
-        </DialogDescription>
-      </DialogHeader>
-      <Separator />
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6 [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]">
-            <div className="flex flex-col gap-6">
-              <DescriptionList>
-                <RecordRow term="Filing ID">
-                  <span className="font-mono">{document.id}</span>
-                </RecordRow>
-                <RecordRow term="Case number">
-                  <span className="font-mono">{file.caseNumber}</span>
-                </RecordRow>
-                <RecordRow term="Document type">
-                  {documentTypeLabel(document.type)}
-                </RecordRow>
-                <RecordRow term="Source">
-                  {documentSourceLabel(document.source)}
-                </RecordRow>
-                <RecordRow term="Submitted on">
-                  {formatCaseDate(document.submittedOn)}
-                </RecordRow>
-                <RecordRow term="Submitted by">
-                  <span className="flex min-w-0 flex-col gap-1">
-                    <span>{submittedByName(document, peopleById)}</span>
-                    {submittedByRole(document, peopleById) ? (
-                      <span className="text-caption font-medium text-muted-foreground">
-                        {submittedByRole(document, peopleById)}
-                      </span>
-                    ) : null}
-                  </span>
-                </RecordRow>
-                {document.evidenceNumber ? (
-                  <RecordRow term="Evidence no.">
-                    {document.evidenceNumber}
-                  </RecordRow>
-                ) : null}
-                {document.evidenceStatus ? (
-                  <RecordRow term="Evidence status">
-                    {evidenceStatusLabel(document.evidenceStatus)}
-                  </RecordRow>
-                ) : null}
-                {document.linkedApplication ? (
-                  <RecordRow term="Filed with">
-                    <span className="font-mono">
-                      {document.linkedApplication.id}
-                    </span>
-                    <span className="text-muted-foreground">
-                      {" "}
-                      ({document.linkedApplication.label})
-                    </span>
-                  </RecordRow>
-                ) : null}
-                {document.linkedHearing ? (
-                  <RecordRow term="Hearing">
-                    <span className="font-mono">
-                      {document.linkedHearing.id}
-                    </span>
-                    <span className="text-muted-foreground">
-                      {" "}
-                      ({document.linkedHearing.label})
-                    </span>
-                  </RecordRow>
-                ) : null}
-              </DescriptionList>
+        </RecordRow>
+        <RecordRow term="Source">
+          {documentSourceLabel(document.source)}
+        </RecordRow>
+        <RecordRow term="Submitted on">
+          {formatCaseDate(document.submittedOn)}
+        </RecordRow>
+        <RecordRow term="Submitted by">
+          <span className="flex min-w-0 flex-col gap-1">
+            <span>{submittedByName(document, peopleById)}</span>
+            {submittedByRole(document, peopleById) ? (
+              <span className="text-caption font-medium text-muted-foreground">
+                {submittedByRole(document, peopleById)}
+              </span>
+            ) : null}
+          </span>
+        </RecordRow>
+        {document.evidenceNumber ? (
+          <RecordRow term="Evidence no.">
+            {document.evidenceNumber}
+          </RecordRow>
+        ) : null}
+        {document.evidenceStatus ? (
+          <RecordRow term="Evidence status">
+            {evidenceStatusLabel(document.evidenceStatus)}
+          </RecordRow>
+        ) : null}
+        {document.linkedApplication ? (
+          <RecordRow term="Filed with">
+            <span className="font-mono">{document.linkedApplication.id}</span>
+            <span className="text-muted-foreground">
+              {" "}
+              ({document.linkedApplication.label})
+            </span>
+          </RecordRow>
+        ) : null}
+        {document.linkedHearing ? (
+          <RecordRow term="Hearing">
+            <span className="font-mono">{document.linkedHearing.id}</span>
+            <span className="text-muted-foreground">
+              {" "}
+              ({document.linkedHearing.label})
+            </span>
+          </RecordRow>
+        ) : null}
+      </DescriptionList>
 
-              {pendingReview ? (
-                <Banner variant="warning">
-                  All party signatures are recorded. Waiting on the magistrate
-                  to sign.
-                </Banner>
-              ) : null}
+      {pendingReview ? (
+        <Banner variant="warning">
+          All party signatures are recorded. Waiting on the magistrate to sign.
+        </Banner>
+      ) : null}
 
-              {previewSrc ? (
-                <DocumentPreview
-                  title={document.title}
-                  source={{ kind: "src", src: previewSrc }}
-                  download={{
-                    href: previewSrc,
-                    filename: downloadName(document),
-                    label: pendingReview
-                      ? `Download ${document.title} — waiting on the magistrate to sign`
-                      : `Download ${document.title}`,
-                  }}
-                />
-              ) : (
-                <Alert>
-                  <AlertTitle className="text-body">
-                    No file attached
-                  </AlertTitle>
-                  <AlertDescription className="text-body">
-                    This record has no file attached.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-          </div>
-        </div>
-        <Separator className="md:hidden" />
-        <Separator orientation="vertical" className="hidden md:block" />
-        <CommentsPane fieldId={commentId} />
-      </div>
-    </DialogContent>
+      {previewSrc ? (
+        <DocumentPreview
+          title={document.title}
+          source={{ kind: "src", src: previewSrc }}
+          download={{
+            href: previewSrc,
+            filename: downloadName(document),
+            label: pendingReview
+              ? `Download ${document.title} — waiting on the magistrate to sign`
+              : `Download ${document.title}`,
+          }}
+        />
+      ) : (
+        <Alert>
+          <AlertTitle className="text-body">No file attached</AlertTitle>
+          <AlertDescription className="text-body">
+            This record has no file attached.
+          </AlertDescription>
+        </Alert>
+      )}
+    </DocumentRecordFrame>
   );
 }
 
@@ -235,7 +270,11 @@ function downloadName(document: CaseDocument): string | undefined {
   return `${document.id}-unsigned-by-court${extension}`;
 }
 
-function CommentsPane({ fieldId }: { fieldId: string }) {
+/**
+ * Comments on one open file. Local to the overlay — not a court filing.
+ * The rescheduling review reuses this pane beside a generated application.
+ */
+export function CommentsPane({ fieldId }: { fieldId: string }) {
   const [comments, setComments] = useState<{ id: string; body: string }[]>([]);
   const [draft, setDraft] = useState("");
   const canPost = draft.trim().length > 0;

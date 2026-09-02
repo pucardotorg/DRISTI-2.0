@@ -55,10 +55,9 @@ import {
 } from "@/lib/employee/hearings";
 
 /**
- * The day the bench is standing on is the reader's, not the server's — read the way the
- * rail reads its greeting and today's cause list reads its date: the server renders its
- * own guess and the browser replaces it on hydration, so there is no mismatch to suppress
- * and no blank first paint.
+ * The day the bench is standing on is the reader's, not the server's — the same clock
+ * today's cause list reads: the server renders its own guess and the browser replaces it
+ * on hydration, so there is no mismatch to suppress and no blank first paint.
  */
 const NEVER_CHANGES = () => () => {};
 const readToday = () => isoDay(new Date());
@@ -430,9 +429,11 @@ function RangeEnd({
  * still one selection and one apply per date — which is also how the bench thinks about
  * it, rather than as twenty separate decisions.
  *
- * A well, because it holds interactive content and the Laws give that a hairline
- * (AGENTS "Grouped content"): `surface-sunken` inside the white panel, one radius step
- * down from it.
+ * A control-sized well, not a second card: sunken fill + hairline (Laws "Grouped
+ * content" — interactive wells keep the edge; media wells do not). Count and hint
+ * stack as one block on the left; the date and apply sit on the same midline, as a
+ * toolbar, not a stacked field beside a paragraph. Same recipe as the pending-tasks
+ * selection bar, with the hairline the Law adds when the well holds a control.
  */
 function SelectionBar({
   selected,
@@ -450,48 +451,65 @@ function SelectionBar({
   error: string | null;
 }) {
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-hairline bg-surface-sunken p-4 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between">
+    <div
+      role="region"
+      aria-label="Selection"
+      className="flex flex-col gap-3 rounded-lg border border-hairline bg-surface-sunken px-4 py-3 lg:flex-row lg:items-center lg:gap-8"
+    >
       <div className="flex min-w-0 flex-col gap-1">
-        <p className="text-body-compact font-medium tabular-nums" aria-live="polite">
+        <p
+          className="text-body-compact font-medium tabular-nums"
+          aria-live="polite"
+        >
           {selected} of {total} {plural(total, "matter", "matters")} selected
         </p>
-        <p className="text-caption text-muted-foreground">
-          The date below is written onto everything selected. To send some
-          matters elsewhere, narrow the selection and apply again.
-        </p>
+        {error ? (
+          <p role="alert" className="text-caption text-destructive-ink">
+            {error}
+          </p>
+        ) : (
+          <p
+            id="reschedule-new-hint"
+            className="text-caption text-muted-foreground"
+          >
+            Uncheck rows to send some matters to a different date, then apply
+            again.
+          </p>
+        )}
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-        <div className="flex min-w-0 flex-col gap-2">
-          <span id="reschedule-new-label" className="w-fit text-body font-medium">
-            New hearing date
-          </span>
-          <div role="group" aria-labelledby="reschedule-new-label">
-            <DatePicker
-              value={date ? parseIsoDay(date) : undefined}
-              onValueChange={(next) => {
-                if (next) onDateChange(isoDay(next));
-              }}
-              placeholder="Choose a date"
-              className="w-full sm:w-52"
-            />
-          </div>
+      <div className="flex min-w-0 shrink-0 flex-col gap-3 sm:flex-row sm:items-center lg:ml-auto">
+        <span
+          id="reschedule-new-label"
+          className="w-fit shrink-0 text-body-compact font-medium"
+        >
+          New hearing date
+        </span>
+        <div
+          role="group"
+          aria-labelledby="reschedule-new-label"
+          aria-describedby={error ? undefined : "reschedule-new-hint"}
+          className="min-w-0"
+        >
+          <DatePicker
+            value={date ? parseIsoDay(date) : undefined}
+            onValueChange={(next) => {
+              if (next) onDateChange(isoDay(next));
+            }}
+            placeholder="Choose a date"
+            className="w-full sm:w-60"
+          />
         </div>
         <Button
           type="button"
           variant="secondary"
           onClick={onApply}
           disabled={selected === 0}
+          className="w-full sm:w-fit"
         >
           Apply to selected
         </Button>
       </div>
-
-      {error ? (
-        <p role="alert" className="text-caption text-destructive-ink lg:w-full">
-          {error}
-        </p>
-      ) : null}
     </div>
   );
 }

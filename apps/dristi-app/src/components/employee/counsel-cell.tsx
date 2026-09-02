@@ -122,7 +122,7 @@ function CounselLine({
      without one occupy the same band and the table keeps one row rhythm. */
   return (
     <div className="relative flex min-h-6 min-w-0 items-center gap-1">
-      <span className="truncate text-body-compact text-foreground">
+      <span className="min-w-0 truncate text-body-compact text-foreground">
         {names[0]}
       </span>
       <span

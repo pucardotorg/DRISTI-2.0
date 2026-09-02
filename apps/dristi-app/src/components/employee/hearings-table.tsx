@@ -1,6 +1,7 @@
 "use client";
 
-import { MoreVerticalIcon } from "lucide-react";
+import Link from "next/link";
+import { CircleCheckIcon, EllipsisVerticalIcon, FilePlusIcon } from "lucide-react";
 
 import { CounselCell } from "@/components/employee/counsel-cell";
 import { Badge } from "@/components/ui/badge";
@@ -9,8 +10,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -22,6 +21,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  canEndHearing,
+  canPassOver,
+  canStartHearing,
   causeTitle,
   counselFor,
   courtHearingPurposeLabel,
@@ -30,6 +32,8 @@ import {
   type CourtHearing,
 } from "@/lib/employee/hearings";
 import { cn } from "@/lib/utils";
+
+import { HearingPeekTrigger, HEARING_PEEK_ID, useHearingPeek } from "./use-hearing-peek";
 
 /* The advocate's cases table is the reference for surface and row state, and this is the
  * same table: header separated by fill rather than a second stroke, rows by hairline, and
@@ -43,47 +47,211 @@ const cellClass =
   "border-b border-hairline px-4 py-3 align-middle text-left text-body-compact";
 
 /**
- * The row's overflow menu — the two actions the reference puts on a listed matter.
+ * Start hearing and End hearing live in the Action column, as a labelled outline
+ * button — not teal (Join VC is the screen's one primary).
  *
- * Both are disabled and say why. Starting a hearing and passing a matter over are real
- * judicial acts on a real cause list, and this build performs neither; a menu item that
- * looked live would be claiming the court had done something it has not. The items stay
- * in the menu rather than being dropped so the shape of the action is visible and can be
- * wired later — the same bargain the rail makes with its unbuilt destinations.
+ * It is the only bordered action on a callable row (ui-craft §2). Scheduled listings
+ * start; the same slot ends the one that is ongoing. Completed listings have nothing
+ * left to call, so the control leaves — a muted `circle-check` holds the slot.
+ * A dash would read as missing data; the tick says the call is done. It stays
+ * `text-muted-foreground` so the Completed chip remains the one status mark
+ * (ui-craft §1.4). Passed-over listings also have nothing left to call today;
+ * the slot empties rather than showing that tick, because the call was not
+ * finished — the Passed over chip is the mark.
+ *
+ * Pass over is the other sitting outcome, not a second session verb: it lives
+ * in a row overflow beside this control, on scheduled and ongoing rows only.
+ *
+ * `min-w-40` is the width of "Start hearing" at the control metric, so Start and
+ * End share one column and the table does not jump when the label changes.
  */
-function HearingRowActions({ hearing }: { hearing: CourtHearing }) {
+const SESSION_SLOT_CLASS = "min-w-40";
+/** Session control, overflow, and the cell's `px-4`. Sticky so the call stays
+ *  on screen when the cause list is wider than the panel. */
+const ACTION_COLUMN_CLASS = "sticky right-0 z-20 min-w-60";
+
+export function HearingSessionButton({
+  hearing,
+  onStartHearing,
+  onEndHearing,
+  className,
+}: {
+  hearing: CourtHearing;
+  onStartHearing: (hearing: CourtHearing) => void;
+  onEndHearing: (hearing: CourtHearing) => void;
+  className?: string;
+}) {
+  const { open, close, hearing: openHearing } = useHearingPeek();
+  const expanded = openHearing?.id === hearing.id;
+
+  if (canStartHearing(hearing.status)) {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        className={cn(SESSION_SLOT_CLASS, className)}
+        aria-expanded={expanded}
+        aria-controls={expanded ? HEARING_PEEK_ID : undefined}
+        onClick={() => {
+          onStartHearing(hearing);
+          open(hearing);
+        }}
+      >
+        Start hearing
+      </Button>
+    );
+  }
+  if (canEndHearing(hearing.status)) {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        className={cn(SESSION_SLOT_CLASS, className)}
+        onClick={() => {
+          onEndHearing(hearing);
+          if (expanded) close();
+        }}
+      >
+        End hearing
+      </Button>
+    );
+  }
+  if (hearing.status === "passed-over") {
+    return (
+      <span className={cn("inline-flex h-10 items-center", className)}>
+        <span className="sr-only">Passed over</span>
+      </span>
+    );
+  }
+  return (
+    <span className={cn("inline-flex h-10 items-center text-muted-foreground", className)}>
+      <CircleCheckIcon aria-hidden />
+      <span className="sr-only">Hearing ended</span>
+    </span>
+  );
+}
+
+/**
+ * Pass over — skip this listing without completing it, to hear it on a later
+ * date. Secondary to Start/End: ghost icon, one menu item, never a second
+ * labelled button (ui-craft §2).
+ *
+ * The menu is overlay elevation via the DS primitive. Width is `w-auto
+ * min-w-40` so a 40px trigger does not pinch the words (the primitive otherwise
+ * inherits trigger width).
+ */
+export function HearingPassOverMenu({
+  hearing,
+  onPassOver,
+}: {
+  hearing: CourtHearing;
+  onPassOver: (hearing: CourtHearing) => void;
+}) {
+  const { close, hearing: openHearing } = useHearingPeek();
+  const expanded = openHearing?.id === hearing.id;
+
+  if (!canPassOver(hearing.status)) return null;
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
+          type="button"
           variant="ghost"
           size="icon"
-          className="text-muted-foreground"
-          aria-label={`Actions for item ${hearing.item}, ${causeTitle(hearing)}`}
+          className="shrink-0 text-muted-foreground"
+          aria-label={`More actions for item ${hearing.item}, ${causeTitle(hearing)}`}
         >
-          <MoreVerticalIcon aria-hidden />
+          <EllipsisVerticalIcon aria-hidden />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem disabled>Start hearing</DropdownMenuItem>
-        <DropdownMenuItem disabled>Mark as passed over</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel className="font-normal text-muted-foreground">
-          Not part of this build
-        </DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="w-auto min-w-40">
+        <DropdownMenuItem
+          onSelect={() => {
+            onPassOver(hearing);
+            if (expanded) close();
+          }}
+        >
+          Pass over
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
 /**
+ * Orders on this listing — the old cause list's document-with-plus column.
+ *
+ * `file-plus` is the DS allowlist match for that glyph: a sheet with a plus,
+ * meaning draft or add an order for this matter. Opens the composer for this
+ * listing. Issuing the order is still a real judicial act this build does not
+ * perform; the composer itself says so.
+ */
+export function HearingOrdersButton({ hearing }: { hearing: CourtHearing }) {
+  return (
+    <Button
+      asChild
+      variant="ghost"
+      size="icon"
+      className="shrink-0 text-muted-foreground"
+    >
+      <Link
+        href={`/employee/hearings/${hearing.id}/order`}
+        aria-label={`Order for item ${hearing.item}, ${causeTitle(hearing)}`}
+      >
+        <FilePlusIcon aria-hidden />
+      </Link>
+    </Button>
+  );
+}
+
+/** Mobile stack: the start/end control, then Pass over, then orders. */
+export function HearingRowActions({
+  hearing,
+  onStartHearing,
+  onEndHearing,
+  onPassOver,
+  className,
+}: {
+  hearing: CourtHearing;
+  onStartHearing: (hearing: CourtHearing) => void;
+  onEndHearing: (hearing: CourtHearing) => void;
+  onPassOver: (hearing: CourtHearing) => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex items-center gap-2", className)}>
+      <HearingSessionButton
+        hearing={hearing}
+        onStartHearing={onStartHearing}
+        onEndHearing={onEndHearing}
+        className="min-w-0 flex-1"
+      />
+      <HearingPassOverMenu hearing={hearing} onPassOver={onPassOver} />
+      <HearingOrdersButton hearing={hearing} />
+    </div>
+  );
+}
+
+/**
  * Today's cause list as a table: the court's serial, the cause, its number, who appears,
- * what it is listed for, where it stands, and the row's actions.
+ * what it is listed for, where it stands, orders on this listing, and the call on this
+ * sitting.
  *
  * The panel shell (border, fill, shadow) lives on the screen around this, so the table is
  * one panel rather than a box inside a box.
  */
-export function HearingsTable({ rows }: { rows: CourtHearing[] }) {
+export function HearingsTable({
+  rows,
+  onStartHearing,
+  onEndHearing,
+  onPassOver,
+}: {
+  rows: CourtHearing[];
+  onStartHearing: (hearing: CourtHearing) => void;
+  onEndHearing: (hearing: CourtHearing) => void;
+  onPassOver: (hearing: CourtHearing) => void;
+}) {
   return (
     <Table className="w-full border-separate border-spacing-0 text-body-compact">
       <TableHeader>
@@ -95,42 +263,46 @@ export function HearingsTable({ rows }: { rows: CourtHearing[] }) {
           <TableHead className={cn(headClass, "w-16 whitespace-nowrap")}>
             S. no.
           </TableHead>
-          <TableHead className={cn(headClass, "min-w-64 whitespace-normal")}>
+          <TableHead className={cn(headClass, "min-w-48 whitespace-normal")}>
             Case name
           </TableHead>
           <TableHead className={cn(headClass, "whitespace-nowrap")}>
             Case number
           </TableHead>
-          <TableHead className={cn(headClass, "min-w-48 whitespace-normal")}>
+          <TableHead className={cn(headClass, "min-w-48 whitespace-nowrap")}>
             Advocates
           </TableHead>
           <TableHead className={cn(headClass, "min-w-40 whitespace-normal")}>
             Purpose
           </TableHead>
-          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+          <TableHead className={cn(headClass, "min-w-32 whitespace-nowrap")}>
             Status
+          </TableHead>
+          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+            Orders
           </TableHead>
           <TableHead
             className={cn(
               headClass,
-              "sticky right-0 z-20 w-16 bg-surface-sunken px-1",
+              ACTION_COLUMN_CLASS,
+              "bg-surface-sunken whitespace-nowrap",
             )}
           >
-            <span className="sr-only">Actions</span>
+            Action
           </TableHead>
         </TableRow>
       </TableHeader>
-      {/* `border-separate` (needed by the sticky actions column) puts the row stroke on
-          the cell, so the DS TableBody rule that clears the last row targets the wrong
-          element. Reach the cells directly, or the final row doubles its line against the
-          panel edge. */}
+      {/* `border-separate` (needed so the header well can round its own end cells) puts
+          the row stroke on the cell, so the DS TableBody rule that clears the last row
+          targets the wrong element. Reach the cells directly, or the final row doubles
+          its line against the panel edge. */}
       <TableBody className="[&_tr:last-child_td]:border-b-0">
         {/* The header is a well, not a band welded to the rows — it needs the panel's
             fill under it or its rounded bottom corners read as cut off (ui-craft §4).
             `border-separate` has no per-edge row gap, so the gap is one inert row held
             out of the accessibility tree. */}
         <tr aria-hidden="true">
-          <td colSpan={7} className="h-2 p-0" />
+          <td colSpan={8} className="h-2 p-0" />
         </tr>
         {rows.map((hearing) => (
           <TableRow key={hearing.id} className="bg-card">
@@ -139,17 +311,19 @@ export function HearingsTable({ rows }: { rows: CourtHearing[] }) {
             >
               {hearing.item}
             </TableCell>
-            {/* The row's one emphasised cell. Not a link: there is no court-side case
-                file yet, and the citizen side's is not the bench's to point at. */}
+            {/* The row's one emphasised cell. Opens the case peek — the same
+                glance Start hearing opens — rather than a case file: there is
+                no court-side file yet, and the citizen side's is not the bench's
+                to point at. */}
             <TableCell
-              className={cn(cellClass, "min-w-64 font-medium whitespace-normal")}
+              className={cn(cellClass, "min-w-48 font-medium whitespace-normal")}
             >
-              {causeTitle(hearing)}
+              <HearingPeekTrigger hearing={hearing} />
             </TableCell>
             <TableCell className={cn(cellClass, "tabular-nums whitespace-nowrap")}>
               {hearing.caseNumber}
             </TableCell>
-            <TableCell className={cn(cellClass, "min-w-48 whitespace-normal")}>
+            <TableCell className={cn(cellClass, "min-w-48 whitespace-nowrap")}>
               <CounselCell
                 complainant={counselFor(hearing, "complainant").map(
                   (counsel) => counsel.name,
@@ -163,7 +337,7 @@ export function HearingsTable({ rows }: { rows: CourtHearing[] }) {
             <TableCell className={cn(cellClass, "min-w-40 whitespace-normal")}>
               {courtHearingPurposeLabel(hearing.purpose)}
             </TableCell>
-            <TableCell className={cn(cellClass, "whitespace-nowrap")}>
+            <TableCell className={cn(cellClass, "min-w-32 whitespace-nowrap")}>
               <Badge
                 variant={courtHearingStatusVariant(hearing.status)}
                 className="w-fit"
@@ -171,14 +345,28 @@ export function HearingsTable({ rows }: { rows: CourtHearing[] }) {
                 {courtHearingStatusLabel(hearing.status)}
               </Badge>
             </TableCell>
+            <TableCell className={cn(cellClass, "whitespace-nowrap")}>
+              <div className="flex justify-center">
+                <HearingOrdersButton hearing={hearing} />
+              </div>
+            </TableCell>
             <TableCell
               className={cn(
                 cellClass,
-                "sticky right-0 z-20 w-16 bg-inherit px-1",
+                ACTION_COLUMN_CLASS,
+                "bg-inherit whitespace-nowrap",
               )}
             >
-              <div className="flex justify-center">
-                <HearingRowActions hearing={hearing} />
+              <div className="flex items-center gap-2">
+                <HearingSessionButton
+                  hearing={hearing}
+                  onStartHearing={onStartHearing}
+                  onEndHearing={onEndHearing}
+                />
+                <HearingPassOverMenu
+                  hearing={hearing}
+                  onPassOver={onPassOver}
+                />
               </div>
             </TableCell>
           </TableRow>
