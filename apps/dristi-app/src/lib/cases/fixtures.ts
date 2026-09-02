@@ -850,8 +850,12 @@ const COUNSEL_OVERRIDES: Partial<Record<string, CaseCounsel>> = {
    * and a second advocate briefed by only two of the three — which is what
    * makes "shared counsel" a fact worth deriving rather than a given.
    */
+  /* The signed-in advocate holds Sunil Varghese's vakalatnama here — the
+     case's whole party-actions story (the removal request against her, her
+     Remove entries on the Representation wells) presumes it, and until
+     Sept 2 the record contradicted the pack by leaving her off. */
   "c-1001": {
-    complainant: ["Adv. Ramesh Menon", "Adv. Suresh Menon"],
+    complainant: ["Adv. Anjali Nair", "Adv. Ramesh Menon", "Adv. Suresh Menon"],
     accused: ["Adv. P. Balachandran", "Adv. Asha Nair"],
   },
   "c-1002": {
@@ -933,6 +937,14 @@ type TwSeed = {
   stage: ActiveStage;
   substage?: string;
   counsel: string[];
+  /**
+   * Accused-side counsel, when authored. The default rotation put every
+   * seeded advocate on the complainant side, which left the signed-in
+   * advocate representing complainants on all 74 cases — flagged as
+   * unrealistic (owner, Sept 2). Seeds that name it put her (or anyone)
+   * on the defence.
+   */
+  accused?: string[];
   filedOn: string;
 };
 
@@ -951,7 +963,9 @@ function tw(seed: TwSeed, index: number): CaseRecord {
     parties: { complainant, accused },
     counsel: {
       complainant: seed.counsel,
-      accused: [TW_ACCUSED_COUNSEL[index % TW_ACCUSED_COUNSEL.length]],
+      accused: seed.accused ?? [
+        TW_ACCUSED_COUNSEL[index % TW_ACCUSED_COUNSEL.length],
+      ],
     },
     court: seed.court,
     filedOn: seed.filedOn,
@@ -980,7 +994,7 @@ const CJM = "CJM Court, Kollam";
 
 const TASKS_WORLD_CASES: CaseRecord[] = ([
   { id: "c-412", st: "ST 412/2025", parties: "Sreekumar N. v. Vismaya Traders", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN, RM], filedOn: "2025-02-14" },
-  { id: "c-88", st: "ST 88/2026", parties: "Fathima Beevi v. Anil Kumar K.", court: ON_COURT, stage: "appearance", substage: "Plea", counsel: [AN, RI], filedOn: "2026-01-22" },
+  { id: "c-88", st: "ST 88/2026", parties: "Fathima Beevi v. Anil Kumar K.", court: ON_COURT, stage: "appearance", substage: "Plea", counsel: [RI], accused: [AN, "Adv. K. Ramesh"], filedOn: "2026-01-22" },
   { id: "c-941", st: "ST 941/2025", parties: "Anitha Joseph v. Latheef M.", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [DV], filedOn: "2025-06-03" },
   { id: "c-1102", st: "ST 1102/2026", parties: "Nirmala T. v. Ashique P.", court: ON_COURT, stage: "appearance", counsel: [RM], filedOn: "2026-03-18" },
   { id: "c-217", st: "ST 217/2025", parties: "Suresh Babu v. Kairali Motors", court: JMFC1, stage: "appearance", substage: "Plea", counsel: [RM, DV], filedOn: "2025-03-09" },
@@ -993,10 +1007,10 @@ const TASKS_WORLD_CASES: CaseRecord[] = ([
   { id: "c-377", st: "ST 377/2025", parties: "Sujatha R. v. M. Haneefa", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [RM], filedOn: "2025-04-08" },
   { id: "c-633", st: "ST 633/2025", parties: "Sheeba Rasheed v. Muhammed Ashraf", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [RM], filedOn: "2025-05-29" },
   { id: "c-702", st: "ST 702/2025", parties: "Manoj Kurian v. Highrange Estates", court: JMFC1, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN], filedOn: "2025-06-11" },
-  { id: "c-815", st: "ST 815/2025", parties: "Vinod Chandran v. Sabari Traders", court: CJM, stage: "arguments", counsel: [AN, DV], filedOn: "2025-02-25" },
+  { id: "c-815", st: "ST 815/2025", parties: "Vinod Chandran v. Sabari Traders", court: CJM, stage: "arguments", counsel: [DV], accused: [AN], filedOn: "2025-02-25" },
   { id: "c-1044", st: "ST 1044/2026", parties: "Beena Thomas v. A. Salim", court: JMFC2, stage: "appearance", counsel: [DV], filedOn: "2026-02-13" },
   { id: "c-hd1", st: "ST 268/2025", parties: "Prakash Kumar v. Malabar Traders", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN], filedOn: "2025-03-02" },
-  { id: "c-hd2", st: "ST 743/2025", parties: "Divya Suresh v. K. Salim", court: ON_COURT, stage: "appearance", substage: "Plea", counsel: [AN, RM], filedOn: "2025-07-19" },
+  { id: "c-hd2", st: "ST 743/2025", parties: "Divya Suresh v. K. Salim", court: ON_COURT, stage: "appearance", substage: "Plea", counsel: [RM], accused: [AN], filedOn: "2025-07-19" },
   { id: "c-hd3", st: "ST 512/2025", parties: "Gopinathan Nair v. Chaithanya Agencies", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN], filedOn: "2025-04-15" },
   { id: "c-hd4", st: "ST 391/2026", parties: "Mariyam Bee v. Anwar Sadath", court: ON_COURT, stage: "appearance", counsel: [DV], filedOn: "2026-02-06" },
   { id: "c-hd5", st: "ST 129/2026", parties: "Ravi Chandran v. Sea Pearl Exports", court: ON_COURT, stage: "evidence", substage: "Evidence of the complainant", counsel: [AN, DV], filedOn: "2026-01-08" },

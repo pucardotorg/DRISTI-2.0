@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { peekExtras } from "@/lib/cases/peek";
+import { viewerAccess } from "@/lib/cases/viewer";
 import {
   counselFor,
   formatCaseDate,
@@ -157,6 +158,7 @@ export function CaseHeader({
             court: record.court,
             nextHearing: record.nextHearing?.on ?? "—",
           }}
+          shareReadOnly={viewerAccess(record).kind === "office"}
         />
       </div>
     </header>

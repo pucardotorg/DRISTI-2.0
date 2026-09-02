@@ -1,6 +1,6 @@
 import { type TableColumnId } from "@/lib/cases/table-columns";
 import { counselFor, type CaseRecord } from "@/lib/cases/types";
-import { viewerRepresentation } from "@/lib/cases/viewer";
+import { viewerAccess, viewerRepresentation } from "@/lib/cases/viewer";
 
 import { CaseAdvocatesPair } from "./case-advocates";
 import {
@@ -52,6 +52,14 @@ export function CaseField({
         </CasePlain>
       );
     }
+    case "access": {
+      const access = viewerAccess(record);
+      return (
+        <CasePlain>
+          {access.kind === "vakalatnama" ? "Vakalatnama" : "Office access"}
+        </CasePlain>
+      );
+    }
     case "stage":
       return <CaseStage record={record} detail={list} />;
     case "nextHearing":
@@ -73,6 +81,7 @@ export function caseFieldIsEmpty(record: CaseRecord, id: TableColumnId): boolean
     case "caseName":
     case "stage":
     case "representation":
+    case "access":
       return false;
     case "advocates":
       return (

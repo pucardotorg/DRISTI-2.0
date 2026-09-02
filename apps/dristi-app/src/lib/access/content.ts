@@ -570,6 +570,11 @@ export const shareCopy = {
   accessSearchPlaceholder: t("Search people", "ആളുകളെ തിരയുക"),
   you: t("(you)", "(നിങ്ങൾ)"),
   statusInvited: t("Yet to join", "ചേരാനുണ്ട്"),
+  readOnlyNote: t(
+    "You hold office access on this case, so you can see who has access. Adding and removing people belongs to the advocates on the vakalatnama.",
+    "ഈ കേസിൽ നിങ്ങൾക്ക് ഓഫീസ് ആക്‌സസ് ആയതിനാൽ ആർക്കൊക്കെ ആക്‌സസ് ഉണ്ടെന്ന് കാണാം. ആളുകളെ ചേർക്കുന്നതും നീക്കുന്നതും വക്കാലത്ത്നാമയിലെ അഭിഭാഷകർക്കാണ്.",
+  ),
+  selfOfficeAccess: t("Office access", "ഓഫീസ് ആക്‌സസ്"),
   advocateNotice: t(
     "{name} is an advocate. Sharing gives office access only. To have them act on this case, add them from the Parties tab with a vakalatnama.",
     "{name} ഒരു അഭിഭാഷകനാണ്. പങ്കിടുന്നത് ഓഫീസ് ആക്‌സസ് മാത്രമേ നൽകൂ. ഈ കേസിൽ പ്രവർത്തിക്കാൻ, വക്കാലത്ത്നാമയോടെ പാർട്ടീസ് ടാബിൽ നിന്ന് അവരെ ചേർക്കുക.",

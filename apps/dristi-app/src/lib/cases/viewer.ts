@@ -4,7 +4,7 @@
  * A demo identity, matched by name against each case's counsel — the same
  * convention the access surfaces use (their SELF is "Adv. Anjali Nair").
  * The real seam is the session: engineering swaps this for the signed-in
- * user's id and a proper membership lookup, and the screens do not change.
+ * user's id and a membership lookup, and the screens do not change.
  */
 
 import { counselFor, type CaseRecord, type CounselSide } from "./types";
@@ -19,14 +19,28 @@ export function viewerSides(record: CaseRecord): CounselSide[] {
 }
 
 /**
- * The side the viewer works for on this case — never empty (owner, Sept 2):
- * even office access descends from one side's team, so the answer is always
- * complainant or accused. Where the record does not name the viewer as
- * counsel, the grant's side is not yet authored in the fixtures, and the
- * demo's standing complainant-side assumption stands in until the fixture
- * pass records the true side per grant.
+ * How the viewer reaches this case: on a vakalatnama, or through office
+ * access a colleague shared. Office access always belongs to one side's
+ * team (owner, Sept 2), so both shapes carry a side.
  */
-export function viewerRepresentation(record: CaseRecord): CounselSide[] {
+export type ViewerAccess =
+  | { kind: "vakalatnama"; sides: CounselSide[] }
+  | { kind: "office"; side: CounselSide; via: string };
+
+export function viewerAccess(record: CaseRecord): ViewerAccess {
   const sides = viewerSides(record);
-  return sides.length > 0 ? sides : ["complainant"];
+  if (sides.length > 0) return { kind: "vakalatnama", sides };
+  /* Not on the record's nama, so the case reaches the viewer through a
+     share. The sharer is the side's lead advocate on record — the person
+     who holds the vakalatnama and can share (access model, Aug 20). The
+     fixtures carry no accused-side shares yet; author `via`/`side` per
+     case here when one is wanted. */
+  const via = counselFor(record, "complainant")[0];
+  return { kind: "office", side: "complainant", via: via ?? "a colleague" };
+}
+
+/** The side the viewer works for — never empty; see `ViewerAccess`. */
+export function viewerRepresentation(record: CaseRecord): CounselSide[] {
+  const access = viewerAccess(record);
+  return access.kind === "vakalatnama" ? access.sides : [access.side];
 }

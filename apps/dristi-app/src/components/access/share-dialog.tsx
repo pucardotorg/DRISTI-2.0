@@ -49,12 +49,20 @@ export function ShareDialog({
   onOpenChange,
   cases,
   locale,
+  readOnly = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** One case = full share+manage surface; several = bulk grant-only. */
   cases: AccessCase[];
   locale: Locale;
+  /**
+   * The viewer holds only office access on this case (owner, Sept 2):
+   * they can see who has access, but adding and removing people belongs
+   * to the vakalatnama holders. Inputs and removes disable; the list
+   * stays readable.
+   */
+  readOnly?: boolean;
 }) {
   const { invite, removeGrant, personsOnCase } = useAccess();
 
@@ -154,7 +162,9 @@ export function ShareDialog({
           {/* The one-line boundary against Add people (PM, Sept 2): what
               sharing grants, and what it does not. */}
           <p className="text-caption text-pretty text-muted-foreground">
-            {pick(shareCopy.bodySingle, locale)}
+            {readOnly
+              ? pick(shareCopy.readOnlyNote, locale)
+              : pick(shareCopy.bodySingle, locale)}
           </p>
           {single ? (
             <div className="flex min-w-0 flex-col gap-0.5">
@@ -221,6 +231,7 @@ export function ShareDialog({
                       type="tel"
                       inputMode="numeric"
                       autoComplete="off"
+                      disabled={readOnly}
                       maxLength={10}
                       placeholder={pick(shareCopy.phonePlaceholder, locale)}
                       value={input}
@@ -283,7 +294,11 @@ export function ShareDialog({
                     {pick(shareCopy.demoProfiles, locale)}
                   </p>
                 </div>
-                <Button type="button" disabled={!chips.length && !inputValid} onClick={send}>
+                <Button
+                  type="button"
+                  disabled={readOnly || (!chips.length && !inputValid)}
+                  onClick={send}
+                >
                   {pick(shareCopy.send, locale)}
                 </Button>
               </div>
@@ -299,7 +314,7 @@ export function ShareDialog({
               </Alert>
             ) : null}
 
-            {suggestions.length ? (
+            {suggestions.length && !readOnly ? (
               <div className="mt-2 flex flex-col gap-2">
                 <p className="text-caption font-medium text-muted-foreground">
                   {pick(shareCopy.suggestionsLabel, locale)}
@@ -381,8 +396,19 @@ export function ShareDialog({
                   people={onCase}
                   locale={locale}
                   query={accessQuery}
-                  onRemove={(personId) => removeGrant(personId, single.id)}
-                  onRemoveVakalat={(person) => setRemoveTarget(person.name)}
+                  onRemove={
+                    readOnly
+                      ? undefined
+                      : (personId) => removeGrant(personId, single.id)
+                  }
+                  onRemoveVakalat={
+                    readOnly
+                      ? undefined
+                      : (person) => setRemoveTarget(person.name)
+                  }
+                  selfAccessLabel={
+                    readOnly ? pick(shareCopy.selfOfficeAccess, locale) : undefined
+                  }
                 />
               </section>
             </>
