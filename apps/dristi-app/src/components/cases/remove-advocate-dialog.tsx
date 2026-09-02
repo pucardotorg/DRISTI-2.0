@@ -58,6 +58,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { FlowStepper } from "@/components/cases/flow-stepper";
 import {
+  PartyGeneratedApplicationDialog,
+  PartySignatureDialog,
+  type CaseRef,
+} from "@/components/cases/party-application";
+import {
   ReviewDocValue,
   UPLOAD_HELP,
   UploadedDocField,
@@ -104,6 +109,7 @@ export function RemoveAdvocateDialog({
   onOpenChange,
   advocateName,
   partyName,
+  caseRef,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -111,12 +117,16 @@ export function RemoveAdvocateDialog({
   advocateName: string;
   /** The party they represent, where the entry point knows it. */
   partyName?: string;
+  /** How the paper names the case — the magistrate route prints it. */
+  caseRef: CaseRef;
 }) {
   const [step, setStep] = useState<RemoveStep>(1);
   const [reason, setReason] = useState("");
   const [docFile, setDocFile] = useState<File | null>(null);
   const [route, setRoute] = useState<Route>("");
   const [done, setDone] = useState(false);
+  /** The magistrate route's generate → sign chain (PM, Sept 2). */
+  const [appStage, setAppStage] = useState<"none" | "document" | "sign">("none");
   const [errors, setErrors] = useState<Errors>({});
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
 
@@ -132,6 +142,7 @@ export function RemoveAdvocateDialog({
     setDocFile(null);
     setRoute("");
     setDone(false);
+    setAppStage("none");
     setErrors({});
     setExitConfirmationOpen(false);
   }
@@ -418,13 +429,20 @@ export function RemoveAdvocateDialog({
                   <Button type="submit" form="remove-advocate-form">
                     Continue
                   </Button>
-                ) : (
+                ) : route === "consent" ? (
                   <Button
                     type="button"
                     variant="destructive-solid"
                     onClick={() => setDone(true)}
                   >
-                    {route === "consent" ? "Send request" : "Submit application"}
+                    Send request
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    onClick={() => setAppStage("document")}
+                  >
+                    Generate application
                   </Button>
                 )}
               </footer>
@@ -432,6 +450,43 @@ export function RemoveAdvocateDialog({
           )}
         </DialogContent>
       </Dialog>
+
+      <PartyGeneratedApplicationDialog
+        open={appStage === "document"}
+        onOpenChange={(next) => {
+          if (!next) setAppStage("none");
+        }}
+        caseRef={caseRef}
+        doc={{
+          matter: "Application for the removal of an advocate",
+          facts: [
+            { term: "Advocate", value: advocateName },
+            ...(partyName
+              ? [{ term: "Representing", value: partyName }]
+              : []),
+            ...(docFile
+              ? [{ term: "Annexure", value: docFile.name }]
+              : []),
+          ],
+          prayer: [
+            `The applicant, counsel on record in the above matter, prays that ${advocateName} be removed from the vakalatnama${partyName ? ` of ${partyName}` : ""}.`,
+            `Grounds: ${reason.trim()}`,
+            "It is prayed that this Hon'ble Court may allow this application and pass such orders as are deemed fit.",
+          ],
+        }}
+        onAddSignature={() => setAppStage("sign")}
+      />
+      <PartySignatureDialog
+        open={appStage === "sign"}
+        onOpenChange={(next) => {
+          if (!next) setAppStage("none");
+        }}
+        onBack={() => setAppStage("document")}
+        onSigned={() => {
+          setAppStage("none");
+          setDone(true);
+        }}
+      />
 
       <AlertDialog
         open={exitConfirmationOpen}

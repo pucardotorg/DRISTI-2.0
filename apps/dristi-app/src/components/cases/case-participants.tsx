@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { CaseAddPeople } from "@/components/cases/case-add-people";
 import { RestingCard } from "@/components/cases/case-overview-card";
+import type { CaseRef } from "@/components/cases/party-application";
 import { PoaHolderWell } from "@/components/cases/poa-holder-actions";
 import { RepresentationWell } from "@/components/cases/representation-well";
 import { Badge } from "@/components/ui/badge";
@@ -133,10 +134,13 @@ function casePeopleOptions(file: ParticipantsFile) {
 export function CaseParticipants({
   file,
   caseId,
+  caseRef,
   selectedId,
 }: {
   file: ParticipantsFile;
   caseId: string;
+  /** How the paper names this case — application-type flows print it. */
+  caseRef: CaseRef;
   selectedId: string | undefined;
 }) {
   const litigant = file.litigants.find((row) => row.id === selectedId);
@@ -209,7 +213,12 @@ export function CaseParticipants({
             <Separator orientation="vertical" className="hidden lg:block" />
           </div>
           {litigant ? (
-            <LitigantDetail file={file} litigant={litigant} caseId={caseId} />
+            <LitigantDetail
+              file={file}
+              litigant={litigant}
+              caseId={caseId}
+              caseRef={caseRef}
+            />
           ) : witness ? (
             <WitnessDetail witness={witness} />
           ) : (
@@ -600,10 +609,12 @@ function LitigantDetail({
   file,
   litigant,
   caseId,
+  caseRef,
 }: {
   file: ParticipantsFile;
   litigant: Litigant;
   caseId: string;
+  caseRef: CaseRef;
 }) {
   const linkedWitnesses = witnessesForLitigant(file, litigant.id);
   const sections: { id: string; title: string; facts: ReactNode }[] = [];
@@ -628,6 +639,7 @@ function LitigantDetail({
             key={advocate}
             advocate={advocate}
             partyName={litigant.name}
+            caseRef={caseRef}
           />
         ) : (
           <FactWell key={advocate} primary={advocate} />

@@ -11,15 +11,18 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import type { CaseRef } from "@/components/cases/party-application";
 import { RemoveAdvocateDialog } from "@/components/cases/remove-advocate-dialog";
 
 export function RepresentationWell({
   advocate,
   partyName,
+  caseRef,
 }: {
   advocate: string;
   /** The litigant this pane belongs to, for the dialog's copy. */
   partyName: string;
+  caseRef: CaseRef;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -44,6 +47,7 @@ export function RepresentationWell({
         onOpenChange={setOpen}
         advocateName={advocate}
         partyName={partyName}
+        caseRef={caseRef}
       />
     </>
   );

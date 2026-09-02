@@ -451,6 +451,11 @@ export function ShareDialog({
           if (!next) setRemoveTarget(null);
         }}
         advocateName={removeTarget ?? ""}
+        caseRef={{
+          title: single?.title ?? "",
+          caseNumber: single?.caseNumber ?? "",
+          court: single?.court ?? "",
+        }}
       />
     </Dialog>
   );

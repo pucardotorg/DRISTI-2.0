@@ -1,6 +1,6 @@
 import { CaseParticipants } from "@/components/cases/case-participants";
 import { participantsFile, resolveSelection } from "@/lib/cases/parties";
-import type { CaseRecord } from "@/lib/cases/types";
+import { partiesLabel, type CaseRecord } from "@/lib/cases/types";
 
 /**
  * The Parties section of the case file.
@@ -22,6 +22,11 @@ export function CaseParties({
     <CaseParticipants
       file={file}
       caseId={record.id}
+      caseRef={{
+        title: partiesLabel(record),
+        caseNumber: record.caseNumber,
+        court: record.court,
+      }}
       selectedId={resolveSelection(file, selectedId)}
     />
   );
