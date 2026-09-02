@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { AlternateAddresses } from "@/components/cases/alternate-addresses";
 import { CaseAddPeople } from "@/components/cases/case-add-people";
 import { RestingCard } from "@/components/cases/case-overview-card";
 import { EditLitigantAction } from "@/components/cases/edit-litigant-dialog";
@@ -694,6 +695,17 @@ function LitigantDetail({
      notes at the head of this file. These are links, so a reader on a party
      can jump straight to the person giving evidence about them; it is the one
      cross-reference that connects the two groups of the master list. */
+  /* 11a — the complainant's side may always give the court another address to
+     try for an accused. A system action, so it lives inline on the opposing
+     party's pane, exactly where every other action here would be forbidden. */
+  if (litigant.side !== VIEWER_SIDE) {
+    sections.push({
+      id: "participant-addresses",
+      title: "Addresses",
+      facts: <AlternateAddresses subjectName={litigant.name} />,
+    });
+  }
+
   if (linkedWitnesses.length > 0) {
     sections.push({
       id: "participant-linked-witnesses",
@@ -829,6 +841,14 @@ function WitnessDetail({ witness }: { witness: CaseWitness }) {
           <WitnessFact term="Linked party" value={witness.linkedParty?.name} />
         </DescriptionList>
       </DetailSection>
+
+      {/* 11b — the side that called the witness keeps the court's addresses
+          for them current; the demo viewer is complainant-side counsel. */}
+      {witness.side === VIEWER_SIDE ? (
+        <DetailSection id="participant-witness-addresses" title="Addresses">
+          <AlternateAddresses subjectName={witness.name} />
+        </DetailSection>
+      ) : null}
     </div>
   );
 }
