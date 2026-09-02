@@ -1,6 +1,7 @@
 import { CaseParticipants } from "@/components/cases/case-participants";
 import { participantsFile, resolveSelection } from "@/lib/cases/parties";
 import { partiesLabel, type CaseRecord } from "@/lib/cases/types";
+import { viewerRepresentation } from "@/lib/cases/viewer";
 
 /**
  * The Parties section of the case file.
@@ -22,6 +23,11 @@ export function CaseParties({
     <CaseParticipants
       file={file}
       caseId={record.id}
+      /* The side the signed-in advocate works for on THIS case, from the
+         record's own counsel lists (office access carries its grant's side).
+         Every own-side gate below the fold reads this, so an accused-side
+         brief flips the party actions to the accused's chair. */
+      viewerSide={viewerRepresentation(record)[0]}
       caseRef={{
         title: partiesLabel(record),
         caseNumber: record.caseNumber,

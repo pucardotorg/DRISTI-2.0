@@ -94,9 +94,6 @@ import { cn } from "@/lib/utils";
  */
 const HEADING_ID = "parties-heading";
 
-/** Demo assumption: the signed-in advocate is complainant-side counsel. */
-const VIEWER_SIDE: PartySideId = "complainant";
-
 /**
  * Everyone attached to the case ON THE VIEWER'S SIDE, as PoA-takeover
  * options (PM, Sept 2; own-side clarified by the owner the same day — the
@@ -104,24 +101,24 @@ const VIEWER_SIDE: PartySideId = "complainant";
  * litigants, its advocates on the vakalatnama, and its office staff. Keys
  * are prefixed so populations never collide.
  */
-function casePeopleOptions(file: ParticipantsFile) {
+function casePeopleOptions(file: ParticipantsFile, viewerSide: PartySideId) {
   return [
     ...file.litigants
-      .filter((row) => row.side === VIEWER_SIDE)
+      .filter((row) => row.side === viewerSide)
       .map((row) => ({
         key: `party:${row.id}`,
         name: row.name,
         detail: PARTY_ROLE_LABEL[row.side],
       })),
     ...file.legalTeams
-      .filter((team) => team.side === VIEWER_SIDE)
+      .filter((team) => team.side === viewerSide)
       .map((team) => ({
         key: `advocate:${team.id}`,
         name: team.advocate,
         detail: "On the vakalatnama",
       })),
     ...file.supportPeople
-      .filter((person) => person.sides.includes(VIEWER_SIDE))
+      .filter((person) => person.sides.includes(viewerSide))
       .map((person) => ({
         key: `staff:${person.id}`,
         name: person.name,
@@ -134,12 +131,16 @@ export function CaseParticipants({
   file,
   caseId,
   caseRef,
+  viewerSide,
   selectedId,
 }: {
   file: ParticipantsFile;
   caseId: string;
   /** How the paper names this case — application-type flows print it. */
   caseRef: CaseRef;
+  /** The side the signed-in advocate works for on this case — every
+      own-side gate here reads it. Derived per case in `case-parties.tsx`. */
+  viewerSide: PartySideId;
   selectedId: string | undefined;
 }) {
   const litigant = file.litigants.find((row) => row.id === selectedId);
@@ -174,21 +175,21 @@ export function CaseParticipants({
 
               Own side only: an advocate acts for their own clients, so the
               add-advocate and PoA flows get the viewer's parties and
-              advocates, never the opposing side's. The demo has no per-case
-              record of which side the signed-in advocate is on, so the
-              viewer is taken to be complainant-side counsel; the real seam
-              is the signed-in user's brief on this case. */}
+              advocates, never the opposing side's. The side comes from the
+              case's own record (`viewerSide`), so an accused-side brief
+              flips these pools; the real seam is the signed-in user's
+              brief on this case. */}
           <CaseAddPeople
             caseRef={caseRef}
             litigants={file.litigants
-              .filter((row) => row.side === VIEWER_SIDE)
+              .filter((row) => row.side === viewerSide)
               .map((row) => ({
                 id: row.id,
                 name: row.name,
                 side: row.side,
                 poaHolder: row.powerOfAttorneyHolder,
               }))}
-            casePeople={casePeopleOptions(file)}
+            casePeople={casePeopleOptions(file, viewerSide)}
           />
         </CardContent>
 
@@ -218,9 +219,10 @@ export function CaseParticipants({
               litigant={litigant}
               caseId={caseId}
               caseRef={caseRef}
+              viewerSide={viewerSide}
             />
           ) : witness ? (
-            <WitnessDetail witness={witness} />
+            <WitnessDetail witness={witness} viewerSide={viewerSide} />
           ) : (
             <SectionNote>Select a participant to see their details.</SectionNote>
           )}
@@ -610,11 +612,13 @@ function LitigantDetail({
   litigant,
   caseId,
   caseRef,
+  viewerSide,
 }: {
   file: ParticipantsFile;
   litigant: Litigant;
   caseId: string;
   caseRef: CaseRef;
+  viewerSide: PartySideId;
 }) {
   const linkedWitnesses = witnessesForLitigant(file, litigant.id);
   const sections: { id: string; title: string; facts: ReactNode }[] = [];
@@ -634,7 +638,7 @@ function LitigantDetail({
          opposing counsel (owner, Sept 1). The other side's advocates
          stay plain fact wells. */
       litigant.advocates.map((advocate) =>
-        litigant.side === VIEWER_SIDE ? (
+        litigant.side === viewerSide ? (
           <RepresentationWell
             key={advocate}
             advocate={advocate}
@@ -659,12 +663,12 @@ function LitigantDetail({
          everyone attached to the case (PM, Sept 2) minus the granting
          party themselves. */
       facts:
-        litigant.side === VIEWER_SIDE ? (
+        litigant.side === viewerSide ? (
           <PoaHolderWell
             holder={litigant.powerOfAttorneyHolder}
             partyName={litigant.name}
             caseRef={caseRef}
-            existingPeople={casePeopleOptions(file).filter(
+            existingPeople={casePeopleOptions(file, viewerSide).filter(
               (person) => person.key !== `party:${litigant.id}`
             )}
           />
@@ -698,7 +702,7 @@ function LitigantDetail({
   /* 11a — the complainant's side may always give the court another address to
      try for an accused. A system action, so it lives inline on the opposing
      party's pane, exactly where every other action here would be forbidden. */
-  if (litigant.side !== VIEWER_SIDE) {
+  if (litigant.side !== viewerSide) {
     sections.push({
       id: "participant-addresses",
       title: "Addresses",
@@ -733,7 +737,7 @@ function LitigantDetail({
             {/* Scenario 10 — a correction to the record is an application, so
                 the pencil opens a pre-filled form ending in the application
                 chain. Own side only, like every other party action here. */}
-            {litigant.side === VIEWER_SIDE ? (
+            {litigant.side === viewerSide ? (
               <EditLitigantAction
                 litigant={{
                   name: litigant.name,
@@ -797,7 +801,13 @@ function litigantSubline(litigant: Litigant): string {
 }
 
 /** A witness, in the same grammar as a litigant. */
-function WitnessDetail({ witness }: { witness: CaseWitness }) {
+function WitnessDetail({
+  witness,
+  viewerSide,
+}: {
+  witness: CaseWitness;
+  viewerSide: PartySideId;
+}) {
   return (
     <div className="@container flex min-w-0 flex-col gap-6">
       <DetailHeader
@@ -844,7 +854,7 @@ function WitnessDetail({ witness }: { witness: CaseWitness }) {
 
       {/* 11b — the side that called the witness keeps the court's addresses
           for them current; the demo viewer is complainant-side counsel. */}
-      {witness.side === VIEWER_SIDE ? (
+      {witness.side === viewerSide ? (
         <DetailSection id="participant-witness-addresses" title="Addresses">
           <AlternateAddresses subjectName={witness.name} />
         </DetailSection>
