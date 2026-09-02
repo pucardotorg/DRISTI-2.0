@@ -1,5 +1,6 @@
 import { type TableColumnId } from "@/lib/cases/table-columns";
 import { counselFor, type CaseRecord } from "@/lib/cases/types";
+import { viewerSides } from "@/lib/cases/viewer";
 
 import { CaseAdvocatesPair } from "./case-advocates";
 import {
@@ -38,6 +39,24 @@ export function CaseField({
       return <CaseTitle record={record} />;
     case "advocates":
       return <CaseAdvocatesPair record={record} dense={!list} />;
+    case "representation": {
+      /* Which side the viewer appears for. Both is rare but real; a case
+         where the record does not name them at all says so rather than
+         sitting blank, because blank reads as "no data" and the answer is
+         "you hold office access only". */
+      const sides = viewerSides(record);
+      return (
+        <CasePlain>
+          {sides.length > 0
+            ? sides
+                .map((side) =>
+                  side === "complainant" ? "Complainant" : "Accused"
+                )
+                .join(" · ")
+            : "Not on record"}
+        </CasePlain>
+      );
+    }
     case "stage":
       return <CaseStage record={record} detail={list} />;
     case "nextHearing":
@@ -58,6 +77,7 @@ export function caseFieldIsEmpty(record: CaseRecord, id: TableColumnId): boolean
     case "caseNumber":
     case "caseName":
     case "stage":
+    case "representation":
       return false;
     case "advocates":
       return (

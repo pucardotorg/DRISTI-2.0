@@ -151,6 +151,11 @@ export function ShareDialog({
           <DialogTitle className="text-title-s font-semibold">
             {pick(shareCopy.title, locale)}
           </DialogTitle>
+          {/* The one-line boundary against Add people (PM, Sept 2): what
+              sharing grants, and what it does not. */}
+          <p className="text-caption text-pretty text-muted-foreground">
+            {pick(shareCopy.bodySingle, locale)}
+          </p>
           {single ? (
             <div className="flex min-w-0 flex-col gap-0.5">
               <p className="truncate text-body-compact font-medium">{single.title}</p>

@@ -87,6 +87,7 @@ import { initials } from "@/components/access/access-list";
 import { VakalatnamaPicker } from "@/components/advocate/vakalatnama-picker";
 import { FlowStepper } from "@/components/cases/flow-stepper";
 import {
+  ReviewDocValue,
   UPLOAD_HELP,
   UploadedDocField,
 } from "@/components/cases/uploaded-doc-field";
@@ -726,7 +727,13 @@ export function AddAdvocateDialog({
                       othersLabel="Other parties"
                     />
                   </ReviewRow>
-                  <ReviewRow term="Vakalatnama">{vakalatnamaName}</ReviewRow>
+                  <ReviewRow term="Vakalatnama">
+                    {vkTab === "upload" ? (
+                      <ReviewDocValue file={vakalatFile} />
+                    ) : (
+                      vakalatnamaName
+                    )}
+                  </ReviewRow>
                 </DescriptionList>
               )}
             </form>

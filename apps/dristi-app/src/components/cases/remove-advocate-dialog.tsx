@@ -58,22 +58,29 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { FlowStepper } from "@/components/cases/flow-stepper";
 import {
+  ReviewDocValue,
   UPLOAD_HELP,
   UploadedDocField,
 } from "@/components/cases/uploaded-doc-field";
 
 type RemoveStep = 1 | 2 | 3;
 
+/**
+ * Approval FIRST (PM, Sept 2): the route decides how much the grounds step
+ * asks. Consent makes the reason and document optional context for the
+ * outgoing advocate; the magistrate route makes both mandatory, because an
+ * application without grounds is nothing.
+ */
 const STEPS = [
   {
     step: 1,
-    title: "Grounds",
-    description: "State why the advocate should be removed and attach proof.",
+    title: "Approval",
+    description: "Removal from the vakalatnama needs one of two approvals.",
   },
   {
     step: 2,
-    title: "Approval",
-    description: "Removal from the vakalatnama needs one of two approvals.",
+    title: "Grounds",
+    description: "State why the advocate should be removed and attach proof.",
   },
   {
     step: 3,
@@ -146,23 +153,27 @@ export function RemoveAdvocateDialog({
     event.preventDefault();
 
     if (step === 1) {
-      const next: Errors = {};
-      if (!reason.trim()) {
-        next.reason = "State why the advocate should be removed.";
+      if (!route) {
+        setErrors((c) => ({ ...c, route: "Pick who approves the removal." }));
+        return;
       }
-      if (!docFile) {
-        next.document = "Upload a supporting document to continue.";
-      }
-      setErrors(next);
-      if (next.reason || next.document) return;
       setStep(2);
       return;
     }
 
     if (step === 2) {
-      if (!route) {
-        setErrors((c) => ({ ...c, route: "Pick who approves the removal." }));
-        return;
+      // Mandatory only on the magistrate route; consent treats both as
+      // optional context for the outgoing advocate.
+      if (route === "magistrate") {
+        const next: Errors = {};
+        if (!reason.trim()) {
+          next.reason = "State why the advocate should be removed.";
+        }
+        if (!docFile) {
+          next.document = "Upload a supporting document to continue.";
+        }
+        setErrors(next);
+        if (next.reason || next.document) return;
       }
       setStep(3);
     }
@@ -227,7 +238,9 @@ export function RemoveAdvocateDialog({
                     ? route === "consent"
                       ? `Once ${advocateName} accepts, they come off the vakalatnama.`
                       : `Once the magistrate orders it, ${advocateName} comes off the vakalatnama.`
-                    : current.description}
+                    : step === 2 && route === "consent"
+                      ? `Optional: give ${advocateName} the context for the request.`
+                      : current.description}
                 </DialogDescription>
               </DialogHeader>
 
@@ -239,56 +252,6 @@ export function RemoveAdvocateDialog({
                   className="flex flex-col gap-6"
                 >
                   {step === 1 ? (
-                    <>
-                      <Field data-invalid={Boolean(errors.reason)}>
-                        <FieldLabel
-                          className="block w-full text-body font-semibold leading-snug"
-                          htmlFor="remove-reason"
-                        >
-                          Why should they be removed?
-                        </FieldLabel>
-                        <FieldDescription>
-                          Whoever approves the removal reads this first.
-                        </FieldDescription>
-                        <Textarea
-                          id="remove-reason"
-                          className="min-h-24"
-                          maxLength={REASON_MAX_LENGTH}
-                          value={reason}
-                          onChange={(event) => {
-                            setReason(event.target.value);
-                            setErrors((c) => ({ ...c, reason: undefined }));
-                          }}
-                        />
-                        <FieldDescription className="flex justify-end">
-                          {reason.length.toLocaleString("en-IN")} /{" "}
-                          {REASON_MAX_LENGTH.toLocaleString("en-IN")}
-                        </FieldDescription>
-                        <FieldError>{errors.reason}</FieldError>
-                      </Field>
-
-                      <Field data-invalid={Boolean(errors.document)}>
-                        <FieldLabel className="block w-full text-body font-semibold leading-snug">
-                          Supporting document
-                        </FieldLabel>
-                        <FieldDescription>
-                          Whatever evidences the grounds: correspondence, a
-                          client instruction, a notice.
-                        </FieldDescription>
-                        <UploadedDocField
-                          label="Supporting document"
-                          required
-                          file={docFile}
-                          onFileChange={(file) => {
-                            setDocFile(file);
-                            setErrors((c) => ({ ...c, document: undefined }));
-                          }}
-                        />
-                        <FieldDescription>{UPLOAD_HELP}</FieldDescription>
-                        <FieldError>{errors.document}</FieldError>
-                      </Field>
-                    </>
-                  ) : step === 2 ? (
                     <Field data-invalid={Boolean(errors.route)}>
                       <FieldLabel className="block w-full text-body font-semibold leading-snug">
                         Who approves the removal?
@@ -342,6 +305,70 @@ export function RemoveAdvocateDialog({
                       </RadioGroup>
                       <FieldError>{errors.route}</FieldError>
                     </Field>
+                  ) : step === 2 ? (
+                    <>
+                      <Field data-invalid={Boolean(errors.reason)}>
+                        <FieldLabel
+                          className="block w-full text-body font-semibold leading-snug"
+                          htmlFor="remove-reason"
+                        >
+                          Why should they be removed?
+                          {route === "consent" ? (
+                            <span className="font-normal text-muted-foreground">
+                              {" "}
+                              (optional)
+                            </span>
+                          ) : null}
+                        </FieldLabel>
+                        <FieldDescription>
+                          {route === "consent"
+                            ? `Context for ${advocateName}; they see it with the request.`
+                            : "The magistrate reads this to decide the application."}
+                        </FieldDescription>
+                        <Textarea
+                          id="remove-reason"
+                          className="min-h-24"
+                          maxLength={REASON_MAX_LENGTH}
+                          value={reason}
+                          onChange={(event) => {
+                            setReason(event.target.value);
+                            setErrors((c) => ({ ...c, reason: undefined }));
+                          }}
+                        />
+                        <FieldDescription className="flex justify-end">
+                          {reason.length.toLocaleString("en-IN")} /{" "}
+                          {REASON_MAX_LENGTH.toLocaleString("en-IN")}
+                        </FieldDescription>
+                        <FieldError>{errors.reason}</FieldError>
+                      </Field>
+
+                      <Field data-invalid={Boolean(errors.document)}>
+                        <FieldLabel className="block w-full text-body font-semibold leading-snug">
+                          Supporting document
+                          {route === "consent" ? (
+                            <span className="font-normal text-muted-foreground">
+                              {" "}
+                              (optional)
+                            </span>
+                          ) : null}
+                        </FieldLabel>
+                        <FieldDescription>
+                          Whatever evidences the grounds: correspondence, a
+                          client instruction, a notice.
+                        </FieldDescription>
+                        <UploadedDocField
+                          label="Supporting document"
+                          required={route === "magistrate"}
+                          file={docFile}
+                          onFileChange={(file) => {
+                            setDocFile(file);
+                            setErrors((c) => ({ ...c, document: undefined }));
+                          }}
+                        />
+                        <FieldDescription>{UPLOAD_HELP}</FieldDescription>
+                        <FieldError>{errors.document}</FieldError>
+                      </Field>
+                    </>
                   ) : (
                     <DescriptionList>
                       <ReviewRow term="Advocate">
@@ -353,12 +380,18 @@ export function RemoveAdvocateDialog({
                           </span>
                         ) : null}
                       </ReviewRow>
-                      <ReviewRow term="Grounds">
-                        <span className="whitespace-pre-wrap">
-                          {reason.trim()}
-                        </span>
-                      </ReviewRow>
-                      <ReviewRow term="Document">{docFile?.name}</ReviewRow>
+                      {reason.trim() ? (
+                        <ReviewRow term="Grounds">
+                          <span className="whitespace-pre-wrap">
+                            {reason.trim()}
+                          </span>
+                        </ReviewRow>
+                      ) : null}
+                      {docFile ? (
+                        <ReviewRow term="Document">
+                          <ReviewDocValue file={docFile} />
+                        </ReviewRow>
+                      ) : null}
                       <ReviewRow term="Approved by">
                         {route === "consent"
                           ? `${advocateName}, by consent`

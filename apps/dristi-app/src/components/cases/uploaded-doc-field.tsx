@@ -12,6 +12,7 @@
  */
 
 import * as React from "react";
+import { Maximize2Icon } from "lucide-react";
 
 import {
   Attachment,
@@ -36,6 +37,44 @@ export const UPLOAD_HELP = "Upload a JPG, JPEG, PNG or PDF up to 10 MB.";
 function fileSize(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * A review row's document value: the filename with an enlarge control
+ * opening the full-screen preview (PM, Sept 2 — a bare name in review gave
+ * no way back to what was attached).
+ */
+export function ReviewDocValue({ file }: { file: File | null }) {
+  const [previewOpen, setPreviewOpen] = React.useState(false);
+  const url = useObjectUrl(file);
+  if (!file) return null;
+  return (
+    <span className="flex min-w-0 items-center gap-1">
+      <span className="min-w-0 truncate">{file.name}</span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        className="shrink-0 text-muted-foreground"
+        aria-label={`View ${file.name}`}
+        onClick={() => setPreviewOpen(true)}
+      >
+        <Maximize2Icon aria-hidden />
+      </Button>
+      <DocumentPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        file={file}
+        url={url}
+        locale="en"
+        copy={{
+          title: file.name,
+          description: "Check the document is readable before continuing.",
+          alt: file.name,
+        }}
+      />
+    </span>
+  );
 }
 
 export function UploadedDocField({

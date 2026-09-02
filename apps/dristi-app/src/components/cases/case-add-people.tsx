@@ -37,10 +37,11 @@ type OpenDialog = "advocate" | "witness" | "poa" | null;
 
 export function CaseAddPeople({
   litigants,
-  advocates,
+  casePeople,
 }: {
   litigants: PartyOption[];
-  advocates: string[];
+  /** Everyone attached to the case — the PoA flow's takeover pool. */
+  casePeople: { key: string; name: string; detail: string }[];
 }) {
   const [dialog, setDialog] = useState<OpenDialog>(null);
 
@@ -85,7 +86,7 @@ export function CaseAddPeople({
         open={dialog === "poa"}
         onOpenChange={closerFor("poa")}
         litigants={litigants}
-        advocates={advocates}
+        casePeople={casePeople}
       />
     </>
   );

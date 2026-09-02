@@ -66,6 +66,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { FlowStepper } from "@/components/cases/flow-stepper";
 import {
+  ReviewDocValue,
   UPLOAD_HELP,
   UploadedDocField,
 } from "@/components/cases/uploaded-doc-field";
@@ -309,7 +310,9 @@ function RemovePoaDialog({
                           {reason.trim()}
                         </span>
                       </ReviewRow>
-                      <ReviewRow term="Document">{docFile?.name}</ReviewRow>
+                      <ReviewRow term="Document">
+                        <ReviewDocValue file={docFile} />
+                      </ReviewRow>
                     </DescriptionList>
                   )}
                 </form>
@@ -454,8 +457,8 @@ function ReplacePoaDialog({
       const next: typeof errors = {};
       if (holderMode === "new") {
         if (!newName.trim()) next.holderName = "Enter the new holder's name.";
-        if (newPhone && newPhone.length !== 10) {
-          next.holderPhone = "Enter a 10-digit mobile number, or leave it blank.";
+        if (newPhone.length !== 10) {
+          next.holderPhone = "Enter the new holder's 10-digit mobile number.";
         }
       } else if (!existingKey) {
         next.existing = "Pick who on the case takes over the role.";
@@ -571,7 +574,7 @@ function ReplacePoaDialog({
                           </Field>
                           <Field data-invalid={Boolean(errors.holderPhone)}>
                             <FieldLabel htmlFor="replace-poa-phone">
-                              Mobile number (optional)
+                              Mobile number
                             </FieldLabel>
                             <Input
                               id="replace-poa-phone"
@@ -717,7 +720,9 @@ function ReplacePoaDialog({
                           {reason.trim()}
                         </span>
                       </ReviewRow>
-                      <ReviewRow term="New deed">{deedFile?.name}</ReviewRow>
+                      <ReviewRow term="New deed">
+                        <ReviewDocValue file={deedFile} />
+                      </ReviewRow>
                     </DescriptionList>
                   )}
                 </form>

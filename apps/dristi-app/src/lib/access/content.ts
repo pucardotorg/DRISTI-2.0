@@ -543,8 +543,8 @@ export const shareCopy = {
   title: t("Share access", "ആക്‌സസ് പങ്കിടുക"),
   scopeManyTitle: t("{count} cases selected", "{count} കേസുകൾ തിരഞ്ഞെടുത്തു"),
   bodySingle: t(
-    "People you add can see and work on everything in this case.",
-    "നിങ്ങൾ ചേർക്കുന്നവർക്ക് ഈ കേസിലെ എല്ലാം കാണാനും പ്രവർത്തിക്കാനും കഴിയും.",
+    "Office access only: people you add can work on the case but are not on the case record.",
+    "ഓഫീസ് ആക്‌സസ് മാത്രം: നിങ്ങൾ ചേർക്കുന്നവർക്ക് കേസിൽ പ്രവർത്തിക്കാം, പക്ഷേ അവർ കേസ് രേഖയിൽ ഉണ്ടാകില്ല.",
   ),
   phonePlaceholder: t("Mobile number", "മൊബൈൽ നമ്പർ"),
   phoneAdd: t("Add number", "നമ്പർ ചേർക്കുക"),

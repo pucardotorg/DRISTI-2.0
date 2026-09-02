@@ -61,6 +61,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { FlowStepper } from "@/components/cases/flow-stepper";
 import {
+  ReviewDocValue,
   UPLOAD_HELP,
   UploadedDocField,
 } from "@/components/cases/uploaded-doc-field";
@@ -107,14 +108,17 @@ export function AddPoaDialog({
   open,
   onOpenChange,
   litigants,
-  advocates,
+  casePeople,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** The viewer's own clients only; never the opposing side. */
   litigants: PartyOption[];
-  /** Own-side advocate names on record; scenario 8's pool with the litigants. */
-  advocates: string[];
+  /**
+   * Scenario 8's pool: EVERYONE attached to the case (PM, Sept 2) — on-nama
+   * advocates, administrative-access staff, and every litigant.
+   */
+  casePeople: { key: string; name: string; detail: string }[];
 }) {
   const [step, setStep] = useState<PoaStep>(1);
   const [partyId, setPartyId] = useState("");
@@ -139,29 +143,10 @@ export function AddPoaDialog({
 
   const grantingParty = litigants.find((party) => party.id === partyId);
 
-  /**
-   * Scenario 8's pool: everyone already on the case except the granting
-   * party themselves. The other own-side litigants (a co-accused officer
-   * holding PoA for the company is the real case), and the advocates on
-   * record. Keys are prefixed so a litigant and an advocate never collide.
-   */
-  const existingPeople = [
-    ...litigants
-      .filter((party) => party.id !== partyId)
-      .map((party) => ({
-        key: `party:${party.id}`,
-        name: party.name,
-        detail: PARTY_SIDE_LABEL[party.side],
-      })),
-    /* "On the vakalatnama", not "advocate on record": the roles live on the
-       nama in this product's model, and that is exactly where these names
-       come from (the case's legal teams). Owner's wording, Sept 1. */
-    ...advocates.map((name) => ({
-      key: `advocate:${name}`,
-      name,
-      detail: "On the vakalatnama",
-    })),
-  ];
+  /* The granting party cannot hold their own PoA; everyone else stays. */
+  const existingPeople = casePeople.filter(
+    (person) => person.key !== `party:${partyId}`
+  );
 
   const holderDisplayName =
     holderMode === "new"
@@ -203,8 +188,8 @@ export function AddPoaDialog({
       if (!partyId) next.party = "Pick the party granting the Power of Attorney.";
       if (holderMode === "new") {
         if (!holderName.trim()) next.holderName = "Enter the holder's name.";
-        if (holderPhone && holderPhone.length !== 10) {
-          next.holderPhone = "Enter a 10-digit mobile number, or leave it blank.";
+        if (holderPhone.length !== 10) {
+          next.holderPhone = "Enter the holder's 10-digit mobile number.";
         }
       } else if (!existingKey) {
         next.existing = "Pick who on the case will take on the role.";
@@ -406,7 +391,7 @@ export function AddPoaDialog({
                       </Field>
                       <Field data-invalid={Boolean(errors.holderPhone)}>
                         <FieldLabel htmlFor="poa-holder-phone">
-                          Mobile number (optional)
+                          Mobile number
                         </FieldLabel>
                         <Input
                           id="poa-holder-phone"
@@ -539,7 +524,9 @@ export function AddPoaDialog({
                   <ReviewRow term="Grounds">
                     <span className="whitespace-pre-wrap">{reason.trim()}</span>
                   </ReviewRow>
-                  <ReviewRow term="Deed">{deedFile?.name}</ReviewRow>
+                  <ReviewRow term="Deed">
+                    <ReviewDocValue file={deedFile} />
+                  </ReviewRow>
                 </DescriptionList>
               )}
             </form>

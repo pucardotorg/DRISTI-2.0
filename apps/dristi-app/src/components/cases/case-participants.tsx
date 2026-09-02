@@ -97,6 +97,32 @@ const HEADING_ID = "parties-heading";
 /** Demo assumption: the signed-in advocate is complainant-side counsel. */
 const VIEWER_SIDE: PartySideId = "complainant";
 
+/**
+ * Everyone attached to the case, as PoA-takeover options (PM, Sept 2):
+ * every litigant, every advocate on a vakalatnama, and the administrative-
+ * access staff — not just the viewer's side's advocates. Keys are prefixed
+ * so populations never collide.
+ */
+function casePeopleOptions(file: ParticipantsFile) {
+  return [
+    ...file.litigants.map((row) => ({
+      key: `party:${row.id}`,
+      name: row.name,
+      detail: PARTY_ROLE_LABEL[row.side],
+    })),
+    ...file.legalTeams.map((team) => ({
+      key: `advocate:${team.id}`,
+      name: team.advocate,
+      detail: "On the vakalatnama",
+    })),
+    ...file.supportPeople.map((person) => ({
+      key: `staff:${person.id}`,
+      name: person.name,
+      detail: `${person.role} · administrative access`,
+    })),
+  ];
+}
+
 export function CaseParticipants({
   file,
   caseId,
@@ -151,9 +177,7 @@ export function CaseParticipants({
                 side: row.side,
                 poaHolder: row.powerOfAttorneyHolder,
               }))}
-            advocates={file.legalTeams
-              .filter((team) => team.side === VIEWER_SIDE)
-              .map((team) => team.advocate)}
+            casePeople={casePeopleOptions(file)}
           />
         </CardContent>
 
@@ -612,33 +636,17 @@ function LitigantDetail({
       id: "participant-poa",
       title: "Power of attorney",
       /* Remove and Replace (scenarios 6/7) ride the holder's own well —
-         own side only, like the Representation wells. The takeover pool
-         (scenario 8's shape) is the viewer's other litigants and the
-         side's advocates, built here so the client island never imports
-         the authored pack. */
+         own side only, like the Representation wells. The takeover pool is
+         everyone attached to the case (PM, Sept 2) minus the granting
+         party themselves. */
       facts:
         litigant.side === VIEWER_SIDE ? (
           <PoaHolderWell
             holder={litigant.powerOfAttorneyHolder}
             partyName={litigant.name}
-            existingPeople={[
-              ...file.litigants
-                .filter(
-                  (row) => row.side === VIEWER_SIDE && row.id !== litigant.id
-                )
-                .map((row) => ({
-                  key: `party:${row.id}`,
-                  name: row.name,
-                  detail: PARTY_ROLE_LABEL[row.side],
-                })),
-              ...file.legalTeams
-                .filter((team) => team.side === VIEWER_SIDE)
-                .map((team) => ({
-                  key: `advocate:${team.advocate}`,
-                  name: team.advocate,
-                  detail: "On the vakalatnama",
-                })),
-            ]}
+            existingPeople={casePeopleOptions(file).filter(
+              (person) => person.key !== `party:${litigant.id}`
+            )}
           />
         ) : (
           <FactWell primary={litigant.powerOfAttorneyHolder} />
