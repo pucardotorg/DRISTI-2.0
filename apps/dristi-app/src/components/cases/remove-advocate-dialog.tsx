@@ -110,6 +110,7 @@ export function RemoveAdvocateDialog({
   advocateName,
   partyName,
   caseRef,
+  onRequested,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -119,6 +120,9 @@ export function RemoveAdvocateDialog({
   partyName?: string;
   /** How the paper names the case — the magistrate route prints it. */
   caseRef: CaseRef;
+  /** Fired when the removal goes out, with the route it took — the entry
+      point's chance to show the wait ("requested · awaiting consent"). */
+  onRequested?: (route: "consent" | "magistrate") => void;
 }) {
   const [step, setStep] = useState<RemoveStep>(1);
   const [reason, setReason] = useState("");
@@ -433,7 +437,10 @@ export function RemoveAdvocateDialog({
                   <Button
                     type="button"
                     variant="destructive-solid"
-                    onClick={() => setDone(true)}
+                    onClick={() => {
+                      onRequested?.("consent");
+                      setDone(true);
+                    }}
                   >
                     Send request
                   </Button>
@@ -484,6 +491,7 @@ export function RemoveAdvocateDialog({
         onBack={() => setAppStage("document")}
         onSigned={() => {
           setAppStage("none");
+          onRequested?.("magistrate");
           setDone(true);
         }}
       />
