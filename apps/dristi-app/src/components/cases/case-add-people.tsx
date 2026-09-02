@@ -85,6 +85,7 @@ export function CaseAddPeople({
       <AddWitnessDialog
         open={dialog === "witness"}
         onOpenChange={closerFor("witness")}
+        caseRef={caseRef}
       />
       <AddPoaDialog
         open={dialog === "poa"}
