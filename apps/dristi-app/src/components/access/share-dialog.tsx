@@ -26,6 +26,7 @@ import {
   roleCopy,
   shareCopy,
   type AccessCase,
+  type AccessPerson,
 } from "@/lib/access/content";
 
 /**
@@ -50,6 +51,7 @@ export function ShareDialog({
   cases,
   locale,
   readOnly = false,
+  extraPeople,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -63,6 +65,13 @@ export function ShareDialog({
    * stays readable.
    */
   readOnly?: boolean;
+  /**
+   * The case's own people, derived from its record (nama advocates and
+   * office staff) — merged with the access store so "Who has access"
+   * matches the case file. The store never held them, so removing one is
+   * this dialog's local state.
+   */
+  extraPeople?: AccessPerson[];
 }) {
   const { invite, removeGrant, personsOnCase } = useAccess();
 
@@ -75,10 +84,22 @@ export function ShareDialog({
   /* An on-nama advocate whose Remove was clicked; opens the formal removal
      flow (3a/3b) over this dialog. Staff removal stays the one-click revoke. */
   const [removeTarget, setRemoveTarget] = React.useState<string | null>(null);
+  const [removedDerived, setRemovedDerived] = React.useState<ReadonlySet<string>>(
+    new Set(),
+  );
 
   const bulk = cases.length > 1;
   const single = cases.length === 1 ? cases[0] : null;
-  const onCase = single ? personsOnCase(single.id) : [];
+  const storePeople = single ? personsOnCase(single.id) : [];
+  const storeNames = new Set(storePeople.map((p) => p.name));
+  const onCase = single
+    ? [
+        ...storePeople,
+        ...(extraPeople ?? []).filter(
+          (p) => !storeNames.has(p.name) && !removedDerived.has(p.id),
+        ),
+      ]
+    : [];
 
   const inputValid = /^\d{10}$/.test(input);
   const lookup = inputValid ? (PHONE_DIRECTORY[input] ?? null) : null;
@@ -105,6 +126,7 @@ export function ShareDialog({
       setTouched(false);
       setResult(null);
       setAccessQuery("");
+      setRemovedDerived(new Set());
     }
     onOpenChange(nextOpen);
   }
@@ -399,7 +421,14 @@ export function ShareDialog({
                   onRemove={
                     readOnly
                       ? undefined
-                      : (personId) => removeGrant(personId, single.id)
+                      : (personId) => {
+                          removeGrant(personId, single.id);
+                          if (personId.startsWith("derived-")) {
+                            setRemovedDerived(
+                              (current) => new Set(current).add(personId),
+                            );
+                          }
+                        }
                   }
                   onRemoveVakalat={
                     readOnly

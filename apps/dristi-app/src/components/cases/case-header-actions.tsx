@@ -19,6 +19,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ShareDialog } from "@/components/access/share-dialog";
+import type { AccessPerson } from "@/lib/access/content";
 import { useCaseBail } from "@/components/cases/case-bail-flow";
 import type { AccessCase } from "@/lib/access/content";
 
@@ -31,10 +32,13 @@ import type { AccessCase } from "@/lib/access/content";
 export function CaseHeaderActions({
   accessCase,
   shareReadOnly = false,
+  shareExtraPeople,
 }: {
   accessCase: AccessCase;
   /** The viewer holds only office access here — share becomes view-only. */
   shareReadOnly?: boolean;
+  /** The case's own nama advocates and staff, derived server-side. */
+  shareExtraPeople?: AccessPerson[];
 }) {
   const bail = useCaseBail();
   const [shareOpen, setShareOpen] = React.useState(false);
@@ -130,6 +134,7 @@ export function CaseHeaderActions({
         cases={[accessCase]}
         locale="en"
         readOnly={shareReadOnly}
+        extraPeople={shareExtraPeople}
       />
     </TooltipProvider>
   );

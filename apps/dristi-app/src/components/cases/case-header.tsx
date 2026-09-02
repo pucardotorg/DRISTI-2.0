@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { derivedAccessPeople } from "@/lib/access/derived";
 import { peekExtras } from "@/lib/cases/peek";
 import { viewerAccess } from "@/lib/cases/viewer";
 import {
@@ -159,6 +160,7 @@ export function CaseHeader({
             nextHearing: record.nextHearing?.on ?? "—",
           }}
           shareReadOnly={viewerAccess(record).kind === "office"}
+          shareExtraPeople={derivedAccessPeople(record)}
         />
       </div>
     </header>
