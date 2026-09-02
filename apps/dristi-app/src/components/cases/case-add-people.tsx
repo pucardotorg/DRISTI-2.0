@@ -31,14 +31,18 @@ import {
 import { AddAdvocateDialog } from "@/components/cases/add-advocate-dialog";
 import { AddPoaDialog } from "@/components/cases/add-poa-dialog";
 import { AddWitnessDialog } from "@/components/cases/add-witness-form";
+import type { CaseRef } from "@/components/cases/party-application";
 import type { PartyOption } from "@/lib/cases/party-actions";
 
 type OpenDialog = "advocate" | "witness" | "poa" | null;
 
 export function CaseAddPeople({
+  caseRef,
   litigants,
   casePeople,
 }: {
+  /** How the paper names this case — application-type flows print it. */
+  caseRef: CaseRef;
   litigants: PartyOption[];
   /** Everyone attached to the case — the PoA flow's takeover pool. */
   casePeople: { key: string; name: string; detail: string }[];
@@ -87,6 +91,7 @@ export function CaseAddPeople({
         onOpenChange={closerFor("poa")}
         litigants={litigants}
         casePeople={casePeople}
+        caseRef={caseRef}
       />
     </>
   );

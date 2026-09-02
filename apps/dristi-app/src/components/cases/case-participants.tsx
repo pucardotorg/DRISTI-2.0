@@ -180,6 +180,7 @@ export function CaseParticipants({
               viewer is taken to be complainant-side counsel; the real seam
               is the signed-in user's brief on this case. */}
           <CaseAddPeople
+            caseRef={caseRef}
             litigants={file.litigants
               .filter((row) => row.side === VIEWER_SIDE)
               .map((row) => ({
@@ -663,6 +664,7 @@ function LitigantDetail({
           <PoaHolderWell
             holder={litigant.powerOfAttorneyHolder}
             partyName={litigant.name}
+            caseRef={caseRef}
             existingPeople={casePeopleOptions(file).filter(
               (person) => person.key !== `party:${litigant.id}`
             )}

@@ -66,6 +66,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { FlowStepper } from "@/components/cases/flow-stepper";
 import {
+  PartyGeneratedApplicationDialog,
+  PartySignatureDialog,
+  type CaseRef,
+} from "@/components/cases/party-application";
+import {
   ReviewDocValue,
   UPLOAD_HELP,
   UploadedDocField,
@@ -78,10 +83,13 @@ export type ExistingPersonOption = { key: string; name: string; detail: string }
 export function PoaHolderWell({
   holder,
   partyName,
+  caseRef,
   existingPeople,
 }: {
   holder: string;
   partyName: string;
+  /** How the paper names the case — both actions are applications. */
+  caseRef: CaseRef;
   existingPeople: ExistingPersonOption[];
 }) {
   const [open, setOpen] = useState<"remove" | "replace" | null>(null);
@@ -126,12 +134,14 @@ export function PoaHolderWell({
         onOpenChange={(next) => setOpen(next ? "remove" : null)}
         holder={holder}
         partyName={partyName}
+        caseRef={caseRef}
       />
       <ReplacePoaDialog
         open={open === "replace"}
         onOpenChange={(next) => setOpen(next ? "replace" : null)}
         holder={holder}
         partyName={partyName}
+        caseRef={caseRef}
         existingPeople={existingPeople}
       />
     </>
@@ -161,16 +171,19 @@ function RemovePoaDialog({
   onOpenChange,
   holder,
   partyName,
+  caseRef,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   holder: string;
   partyName: string;
+  caseRef: CaseRef;
 }) {
   const [step, setStep] = useState<1 | 2>(1);
   const [reason, setReason] = useState("");
   const [docFile, setDocFile] = useState<File | null>(null);
   const [done, setDone] = useState(false);
+  const [appStage, setAppStage] = useState<"none" | "document" | "sign">("none");
   const [errors, setErrors] = useState<{ reason?: string; document?: string }>(
     {}
   );
@@ -184,6 +197,7 @@ function RemovePoaDialog({
     setReason("");
     setDocFile(null);
     setDone(false);
+    setAppStage("none");
     setErrors({});
     setExitConfirmationOpen(false);
   }
@@ -337,10 +351,9 @@ function RemovePoaDialog({
                 ) : (
                   <Button
                     type="button"
-                    variant="destructive-solid"
-                    onClick={() => setDone(true)}
+                    onClick={() => setAppStage("document")}
                   >
-                    Submit application
+                    Generate application
                   </Button>
                 )}
               </footer>
@@ -348,6 +361,39 @@ function RemovePoaDialog({
           )}
         </DialogContent>
       </Dialog>
+
+      <PartyGeneratedApplicationDialog
+        open={appStage === "document"}
+        onOpenChange={(next) => {
+          if (!next) setAppStage("none");
+        }}
+        caseRef={caseRef}
+        doc={{
+          matter: "Application for the removal of a PoA-holder",
+          facts: [
+            { term: "PoA-holder", value: holder },
+            { term: "For", value: partyName },
+            ...(docFile ? [{ term: "Annexure", value: docFile.name }] : []),
+          ],
+          prayer: [
+            `The applicant, counsel on record in the above matter, prays that ${holder} cease to be the Power of Attorney holder of ${partyName}.`,
+            `Grounds: ${reason.trim()}`,
+            "It is prayed that this Hon'ble Court may allow this application and pass such orders as are deemed fit.",
+          ],
+        }}
+        onAddSignature={() => setAppStage("sign")}
+      />
+      <PartySignatureDialog
+        open={appStage === "sign"}
+        onOpenChange={(next) => {
+          if (!next) setAppStage("none");
+        }}
+        onBack={() => setAppStage("document")}
+        onSigned={() => {
+          setAppStage("none");
+          setDone(true);
+        }}
+      />
 
       <DiscardConfirm
         open={exitConfirmationOpen}
@@ -387,12 +433,14 @@ function ReplacePoaDialog({
   onOpenChange,
   holder,
   partyName,
+  caseRef,
   existingPeople,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   holder: string;
   partyName: string;
+  caseRef: CaseRef;
   existingPeople: ExistingPersonOption[];
 }) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -403,6 +451,7 @@ function ReplacePoaDialog({
   const [reason, setReason] = useState("");
   const [deedFile, setDeedFile] = useState<File | null>(null);
   const [done, setDone] = useState(false);
+  const [appStage, setAppStage] = useState<"none" | "document" | "sign">("none");
   const [errors, setErrors] = useState<{
     holderName?: string;
     holderPhone?: string;
@@ -433,6 +482,7 @@ function ReplacePoaDialog({
     setReason("");
     setDeedFile(null);
     setDone(false);
+    setAppStage("none");
     setErrors({});
     setExitConfirmationOpen(false);
   }
@@ -745,8 +795,8 @@ function ReplacePoaDialog({
                     Continue
                   </Button>
                 ) : (
-                  <Button type="button" onClick={() => setDone(true)}>
-                    Submit application
+                  <Button type="button" onClick={() => setAppStage("document")}>
+                    Generate application
                   </Button>
                 )}
               </footer>
@@ -754,6 +804,49 @@ function ReplacePoaDialog({
           )}
         </DialogContent>
       </Dialog>
+
+      <PartyGeneratedApplicationDialog
+        open={appStage === "document"}
+        onOpenChange={(next) => {
+          if (!next) setAppStage("none");
+        }}
+        caseRef={caseRef}
+        doc={{
+          matter: "Application for the replacement of a PoA-holder",
+          facts: [
+            { term: "Outgoing holder", value: holder },
+            {
+              term: "New holder",
+              value:
+                holderMode === "existing"
+                  ? `${newHolderName} (already on this case)`
+                  : newHolderName,
+            },
+            { term: "For", value: partyName },
+            ...(holderMode === "new" && newPhone
+              ? [{ term: "Mobile number", value: newPhone }]
+              : []),
+            ...(deedFile ? [{ term: "Annexure", value: deedFile.name }] : []),
+          ],
+          prayer: [
+            `The applicant, counsel on record in the above matter, prays that ${holder} cease to be the Power of Attorney holder of ${partyName}, and that ${newHolderName || "the person named above"} be recognised in their place under the deed annexed.`,
+            `Grounds: ${reason.trim()}`,
+            "It is prayed that this Hon'ble Court may allow this application and pass such orders as are deemed fit.",
+          ],
+        }}
+        onAddSignature={() => setAppStage("sign")}
+      />
+      <PartySignatureDialog
+        open={appStage === "sign"}
+        onOpenChange={(next) => {
+          if (!next) setAppStage("none");
+        }}
+        onBack={() => setAppStage("document")}
+        onSigned={() => {
+          setAppStage("none");
+          setDone(true);
+        }}
+      />
 
       <DiscardConfirm
         open={exitConfirmationOpen}

@@ -61,6 +61,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { FlowStepper } from "@/components/cases/flow-stepper";
 import {
+  PartyGeneratedApplicationDialog,
+  PartySignatureDialog,
+  type CaseRef,
+} from "@/components/cases/party-application";
+import {
   ReviewDocValue,
   UPLOAD_HELP,
   UploadedDocField,
@@ -109,6 +114,7 @@ export function AddPoaDialog({
   onOpenChange,
   litigants,
   casePeople,
+  caseRef,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -120,6 +126,8 @@ export function AddPoaDialog({
    * its office staff.
    */
   casePeople: { key: string; name: string; detail: string }[];
+  /** How the paper names the case. */
+  caseRef: CaseRef;
 }) {
   const [step, setStep] = useState<PoaStep>(1);
   const [partyId, setPartyId] = useState("");
@@ -130,6 +138,8 @@ export function AddPoaDialog({
   const [reason, setReason] = useState("");
   const [deedFile, setDeedFile] = useState<File | null>(null);
   const [done, setDone] = useState(false);
+  /** The generate → sign chain every application-type flow ends in. */
+  const [appStage, setAppStage] = useState<"none" | "document" | "sign">("none");
   const [errors, setErrors] = useState<Errors>({});
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
 
@@ -164,6 +174,7 @@ export function AddPoaDialog({
     setReason("");
     setDeedFile(null);
     setDone(false);
+    setAppStage("none");
     setErrors({});
     setExitConfirmationOpen(false);
   }
@@ -550,8 +561,8 @@ export function AddPoaDialog({
                 Continue
               </Button>
             ) : (
-              <Button type="button" onClick={() => setDone(true)}>
-                Submit application
+              <Button type="button" onClick={() => setAppStage("document")}>
+                Generate application
               </Button>
             )}
           </footer>
@@ -559,6 +570,48 @@ export function AddPoaDialog({
           )}
         </DialogContent>
       </Dialog>
+
+      <PartyGeneratedApplicationDialog
+        open={appStage === "document"}
+        onOpenChange={(next) => {
+          if (!next) setAppStage("none");
+        }}
+        caseRef={caseRef}
+        doc={{
+          matter: "Application for the appointment of a PoA-holder",
+          facts: [
+            { term: "Granting party", value: grantingParty?.name ?? "" },
+            {
+              term: "PoA-holder",
+              value:
+                holderMode === "existing"
+                  ? `${holderDisplayName} (already on this case)`
+                  : holderDisplayName,
+            },
+            ...(holderMode === "new" && holderPhone
+              ? [{ term: "Mobile number", value: holderPhone }]
+              : []),
+            ...(deedFile ? [{ term: "Annexure", value: deedFile.name }] : []),
+          ],
+          prayer: [
+            `The applicant, counsel on record in the above matter, prays that ${holderDisplayName || "the person named above"} be recognised as the Power of Attorney holder of ${grantingParty?.name ?? "the party"} under the deed annexed.`,
+            `Grounds: ${reason.trim()}`,
+            "It is prayed that this Hon'ble Court may allow this application and pass such orders as are deemed fit.",
+          ],
+        }}
+        onAddSignature={() => setAppStage("sign")}
+      />
+      <PartySignatureDialog
+        open={appStage === "sign"}
+        onOpenChange={(next) => {
+          if (!next) setAppStage("none");
+        }}
+        onBack={() => setAppStage("document")}
+        onSigned={() => {
+          setAppStage("none");
+          setDone(true);
+        }}
+      />
 
       <AlertDialog
         open={exitConfirmationOpen}
