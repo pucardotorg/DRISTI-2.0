@@ -82,11 +82,20 @@ export function UploadedDocField({
   required = false,
   file,
   onFileChange,
+  copy,
 }: {
   label: string;
   required?: boolean;
   file: File | null;
   onFileChange: (file: File | null) => void;
+  /** Bilingual hosts (registration) pass their own strings; the case flows'
+      English defaults stand otherwise. */
+  copy?: {
+    changeFile?: string;
+    remove?: string;
+    noFile?: string;
+    chooseFile?: string;
+  };
 }) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [previewOpen, setPreviewOpen] = React.useState(false);
@@ -135,7 +144,7 @@ export function UploadedDocField({
               className="h-auto p-0"
               onClick={() => inputRef.current?.click()}
             >
-              Change file
+              {copy?.changeFile ?? "Change file"}
             </Button>
             <Button
               type="button"
@@ -143,7 +152,7 @@ export function UploadedDocField({
               className="h-auto p-0 text-destructive-ink"
               onClick={() => onFileChange(null)}
             >
-              Remove
+              {copy?.remove ?? "Remove"}
             </Button>
           </AttachmentActions>
         </Attachment>
@@ -154,6 +163,11 @@ export function UploadedDocField({
           label={label}
           required={required}
           onChooseFile={() => inputRef.current?.click()}
+          copy={
+            copy?.noFile || copy?.chooseFile
+              ? { noFile: copy.noFile, chooseFile: copy.chooseFile }
+              : undefined
+          }
         />
       )}
       <DocumentPreviewDialog
