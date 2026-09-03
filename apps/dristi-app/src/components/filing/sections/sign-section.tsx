@@ -460,7 +460,7 @@ export function SignSection() {
    * declinable — choosing a summons round buys its delivery too.
    */
   const rowAmount = (key: string) =>
-    bill.process
+    [...bill.process, ...bill.delivery]
       .filter((l) => l.key === key || (key === "summons" && l.key === "channel"))
       .reduce((total, line) => total + line.amount, 0);
   /** What the process group is actually for — rounds and addresses, in one sentence. */
@@ -967,7 +967,7 @@ export function SignSection() {
           // stays dead until it is — and then it is the focal teal, as on every other step.
           continueDisabled={!allSigned}
           showSaveState={false}
-          onContinue={() => setModal("procaddr")}
+          onContinue={() => setModal("payment")}
           extra={
             <Button type="button" variant="outline" size="lg" onClick={printFile}>
               <PrinterIcon data-icon="inline-start" aria-hidden />
@@ -1317,10 +1317,10 @@ export function SignSection() {
       <Dialog open={modal === "procaddr"} onOpenChange={(open) => !open && closeModal()}>
         <DialogContent className="grid-rows-[auto_minmax(0,1fr)_auto] max-h-[calc(100svh-2rem)] sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Choose process &amp; address</DialogTitle>
+            <DialogTitle>Change process &amp; address</DialogTitle>
             <DialogDescription>
               What the court issues to the accused, how it is delivered, and where it
-              goes. You pay for it on the next step.
+              goes. The total moves as you change it.
             </DialogDescription>
           </DialogHeader>
 
@@ -1448,9 +1448,21 @@ export function SignSection() {
             </FieldSet>
           </div>
 
+          {/*
+            The number the choices above are moving, kept in sight while they move —
+            outside the scrolling list, so it cannot be scrolled past, and outside the
+            footer, which stacks on a narrow screen and would carry it off the bottom.
+          */}
+          <div className="flex items-baseline justify-between gap-4 border-t border-hairline pt-4">
+            <span className="text-body font-semibold">Payable now</span>
+            <span className="text-title-s font-semibold tabular-nums">
+              {rupees(bill.total)}
+            </span>
+          </div>
+
           <DialogFooter>
             <Button type="button" onClick={() => setModal("payment")}>
-              Continue to fees
+              Back to fees
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1484,10 +1496,17 @@ export function SignSection() {
             />
 
             <FeeGroup
-              title="Process &amp; delivery"
+              title="Process fees"
               caption={processCaption}
               lines={bill.process}
               total={bill.processTotal}
+            />
+
+            <FeeGroup
+              title="Delivery"
+              caption="Charged by the delivery channel, not by the court."
+              lines={bill.delivery}
+              total={bill.deliveryTotal}
             />
           </div>
 
@@ -1512,7 +1531,7 @@ export function SignSection() {
               variant="outline"
               onClick={() => setModal("procaddr")}
             >
-              Change process
+              Change process &amp; address
             </Button>
           </DialogFooter>
         </DialogContent>

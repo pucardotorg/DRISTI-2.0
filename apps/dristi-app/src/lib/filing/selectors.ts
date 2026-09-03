@@ -406,15 +406,20 @@ export type BilledLine = {
 };
 
 export type FeeBill = {
+  /** Filing fees — what it costs to put the complaint before the court. */
   court: BilledLine[];
+  /** The nominal court fee on each process the filer is prepaying. */
   process: BilledLine[];
+  /** What the delivery channel charges to carry the summons — not a court fee. */
+  delivery: BilledLine[];
   courtTotal: number;
   processTotal: number;
+  deliveryTotal: number;
   /** Addresses process is served at — what the per-address lines are multiplied by. */
   addresses: number;
   /** `true` when the filing is past the limitation period and the extra fee applies. */
   delayed: boolean;
-  /** Court fees + every process round chosen upfront. Nothing here is deferrable. */
+  /** Court fees + process fees + delivery. Nothing here is deferrable. */
   total: number;
 };
 
@@ -495,7 +500,7 @@ export function feeBill(draft: FilingDraft): FeeBill {
     const units = option.perAddress ? n * addresses : n;
     process.push({
       key: option.key,
-      label: `Process fee — ${option.label.toLowerCase()}`,
+      label: `Court fee — ${option.label.toLowerCase()}`,
       rate: option.fee,
       units,
       unitNote: unitNote(n, option.perAddress ? addresses : 0),
@@ -504,11 +509,14 @@ export function feeBill(draft: FilingDraft): FeeBill {
   }
 
   // The delivery tariff rides with the summons — one article per address, every round —
-  // so it appears only when summons is being prepaid, and it moves with it.
+  // so it appears only when summons is being prepaid, and it moves with it. It is the
+  // post office's charge, not the court's, and it is the big number on this bill, so it
+  // is billed as its own group rather than buried among the nominal court fees.
+  const delivery: BilledLine[] = [];
   const summonsRounds = rounds.summons ?? 0;
   if (summonsRounds > 0) {
     const units = summonsRounds * addresses;
-    process.push({
+    delivery.push({
       key: CHANNEL_FEE.key,
       label: CHANNEL_FEE.label,
       rate: CHANNEL_FEE.amount,
@@ -522,14 +530,17 @@ export function feeBill(draft: FilingDraft): FeeBill {
   const sum = (rows: BilledLine[]) => rows.reduce((t, r) => t + r.amount, 0);
   const courtTotal = sum(court);
   const processTotal = sum(process);
+  const deliveryTotal = sum(delivery);
   return {
     court,
     process,
+    delivery,
     courtTotal,
     processTotal,
+    deliveryTotal,
     addresses,
     delayed,
-    total: courtTotal + processTotal,
+    total: courtTotal + processTotal + deliveryTotal,
   };
 }
 

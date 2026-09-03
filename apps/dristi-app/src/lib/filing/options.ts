@@ -186,8 +186,8 @@ export const DELIVERY_CHANNELS = ["RPAD", "Speed post", "Courier", "Email"];
  * only charged if the court later orders that process; whatever is prepaid is served
  * with no second payment step.
  *
- * `defaultRounds` is what a fresh draft starts with: one summons round (serving every
- * address on record) and one warrant round — the court's own defaults.
+ * `defaultRounds` is what a fresh draft starts with: the one mandatory summons round,
+ * serving every address on record, and four rounds of warrant (owner, 2026-09-03).
  */
 export type ProcessOption = {
   key: string;
@@ -222,7 +222,7 @@ export const PROCESS_OPTIONS: ProcessOption[] = [
     label: "Warrants",
     note: "Issued if the accused does not appear after summons.",
     minRounds: 0,
-    defaultRounds: 1,
+    defaultRounds: 4,
     maxRounds: 4,
     perAddress: false,
     fee: 50,
@@ -287,18 +287,22 @@ export const CONDONATION_FEE: FeeLine = {
 };
 
 /**
- * What the delivery channel itself charges — the registered-post or courier tariff the
- * court passes on. It rides with the summons, one article per address each round, and
- * the mandatory summons round carries it just as it carries its court fee. It is a
- * placeholder rate until e-post is integrated, which is the point at which this becomes
- * a real per-article charge rather than a flat one.
+ * What the delivery channel itself charges — not a court fee at all, which is why it is
+ * billed as its own group rather than folded in with them. It rides with the summons,
+ * one article per address each round, and the mandatory summons round carries it just as
+ * it carries its court fee.
+ *
+ * Unlike the nominal court fees this one is substantial: e-post is the case the schedule
+ * has to survive. ₹100 stands in for it until the real per-channel logic arrives
+ * (handover §19.3 / `Q-1`) — a single placeholder rate, not a rate per channel, because
+ * the others are not known.
  */
 export const CHANNEL_FEE: FeeLine = {
   key: "channel",
-  label: "Delivery channel fee",
-  amount: 10,
+  label: "Delivery of summons",
+  amount: 100,
   perAddress: true,
-  note: "Placeholder rate — set by the delivery channel once e-post is integrated.",
+  note: "Placeholder e-post rate — the real per-channel logic is still to come.",
 };
 
 
