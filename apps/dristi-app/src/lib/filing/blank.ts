@@ -9,6 +9,7 @@
 import { newId } from "./data";
 import {
   AFFIDAVIT_PIP_TEMPLATE,
+  DELIVERY_CHANNEL,
   FINAL_RELIEF_TEMPLATE,
   INTERIM_RELIEF_TEMPLATE,
 } from "./options";
@@ -409,7 +410,7 @@ export function buildDocumentGroups(draft: FilingDraft): DocumentGroup[] {
 export function createBlankDraft(id: string, profile?: UserProfile | null): FilingDraft {
   const now = new Date().toISOString();
   const draft: FilingDraft = {
-    version: 4,
+    version: 5,
     id,
     caseType: "s138",
     status: "draft",
@@ -439,10 +440,8 @@ export function createBlankDraft(id: string, profile?: UserProfile | null): Fili
       signed: {},
       signedCopy: null,
       confirmed: {},
-      deliveryChannel: "",
-      processTypes: ["notice"],
-      processAddresses: [],
-      deferProcessFees: false,
+      deliveryChannel: DELIVERY_CHANNEL,
+      process: {},
       paid: false,
       paidAt: null,
       paidAmount: null,
@@ -494,11 +493,14 @@ export function migrateDraft(draft: FilingDraft): FilingDraft {
     c.fetched ??= false;
     c.rep.designation ??= "";
   }
-  draft.sign.deferProcessFees ??= false;
+  // The upfront choice used to be one set of rounds for the whole case; it is now made
+  // per accused (§19.3). Nothing is carried across: an old draft's single choice cannot
+  // say which accused it was for, and the defaults it falls back to are the court's.
+  draft.sign.process ??= {};
   draft.sign.paidAmount ??= null;
   draft.affidavit ??= "";
   // Phone confirmation on the upload path is newer than these drafts.
   draft.sign.confirmed ??= {};
-  draft.version = 4;
+  draft.version = 5;
   return draft;
 }
