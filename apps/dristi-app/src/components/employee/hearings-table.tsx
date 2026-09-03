@@ -66,9 +66,30 @@ const cellClass =
  * End share one column and the table does not jump when the label changes.
  */
 const SESSION_SLOT_CLASS = "min-w-40";
-/** Session control, overflow, and the cell's `px-4`. Sticky so the call stays
- *  on screen when the cause list is wider than the panel. */
-const ACTION_COLUMN_CLASS = "sticky right-0 z-20 min-w-60";
+/**
+ * The two right-hand columns are one pinned group, not one sticky column beside a
+ * loose one.
+ *
+ * Action alone was `sticky right-0` with a bare Orders cell to its left. This cause
+ * list clears the panel by only a few dozen pixels at an ordinary desktop width, so
+ * the sticky cell was pulled left by exactly that overflow and its opaque fill landed
+ * on Orders — the narrowest column on the table, an icon button and its `px-4` and
+ * nothing else. The column was in the DOM and reachable by scrolling right, and
+ * invisible at the scroll position every reader lands on. It came and went with the
+ * window width, the sidebar state and how long a case name ran, which is what made it
+ * read as intermittent rather than broken.
+ *
+ * So Orders pins too, one Action-width in from the edge. `w-60` fixes that width
+ * instead of leaving it a floor, because it is now an offset another column is
+ * measured from: `right-60` has to equal Action's width or the two overlap again.
+ * Below the overflow threshold neither cell moves — a sticky right offset only
+ * displaces a cell that would otherwise sit closer to the scrollport edge than the
+ * offset allows, and at rest Orders sits exactly `w-60` in.
+ */
+const ACTION_COLUMN_CLASS = "sticky right-0 z-20 w-60 min-w-60";
+/** `w-18` is the `size-10` icon button plus the cell's `px-4`. The fill is the row's,
+ *  so the columns it now travels over do not show through it. */
+const ORDERS_COLUMN_CLASS = "sticky right-60 z-10 w-18";
 
 export function HearingSessionButton({
   hearing,
@@ -278,7 +299,9 @@ export function HearingsTable({
           <TableHead className={cn(headClass, "min-w-32 whitespace-nowrap")}>
             Status
           </TableHead>
-          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+          <TableHead
+            className={cn(headClass, ORDERS_COLUMN_CLASS, "whitespace-nowrap")}
+          >
             Orders
           </TableHead>
           <TableHead
@@ -345,7 +368,13 @@ export function HearingsTable({
                 {courtHearingStatusLabel(hearing.status)}
               </Badge>
             </TableCell>
-            <TableCell className={cn(cellClass, "whitespace-nowrap")}>
+            <TableCell
+              className={cn(
+                cellClass,
+                ORDERS_COLUMN_CLASS,
+                "bg-inherit whitespace-nowrap",
+              )}
+            >
               <div className="flex justify-center">
                 <HearingOrdersButton hearing={hearing} />
               </div>
