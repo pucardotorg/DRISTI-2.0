@@ -389,17 +389,19 @@ export type SignState = {
    */
   confirmed: Record<string, PhoneConfirmation>;
   deliveryChannel: string;
-  processTypes: string[];
   /** `${accusedId}:${addressIndex}` for each address process goes to. */
   processAddresses: string[];
   /**
-   * Process fees deferred to later. The court allows it; the complaint is still
-   * registered, but nothing is served until they are paid.
+   * Rounds of each process paid for upfront, keyed by `PROCESS_OPTIONS` key. One
+   * summons round is mandatory — court fee and delivery fee both — so `summons`
+   * never falls below 1; every other round is the filer's own per-process choice,
+   * there is no blanket deferral. A round left out is only charged if the court
+   * later orders that process; a prepaid one is served with no second payment step.
    */
-  deferProcessFees: boolean;
+  processRounds: Record<string, number>;
   paid: boolean;
   paidAt: string | null;
-  /** Rupees actually taken — court fees alone when process fees were deferred. */
+  /** Rupees actually taken — the court fees plus every prepaid process round. */
   paidAmount: number | null;
   paymentRef: string | null;
   caseFileNumber: string | null;
@@ -414,7 +416,7 @@ export type DismissedNotices = {
 };
 
 export type FilingDraft = {
-  version: 4;
+  version: 5;
   id: string;
   caseType: "s138";
   status: "draft" | "filed";

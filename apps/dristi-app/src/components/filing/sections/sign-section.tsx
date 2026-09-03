@@ -38,12 +38,13 @@ import {
 import { getRepository, storeUpload } from "@/lib/filing/data";
 import { forgetFile, formatBytes } from "@/lib/filing/files";
 import { addressToString, rupees, toLongDate } from "@/lib/filing/format";
-import { COURT, DELIVERY_CHANNELS, PROCESS_TYPES } from "@/lib/filing/options";
+import { COURT, DELIVERY_CHANNELS, PROCESS_OPTIONS } from "@/lib/filing/options";
 import { useProfile } from "@/lib/filing/profile";
 import {
   accusedLabel,
   feeBill,
   phoneConfirmers,
+  processRounds,
   signatories,
   type BilledLine,
 } from "@/lib/filing/selectors";
@@ -75,7 +76,6 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
-import { Switch } from "@/components/ui/switch";
 import { useSourceDock } from "@/hooks/use-min-width";
 import { TOP_BAR_HEIGHT } from "@/components/filing/chrome";
 import { ConfirmDialog } from "@/components/filing/confirm-dialog";
@@ -217,26 +217,17 @@ function FeeGroup({
   caption,
   lines,
   total,
-  deferred = false,
 }: {
   title: React.ReactNode;
   caption?: string;
   lines: BilledLine[];
   total: number;
-  /**
-   * Being paid later. The group stays fully legible and says so instead — what you are
-   * putting off is exactly what you need to be able to read.
-   */
-  deferred?: boolean;
 }) {
   if (!lines.length) return null;
   return (
-    <div className="flex flex-col gap-3 rounded-lg bg-surface-sunken p-4">
+    <div className="flex shrink-0 flex-col gap-3 rounded-lg bg-surface-sunken p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-body-compact font-semibold text-foreground">{title}</h3>
-          {deferred ? <Badge variant="secondary">Paying later</Badge> : null}
-        </div>
+        <h3 className="text-body-compact font-semibold text-foreground">{title}</h3>
         <span className="text-body-compact font-semibold tabular-nums">
           {rupees(total)}
         </span>
@@ -248,7 +239,10 @@ function FeeGroup({
             <dt className="min-w-0 text-body-compact text-muted-foreground">
               {line.label}
               {line.units > 1 ? (
-                <span className="tabular-nums"> · {rupees(line.rate)} × {line.units}</span>
+                <span className="tabular-nums">
+                  {" "}
+                  · {rupees(line.rate)} × {line.unitNote ?? line.units}
+                </span>
               ) : null}
             </dt>
             <dd className="shrink-0 text-body-compact font-medium tabular-nums">
@@ -458,8 +452,27 @@ export function SignSection() {
 
   /** The bill, derived from this draft — see `feeBill` for what makes it specific. */
   const bill = React.useMemo(() => feeBill(draft), [draft]);
-  const deferProcess = sign.deferProcessFees;
-  const payableNow = bill.courtTotal + (deferProcess ? 0 : bill.processTotal);
+  /** Rounds this filing is prepaying — clamped to the court's floor, so summons ≥ 1. */
+  const rounds = React.useMemo(() => processRounds(draft), [draft]);
+  /**
+   * What one process comes to on the choosing step. The delivery tariff is quoted with
+   * the summons rather than on a line of its own, because it is not separately
+   * declinable — choosing a summons round buys its delivery too.
+   */
+  const rowAmount = (key: string) =>
+    bill.process
+      .filter((l) => l.key === key || (key === "summons" && l.key === "channel"))
+      .reduce((total, line) => total + line.amount, 0);
+  /** What the process group is actually for — rounds and addresses, in one sentence. */
+  const processCaption = React.useMemo(() => {
+    const chosen = PROCESS_OPTIONS.filter((p) => (rounds[p.key] ?? 0) > 0).map((p) => {
+      const n = rounds[p.key];
+      return `${n === 1 ? "1 round" : `${n} rounds`} of ${p.label.toLowerCase()}`;
+    });
+    const where =
+      bill.addresses === 1 ? "1 address" : `${bill.addresses} addresses`;
+    return `${chosen.join(", ")} — served at ${where}.`;
+  }, [rounds, bill.addresses]);
 
   // Who signs is derived from the parties, never stored: editing a party changes this list.
   const { complainants, advocates } = React.useMemo(
@@ -676,15 +689,19 @@ export function SignSection() {
     resendTimer.current = window.setTimeout(() => setResent(false), 2500);
   };
 
-  const toggleProcess = (key: string) =>
+  /**
+   * How many rounds of one process to prepay. The court's floor is honoured here as well
+   * as in the bill: the mandatory summons round cannot be set to none, which is why that
+   * option is never offered rather than offered and rejected.
+   */
+  const setRounds = (key: string, next: number) =>
     update((d) => {
-      const chosen = new Set(d.sign.processTypes);
-      if (chosen.has(key)) chosen.delete(key);
-      else chosen.add(key);
-      // Keep the option order, and keep the processes that always issue.
-      d.sign.processTypes = PROCESS_TYPES.filter(
-        (p) => chosen.has(p.key) || !p.optional
-      ).map((p) => p.key);
+      const option = PROCESS_OPTIONS.find((p) => p.key === key);
+      if (!option) return;
+      d.sign.processRounds = {
+        ...processRounds(d),
+        [key]: Math.min(option.maxRounds, Math.max(option.minRounds, next)),
+      };
     });
 
   const toggleAddress = (key: string) =>
@@ -714,7 +731,7 @@ export function SignSection() {
       update((d) => {
         d.sign.paid = true;
         d.sign.paidAt = now;
-        d.sign.paidAmount = payableNow;
+        d.sign.paidAmount = bill.total;
         d.sign.paymentRef = ref;
         d.sign.caseFileNumber = caseNumber;
         d.status = "filed";
@@ -775,7 +792,7 @@ export function SignSection() {
         <div className="flex flex-col gap-0.5">
           <dt className="text-caption font-medium text-muted-foreground">Amount paid</dt>
           <dd className="text-body-compact font-medium tabular-nums">
-            {rupees(sign.paidAmount ?? payableNow)}
+            {rupees(sign.paidAmount ?? bill.total)}
           </dd>
         </div>
         <div className="flex flex-col gap-0.5">
@@ -950,7 +967,7 @@ export function SignSection() {
           // stays dead until it is — and then it is the focal teal, as on every other step.
           continueDisabled={!allSigned}
           showSaveState={false}
-          onContinue={() => setModal("payment")}
+          onContinue={() => setModal("procaddr")}
           extra={
             <Button type="button" variant="outline" size="lg" onClick={printFile}>
               <PrinterIcon data-icon="inline-start" aria-hidden />
@@ -1288,144 +1305,78 @@ export function SignSection() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Pay court fees ── */}
+      {/* ── Choose process & address ── */}
       {/*
-        ── Pay court fees ──
-        A bill, not a price tag. Two groups because the court treats them differently:
-        court fees decide whether the complaint is registered at all, process fees buy
-        delivery to the accused and may be paid later. Every line shows its rate and how
-        many times it is charged, because the per-address ones move with the case and a
-        total nobody can account for is a total nobody should be asked to pay.
+        This comes *before* the bill, because it is what the bill adds up. The court's
+        rule is not one blanket opt-out but a floor and a ceiling per process (handover
+        §19.3): one round of summons is mandatory, its delivery included; warrants and
+        further summons rounds go up to four; notice is a single optional round. So the
+        choice is offered per process, and the round the court insists on is simply not
+        offered as declinable rather than offered and then refused.
       */}
-      <Dialog open={modal === "payment"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Pay court fees</DialogTitle>
-            <DialogDescription>
-              Payable to the {COURT.name} for this complaint.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex max-h-[40vh] flex-col gap-4 overflow-y-auto">
-            <FeeGroup
-              title="Court fees"
-              caption="Due before the complaint is registered."
-              lines={bill.court}
-              total={bill.courtTotal}
-            />
-
-            <FeeGroup
-              title="Process &amp; delivery"
-              caption={
-                bill.addresses === 1
-                  ? "Serving the accused at 1 address."
-                  : `Serving the accused at ${bill.addresses} addresses.`
-              }
-              lines={bill.process}
-              total={bill.processTotal}
-              deferred={deferProcess}
-            />
-          </div>
-
-          {/*
-            The choice the reference put behind a second button. As a switch it can show
-            its own consequence — the total moves the moment it is flipped, which a button
-            that closes the dialog cannot do. It sits outside the scrolling bill, because
-            a control that changes the total must not be something you can scroll past.
-          */}
-          <div className="flex flex-col gap-3 rounded-lg bg-surface-sunken p-4">
-              <div className="flex items-start justify-between gap-4">
-                <Label
-                  htmlFor="defer-process"
-                  className="text-body-compact font-medium text-foreground"
-                >
-                  Pay process fees later
-                </Label>
-                <Switch
-                  id="defer-process"
-                  checked={deferProcess}
-                  onCheckedChange={(on) =>
-                    update((d) => {
-                      d.sign.deferProcessFees = on;
-                    })
-                  }
-                />
-              </div>
-              <p className="text-caption text-muted-foreground">
-                {deferProcess
-                  ? "The complaint is registered, but nothing is served on the accused until these are paid."
-                  : "Pay now and the accused is served without a second step."}
-              </p>
-          </div>
-
-          <div className="flex items-baseline justify-between gap-4 border-t border-hairline pt-4">
-            <span className="text-body font-semibold">Payable now</span>
-            <span className="text-title-s font-semibold tabular-nums">
-              {rupees(payableNow)}
-            </span>
-          </div>
-
-          <Button
-            type="button"
-            size="lg"
-            className="w-full"
-            onClick={() => setModal("procaddr")}
-          >
-            Pay {rupees(payableNow)} online
-          </Button>
-
-          <p className="text-caption text-muted-foreground">
-            Sandbox payment — no money moves.
-          </p>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={closeModal}>
-              Go back
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Select process & address ── */}
       <Dialog open={modal === "procaddr"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="grid-rows-[auto_minmax(0,1fr)_auto] max-h-[calc(100svh-2rem)] sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Select process &amp; address</DialogTitle>
+            <DialogTitle>Choose process &amp; address</DialogTitle>
             <DialogDescription>
-              Choose what the court issues, how it is delivered, and where it goes.
+              What the court issues to the accused, how it is delivered, and where it
+              goes. You pay for it on the next step.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex max-h-[60vh] flex-col gap-8 overflow-y-auto">
+          <div className="flex min-h-0 flex-col gap-8 overflow-y-auto">
             {/* Process */}
             <FieldSet className="gap-3">
               <FieldLegend className="text-body font-semibold">
-                Process to issue
+                Process to pay for now
               </FieldLegend>
-              {PROCESS_TYPES.map((p) => {
-                const id = `process-${p.key}`;
-                const checked = sign.processTypes.includes(p.key) || !p.optional;
-                return (
-                  <Field key={p.key} orientation="horizontal">
-                    <Checkbox
-                      id={id}
-                      checked={checked}
-                      disabled={!p.optional}
-                      onCheckedChange={() => toggleProcess(p.key)}
-                    />
-                    <FieldContent>
-                      <Label htmlFor={id} className="text-body-compact font-medium">
-                        {p.label}
-                      </Label>
-                      <FieldDescription className="text-caption">
-                        {p.optional
-                          ? "Optional — ask for this only if your case needs it"
-                          : "Always issued with a new complaint"}
-                      </FieldDescription>
-                    </FieldContent>
-                  </Field>
-                );
-              })}
+              <div className="flex flex-col divide-y divide-hairline">
+                {PROCESS_OPTIONS.map((option) => {
+                  const id = `process-${option.key}`;
+                  const chosen = rounds[option.key] ?? option.minRounds;
+                  const choices = Array.from(
+                    { length: option.maxRounds - option.minRounds + 1 },
+                    (_, i) => option.minRounds + i
+                  );
+                  return (
+                    <div
+                      key={option.key}
+                      className="flex flex-wrap items-start justify-between gap-4 py-3 first:pt-0 last:pb-0"
+                    >
+                      <div className="flex min-w-56 flex-1 flex-col gap-0.5">
+                        <Label htmlFor={id} className="text-body-compact font-medium">
+                          {option.label}
+                          {option.minRounds > 0 ? (
+                            <span className="text-muted-foreground"> · required</span>
+                          ) : null}
+                        </Label>
+                        <p className="text-caption text-muted-foreground">{option.note}</p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-4">
+                        <NativeSelect
+                          id={id}
+                          className="w-40"
+                          value={String(chosen)}
+                          onChange={(e) => setRounds(option.key, Number(e.target.value))}
+                        >
+                          {choices.map((n) => (
+                            <NativeSelectOption key={n} value={String(n)}>
+                              {n === 0 ? "Not now" : n === 1 ? "1 round" : `${n} rounds`}
+                            </NativeSelectOption>
+                          ))}
+                        </NativeSelect>
+                        <span className="min-w-16 text-right text-body-compact font-medium tabular-nums">
+                          {rowAmount(option.key) ? rupees(rowAmount(option.key)) : "—"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-caption text-muted-foreground">
+                Anything you leave out now is paid for later, if and when the court
+                orders it. What you pay for now is issued without a second payment step.
+              </p>
             </FieldSet>
 
             {/* Delivery channel */}
@@ -1445,6 +1396,10 @@ export function SignSection() {
                   </NativeSelectOption>
                 ))}
               </NativeSelect>
+              <p className="text-caption text-muted-foreground">
+                How the summons reaches the accused. Its fee is charged per address, for
+                every round you pay for.
+              </p>
             </div>
 
             {/* Addresses */}
@@ -1494,8 +1449,70 @@ export function SignSection() {
           </div>
 
           <DialogFooter>
-            <Button type="button" onClick={payNow}>
-              Save &amp; next
+            <Button type="button" onClick={() => setModal("payment")}>
+              Continue to fees
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Pay court fees ── */}
+      {/*
+        A bill, not a price tag. Two groups because the court treats them differently:
+        court fees decide whether the complaint is registered at all, process fees buy
+        delivery to the accused. Every line shows its rate and how many times it is
+        charged, because the per-round and per-address ones move with the case and a
+        total nobody can account for is a total nobody should be asked to pay. There is
+        no switch here any more: what is being paid for was decided on the step before,
+        process by process, and this screen only adds it up.
+      */}
+      <Dialog open={modal === "payment"} onOpenChange={(open) => !open && closeModal()}>
+        <DialogContent className="grid-rows-[auto_minmax(0,1fr)_auto] max-h-[calc(100svh-2rem)] sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Pay court fees</DialogTitle>
+            <DialogDescription>
+              Payable to the {COURT.name} for this complaint.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
+            <FeeGroup
+              title="Court fees"
+              caption="Due before the complaint is registered."
+              lines={bill.court}
+              total={bill.courtTotal}
+            />
+
+            <FeeGroup
+              title="Process &amp; delivery"
+              caption={processCaption}
+              lines={bill.process}
+              total={bill.processTotal}
+            />
+          </div>
+
+          <div className="flex items-baseline justify-between gap-4 border-t border-hairline pt-4">
+            <span className="text-body font-semibold">Payable now</span>
+            <span className="text-title-s font-semibold tabular-nums">
+              {rupees(bill.total)}
+            </span>
+          </div>
+
+          <Button type="button" size="lg" className="w-full" onClick={payNow}>
+            Pay {rupees(bill.total)} online
+          </Button>
+
+          <p className="text-caption text-muted-foreground">
+            Sandbox payment — no money moves.
+          </p>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setModal("procaddr")}
+            >
+              Change process
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1562,7 +1579,7 @@ export function SignSection() {
             <div className="flex items-center justify-between gap-4 text-body-compact">
               <span className="text-muted-foreground">Amount paid</span>
               <span className="font-semibold text-foreground tabular-nums">
-                {rupees(sign.paidAmount ?? payableNow)}
+                {rupees(sign.paidAmount ?? bill.total)}
               </span>
             </div>
             <div className="flex items-center justify-between gap-4 text-body-compact">

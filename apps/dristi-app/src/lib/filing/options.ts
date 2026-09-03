@@ -178,26 +178,86 @@ export const FINAL_RELIEF_TEMPLATE = [
 
 export const DELIVERY_CHANNELS = ["RPAD", "Speed post", "Courier", "Email"];
 
-export const PROCESS_TYPES: { key: string; label: string; optional: boolean }[] = [
-  { key: "notice", label: "Notice", optional: false },
-  { key: "summons", label: "Summons", optional: true },
-  { key: "warrants", label: "Warrants", optional: true },
+/**
+ * The processes collectable upfront, and the court's rule for each (handover §19.3).
+ * These are not equals, so there is no blanket opt-out: **one round of summons is
+ * mandatory — its court fee and its delivery fee both** — and everything beyond that
+ * round is the filer's choice, made process by process. Whatever is not prepaid is
+ * only charged if the court later orders that process; whatever is prepaid is served
+ * with no second payment step.
+ *
+ * `defaultRounds` is what a fresh draft starts with: one summons round (serving every
+ * address on record) and one warrant round — the court's own defaults.
+ */
+export type ProcessOption = {
+  key: string;
+  label: string;
+  /** What this process is, in the words the filer needs to choose by. */
+  note: string;
+  /** Rounds the court insists on — the choice never falls below this. */
+  minRounds: number;
+  /** Rounds preselected on a fresh draft. */
+  defaultRounds: number;
+  /** The most rounds collectable upfront. */
+  maxRounds: number;
+  /** Charged for every address process is served at, each round. */
+  perAddress: boolean;
+  /** Court fee in rupees per round (× addresses when `perAddress`). */
+  fee: number;
+};
+
+export const PROCESS_OPTIONS: ProcessOption[] = [
+  {
+    key: "summons",
+    label: "Summons",
+    note: "The court's call to the accused to appear. One round is required, delivered to every address you choose.",
+    minRounds: 1,
+    defaultRounds: 1,
+    maxRounds: 4,
+    perAddress: true,
+    fee: 49,
+  },
+  {
+    key: "warrants",
+    label: "Warrants",
+    note: "Issued if the accused does not appear after summons.",
+    minRounds: 0,
+    defaultRounds: 1,
+    maxRounds: 4,
+    perAddress: false,
+    fee: 50,
+  },
+  {
+    key: "notice",
+    label: "Notice",
+    note: "One round, if the court is to issue a notice as well.",
+    minRounds: 0,
+    defaultRounds: 0,
+    maxRounds: 1,
+    perAddress: false,
+    fee: 49,
+  },
 ];
+
+/** A fresh draft's upfront choice — the court's defaults from the schedule above. */
+export function defaultProcessRounds(): Record<string, number> {
+  return Object.fromEntries(PROCESS_OPTIONS.map((p) => [p.key, p.defaultRounds]));
+}
 
 /**
  * What the court charges for an S-138 complaint.
  *
  * Two kinds of line, and the difference matters to the person paying. **Court fees** are
  * due before the complaint is registered at all. **Process fees** buy the delivery of
- * notice, summons and warrants to the accused — the court lets those be paid later, so
- * they are billed per process and per address and can be deferred as a group.
+ * notice, summons and warrants to the accused — chosen round by round in
+ * `PROCESS_OPTIONS` above, with the one summons round the court will not file without.
  *
  * Amounts are the sandbox's schedule: fee computation belongs to the court, not to this
  * app, and every total here is derived from these lines rather than typed in anywhere.
  *
  * ENGINEERING SEAM — a live deployment reads this schedule from the court's fee master.
- * Keep the shape: the screen needs to know which lines are deferrable and which scale
- * with the number of addresses, or it cannot state a truthful total.
+ * Keep the shape: the screen needs to know which lines the filer may decline and which
+ * scale with addresses and rounds, or it cannot state a truthful total.
  */
 export type FeeLine = {
   key: string;
@@ -227,19 +287,11 @@ export const CONDONATION_FEE: FeeLine = {
 };
 
 /**
- * Delivery. Keyed to `PROCESS_TYPES` so the bill only lists what the filer actually asked
- * the court to issue, and multiplied by the addresses process is served at.
- */
-export const PROCESS_FEE_LINES: FeeLine[] = [
-  { key: "notice", label: "Process fee — notice", amount: 49, perAddress: true },
-  { key: "summons", label: "Process fee — summons", amount: 49, perAddress: true },
-  { key: "warrants", label: "Process fee — warrants", amount: 50, perAddress: true },
-];
-
-/**
  * What the delivery channel itself charges — the registered-post or courier tariff the
- * court passes on. It is a placeholder rate until e-post is integrated, which is the
- * point at which this becomes a real per-article charge rather than a flat one.
+ * court passes on. It rides with the summons, one article per address each round, and
+ * the mandatory summons round carries it just as it carries its court fee. It is a
+ * placeholder rate until e-post is integrated, which is the point at which this becomes
+ * a real per-article charge rather than a flat one.
  */
 export const CHANNEL_FEE: FeeLine = {
   key: "channel",

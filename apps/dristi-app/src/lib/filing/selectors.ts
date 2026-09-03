@@ -5,8 +5,7 @@ import {
   CHANNEL_FEE,
   CONDONATION_FEE,
   COURT_FEE_LINES,
-  PROCESS_FEE_LINES,
-  PROCESS_TYPES,
+  PROCESS_OPTIONS,
 } from "./options";
 import { WALK_ORDER } from "./steps";
 import type {
@@ -398,8 +397,10 @@ export type BilledLine = {
   label: string;
   /** Per-unit rate, as the schedule states it. */
   rate: number;
-  /** How many units — addresses for per-address lines, otherwise 1. */
+  /** How many units — rounds, and addresses again for the per-address lines. */
   units: number;
+  /** How that unit count is arrived at, e.g. "2 rounds × 3 addresses". */
+  unitNote?: string;
   amount: number;
   note?: string;
 };
@@ -413,7 +414,34 @@ export type FeeBill = {
   addresses: number;
   /** `true` when the filing is past the limitation period and the extra fee applies. */
   delayed: boolean;
+  /** Court fees + every process round chosen upfront. Nothing here is deferrable. */
+  total: number;
 };
+
+/**
+ * The rounds this draft is prepaying, held to the court's own floor and ceiling.
+ *
+ * The floor is the point: **one round of summons is mandatory**, so a draft that says
+ * otherwise — an old one, or a stored value that has drifted — is still billed for it.
+ * There is no blanket opt-out to honour, only a per-process count to clamp.
+ */
+export function processRounds(draft: FilingDraft): Record<string, number> {
+  const stored = draft.sign.processRounds ?? {};
+  const out: Record<string, number> = {};
+  for (const option of PROCESS_OPTIONS) {
+    const n = Number.isFinite(stored[option.key]) ? Math.trunc(stored[option.key]) : 0;
+    out[option.key] = Math.min(option.maxRounds, Math.max(option.minRounds, n));
+  }
+  return out;
+}
+
+/** How a line's unit count is arrived at — the multiplication, said in words. */
+function unitNote(rounds: number, addresses: number): string | undefined {
+  const parts: string[] = [];
+  if (rounds > 1) parts.push(`${rounds} rounds`);
+  if (addresses > 1) parts.push(`${addresses} addresses`);
+  return parts.length ? parts.join(" × ") : undefined;
+}
 
 /**
  * What this filing owes, derived — never stored.
@@ -456,36 +484,52 @@ export function feeBill(draft: FilingDraft): FeeBill {
   const chosen = draft.sign.processAddresses.length;
   const addresses = Math.max(1, chosen || onRecord);
 
-  // Only what the filer actually asked the court to issue is billed for.
-  const issuing = new Set(
-    PROCESS_TYPES.filter(
-      (p) => !p.optional || draft.sign.processTypes.includes(p.key)
-    ).map((p) => p.key)
-  );
-
-  const process: BilledLine[] = [
-    ...PROCESS_FEE_LINES.filter((l) => issuing.has(l.key)),
-    CHANNEL_FEE,
-  ].map((l) => {
-    const units = l.perAddress ? addresses : 1;
-    return {
-      key: l.key,
-      label: l.label,
-      rate: l.amount,
+  // One line per process the filer is prepaying, priced by rounds — and by addresses
+  // again for the ones the court serves address by address. A process nobody asked for
+  // has no line at all, so the bill never charges for something that was declined.
+  const rounds = processRounds(draft);
+  const process: BilledLine[] = [];
+  for (const option of PROCESS_OPTIONS) {
+    const n = rounds[option.key] ?? 0;
+    if (n < 1) continue;
+    const units = option.perAddress ? n * addresses : n;
+    process.push({
+      key: option.key,
+      label: `Process fee — ${option.label.toLowerCase()}`,
+      rate: option.fee,
       units,
-      amount: l.amount * units,
-      note: l.note,
-    };
-  });
+      unitNote: unitNote(n, option.perAddress ? addresses : 0),
+      amount: option.fee * units,
+    });
+  }
+
+  // The delivery tariff rides with the summons — one article per address, every round —
+  // so it appears only when summons is being prepaid, and it moves with it.
+  const summonsRounds = rounds.summons ?? 0;
+  if (summonsRounds > 0) {
+    const units = summonsRounds * addresses;
+    process.push({
+      key: CHANNEL_FEE.key,
+      label: CHANNEL_FEE.label,
+      rate: CHANNEL_FEE.amount,
+      units,
+      unitNote: unitNote(summonsRounds, addresses),
+      amount: CHANNEL_FEE.amount * units,
+      note: CHANNEL_FEE.note,
+    });
+  }
 
   const sum = (rows: BilledLine[]) => rows.reduce((t, r) => t + r.amount, 0);
+  const courtTotal = sum(court);
+  const processTotal = sum(process);
   return {
     court,
     process,
-    courtTotal: sum(court),
-    processTotal: sum(process),
+    courtTotal,
+    processTotal,
     addresses,
     delayed,
+    total: courtTotal + processTotal,
   };
 }
 
