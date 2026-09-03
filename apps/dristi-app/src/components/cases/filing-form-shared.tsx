@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeftIcon,
   FileTextIcon,
+  PlusIcon,
   Trash2Icon,
-  UploadIcon,
   UserRoundIcon,
 } from "lucide-react";
 
@@ -47,7 +47,9 @@ import {
   FieldSet,
   useFieldControlProps,
 } from "@/components/ui/field";
+import { DocumentSlot } from "@/components/ui/document-slot";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { RequiredMark } from "@/components/filing/form-field";
 import { cn } from "@/lib/utils";
 
 export const MAX_FILING_FILE_SIZE = 10 * 1024 * 1024;
@@ -218,6 +220,14 @@ export function FilingFrame({
   );
 }
 
+/**
+ * An open-ended list of uploaded documents, in the DS grammar the rest of the
+ * party dialogs use (owner, Sept 2): empty is the DS `DocumentSlot` dashed
+ * target, filled is a stack of DS `Attachment` rows with a single "Add more"
+ * outline button beneath — the same add affordance as every other repeat list
+ * (ContactList, AddressBlockList). The earlier bespoke well with a right-edge
+ * "Upload more" read as its own one-off control; this one matches.
+ */
 export function FileField({
   label,
   description,
@@ -235,6 +245,9 @@ export function FileField({
   onFilesChange: (files: File[]) => void;
   onErrorChange: (error: string | undefined) => void;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const attached = files.length > 0;
+
   function addFiles(selected: File[]) {
     const validationError = validateSelectedFiles(selected);
     if (validationError) {
@@ -255,121 +268,90 @@ export function FileField({
 
   return (
     <Field data-invalid={Boolean(error)}>
-      <FieldLabel className="text-body">
-        {label}
-        {required ? "" : " (optional)"}
-      </FieldLabel>
-      <UploadWell files={files} onAdd={addFiles} />
+      {attached ? (
+        <>
+          <FieldLabel className="flex items-center gap-1.5 text-body">
+            <span>{label}</span>
+            {required ? null : <RequiredMark optional />}
+          </FieldLabel>
+          <AttachmentGroup className="flex-col overflow-visible py-0 *:data-[slot=attachment]:w-full">
+            {files.map((file) => (
+              <Attachment key={fileKey(file)} className="w-full">
+                <AttachmentMedia
+                  variant={isPreviewableImage(file) ? "image" : "icon"}
+                  className="w-20"
+                >
+                  {isPreviewableImage(file) ? (
+                    <FilePreviewImage file={file} />
+                  ) : (
+                    <FileTextIcon className="size-8" aria-hidden />
+                  )}
+                </AttachmentMedia>
+                <AttachmentContent>
+                  <AttachmentTitle>{file.name}</AttachmentTitle>
+                  <AttachmentDescription>
+                    {formatFileSize(file.size)} · selected locally
+                  </AttachmentDescription>
+                </AttachmentContent>
+                <AttachmentActions>
+                  <AttachmentAction
+                    type="button"
+                    variant="destructive-ghost"
+                    size="icon"
+                    aria-label={`Remove ${file.name}`}
+                    onClick={() =>
+                      onFilesChange(
+                        files.filter((item) => fileKey(item) !== fileKey(file))
+                      )
+                    }
+                  >
+                    <Trash2Icon aria-hidden />
+                  </AttachmentAction>
+                </AttachmentActions>
+              </Attachment>
+            ))}
+          </AttachmentGroup>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-fit"
+            onClick={() => inputRef.current?.click()}
+          >
+            <PlusIcon data-icon="inline-start" aria-hidden />
+            Add more
+          </Button>
+        </>
+      ) : (
+        <DocumentSlot
+          status="empty"
+          media="icon"
+          label={label}
+          required={required}
+          optional={!required}
+          copy={{ optional: "optional", noFile: "No documents added yet" }}
+          onChooseFile={() => inputRef.current?.click()}
+        />
+      )}
+
       <FieldDescription className="text-body-compact">
         {description} PDF, JPG, JPEG or PNG; maximum 10 MB per file.
       </FieldDescription>
       <FieldError className="text-body-compact">{error}</FieldError>
 
-      {files.length > 0 ? (
-        <AttachmentGroup className="flex-col overflow-visible py-0 *:data-[slot=attachment]:w-full">
-          {files.map((file) => (
-            <Attachment key={fileKey(file)} className="w-full">
-              <AttachmentMedia
-                variant={isPreviewableImage(file) ? "image" : "icon"}
-                className="w-20"
-              >
-                {isPreviewableImage(file) ? (
-                  <FilePreviewImage file={file} />
-                ) : (
-                  <FileTextIcon className="size-8" aria-hidden />
-                )}
-              </AttachmentMedia>
-              <AttachmentContent>
-                <AttachmentTitle>{file.name}</AttachmentTitle>
-                <AttachmentDescription>
-                  {formatFileSize(file.size)} · selected locally
-                </AttachmentDescription>
-              </AttachmentContent>
-              <AttachmentActions>
-                <AttachmentAction
-                  type="button"
-                  variant="destructive-ghost"
-                  size="icon"
-                  aria-label={`Remove ${file.name}`}
-                  onClick={() =>
-                    onFilesChange(
-                      files.filter((item) => fileKey(item) !== fileKey(file))
-                    )
-                  }
-                >
-                  <Trash2Icon aria-hidden />
-                </AttachmentAction>
-              </AttachmentActions>
-            </Attachment>
-          ))}
-        </AttachmentGroup>
-      ) : null}
-    </Field>
-  );
-}
-
-/**
- * The upload affordance. A bare file input never read as "you can add
- * documents here", so the trigger is a real labelled button and the well says
- * plainly when nothing is attached.
- *
- * The DS's DocumentSlot is deliberately not used — it models one row of a
- * fixed checklist (one expected document, scan quality, no remove), while this
- * field takes an open-ended list the filer builds and reorders. Its dashed
- * empty-target border is borrowed, since that is what dashed means here.
- *
- * The input keeps the value and the visible label; the button is the only tab
- * stop, carries the error wiring, and is what focusFirstInvalid lands on.
- */
-function UploadWell({
-  files,
-  onAdd,
-}: {
-  files: File[];
-  onAdd: (files: File[]) => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const fieldProps: {
-    id?: string;
-    "aria-describedby"?: string;
-    "aria-invalid"?: React.AriaAttributes["aria-invalid"];
-  } = useFieldControlProps({});
-  const { id: inputId, ...triggerProps } = fieldProps;
-  const attached = files.length > 0;
-
-  return (
-    <div className="flex flex-col gap-3 rounded-lg border border-dashed border-input p-4 group-data-[invalid=true]/field:border-destructive sm:flex-row sm:items-center sm:justify-between">
-      <p aria-live="polite" className="text-body text-muted-foreground">
-        {attached
-          ? `${files.length} ${files.length === 1 ? "file" : "files"} selected`
-          : "No documents uploaded yet"}
-      </p>
-
-      <Button
-        {...triggerProps}
-        type="button"
-        variant="outline"
-        className="w-full sm:w-auto"
-        onClick={() => inputRef.current?.click()}
-      >
-        <UploadIcon data-icon="inline-start" aria-hidden />
-        {attached ? "Upload more" : "Upload"}
-      </Button>
-
       <input
         ref={inputRef}
-        id={inputId}
         type="file"
         multiple
         accept={ACCEPTED_FILE_TYPES}
         tabIndex={-1}
         className="sr-only"
+        aria-hidden="true"
         onChange={(event) => {
-          onAdd(Array.from(event.target.files ?? []));
+          addFiles(Array.from(event.target.files ?? []));
           event.currentTarget.value = "";
         }}
       />
-    </div>
+    </Field>
   );
 }
 

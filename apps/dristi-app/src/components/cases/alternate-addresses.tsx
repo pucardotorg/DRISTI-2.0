@@ -24,18 +24,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Field,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  emptyStructuredAddress,
+  structuredAddressComplete,
+  StructuredAddressFields,
+  type StructuredAddress,
+} from "@/components/cases/structured-address";
 
 export type AlternateAddress = {
   id: string;
-  line: string;
-  city: string;
-  pin: string;
+  address: StructuredAddress;
   policeStation?: string;
 };
 
@@ -52,10 +52,17 @@ export function AlternateAddresses({ subjectName }: { subjectName: string }) {
         >
           <span className="flex min-w-0 flex-1 flex-col justify-center gap-1">
             <span className="block truncate text-body font-medium text-foreground">
-              {address.line}
+              {[address.address.door, address.address.building, address.address.locality]
+                .map((part) => part.trim())
+                .filter(Boolean)
+                .join(", ")}
             </span>
             <span className="block truncate text-body text-muted-foreground">
-              {[address.city, address.pin, address.policeStation]
+              {[
+                `${address.address.city}, ${address.address.district}`,
+                `${address.address.state} ${address.address.pin}`.trim(),
+                address.policeStation,
+              ]
                 .filter(Boolean)
                 .join(" · ")}
             </span>
@@ -65,7 +72,7 @@ export function AlternateAddresses({ subjectName }: { subjectName: string }) {
             variant="ghost"
             size="icon-sm"
             className="shrink-0 text-muted-foreground"
-            aria-label={`Remove the address ${address.line}`}
+            aria-label={`Remove the address in ${address.address.locality}`}
             onClick={() =>
               setAddresses((current) =>
                 current.filter((item) => item.id !== address.id)
@@ -99,8 +106,6 @@ export function AlternateAddresses({ subjectName }: { subjectName: string }) {
   );
 }
 
-type Errors = { line?: string; city?: string; pin?: string };
-
 function AddAddressDialog({
   open,
   onOpenChange,
@@ -112,33 +117,31 @@ function AddAddressDialog({
   subjectName: string;
   onAdd: (address: AlternateAddress) => void;
 }) {
-  const [line, setLine] = useState("");
-  const [city, setCity] = useState("");
-  const [pin, setPin] = useState("");
+  const [address, setAddress] = useState<StructuredAddress>(
+    emptyStructuredAddress
+  );
   const [policeStation, setPoliceStation] = useState("");
-  const [errors, setErrors] = useState<Errors>({});
+  const [error, setError] = useState<string | undefined>(undefined);
 
   function reset() {
-    setLine("");
-    setCity("");
-    setPin("");
+    setAddress(emptyStructuredAddress());
     setPoliceStation("");
-    setErrors({});
+    setError(undefined);
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const next: Errors = {};
-    if (!line.trim()) next.line = "The address needs at least a first line.";
-    if (!city.trim()) next.city = "Name the city or town.";
-    if (!/^\d{6}$/.test(pin.trim())) next.pin = "PIN codes are 6 digits.";
-    setErrors(next);
-    if (next.line || next.city || next.pin) return;
+    if (!structuredAddressComplete(address)) {
+      setError("Complete the address. Only the building name is optional.");
+      return;
+    }
+    if (!/^\d{6}$/.test(address.pin.trim())) {
+      setError("PIN codes are 6 digits.");
+      return;
+    }
     onAdd({
       id: `alt-${Date.now()}`,
-      line: line.trim(),
-      city: city.trim(),
-      pin: pin.trim(),
+      address,
       policeStation: policeStation.trim() || undefined,
     });
     reset();
@@ -153,7 +156,8 @@ function AddAddressDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-md">
+      {/* xl, not md: the structured grid runs two columns. */}
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
         <DialogHeader className="shrink-0 gap-1.5 border-b border-hairline px-6 py-5 pr-14 text-left">
           <DialogTitle className="text-title-s font-semibold text-balance">
             Add an address for {subjectName}
@@ -171,48 +175,19 @@ function AddAddressDialog({
             onSubmit={handleSubmit}
             className="flex flex-col gap-4"
           >
-            <Field data-invalid={Boolean(errors.line)}>
-              <FieldLabel htmlFor="alt-address-line">Address</FieldLabel>
-              <Input
-                id="alt-address-line"
-                placeholder="House / building, street, area"
-                value={line}
-                onChange={(event) => {
-                  setLine(event.target.value);
-                  setErrors((c) => ({ ...c, line: undefined }));
-                }}
-              />
-              <FieldError>{errors.line}</FieldError>
-            </Field>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field data-invalid={Boolean(errors.city)}>
-                <FieldLabel htmlFor="alt-address-city">City / town</FieldLabel>
-                <Input
-                  id="alt-address-city"
-                  value={city}
-                  onChange={(event) => {
-                    setCity(event.target.value);
-                    setErrors((c) => ({ ...c, city: undefined }));
-                  }}
-                />
-                <FieldError>{errors.city}</FieldError>
-              </Field>
-              <Field data-invalid={Boolean(errors.pin)}>
-                <FieldLabel htmlFor="alt-address-pin">Pincode</FieldLabel>
-                <Input
-                  id="alt-address-pin"
-                  inputMode="numeric"
-                  placeholder="6-digit"
-                  value={pin}
-                  onChange={(event) => {
-                    setPin(event.target.value);
-                    setErrors((c) => ({ ...c, pin: undefined }));
-                  }}
-                />
-                <FieldError>{errors.pin}</FieldError>
-              </Field>
-            </div>
+            {/* The app's one structured address grammar — the same grid the
+                profile settings and the edit-litigant dialog use. */}
+            <StructuredAddressFields
+              idPrefix="alt-address"
+              value={address}
+              onChange={(next) => {
+                setAddress(next);
+                setError(undefined);
+              }}
+            />
+            {error ? (
+              <p className="text-body-compact text-destructive-ink">{error}</p>
+            ) : null}
 
             <Field>
               <FieldLabel htmlFor="alt-address-station">

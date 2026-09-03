@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
-import { TASKS_HOME } from "@/lib/tasks/routes";
+import { TASKS_HOME, taskHref } from "@/lib/tasks/routes";
 import { caseOf, tasksInView } from "@/lib/tasks/selectors";
 import { compareUrgency, daysUntil, isOverdue } from "@/lib/tasks/urgency";
 import { useChrome } from "@/components/shell/chrome";
@@ -165,6 +165,9 @@ function useTaskNotifications() {
           unread: !readIds.has(t.id),
           tone: "warning" as const,
           persistent: true,
+          // Every task notification opens the task itself — the row is a
+          // doorway to the action, not a status readout.
+          href: taskHref(t.id),
         };
       });
     // A request addressed to this person is a thing that needs attention the moment it
@@ -180,6 +183,7 @@ function useTaskNotifications() {
           unread: !readIds.has(t.id),
           tone: "info" as const,
           persistent: true,
+          href: taskHref(t.id),
         };
       });
     return [...requests, ...overdue];

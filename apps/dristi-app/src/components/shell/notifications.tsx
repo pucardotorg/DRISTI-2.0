@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   BellIcon,
+  ChevronRightIcon,
   CircleAlertIcon,
   CircleCheckIcon,
   InfoIcon,
@@ -33,6 +35,9 @@ export type ShellNotification = {
   persistent?: boolean;
   /** Superseded updates may be cleared; current tasks and statuses may not. */
   stale?: boolean;
+  /** Where acting on this lives — a notification you cannot open is noise,
+      so every row derived from a task carries the task's own href. */
+  href?: string;
 };
 
 /**
@@ -81,11 +86,16 @@ export function NotificationsBell({
   const unreadCount = notifications.filter((n) => n.unread).length;
   const hasPersistentAttention = notifications.some((n) => n.persistent);
   const hasClearable = notifications.some((n) => n.stale);
+  // Controlled so a row's link can close the panel as it navigates — Radix
+  // dismisses on outside-click, and a click inside the panel is not outside.
+  const [open, setOpen] = React.useState(false);
 
   return (
     <Popover
-      onOpenChange={(open) => {
-        if (open) onRead();
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) onRead();
       }}
     >
       <PopoverTrigger asChild>
@@ -151,27 +161,54 @@ export function NotificationsBell({
           </p>
         ) : (
           <ul className="max-h-96 overflow-y-auto">
-            {notifications.map((n) => (
-              <li
-                key={n.id}
-                className="flex gap-2.5 border-b border-hairline px-4 py-3 last:border-b-0"
-              >
-                <NotificationStatusIcon tone={n.tone} />
-                <div className="flex min-w-0 flex-col gap-1">
-                  <p
-                    className={cn(
-                      "text-body-compact",
-                      n.unread
-                        ? "font-semibold text-foreground"
-                        : "font-medium text-foreground",
-                    )}
-                  >
-                    {n.title}
-                  </p>
-                  <p className="text-caption text-muted-foreground">{n.body}</p>
-                </div>
-              </li>
-            ))}
+            {notifications.map((n) => {
+              const content = (
+                <>
+                  <NotificationStatusIcon tone={n.tone} />
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <p
+                      className={cn(
+                        "text-body-compact",
+                        n.unread
+                          ? "font-semibold text-foreground"
+                          : "font-medium text-foreground",
+                      )}
+                    >
+                      {n.title}
+                    </p>
+                    <p className="text-caption text-muted-foreground">
+                      {n.body}
+                    </p>
+                  </div>
+                </>
+              );
+              return (
+                <li
+                  key={n.id}
+                  className="border-b border-hairline last:border-b-0"
+                >
+                  {/* A row that carries a task is that task's doorway: the
+                      whole row is the link, and it lands on the task open in
+                      Pending tasks, where the action (Respond, pay, upload)
+                      lives. The chevron says the row opens. */}
+                  {n.href ? (
+                    <Link
+                      href={n.href}
+                      onClick={() => setOpen(false)}
+                      className="flex gap-2.5 px-4 py-3 transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:outline-1 focus-visible:outline-ring"
+                    >
+                      {content}
+                      <ChevronRightIcon
+                        aria-hidden
+                        className="size-4 shrink-0 self-center text-muted-foreground"
+                      />
+                    </Link>
+                  ) : (
+                    <div className="flex gap-2.5 px-4 py-3">{content}</div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </PopoverContent>

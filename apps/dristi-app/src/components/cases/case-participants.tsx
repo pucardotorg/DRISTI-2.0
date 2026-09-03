@@ -7,7 +7,9 @@ import { RestingCard } from "@/components/cases/case-overview-card";
 import { EditLitigantAction } from "@/components/cases/edit-litigant-dialog";
 import {
   LiveAdvocateWells,
+  LivePoaPendingSection,
   PartiesLiveProvider,
+  WitnessListExtras,
 } from "@/components/cases/parties-live";
 import type { CaseRef } from "@/components/cases/party-application";
 import { PoaHolderWell } from "@/components/cases/poa-holder-actions";
@@ -33,6 +35,7 @@ import {
   type Litigant,
   type ParticipantsFile,
 } from "@/lib/cases/parties";
+import { isViewer } from "@/lib/cases/viewer";
 import { cn } from "@/lib/utils";
 
 /**
@@ -136,6 +139,8 @@ export function CaseParticipants({
   caseId,
   caseRef,
   viewerSide,
+  viewerCanAct,
+  pendingWitnesses,
   selectedId,
 }: {
   file: ParticipantsFile;
@@ -145,6 +150,12 @@ export function CaseParticipants({
   /** The side the signed-in advocate works for on this case — every
       own-side gate here reads it. Derived per case in `case-parties.tsx`. */
   viewerSide: PartySideId;
+  /** False when the viewer holds office access only: they read the same
+      panes, but removal and PoA actions stay with the vakalatnama holders. */
+  viewerCanAct: boolean;
+  /** The viewer's own witness applications awaiting the order — authored
+      seeds; the session's own sends join them through the live layer. */
+  pendingWitnesses: string[];
   selectedId: string | undefined;
 }) {
   const litigant = file.litigants.find((row) => row.id === selectedId);
@@ -214,7 +225,12 @@ export function CaseParticipants({
             list keeps the other participants one scroll away rather than one
             navigation away (RESPONSIVE — stack before splitting). */}
         <CardContent className="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,18rem)_auto_minmax(0,1fr)]">
-          <MasterList file={file} caseId={caseId} selectedId={selectedId} />
+          <MasterList
+            file={file}
+            caseId={caseId}
+            pendingWitnesses={pendingWitnesses}
+            selectedId={selectedId}
+          />
           {/* self-stretch, not h-full: the grid is items-start, so an
               auto-height track would leave the rule measuring itself. */}
           <div className="flex self-stretch lg:justify-center">
@@ -228,6 +244,7 @@ export function CaseParticipants({
               caseId={caseId}
               caseRef={caseRef}
               viewerSide={viewerSide}
+              viewerCanAct={viewerCanAct}
             />
           ) : witness ? (
             <WitnessDetail witness={witness} viewerSide={viewerSide} />
@@ -277,10 +294,12 @@ const WITNESSES_GROUP_ID = "participants-witnesses-group";
 function MasterList({
   file,
   caseId,
+  pendingWitnesses,
   selectedId,
 }: {
   file: ParticipantsFile;
   caseId: string;
+  pendingWitnesses: string[];
   selectedId: string | undefined;
 }) {
   return (
@@ -307,33 +326,36 @@ function MasterList({
 
       <nav aria-labelledby={WITNESSES_GROUP_ID} className="flex min-w-0 flex-col gap-2">
         <Eyebrow id={WITNESSES_GROUP_ID}>Witnesses</Eyebrow>
-        {file.witnesses.length > 0 ? (
-          <ul className="flex min-w-0 flex-col gap-1">
-            {file.witnesses.map((row) => (
-              <li key={row.id}>
-                <MasterRow
-                  href={participantHref(caseId, row.id)}
-                  name={row.name}
-                  /* The number carries the side already — `PW` is the
-                     complainant's, `DW` the accused's, `CW` the court's — so
-                     colouring the number itself needs no second label, and
-                     the side is never colour alone. */
-                  badge={
-                    <SidePill side={row.side} mono>
-                      {row.number}
-                    </SidePill>
-                  }
-                  selected={row.id === selectedId}
-                />
-              </li>
-            ))}
-          </ul>
-        ) : (
-          /* The group keeps its heading rather than vanishing: an empty
-             witness list is a fact about this case, and a heading that
-             disappears makes the reader wonder whether they missed it. */
-          <SectionNote>No witness has been listed yet.</SectionNote>
-        )}
+        {/* The list always renders: after the register's rows come the
+            viewer's own applications still with the magistrate — greyed,
+            "Awaiting order" — via the client tail, which also owns the
+            empty note (it alone knows whether the session just sent one).
+            The group keeps its heading either way: an empty witness list
+            is a fact about this case. */}
+        <ul className="flex min-w-0 flex-col gap-1">
+          {file.witnesses.map((row) => (
+            <li key={row.id}>
+              <MasterRow
+                href={participantHref(caseId, row.id)}
+                name={row.name}
+                /* The number carries the side already — `PW` is the
+                   complainant's, `DW` the accused's, `CW` the court's — so
+                   colouring the number itself needs no second label, and
+                   the side is never colour alone. */
+                badge={
+                  <SidePill side={row.side} mono>
+                    {row.number}
+                  </SidePill>
+                }
+                selected={row.id === selectedId}
+              />
+            </li>
+          ))}
+          <WitnessListExtras
+            registeredCount={file.witnesses.length}
+            authoredPending={pendingWitnesses}
+          />
+        </ul>
       </nav>
     </div>
   );
@@ -563,11 +585,15 @@ const WELL_LINK_CLASS =
 
 function FactWell({
   primary,
+  primarySuffix,
   secondary,
   secondaryMono = false,
   href,
 }: {
   primary: string;
+  /** A muted qualifier after the name — "(you)" on the viewer's own row,
+      the same mark the access lists use. */
+  primarySuffix?: string;
   secondary?: string;
   secondaryMono?: boolean;
   href?: string;
@@ -576,6 +602,12 @@ function FactWell({
     <>
       <span className="block text-body font-medium text-foreground">
         {primary}
+        {primarySuffix ? (
+          <span className="font-normal text-muted-foreground">
+            {" "}
+            {primarySuffix}
+          </span>
+        ) : null}
       </span>
       {secondary ? (
         <span
@@ -622,12 +654,14 @@ function LitigantDetail({
   caseId,
   caseRef,
   viewerSide,
+  viewerCanAct,
 }: {
   file: ParticipantsFile;
   litigant: Litigant;
   caseId: string;
   caseRef: CaseRef;
   viewerSide: PartySideId;
+  viewerCanAct: boolean;
 }) {
   const linkedWitnesses = witnessesForLitigant(file, litigant.id);
   const sections: { id: string; title: string; facts: ReactNode }[] = [];
@@ -658,9 +692,14 @@ function LitigantDetail({
              client island in an otherwise server pane — but only on the
              viewer's own side: an advocate cannot seek the removal of
              opposing counsel (owner, Sept 1). The other side's advocates
-             stay plain fact wells. */
+             stay plain fact wells. So do two rows on the viewer's own side:
+             the viewer themself — you do not remove yourself, the row just
+             says "(you)" — and every row when the viewer holds office
+             access only (owner, Sept 3). */
           litigant.advocates.map((advocate) =>
-            litigant.side === viewerSide ? (
+            litigant.side === viewerSide &&
+            viewerCanAct &&
+            !isViewer(advocate) ? (
               <RepresentationWell
                 key={advocate}
                 advocate={advocate}
@@ -668,7 +707,11 @@ function LitigantDetail({
                 caseRef={caseRef}
               />
             ) : (
-              <FactWell key={advocate} primary={advocate} />
+              <FactWell
+                key={advocate}
+                primary={advocate}
+                primarySuffix={isViewer(advocate) ? "(you)" : undefined}
+              />
             )
           )
         ) : (
@@ -684,11 +727,12 @@ function LitigantDetail({
       id: "participant-poa",
       title: "Power of attorney",
       /* Remove and Replace (scenarios 6/7) ride the holder's own well —
-         own side only, like the Representation wells. The takeover pool is
+         own side only, like the Representation wells, and vakalatnama
+         holders only, like every removal action. The takeover pool is
          everyone attached to the case (PM, Sept 2) minus the granting
          party themselves. */
       facts:
-        litigant.side === viewerSide ? (
+        litigant.side === viewerSide && viewerCanAct ? (
           <PoaHolderWell
             holder={litigant.powerOfAttorneyHolder}
             partyName={litigant.name}
@@ -790,6 +834,13 @@ function LitigantDetail({
             </DetailSection>
           );
         })}
+        {/* A PoA application this session sent for a party with no holder:
+            the section the server could not render appears live, the named
+            holder waiting on the order. Own side only, like the add flow
+            that feeds it. Null until then, so the grid is untouched. */}
+        {litigant.side === viewerSide && !litigant.powerOfAttorneyHolder ? (
+          <LivePoaPendingSection partyId={litigant.id} />
+        ) : null}
       </div>
     </div>
   );

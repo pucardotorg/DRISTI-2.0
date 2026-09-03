@@ -20,8 +20,8 @@ import type { CaseRef } from "@/components/cases/party-application";
 import { RemoveAdvocateDialog } from "@/components/cases/remove-advocate-dialog";
 
 const PENDING_LINE = {
-  consent: "Removal requested · awaiting their consent",
-  magistrate: "Removal applied for · awaiting the magistrate's order",
+  consent: "Removal requested · awaiting consent",
+  magistrate: "Removal requested · awaiting order",
 } as const;
 
 export function RepresentationWell({
@@ -45,7 +45,7 @@ export function RepresentationWell({
             {advocate}
           </span>
           {pending ? (
-            <span className="block truncate text-body text-muted-foreground">
+            <span className="block truncate text-caption text-muted-foreground">
               {PENDING_LINE[pending]}
             </span>
           ) : null}

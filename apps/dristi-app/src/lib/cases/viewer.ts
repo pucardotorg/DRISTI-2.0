@@ -11,6 +11,15 @@ import { counselFor, type CaseRecord, type CounselSide } from "./types";
 
 const VIEWER_NAME = "Anjali Nair";
 
+/**
+ * Is this counsel name the signed-in advocate? The party screens use it to
+ * render the viewer's own row as a fact ("you") rather than a target of the
+ * removal actions — you do not remove yourself from a case you are reading.
+ */
+export function isViewer(name: string): boolean {
+  return name.includes(VIEWER_NAME);
+}
+
 /** The sides this case's record lists the viewer as counsel for. */
 export function viewerSides(record: CaseRecord): CounselSide[] {
   return (["complainant", "accused"] as const).filter((side) =>

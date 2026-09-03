@@ -32,7 +32,22 @@ export type AccessCase = {
   court: string;
   /** Display date of the next hearing — wireframe-level fidelity only. */
   nextHearing: string;
+  /**
+   * How the signed-in advocate reaches THIS case: on its vakalatnama (may
+   * add and remove people) or through office access a colleague shared
+   * (sees who has access, touches nobody — the share dialog has said so
+   * since Aug). Defaults to "vakalatnama"; the case screens derive the
+   * same fact from the record's counsel lists (`lib/cases/viewer`).
+   */
+  viewerAccess?: "vakalatnama" | "office";
 };
+
+/** May the signed-in advocate remove people from this case? Office access
+    never may — removal belongs to the advocates on the vakalatnama. */
+export function viewerHoldsVakalat(caseId: string): boolean {
+  const entry = ACCESS_CASES.find((c) => c.id === caseId);
+  return (entry?.viewerAccess ?? "vakalatnama") !== "office";
+}
 
 export type AccessGrant = {
   caseId: string;
@@ -77,6 +92,9 @@ export const ACCESS_CASES: AccessCase[] = [
     caseNumber: "CC 847 / 2026",
     court: "JFCM I, Kollam · Court No. 3",
     nextHearing: "28 Aug 2026",
+    /* The demo's two office-access cases (owner, Sept 3): the viewer reads
+       these but removes nobody, here or on the case's Parties tab. */
+    viewerAccess: "office",
   },
   {
     id: "c-612",
@@ -91,6 +109,7 @@ export const ACCESS_CASES: AccessCase[] = [
     caseNumber: "CC 533 / 2026",
     court: "24×7 ON Court, Kollam",
     nextHearing: "2 Sep 2026",
+    viewerAccess: "office",
   },
   {
     id: "c-410",
@@ -669,6 +688,16 @@ export const peopleCopy = {
   removeAllCancel: t("Cancel", "റദ്ദാക്കുക"),
   removedNote: t("{name} no longer has access to {case}.", "{name}-ന് ഇനി {case}-ൽ ആക്‌സസ് ഇല്ല."),
   removedAllNote: t("{name} no longer has access to any of your cases.", "{name}-ന് ഇനി നിങ്ങളുടെ കേസുകളിലൊന്നും ആക്‌സസ് ഇല്ല."),
+  /* One removal flow, entered from here too: a vakalat row's Remove opens
+     the same court-application dialog the Parties tab uses. */
+  removalPending: t("Removal requested", "നീക്കം ചെയ്യാൻ അഭ്യർത്ഥിച്ചു"),
+  /* On office-access cases the Remove stays visible but disabled, with this
+     as its tooltip — an absent button reads as a bug, a locked one as a
+     rule (owner, Sept 3). */
+  officeLockedTooltip: t(
+    "You hold office access on this case. Removing people belongs to the advocates on the vakalatnama.",
+    "ഈ കേസിൽ നിങ്ങൾക്ക് ഓഫീസ് ആക്‌സസ് ആണ്. ആളുകളെ നീക്കം ചെയ്യുന്നത് വക്കാലത്ത്നാമയിലെ അഭിഭാഷകർക്കാണ്.",
+  ),
 };
 
 export const casesCopy = {

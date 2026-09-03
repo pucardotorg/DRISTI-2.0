@@ -16,10 +16,9 @@
  * litigants and gives the other side a plain fact well.
  */
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import {
   EllipsisVerticalIcon,
-  HourglassIcon,
   Trash2Icon,
   UserRoundPenIcon,
 } from "lucide-react";
@@ -35,12 +34,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  DescriptionDetails,
-  DescriptionList,
-  DescriptionRow,
-  DescriptionTerm,
-} from "@/components/ui/description-list";
 import {
   Dialog,
   DialogContent,
@@ -66,12 +59,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { FlowStepper } from "@/components/cases/flow-stepper";
 import {
-  PartyGeneratedApplicationDialog,
+  PartyApplicationDocument,
   PartySignatureDialog,
   type CaseRef,
 } from "@/components/cases/party-application";
 import {
-  ReviewDocValue,
   UPLOAD_HELP,
   UploadedDocField,
 } from "@/components/cases/uploaded-doc-field";
@@ -93,41 +85,55 @@ export function PoaHolderWell({
   existingPeople: ExistingPersonOption[];
 }) {
   const [open, setOpen] = useState<"remove" | "replace" | null>(null);
+  /* Once an application is out, the well is the requester's waiting view —
+     the line names what was asked, the menu retires so the same request
+     cannot be raised twice. Session-local; the tasks service is the real
+     record (the RepresentationWell convention). */
+  const [pending, setPending] = useState<string | null>(null);
 
   return (
     <>
       {/* Two actions on a half-pane well truncated the name, so they fold
           into one overflow menu that names its tasks. */}
       <div className="flex min-h-12 min-w-0 items-center gap-2 rounded-md bg-surface-sunken py-2 pr-2 pl-3">
-        <span className="min-w-0 flex-1 truncate text-body font-medium text-foreground">
-          {holder}
+        <span className="flex min-w-0 flex-1 flex-col justify-center gap-1">
+          <span className="block truncate text-body font-medium text-foreground">
+            {holder}
+          </span>
+          {pending ? (
+            <span className="block truncate text-caption text-muted-foreground">
+              {pending}
+            </span>
+          ) : null}
         </span>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="shrink-0 text-muted-foreground"
-              aria-label={`Actions for ${holder}`}
-            >
-              <EllipsisVerticalIcon aria-hidden />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-44">
-            <DropdownMenuItem onSelect={() => setOpen("replace")}>
-              <UserRoundPenIcon aria-hidden />
-              Replace holder
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={() => setOpen("remove")}
-            >
-              <Trash2Icon aria-hidden />
-              Remove holder
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {!pending ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 text-muted-foreground"
+                aria-label={`Actions for ${holder}`}
+              >
+                <EllipsisVerticalIcon aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-44">
+              <DropdownMenuItem onSelect={() => setOpen("replace")}>
+                <UserRoundPenIcon aria-hidden />
+                Replace holder
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={() => setOpen("remove")}
+              >
+                <Trash2Icon aria-hidden />
+                Remove holder
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
       </div>
       <RemovePoaDialog
         open={open === "remove"}
@@ -135,6 +141,7 @@ export function PoaHolderWell({
         holder={holder}
         partyName={partyName}
         caseRef={caseRef}
+        onRequested={() => setPending("Removal requested · awaiting order")}
       />
       <ReplacePoaDialog
         open={open === "replace"}
@@ -143,6 +150,11 @@ export function PoaHolderWell({
         partyName={partyName}
         caseRef={caseRef}
         existingPeople={existingPeople}
+        onRequested={(newHolder) =>
+          setPending(
+            `Replacement by ${newHolder || "a new holder"} requested · awaiting order`
+          )
+        }
       />
     </>
   );
@@ -172,18 +184,20 @@ function RemovePoaDialog({
   holder,
   partyName,
   caseRef,
+  onRequested,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   holder: string;
   partyName: string;
   caseRef: CaseRef;
+  /** Fired when the application goes out — the well's waiting view. */
+  onRequested?: () => void;
 }) {
   const [step, setStep] = useState<1 | 2>(1);
   const [reason, setReason] = useState("");
   const [docFile, setDocFile] = useState<File | null>(null);
-  const [done, setDone] = useState(false);
-  const [appStage, setAppStage] = useState<"none" | "document" | "sign">("none");
+  const [signOpen, setSignOpen] = useState(false);
   const [errors, setErrors] = useState<{ reason?: string; document?: string }>(
     {}
   );
@@ -196,8 +210,7 @@ function RemovePoaDialog({
     setStep(1);
     setReason("");
     setDocFile(null);
-    setDone(false);
-    setAppStage("none");
+    setSignOpen(false);
     setErrors({});
     setExitConfirmationOpen(false);
   }
@@ -208,7 +221,7 @@ function RemovePoaDialog({
   }
 
   function requestExit() {
-    if (isDirty && !done) {
+    if (isDirty) {
       setExitConfirmationOpen(true);
       return;
     }
@@ -225,6 +238,21 @@ function RemovePoaDialog({
     setStep(2);
   }
 
+  /** The generated application — the review sheet and the paper that is signed. */
+  const applicationDoc = {
+    matter: "Application for the removal of a PoA-holder",
+    facts: [
+      { term: "PoA-holder", value: holder },
+      { term: "For", value: partyName },
+      ...(docFile ? [{ term: "Annexure", value: docFile.name }] : []),
+    ],
+    prayer: [
+      `The applicant, counsel on record in the above matter, prays that ${holder} cease to be the Power of Attorney holder of ${partyName}.`,
+      `Grounds: ${reason.trim()}`,
+      "It is prayed that this Hon'ble Court may allow this application and pass such orders as are deemed fit.",
+    ],
+  };
+
   return (
     <>
       <Dialog
@@ -235,20 +263,12 @@ function RemovePoaDialog({
         }}
       >
         <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
-          {done ? (
-            <DoneStage
-              title="Application sent to the magistrate"
-              description={`${holder} stays ${partyName}'s PoA-holder until the order is passed.`}
-              onDone={closeClean}
-            />
-          ) : (
-            <>
-              {/* No stepper: two steps do not earn one (owner's rule,
-                  Sept 1 — steppers from three steps up). The title and the
-                  Back button carry the progression. */}
+          <>
+              {/* No stepper: two steps do not earn one. Heading stays put so
+                  the review does not read as a different task (owner, Sept 2). */}
               <DialogHeader className="shrink-0 gap-1.5 border-b border-hairline px-6 py-5 pr-14 text-left">
                 <DialogTitle className="text-title-s font-semibold text-balance">
-                  {step === 1 ? `Remove ${holder}` : "Review"}
+                  Remove {holder}
                 </DialogTitle>
                 <DialogDescription>
                   {step === 2
@@ -311,23 +331,10 @@ function RemovePoaDialog({
                       </Field>
                     </>
                   ) : (
-                    <DescriptionList>
-                      <ReviewRow term="PoA-holder">
-                        {holder}
-                        <span className="text-muted-foreground">
-                          {" "}
-                          · for {partyName}
-                        </span>
-                      </ReviewRow>
-                      <ReviewRow term="Grounds">
-                        <span className="whitespace-pre-wrap">
-                          {reason.trim()}
-                        </span>
-                      </ReviewRow>
-                      <ReviewRow term="Document">
-                        <ReviewDocValue file={docFile} />
-                      </ReviewRow>
-                    </DescriptionList>
+                    <PartyApplicationDocument
+                      caseRef={caseRef}
+                      doc={applicationDoc}
+                    />
                   )}
                 </form>
               </div>
@@ -349,49 +356,25 @@ function RemovePoaDialog({
                     Continue
                   </Button>
                 ) : (
-                  <Button
-                    type="button"
-                    onClick={() => setAppStage("document")}
-                  >
-                    Generate application
+                  <Button type="button" onClick={() => setSignOpen(true)}>
+                    Continue to sign
                   </Button>
                 )}
               </footer>
             </>
-          )}
         </DialogContent>
       </Dialog>
 
-      <PartyGeneratedApplicationDialog
-        open={appStage === "document"}
-        onOpenChange={(next) => {
-          if (!next) setAppStage("none");
-        }}
-        caseRef={caseRef}
-        doc={{
-          matter: "Application for the removal of a PoA-holder",
-          facts: [
-            { term: "PoA-holder", value: holder },
-            { term: "For", value: partyName },
-            ...(docFile ? [{ term: "Annexure", value: docFile.name }] : []),
-          ],
-          prayer: [
-            `The applicant, counsel on record in the above matter, prays that ${holder} cease to be the Power of Attorney holder of ${partyName}.`,
-            `Grounds: ${reason.trim()}`,
-            "It is prayed that this Hon'ble Court may allow this application and pass such orders as are deemed fit.",
-          ],
-        }}
-        onAddSignature={() => setAppStage("sign")}
-      />
       <PartySignatureDialog
-        open={appStage === "sign"}
-        onOpenChange={(next) => {
-          if (!next) setAppStage("none");
+        open={signOpen}
+        onClose={() => setSignOpen(false)}
+        onComplete={() => {
+          onRequested?.();
+          closeClean();
         }}
-        onBack={() => setAppStage("document")}
-        onSigned={() => {
-          setAppStage("none");
-          setDone(true);
+        confirmation={{
+          title: "Application sent to the magistrate",
+          description: `${holder} stays ${partyName}'s PoA-holder until the order is passed.`,
         }}
       />
 
@@ -435,6 +418,7 @@ function ReplacePoaDialog({
   partyName,
   caseRef,
   existingPeople,
+  onRequested,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -442,6 +426,8 @@ function ReplacePoaDialog({
   partyName: string;
   caseRef: CaseRef;
   existingPeople: ExistingPersonOption[];
+  /** Fired when the application goes out, with the new holder's name. */
+  onRequested?: (newHolder: string) => void;
 }) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [holderMode, setHolderMode] = useState<HolderMode>("new");
@@ -450,8 +436,7 @@ function ReplacePoaDialog({
   const [existingKey, setExistingKey] = useState("");
   const [reason, setReason] = useState("");
   const [deedFile, setDeedFile] = useState<File | null>(null);
-  const [done, setDone] = useState(false);
-  const [appStage, setAppStage] = useState<"none" | "document" | "sign">("none");
+  const [signOpen, setSignOpen] = useState(false);
   const [errors, setErrors] = useState<{
     holderName?: string;
     holderPhone?: string;
@@ -481,8 +466,7 @@ function ReplacePoaDialog({
     setExistingKey("");
     setReason("");
     setDeedFile(null);
-    setDone(false);
-    setAppStage("none");
+    setSignOpen(false);
     setErrors({});
     setExitConfirmationOpen(false);
   }
@@ -493,7 +477,7 @@ function ReplacePoaDialog({
   }
 
   function requestExit() {
-    if (isDirty && !done) {
+    if (isDirty) {
       setExitConfirmationOpen(true);
       return;
     }
@@ -529,6 +513,31 @@ function ReplacePoaDialog({
     }
   }
 
+  /** The generated application — the review sheet and the paper that is signed. */
+  const applicationDoc = {
+    matter: "Application for the replacement of a PoA-holder",
+    facts: [
+      { term: "Outgoing holder", value: holder },
+      {
+        term: "New holder",
+        value:
+          holderMode === "existing"
+            ? `${newHolderName} (already on this case)`
+            : newHolderName,
+      },
+      { term: "For", value: partyName },
+      ...(holderMode === "new" && newPhone
+        ? [{ term: "Mobile number", value: newPhone }]
+        : []),
+      ...(deedFile ? [{ term: "Annexure", value: deedFile.name }] : []),
+    ],
+    prayer: [
+      `The applicant, counsel on record in the above matter, prays that ${holder} cease to be the Power of Attorney holder of ${partyName}, and that ${newHolderName || "the person named above"} be recognised in their place under the deed annexed.`,
+      `Grounds: ${reason.trim()}`,
+      "It is prayed that this Hon'ble Court may allow this application and pass such orders as are deemed fit.",
+    ],
+  };
+
   return (
     <>
       <Dialog
@@ -539,13 +548,7 @@ function ReplacePoaDialog({
         }}
       >
         <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
-          {done ? (
-            <DoneStage
-              title="Application sent to the magistrate"
-              description={`${holder} is replaced by ${newHolderName || "the new holder"} once the order is passed.`}
-              onDone={closeClean}
-            />
-          ) : (
+          {(
             <>
               <div className="shrink-0 border-b border-hairline px-6 pt-6 pb-4">
                 <FlowStepper
@@ -743,37 +746,10 @@ function ReplacePoaDialog({
                       </Field>
                     </>
                   ) : (
-                    <DescriptionList>
-                      <ReviewRow term="Outgoing holder">
-                        {holder}
-                        <span className="text-muted-foreground">
-                          {" "}
-                          · for {partyName}
-                        </span>
-                      </ReviewRow>
-                      <ReviewRow term="New holder">
-                        {newHolderName}
-                        {holderMode === "existing" ? (
-                          <span className="text-muted-foreground">
-                            {" "}
-                            (already on this case)
-                          </span>
-                        ) : null}
-                      </ReviewRow>
-                      {holderMode === "new" && newPhone ? (
-                        <ReviewRow term="Mobile number">
-                          <span className="tabular-nums">{newPhone}</span>
-                        </ReviewRow>
-                      ) : null}
-                      <ReviewRow term="Grounds">
-                        <span className="whitespace-pre-wrap">
-                          {reason.trim()}
-                        </span>
-                      </ReviewRow>
-                      <ReviewRow term="New deed">
-                        <ReviewDocValue file={deedFile} />
-                      </ReviewRow>
-                    </DescriptionList>
+                    <PartyApplicationDocument
+                      caseRef={caseRef}
+                      doc={applicationDoc}
+                    />
                   )}
                 </form>
               </div>
@@ -795,8 +771,8 @@ function ReplacePoaDialog({
                     Continue
                   </Button>
                 ) : (
-                  <Button type="button" onClick={() => setAppStage("document")}>
-                    Generate application
+                  <Button type="button" onClick={() => setSignOpen(true)}>
+                    Continue to sign
                   </Button>
                 )}
               </footer>
@@ -805,46 +781,16 @@ function ReplacePoaDialog({
         </DialogContent>
       </Dialog>
 
-      <PartyGeneratedApplicationDialog
-        open={appStage === "document"}
-        onOpenChange={(next) => {
-          if (!next) setAppStage("none");
-        }}
-        caseRef={caseRef}
-        doc={{
-          matter: "Application for the replacement of a PoA-holder",
-          facts: [
-            { term: "Outgoing holder", value: holder },
-            {
-              term: "New holder",
-              value:
-                holderMode === "existing"
-                  ? `${newHolderName} (already on this case)`
-                  : newHolderName,
-            },
-            { term: "For", value: partyName },
-            ...(holderMode === "new" && newPhone
-              ? [{ term: "Mobile number", value: newPhone }]
-              : []),
-            ...(deedFile ? [{ term: "Annexure", value: deedFile.name }] : []),
-          ],
-          prayer: [
-            `The applicant, counsel on record in the above matter, prays that ${holder} cease to be the Power of Attorney holder of ${partyName}, and that ${newHolderName || "the person named above"} be recognised in their place under the deed annexed.`,
-            `Grounds: ${reason.trim()}`,
-            "It is prayed that this Hon'ble Court may allow this application and pass such orders as are deemed fit.",
-          ],
-        }}
-        onAddSignature={() => setAppStage("sign")}
-      />
       <PartySignatureDialog
-        open={appStage === "sign"}
-        onOpenChange={(next) => {
-          if (!next) setAppStage("none");
+        open={signOpen}
+        onClose={() => setSignOpen(false)}
+        onComplete={() => {
+          onRequested?.(newHolderName);
+          closeClean();
         }}
-        onBack={() => setAppStage("document")}
-        onSigned={() => {
-          setAppStage("none");
-          setDone(true);
+        confirmation={{
+          title: "Application sent to the magistrate",
+          description: `${holder} is replaced by ${newHolderName || "the new holder"} once the order is passed.`,
         }}
       />
 
@@ -860,39 +806,6 @@ function ReplacePoaDialog({
 /* ------------------------------------------------------------------ */
 /* Shared bits                                                          */
 /* ------------------------------------------------------------------ */
-
-function DoneStage({
-  title,
-  description,
-  onDone,
-}: {
-  title: string;
-  description: string;
-  onDone: () => void;
-}) {
-  return (
-    <>
-      <DialogHeader className="shrink-0 px-6 py-5 pr-14 text-left">
-        <div className="flex items-center gap-4">
-          <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-info-muted text-info-muted-foreground">
-            <HourglassIcon className="size-7" aria-hidden />
-          </span>
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <DialogTitle className="text-title-s font-semibold text-balance">
-              {title}
-            </DialogTitle>
-            <DialogDescription>{description}</DialogDescription>
-          </div>
-        </div>
-      </DialogHeader>
-      <footer className="flex shrink-0 justify-end border-t border-hairline px-6 py-4">
-        <Button type="button" onClick={onDone}>
-          Done
-        </Button>
-      </footer>
-    </>
-  );
-}
 
 function DiscardConfirm({
   open,
@@ -920,22 +833,5 @@ function DiscardConfirm({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  );
-}
-
-function ReviewRow({
-  term,
-  children,
-}: {
-  term: string;
-  children: ReactNode;
-}) {
-  return (
-    <DescriptionRow className="grid-cols-1 sm:grid-cols-[minmax(7rem,10rem)_1fr]">
-      <DescriptionTerm className="text-body-compact">{term}</DescriptionTerm>
-      <DescriptionDetails className="text-body-compact">
-        {children}
-      </DescriptionDetails>
-    </DescriptionRow>
   );
 }

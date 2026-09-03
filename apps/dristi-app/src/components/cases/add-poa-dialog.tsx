@@ -23,7 +23,6 @@
  */
 
 import { useMemo, useState } from "react";
-import { HourglassIcon } from "lucide-react";
 
 import {
   AlertDialog,
@@ -36,12 +35,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  DescriptionDetails,
-  DescriptionList,
-  DescriptionRow,
-  DescriptionTerm,
-} from "@/components/ui/description-list";
 import {
   Dialog,
   DialogContent,
@@ -60,13 +53,13 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { FlowStepper } from "@/components/cases/flow-stepper";
+import { usePartiesLive } from "@/components/cases/parties-live";
 import {
-  PartyGeneratedApplicationDialog,
+  PartyApplicationDocument,
   PartySignatureDialog,
   type CaseRef,
 } from "@/components/cases/party-application";
 import {
-  ReviewDocValue,
   UPLOAD_HELP,
   UploadedDocField,
 } from "@/components/cases/uploaded-doc-field";
@@ -137,11 +130,12 @@ export function AddPoaDialog({
   const [existingKey, setExistingKey] = useState("");
   const [reason, setReason] = useState("");
   const [deedFile, setDeedFile] = useState<File | null>(null);
-  const [done, setDone] = useState(false);
-  /** The generate → sign chain every application-type flow ends in. */
-  const [appStage, setAppStage] = useState<"none" | "document" | "sign">("none");
+  /** The sign dialog, layered over the review (Sept 2). */
+  const [signOpen, setSignOpen] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
+  /* Null outside the Parties tab (the dialog has other hosts). */
+  const live = usePartiesLive();
 
   const current = STEPS.find((item) => item.step === step) ?? STEPS[0];
   const isDirty = useMemo(
@@ -173,8 +167,7 @@ export function AddPoaDialog({
     setExistingKey("");
     setReason("");
     setDeedFile(null);
-    setDone(false);
-    setAppStage("none");
+    setSignOpen(false);
     setErrors({});
     setExitConfirmationOpen(false);
   }
@@ -185,12 +178,36 @@ export function AddPoaDialog({
   }
 
   function requestExit() {
-    if (isDirty && !done) {
+    if (isDirty) {
       setExitConfirmationOpen(true);
       return;
     }
     closeClean();
   }
+
+  /** The generated application — the review sheet and the paper that is signed. */
+  const applicationDoc = {
+    matter: "Application for the appointment of a PoA-holder",
+    facts: [
+      { term: "Granting party", value: grantingParty?.name ?? "" },
+      {
+        term: "PoA-holder",
+        value:
+          holderMode === "existing"
+            ? `${holderDisplayName} (already on this case)`
+            : holderDisplayName,
+      },
+      ...(holderMode === "new" && holderPhone
+        ? [{ term: "Mobile number", value: holderPhone }]
+        : []),
+      ...(deedFile ? [{ term: "Annexure", value: deedFile.name }] : []),
+    ],
+    prayer: [
+      `The applicant, counsel on record in the above matter, prays that ${holderDisplayName || "the person named above"} be recognised as the Power of Attorney holder of ${grantingParty?.name ?? "the party"} under the deed annexed.`,
+      `Grounds: ${reason.trim()}`,
+      "It is prayed that this Hon'ble Court may allow this application and pass such orders as are deemed fit.",
+    ],
+  };
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -232,35 +249,7 @@ export function AddPoaDialog({
         }}
       >
         <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
-          {done ? (
-            /* The join dialog's pending stage: the application is with the
-               magistrate now, and the dialog says so instead of ending on
-               a dead disabled button (owner, Sept 1). */
-            <>
-              <DialogHeader className="shrink-0 px-6 py-5 pr-14 text-left">
-                <div className="flex items-center gap-4">
-                  <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-info-muted text-info-muted-foreground">
-                    <HourglassIcon className="size-7" aria-hidden />
-                  </span>
-                  <div className="flex min-w-0 flex-col gap-1.5">
-                    <DialogTitle className="text-title-s font-semibold text-balance">
-                      Application sent to the magistrate
-                    </DialogTitle>
-                    <DialogDescription className="text-pretty">
-                      {holderDisplayName || "The holder"} is added as{" "}
-                      {grantingParty?.name ?? "the party"}&apos;s PoA-holder
-                      once the order is passed.
-                    </DialogDescription>
-                  </div>
-                </div>
-              </DialogHeader>
-              <footer className="flex shrink-0 justify-end border-t border-hairline px-6 py-4">
-                <Button type="button" onClick={closeClean}>
-                  Done
-                </Button>
-              </footer>
-            </>
-          ) : (
+          {(
             <>
           {/* Own band + hairline for the stepper; see add-advocate-dialog. */}
           <div className="shrink-0 border-b border-hairline px-6 pt-6 pb-4">
@@ -515,31 +504,10 @@ export function AddPoaDialog({
                   </Field>
                 </>
               ) : (
-                <DescriptionList>
-                  <ReviewRow term="Granting party">
-                    {grantingParty?.name}
-                  </ReviewRow>
-                  <ReviewRow term="PoA-holder">
-                    {holderDisplayName}
-                    {holderMode === "existing" ? (
-                      <span className="text-muted-foreground">
-                        {" "}
-                        (already on this case)
-                      </span>
-                    ) : null}
-                  </ReviewRow>
-                  {holderMode === "new" && holderPhone ? (
-                    <ReviewRow term="Mobile number">
-                      <span className="tabular-nums">{holderPhone}</span>
-                    </ReviewRow>
-                  ) : null}
-                  <ReviewRow term="Grounds">
-                    <span className="whitespace-pre-wrap">{reason.trim()}</span>
-                  </ReviewRow>
-                  <ReviewRow term="Deed">
-                    <ReviewDocValue file={deedFile} />
-                  </ReviewRow>
-                </DescriptionList>
+                <PartyApplicationDocument
+                  caseRef={caseRef}
+                  doc={applicationDoc}
+                />
               )}
             </form>
           </div>
@@ -561,8 +529,8 @@ export function AddPoaDialog({
                 Continue
               </Button>
             ) : (
-              <Button type="button" onClick={() => setAppStage("document")}>
-                Generate application
+              <Button type="button" onClick={() => setSignOpen(true)}>
+                Continue to sign
               </Button>
             )}
           </footer>
@@ -571,45 +539,21 @@ export function AddPoaDialog({
         </DialogContent>
       </Dialog>
 
-      <PartyGeneratedApplicationDialog
-        open={appStage === "document"}
-        onOpenChange={(next) => {
-          if (!next) setAppStage("none");
-        }}
-        caseRef={caseRef}
-        doc={{
-          matter: "Application for the appointment of a PoA-holder",
-          facts: [
-            { term: "Granting party", value: grantingParty?.name ?? "" },
-            {
-              term: "PoA-holder",
-              value:
-                holderMode === "existing"
-                  ? `${holderDisplayName} (already on this case)`
-                  : holderDisplayName,
-            },
-            ...(holderMode === "new" && holderPhone
-              ? [{ term: "Mobile number", value: holderPhone }]
-              : []),
-            ...(deedFile ? [{ term: "Annexure", value: deedFile.name }] : []),
-          ],
-          prayer: [
-            `The applicant, counsel on record in the above matter, prays that ${holderDisplayName || "the person named above"} be recognised as the Power of Attorney holder of ${grantingParty?.name ?? "the party"} under the deed annexed.`,
-            `Grounds: ${reason.trim()}`,
-            "It is prayed that this Hon'ble Court may allow this application and pass such orders as are deemed fit.",
-          ],
-        }}
-        onAddSignature={() => setAppStage("sign")}
-      />
       <PartySignatureDialog
-        open={appStage === "sign"}
-        onOpenChange={(next) => {
-          if (!next) setAppStage("none");
+        open={signOpen}
+        onClose={() => setSignOpen(false)}
+        onComplete={() => {
+          /* The granting party's pane grows a Power of attorney section
+             with the holder waiting on the order — the application must
+             show where its result will land. */
+          if (partyId && holderDisplayName) {
+            live?.addPoaHolder(partyId, holderDisplayName);
+          }
+          closeClean();
         }}
-        onBack={() => setAppStage("document")}
-        onSigned={() => {
-          setAppStage("none");
-          setDone(true);
+        confirmation={{
+          title: "Application sent to the magistrate",
+          description: `${holderDisplayName || "The holder"} is added as ${grantingParty?.name ?? "the party"}'s PoA-holder once the order is passed.`,
         }}
       />
 
@@ -633,22 +577,5 @@ export function AddPoaDialog({
         </AlertDialogContent>
       </AlertDialog>
     </>
-  );
-}
-
-function ReviewRow({
-  term,
-  children,
-}: {
-  term: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <DescriptionRow className="grid-cols-1 sm:grid-cols-[minmax(7rem,10rem)_1fr]">
-      <DescriptionTerm className="text-body-compact">{term}</DescriptionTerm>
-      <DescriptionDetails className="text-body-compact">
-        {children}
-      </DescriptionDetails>
-    </DescriptionRow>
   );
 }
