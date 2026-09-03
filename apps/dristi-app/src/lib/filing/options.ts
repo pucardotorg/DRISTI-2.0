@@ -176,7 +176,12 @@ export const FINAL_RELIEF_TEMPLATE = [
 
 /* ───────────────────────────── Sign & pay ──────────────────────────── */
 
-export const DELIVERY_CHANNELS = ["RPAD", "Speed post", "Courier", "Email"];
+/**
+ * There is one channel, so there is no choice to offer: summons goes by e-post
+ * (owner, 2026-09-03). It is still recorded on the draft, because the filing has to say
+ * how the accused was served.
+ */
+export const DELIVERY_CHANNEL = "E-post";
 
 /**
  * The processes collectable upfront, and the court's rule for each (handover §19.3).
@@ -202,7 +207,10 @@ export type ProcessOption = {
   maxRounds: number;
   /** Charged for every address process is served at, each round. */
   perAddress: boolean;
-  /** Court fee in rupees per round (× addresses when `perAddress`). */
+  /**
+   * The nominal court fee per round (× addresses when `perAddress`) — §19.3's "small
+   * court fee". It is not the delivery charge; that is `CHANNEL_FEE`, billed apart.
+   */
   fee: number;
 };
 
@@ -215,7 +223,7 @@ export const PROCESS_OPTIONS: ProcessOption[] = [
     defaultRounds: 1,
     maxRounds: 4,
     perAddress: true,
-    fee: 49,
+    fee: 12.5,
   },
   {
     key: "warrants",
@@ -225,7 +233,7 @@ export const PROCESS_OPTIONS: ProcessOption[] = [
     defaultRounds: 4,
     maxRounds: 4,
     perAddress: false,
-    fee: 50,
+    fee: 12.5,
   },
   {
     key: "notice",
@@ -235,7 +243,7 @@ export const PROCESS_OPTIONS: ProcessOption[] = [
     defaultRounds: 0,
     maxRounds: 1,
     perAddress: false,
-    fee: 49,
+    fee: 12.5,
   },
 ];
 
@@ -299,10 +307,10 @@ export const CONDONATION_FEE: FeeLine = {
  */
 export const CHANNEL_FEE: FeeLine = {
   key: "channel",
-  label: "Delivery of summons",
+  label: `${DELIVERY_CHANNEL} delivery of summons`,
   amount: 100,
   perAddress: true,
-  note: "Placeholder e-post rate — the real per-channel logic is still to come.",
+  note: "Placeholder e-post rate — the real charge is still to come.",
 };
 
 

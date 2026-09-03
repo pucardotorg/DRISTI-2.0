@@ -37,8 +37,8 @@ import {
 
 import { getRepository, storeUpload } from "@/lib/filing/data";
 import { forgetFile, formatBytes } from "@/lib/filing/files";
-import { addressToString, rupees, toLongDate } from "@/lib/filing/format";
-import { COURT, DELIVERY_CHANNELS, PROCESS_OPTIONS } from "@/lib/filing/options";
+import { addressToString, money, toLongDate } from "@/lib/filing/format";
+import { COURT, DELIVERY_CHANNEL, PROCESS_OPTIONS } from "@/lib/filing/options";
 import { useProfile } from "@/lib/filing/profile";
 import {
   accusedLabel,
@@ -229,7 +229,7 @@ function FeeGroup({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-body-compact font-semibold text-foreground">{title}</h3>
         <span className="text-body-compact font-semibold tabular-nums">
-          {rupees(total)}
+          {money(total)}
         </span>
       </div>
       {caption ? <p className="text-caption text-muted-foreground">{caption}</p> : null}
@@ -238,15 +238,15 @@ function FeeGroup({
           <div key={line.key} className="flex items-baseline justify-between gap-4 py-2">
             <dt className="min-w-0 text-body-compact text-muted-foreground">
               {line.label}
-              {line.units > 1 ? (
+              {line.unitNote ? (
                 <span className="tabular-nums">
                   {" "}
-                  · {rupees(line.rate)} × {line.unitNote ?? line.units}
+                  · {money(line.rate)} × {line.unitNote}
                 </span>
               ) : null}
             </dt>
             <dd className="shrink-0 text-body-compact font-medium tabular-nums">
-              {rupees(line.amount)}
+              {money(line.amount)}
             </dd>
           </div>
         ))}
@@ -460,8 +460,8 @@ export function SignSection() {
    * declinable — choosing a summons round buys its delivery too.
    */
   const rowAmount = (key: string) =>
-    [...bill.process, ...bill.delivery]
-      .filter((l) => l.key === key || (key === "summons" && l.key === "channel"))
+    bill.process
+      .filter((l) => l.key === key)
       .reduce((total, line) => total + line.amount, 0);
   /** What the process group is actually for — rounds and addresses, in one sentence. */
   const processCaption = React.useMemo(() => {
@@ -716,11 +716,6 @@ export function SignSection() {
       if (next.length) d.sign.processAddresses = next;
     });
 
-  const setChannel = (value: string) =>
-    update((d) => {
-      d.sign.deliveryChannel = value;
-    });
-
   const payNow = () => {
     setModal("processing");
     if (payTimer.current) window.clearTimeout(payTimer.current);
@@ -739,7 +734,7 @@ export function SignSection() {
         if (!d.sign.processAddresses.length) {
           d.sign.processAddresses = addressOptions.map((o) => o.key);
         }
-        if (!d.sign.deliveryChannel) d.sign.deliveryChannel = DELIVERY_CHANNELS[0];
+        d.sign.deliveryChannel = DELIVERY_CHANNEL;
       });
       setModal("success");
     }, 2600);
@@ -792,7 +787,7 @@ export function SignSection() {
         <div className="flex flex-col gap-0.5">
           <dt className="text-caption font-medium text-muted-foreground">Amount paid</dt>
           <dd className="text-body-compact font-medium tabular-nums">
-            {rupees(sign.paidAmount ?? bill.total)}
+            {money(sign.paidAmount ?? bill.total)}
           </dd>
         </div>
         <div className="flex flex-col gap-0.5">
@@ -1325,84 +1320,8 @@ export function SignSection() {
           </DialogHeader>
 
           <div className="flex min-h-0 flex-col gap-8 overflow-y-auto">
-            {/* Process */}
-            <FieldSet className="gap-3">
-              <FieldLegend className="text-body font-semibold">
-                Process to pay for now
-              </FieldLegend>
-              <div className="flex flex-col divide-y divide-hairline">
-                {PROCESS_OPTIONS.map((option) => {
-                  const id = `process-${option.key}`;
-                  const chosen = rounds[option.key] ?? option.minRounds;
-                  const choices = Array.from(
-                    { length: option.maxRounds - option.minRounds + 1 },
-                    (_, i) => option.minRounds + i
-                  );
-                  return (
-                    <div
-                      key={option.key}
-                      className="flex flex-wrap items-start justify-between gap-4 py-3 first:pt-0 last:pb-0"
-                    >
-                      <div className="flex min-w-56 flex-1 flex-col gap-0.5">
-                        <Label htmlFor={id} className="text-body-compact font-medium">
-                          {option.label}
-                          {option.minRounds > 0 ? (
-                            <span className="text-muted-foreground"> · required</span>
-                          ) : null}
-                        </Label>
-                        <p className="text-caption text-muted-foreground">{option.note}</p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-4">
-                        <NativeSelect
-                          id={id}
-                          className="w-40"
-                          value={String(chosen)}
-                          onChange={(e) => setRounds(option.key, Number(e.target.value))}
-                        >
-                          {choices.map((n) => (
-                            <NativeSelectOption key={n} value={String(n)}>
-                              {n === 0 ? "Not now" : n === 1 ? "1 round" : `${n} rounds`}
-                            </NativeSelectOption>
-                          ))}
-                        </NativeSelect>
-                        <span className="min-w-16 text-right text-body-compact font-medium tabular-nums">
-                          {rowAmount(option.key) ? rupees(rowAmount(option.key)) : "—"}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <p className="text-caption text-muted-foreground">
-                Anything you leave out now is paid for later, if and when the court
-                orders it. What you pay for now is issued without a second payment step.
-              </p>
-            </FieldSet>
-
-            {/* Delivery channel */}
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="delivery-channel" className="text-body font-semibold">
-                Delivery channel
-              </Label>
-              <NativeSelect
-                id="delivery-channel"
-                className="w-full sm:max-w-xs"
-                value={sign.deliveryChannel || DELIVERY_CHANNELS[0]}
-                onChange={(e) => setChannel(e.target.value)}
-              >
-                {DELIVERY_CHANNELS.map((c) => (
-                  <NativeSelectOption key={c} value={c}>
-                    {c}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-              <p className="text-caption text-muted-foreground">
-                How the summons reaches the accused. Its fee is charged per address, for
-                every round you pay for.
-              </p>
-            </div>
-
-            {/* Addresses */}
+            {/* Addresses first: they multiply the summons, so where comes before how
+                many — you cannot price a round until you know how far it travels. */}
             <FieldSet className="gap-3">
               <FieldLegend className="text-body font-semibold">
                 Where process is served
@@ -1430,7 +1349,8 @@ export function SignSection() {
                     );
                   })}
                   <p className="text-caption text-muted-foreground">
-                    Process goes to at least one address.
+                    Process goes to at least one address. Summons is charged for each of
+                    them, every round.
                   </p>
                 </>
               ) : (
@@ -1446,6 +1366,85 @@ export function SignSection() {
                 </p>
               )}
             </FieldSet>
+
+            {/* Rounds */}
+            <FieldSet className="gap-3">
+              <FieldLegend className="text-body font-semibold">
+                Process to pay for now
+              </FieldLegend>
+              <div className="flex flex-col divide-y divide-hairline">
+                {PROCESS_OPTIONS.map((option) => {
+                  const id = `process-${option.key}`;
+                  const chosen = rounds[option.key] ?? option.minRounds;
+                  const choices = Array.from(
+                    { length: option.maxRounds - option.minRounds + 1 },
+                    (_, i) => option.minRounds + i
+                  );
+                  return (
+                    <div
+                      key={option.key}
+                      className="flex flex-wrap items-start justify-between gap-4 py-3 first:pt-0"
+                    >
+                      <div className="flex min-w-56 flex-1 flex-col gap-0.5">
+                        <Label htmlFor={id} className="text-body-compact font-medium">
+                          {option.label}
+                          {option.minRounds > 0 ? (
+                            <span className="text-muted-foreground"> · required</span>
+                          ) : null}
+                        </Label>
+                        <p className="text-caption text-muted-foreground">{option.note}</p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-4">
+                        <NativeSelect
+                          id={id}
+                          className="w-40"
+                          value={String(chosen)}
+                          onChange={(e) => setRounds(option.key, Number(e.target.value))}
+                        >
+                          {choices.map((n) => (
+                            <NativeSelectOption key={n} value={String(n)}>
+                              {n === 0 ? "Not now" : n === 1 ? "1 round" : `${n} rounds`}
+                            </NativeSelectOption>
+                          ))}
+                        </NativeSelect>
+                        <span className="min-w-16 text-right text-body-compact font-medium tabular-nums">
+                          {rowAmount(option.key) ? money(rowAmount(option.key)) : "—"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/*
+                  Delivery is not a fourth choice — it is what the summons rounds above
+                  cost to actually send, and it dwarfs the court fees beside it. So it
+                  sits with them, carrying no control, stating its own arithmetic.
+                */}
+                {bill.delivery.map((line) => (
+                  <div
+                    key={line.key}
+                    className="flex flex-wrap items-baseline justify-between gap-4 py-3"
+                  >
+                    <div className="flex min-w-56 flex-1 flex-col gap-0.5">
+                      <p className="text-body-compact font-medium text-foreground">
+                        {line.label}
+                      </p>
+                      <p className="text-caption text-muted-foreground tabular-nums">
+                        {money(line.rate)} × {line.unitNote} — charged by the post
+                        office, not by the court.
+                      </p>
+                    </div>
+                    <span className="min-w-16 text-right text-body-compact font-medium tabular-nums">
+                      {money(line.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-caption text-muted-foreground">
+                Anything you leave out now is paid for later, if and when the court
+                orders it. What you pay for now is issued without a second payment step.
+              </p>
+            </FieldSet>
           </div>
 
           {/*
@@ -1456,7 +1455,7 @@ export function SignSection() {
           <div className="flex items-baseline justify-between gap-4 border-t border-hairline pt-4">
             <span className="text-body font-semibold">Payable now</span>
             <span className="text-title-s font-semibold tabular-nums">
-              {rupees(bill.total)}
+              {money(bill.total)}
             </span>
           </div>
 
@@ -1503,8 +1502,8 @@ export function SignSection() {
             />
 
             <FeeGroup
-              title="Delivery"
-              caption="Charged by the delivery channel, not by the court."
+              title={`Delivery of summons · ${DELIVERY_CHANNEL}`}
+              caption="Charged for each address, every round of summons — by the post office, not by the court."
               lines={bill.delivery}
               total={bill.deliveryTotal}
             />
@@ -1513,12 +1512,12 @@ export function SignSection() {
           <div className="flex items-baseline justify-between gap-4 border-t border-hairline pt-4">
             <span className="text-body font-semibold">Payable now</span>
             <span className="text-title-s font-semibold tabular-nums">
-              {rupees(bill.total)}
+              {money(bill.total)}
             </span>
           </div>
 
           <Button type="button" size="lg" className="w-full" onClick={payNow}>
-            Pay {rupees(bill.total)} online
+            Pay {money(bill.total)} online
           </Button>
 
           <p className="text-caption text-muted-foreground">
@@ -1598,7 +1597,7 @@ export function SignSection() {
             <div className="flex items-center justify-between gap-4 text-body-compact">
               <span className="text-muted-foreground">Amount paid</span>
               <span className="font-semibold text-foreground tabular-nums">
-                {rupees(sign.paidAmount ?? bill.total)}
+                {money(sign.paidAmount ?? bill.total)}
               </span>
             </div>
             <div className="flex items-center justify-between gap-4 text-body-compact">

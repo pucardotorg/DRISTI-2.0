@@ -399,8 +399,8 @@ export type BilledLine = {
   rate: number;
   /** How many units — rounds, and addresses again for the per-address lines. */
   units: number;
-  /** How that unit count is arrived at, e.g. "2 rounds × 3 addresses". */
-  unitNote?: string;
+  /** How that unit count is arrived at, e.g. "3 addresses × 2 rounds". */
+  unitNote: string;
   amount: number;
   note?: string;
 };
@@ -440,12 +440,18 @@ export function processRounds(draft: FilingDraft): Record<string, number> {
   return out;
 }
 
-/** How a line's unit count is arrived at — the multiplication, said in words. */
-function unitNote(rounds: number, addresses: number): string | undefined {
+/**
+ * How a line's unit count is arrived at — the multiplication, said in words, and said
+ * even when a factor is 1. "₹100 × 1 address × 1 round" is longer than "₹100" and it is
+ * the only version that tells you what would happen if you added an address.
+ */
+function unitNote(rounds: number, addresses: number | null): string {
   const parts: string[] = [];
-  if (rounds > 1) parts.push(`${rounds} rounds`);
-  if (addresses > 1) parts.push(`${addresses} addresses`);
-  return parts.length ? parts.join(" × ") : undefined;
+  if (addresses !== null) {
+    parts.push(addresses === 1 ? "1 address" : `${addresses} addresses`);
+  }
+  parts.push(rounds === 1 ? "1 round" : `${rounds} rounds`);
+  return parts.join(" × ");
 }
 
 /**
@@ -466,6 +472,8 @@ export function feeBill(draft: FilingDraft): FeeBill {
     label: l.label,
     rate: l.amount,
     units: 1,
+    // Charged once for the filing, so there is no multiplication to explain.
+    unitNote: "",
     amount: l.amount,
     note: l.note,
   }));
@@ -475,6 +483,7 @@ export function feeBill(draft: FilingDraft): FeeBill {
       label: CONDONATION_FEE.label,
       rate: CONDONATION_FEE.amount,
       units: 1,
+      unitNote: "",
       amount: CONDONATION_FEE.amount,
       note: CONDONATION_FEE.note,
     });
@@ -503,7 +512,7 @@ export function feeBill(draft: FilingDraft): FeeBill {
       label: `Court fee — ${option.label.toLowerCase()}`,
       rate: option.fee,
       units,
-      unitNote: unitNote(n, option.perAddress ? addresses : 0),
+      unitNote: unitNote(n, option.perAddress ? addresses : null),
       amount: option.fee * units,
     });
   }

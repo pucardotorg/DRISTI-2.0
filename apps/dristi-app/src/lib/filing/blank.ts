@@ -10,6 +10,7 @@ import { newId } from "./data";
 import {
   AFFIDAVIT_PIP_TEMPLATE,
   defaultProcessRounds,
+  DELIVERY_CHANNEL,
   FINAL_RELIEF_TEMPLATE,
   INTERIM_RELIEF_TEMPLATE,
   PROCESS_OPTIONS,
@@ -441,7 +442,7 @@ export function createBlankDraft(id: string, profile?: UserProfile | null): Fili
       signed: {},
       signedCopy: null,
       confirmed: {},
-      deliveryChannel: "",
+      deliveryChannel: DELIVERY_CHANNEL,
       processAddresses: [],
       processRounds: defaultProcessRounds(),
       paid: false,
@@ -509,6 +510,8 @@ export function migrateDraft(draft: FilingDraft): FilingDraft {
     }
     draft.sign.processRounds = rounds;
   }
+  // There is one delivery channel now, so any channel an older draft chose is stale.
+  draft.sign.deliveryChannel = DELIVERY_CHANNEL;
   draft.sign.paidAmount ??= null;
   draft.affidavit ??= "";
   // Phone confirmation on the upload path is newer than these drafts.
