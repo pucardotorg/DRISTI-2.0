@@ -37,15 +37,21 @@ import {
 
 import { getRepository, storeUpload } from "@/lib/filing/data";
 import { forgetFile, formatBytes } from "@/lib/filing/files";
-import { addressToString, money, toLongDate } from "@/lib/filing/format";
-import { COURT, DELIVERY_CHANNEL, PROCESS_OPTIONS } from "@/lib/filing/options";
+import { money, toLongDate } from "@/lib/filing/format";
+import {
+  CHANNEL_FEE,
+  COURT,
+  DELIVERY_CHANNEL,
+  DELIVERY_MIN_ROUNDS,
+  PROCESS_OPTIONS,
+} from "@/lib/filing/options";
 import { useProfile } from "@/lib/filing/profile";
 import {
-  accusedLabel,
   feeBill,
   phoneConfirmers,
-  processRounds,
+  processPlan,
   signatories,
+  type AccusedPlan,
   type BilledLine,
 } from "@/lib/filing/selectors";
 import { FILINGS_HOME, neighbours } from "@/lib/filing/steps";
@@ -452,27 +458,22 @@ export function SignSection() {
 
   /** The bill, derived from this draft — see `feeBill` for what makes it specific. */
   const bill = React.useMemo(() => feeBill(draft), [draft]);
-  /** Rounds this filing is prepaying — clamped to the court's floor, so summons ≥ 1. */
-  const rounds = React.useMemo(() => processRounds(draft), [draft]);
-  /**
-   * What one process comes to on the choosing step. The delivery tariff is quoted with
-   * the summons rather than on a line of its own, because it is not separately
-   * declinable — choosing a summons round buys its delivery too.
-   */
-  const rowAmount = (key: string) =>
-    bill.process
-      .filter((l) => l.key === key)
-      .reduce((total, line) => total + line.amount, 0);
-  /** What the process group is actually for — rounds and addresses, in one sentence. */
+  /** What each accused is having served — defaults applied, floors held (`PAY-10/11/15`). */
+  const plans = React.useMemo(() => processPlan(draft), [draft]);
+  /** What the process group is for, in one sentence: rounds, per accused, and where. */
   const processCaption = React.useMemo(() => {
-    const chosen = PROCESS_OPTIONS.filter((p) => (rounds[p.key] ?? 0) > 0).map((p) => {
-      const n = rounds[p.key];
-      return `${n === 1 ? "1 round" : `${n} rounds`} of ${p.label.toLowerCase()}`;
+    const each = plans.map((plan) => {
+      const rounds = PROCESS_OPTIONS.filter((o) => (plan.rounds[o.key] ?? 0) > 0)
+        .map((o) => `${plan.rounds[o.key]} × ${o.label.toLowerCase()}`)
+        .join(", ");
+      const where =
+        plan.selected.length === 1 ? "1 address" : `${plan.selected.length} addresses`;
+      return plans.length > 1
+        ? `${plan.label}: ${rounds} at ${where}`
+        : `${rounds}, served at ${where}`;
     });
-    const where =
-      bill.addresses === 1 ? "1 address" : `${bill.addresses} addresses`;
-    return `${chosen.join(", ")} — served at ${where}.`;
-  }, [rounds, bill.addresses]);
+    return `${each.join(" · ")}.`;
+  }, [plans]);
 
   // Who signs is derived from the parties, never stored: editing a party changes this list.
   const { complainants, advocates } = React.useMemo(
@@ -562,28 +563,6 @@ export function SignSection() {
   }, [filed, flush]);
 
   const mobileTail = (profile?.mobile ?? "").replace(/\D/g, "").slice(-4);
-
-  /** Every address the court could serve process at, across all accused. */
-  const addressOptions = React.useMemo(
-    () =>
-      draft.accused.flatMap((a, ai) =>
-        a.addresses.flatMap((block, i) => {
-          const text = addressToString(block.addr);
-          if (!text.trim()) return [];
-          // Several addresses for one accused need telling apart in the list.
-          const label =
-            a.addresses.length > 1
-              ? `${accusedLabel(a, ai)} · Address ${i + 1}`
-              : accusedLabel(a, ai);
-          return [{ key: `${a.id}:${i}`, label, text }];
-        })
-      ),
-    [draft.accused]
-  );
-  // Nothing chosen yet means "everywhere we know of" — the choice persists on first edit.
-  const selectedAddresses = sign.processAddresses.length
-    ? sign.processAddresses
-    : addressOptions.map((o) => o.key);
 
   const printFile = () => {
     if (typeof window !== "undefined") window.print();
@@ -690,30 +669,58 @@ export function SignSection() {
   };
 
   /**
-   * How many rounds of one process to prepay. The court's floor is honoured here as well
-   * as in the bill: the mandatory summons round cannot be set to none, which is why that
-   * option is never offered rather than offered and rejected.
+   * Write one accused's choice. Only the difference from the court's defaults is
+   * stored — writing the resolved plan back would freeze the notice round at whatever
+   * the delay looked like on the day, which is exactly what `PAY-11` forbids.
    */
-  const setRounds = (key: string, next: number) =>
+  const editPlan = (
+    plan: AccusedPlan,
+    change: (draft: { rounds: Record<string, number>; delivery: number; addresses: number[] }) => void
+  ) =>
     update((d) => {
-      const option = PROCESS_OPTIONS.find((p) => p.key === key);
-      if (!option) return;
-      d.sign.processRounds = {
-        ...processRounds(d),
-        [key]: Math.min(option.maxRounds, Math.max(option.minRounds, next)),
+      const next = {
+        rounds: { ...plan.rounds },
+        delivery: plan.delivery,
+        addresses: [...plan.selected],
       };
+      change(next);
+      d.sign.process = { ...d.sign.process, [plan.accusedId]: next };
     });
 
-  const toggleAddress = (key: string) =>
-    update((d) => {
-      const current = d.sign.processAddresses.length
-        ? d.sign.processAddresses
-        : addressOptions.map((o) => o.key);
-      const next = current.includes(key)
-        ? current.filter((k) => k !== key)
-        : [...current, key];
-      // Process has to go somewhere — the last selected address stays selected.
-      if (next.length) d.sign.processAddresses = next;
+  /**
+   * How many rounds of one process this accused prepays. The floors are held here as
+   * well as in the plan: the mandatory summons round is never offered as declinable,
+   * and cutting summons rounds cuts the e-post that delivers them with it.
+   */
+  const setRounds = (plan: AccusedPlan, key: string, value: number) =>
+    editPlan(plan, (next) => {
+      const option = PROCESS_OPTIONS.find((p) => p.key === key);
+      if (!option) return;
+      next.rounds[key] = Math.min(option.maxRounds, Math.max(option.minRounds, value));
+      if (key === "summons") {
+        next.delivery = Math.min(
+          next.rounds.summons,
+          Math.max(DELIVERY_MIN_ROUNDS, next.delivery)
+        );
+      }
+    });
+
+  /** How many of this accused's summons rounds go by e-post — separately chosen. */
+  const setDelivery = (plan: AccusedPlan, value: number) =>
+    editPlan(plan, (next) => {
+      next.delivery = Math.min(
+        next.rounds.summons,
+        Math.max(DELIVERY_MIN_ROUNDS, value)
+      );
+    });
+
+  /** Where this accused's summons goes — at least one address stays selected. */
+  const toggleAddress = (plan: AccusedPlan, index: number) =>
+    editPlan(plan, (next) => {
+      const chosen = next.addresses.includes(index)
+        ? next.addresses.filter((i) => i !== index)
+        : [...next.addresses, index].sort((a, b) => a - b);
+      if (chosen.length) next.addresses = chosen;
     });
 
   const payNow = () => {
@@ -731,9 +738,6 @@ export function SignSection() {
         d.sign.caseFileNumber = caseNumber;
         d.status = "filed";
         d.filedAt = now;
-        if (!d.sign.processAddresses.length) {
-          d.sign.processAddresses = addressOptions.map((o) => o.key);
-        }
         d.sign.deliveryChannel = DELIVERY_CHANNEL;
       });
       setModal("success");
@@ -1319,132 +1323,196 @@ export function SignSection() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex min-h-0 flex-col gap-8 overflow-y-auto">
-            {/* Addresses first: they multiply the summons, so where comes before how
-                many — you cannot price a round until you know how far it travels. */}
-            <FieldSet className="gap-3">
-              <FieldLegend className="text-body font-semibold">
-                Where process is served
-              </FieldLegend>
-              {addressOptions.length ? (
-                <>
-                  {addressOptions.map((option) => {
-                    const id = `addr-${option.key.replace(/[^a-zA-Z0-9-]/g, "-")}`;
-                    return (
-                      <Field key={option.key} orientation="horizontal">
-                        <Checkbox
-                          id={id}
-                          checked={selectedAddresses.includes(option.key)}
-                          onCheckedChange={() => toggleAddress(option.key)}
-                        />
-                        <FieldContent>
-                          <Label htmlFor={id} className="text-body-compact font-medium">
-                            {option.label}
-                          </Label>
-                          <FieldDescription className="text-caption">
-                            {option.text}
-                          </FieldDescription>
-                        </FieldContent>
-                      </Field>
-                    );
-                  })}
-                  <p className="text-caption text-muted-foreground">
-                    Process goes to at least one address. Summons is charged for each of
-                    them, every round.
-                  </p>
-                </>
-              ) : (
-                <p className="text-body-compact text-muted-foreground">
-                  Add the accused’s address in the{" "}
-                  <Link
-                    href={hrefFor("accused")}
-                    className="font-medium text-primary underline underline-offset-2"
-                  >
-                    Accused section
-                  </Link>{" "}
-                  to choose where process is served.
-                </p>
-              )}
-            </FieldSet>
+          <div className="flex min-h-0 flex-col gap-6 overflow-y-auto">
+            {plans.map((plan) => {
+              const rounds = plan.rounds;
+              const line = bill.delivery.find((l) =>
+                l.key.startsWith(`${plan.accusedId}:`)
+              );
+              /** 1 … summons rounds — e-post never falls below the mandatory round. */
+              const deliveryChoices = Array.from(
+                { length: Math.max(0, rounds.summons - DELIVERY_MIN_ROUNDS + 1) },
+                (_, i) => DELIVERY_MIN_ROUNDS + i
+              );
+              return (
+                <section
+                  key={plan.accusedId}
+                  className={cn(
+                    "flex flex-col gap-4",
+                    // One accused needs no dividing from itself; several do.
+                    plans.length > 1 && "border-t border-hairline pt-6 first:border-t-0 first:pt-0"
+                  )}
+                >
+                  <h3 className="text-body font-semibold text-foreground">
+                    {plan.label}
+                  </h3>
 
-            {/* Rounds */}
-            <FieldSet className="gap-3">
-              <FieldLegend className="text-body font-semibold">
-                Process to pay for now
-              </FieldLegend>
-              <div className="flex flex-col divide-y divide-hairline">
-                {PROCESS_OPTIONS.map((option) => {
-                  const id = `process-${option.key}`;
-                  const chosen = rounds[option.key] ?? option.minRounds;
-                  const choices = Array.from(
-                    { length: option.maxRounds - option.minRounds + 1 },
-                    (_, i) => option.minRounds + i
-                  );
-                  return (
-                    <div
-                      key={option.key}
-                      className="flex flex-wrap items-start justify-between gap-4 py-3 first:pt-0"
-                    >
-                      <div className="flex min-w-56 flex-1 flex-col gap-0.5">
-                        <Label htmlFor={id} className="text-body-compact font-medium">
-                          {option.label}
-                          {option.minRounds > 0 ? (
-                            <span className="text-muted-foreground"> · required</span>
-                          ) : null}
-                        </Label>
-                        <p className="text-caption text-muted-foreground">{option.note}</p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-4">
-                        <NativeSelect
-                          id={id}
-                          className="w-40"
-                          value={String(chosen)}
-                          onChange={(e) => setRounds(option.key, Number(e.target.value))}
+                  {/* Addresses first: they multiply the summons, so where comes before
+                      how many — a round cannot be priced until you know how far it
+                      travels. */}
+                  <FieldSet className="gap-3">
+                    <FieldLegend className="text-body-compact font-medium">
+                      Where summons is served
+                    </FieldLegend>
+                    {plan.addresses.length ? (
+                      <>
+                        {plan.addresses.map((address) => {
+                          const id = `addr-${plan.accusedId}-${address.index}`;
+                          return (
+                            <Field key={address.index} orientation="horizontal">
+                              <Checkbox
+                                id={id}
+                                checked={plan.selected.includes(address.index)}
+                                onCheckedChange={() =>
+                                  toggleAddress(plan, address.index)
+                                }
+                              />
+                              <FieldContent>
+                                <Label
+                                  htmlFor={id}
+                                  className="text-body-compact font-medium"
+                                >
+                                  {address.label}
+                                </Label>
+                                <FieldDescription className="text-caption">
+                                  {address.text}
+                                </FieldDescription>
+                              </FieldContent>
+                            </Field>
+                          );
+                        })}
+                        <p className="text-caption text-muted-foreground">
+                          Summons is charged for each address selected, every round.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-body-compact text-muted-foreground">
+                        Add this accused’s address in the{" "}
+                        <Link
+                          href={hrefFor("accused")}
+                          className="font-medium text-primary underline underline-offset-2"
                         >
-                          {choices.map((n) => (
-                            <NativeSelectOption key={n} value={String(n)}>
-                              {n === 0 ? "Not now" : n === 1 ? "1 round" : `${n} rounds`}
-                            </NativeSelectOption>
-                          ))}
-                        </NativeSelect>
-                        <span className="min-w-16 text-right text-body-compact font-medium tabular-nums">
-                          {rowAmount(option.key) ? money(rowAmount(option.key)) : "—"}
-                        </span>
+                          Accused section
+                        </Link>{" "}
+                        to choose where summons is served.
+                      </p>
+                    )}
+                  </FieldSet>
+
+                  <FieldSet className="gap-3">
+                    <FieldLegend className="text-body-compact font-medium">
+                      Process to pay for now
+                    </FieldLegend>
+                    <div className="flex flex-col divide-y divide-hairline">
+                      {PROCESS_OPTIONS.map((option) => {
+                        const id = `process-${plan.accusedId}-${option.key}`;
+                        const chosen = rounds[option.key] ?? option.minRounds;
+                        const choices = Array.from(
+                          { length: option.maxRounds - option.minRounds + 1 },
+                          (_, i) => option.minRounds + i
+                        );
+                        const amount = bill.process
+                          .filter((l) => l.key === `${plan.accusedId}:${option.key}`)
+                          .reduce((t, l) => t + l.amount, 0);
+                        return (
+                          <div
+                            key={option.key}
+                            className="flex flex-wrap items-start justify-between gap-4 py-3 first:pt-0"
+                          >
+                            <div className="flex min-w-56 flex-1 flex-col gap-0.5">
+                              <Label
+                                htmlFor={id}
+                                className="text-body-compact font-medium"
+                              >
+                                {option.label}
+                                {option.minRounds > 0 ? (
+                                  <span className="text-muted-foreground">
+                                    {" "}
+                                    · required
+                                  </span>
+                                ) : null}
+                              </Label>
+                              <p className="text-caption text-muted-foreground">
+                                {option.note}
+                              </p>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-4">
+                              <NativeSelect
+                                id={id}
+                                className="w-40"
+                                value={String(chosen)}
+                                onChange={(e) =>
+                                  setRounds(plan, option.key, Number(e.target.value))
+                                }
+                              >
+                                {choices.map((n) => (
+                                  <NativeSelectOption key={n} value={String(n)}>
+                                    {n === 0
+                                      ? "Not now"
+                                      : n === 1
+                                        ? "1 round"
+                                        : `${n} rounds`}
+                                  </NativeSelectOption>
+                                ))}
+                              </NativeSelect>
+                              <span className="min-w-16 text-right text-body-compact font-medium tabular-nums">
+                                {amount ? money(amount) : "—"}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/*
+                        E-post is its own decision (`PAY-15`), not a consequence of the
+                        summons count — you may prepay three rounds of summons and the
+                        delivery of one. It only cannot go below the mandatory first
+                        round, which is why "Not now" is absent here as it is above.
+                      */}
+                      <div className="flex flex-wrap items-start justify-between gap-4 py-3">
+                        <div className="flex min-w-56 flex-1 flex-col gap-0.5">
+                          <Label
+                            htmlFor={`delivery-${plan.accusedId}`}
+                            className="text-body-compact font-medium"
+                          >
+                            {CHANNEL_FEE.label}
+                            <span className="text-muted-foreground"> · required</span>
+                          </Label>
+                          <p className="text-caption text-muted-foreground tabular-nums">
+                            {money(CHANNEL_FEE.amount)} for each address, every round —
+                            charged by the post office, not by the court.
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-4">
+                          <NativeSelect
+                            id={`delivery-${plan.accusedId}`}
+                            className="w-40"
+                            value={String(plan.delivery)}
+                            onChange={(e) =>
+                              setDelivery(plan, Number(e.target.value))
+                            }
+                          >
+                            {deliveryChoices.map((n) => (
+                              <NativeSelectOption key={n} value={String(n)}>
+                                {n === 1 ? "1 round" : `${n} rounds`}
+                              </NativeSelectOption>
+                            ))}
+                          </NativeSelect>
+                          <span className="min-w-16 text-right text-body-compact font-medium tabular-nums">
+                            {line ? money(line.amount) : "—"}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  );
-                })}
+                  </FieldSet>
+                </section>
+              );
+            })}
 
-                {/*
-                  Delivery is not a fourth choice — it is what the summons rounds above
-                  cost to actually send, and it dwarfs the court fees beside it. So it
-                  sits with them, carrying no control, stating its own arithmetic.
-                */}
-                {bill.delivery.map((line) => (
-                  <div
-                    key={line.key}
-                    className="flex flex-wrap items-baseline justify-between gap-4 py-3"
-                  >
-                    <div className="flex min-w-56 flex-1 flex-col gap-0.5">
-                      <p className="text-body-compact font-medium text-foreground">
-                        {line.label}
-                      </p>
-                      <p className="text-caption text-muted-foreground tabular-nums">
-                        {money(line.rate)} × {line.unitNote} — charged by the post
-                        office, not by the court.
-                      </p>
-                    </div>
-                    <span className="min-w-16 text-right text-body-compact font-medium tabular-nums">
-                      {money(line.amount)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-caption text-muted-foreground">
-                Anything you leave out now is paid for later, if and when the court
-                orders it. What you pay for now is issued without a second payment step.
-              </p>
-            </FieldSet>
+            <p className="text-caption text-muted-foreground">
+              Anything you leave out now is paid for later, if and when the court orders
+              it. What you pay for now is issued without a second payment step.
+            </p>
           </div>
 
           {/*

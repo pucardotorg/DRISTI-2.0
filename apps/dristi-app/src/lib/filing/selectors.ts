@@ -1,10 +1,12 @@
 /** Derived reads over the draft — pure functions so screens and the shell agree. */
 
-import { addDays, daysBetween, todayIso } from "./format";
+import { addDays, addressToString, daysBetween, todayIso } from "./format";
 import {
   CHANNEL_FEE,
   CONDONATION_FEE,
   COURT_FEE_LINES,
+  defaultProcessRounds,
+  DELIVERY_MIN_ROUNDS,
   PROCESS_OPTIONS,
 } from "./options";
 import { WALK_ORDER } from "./steps";
@@ -415,7 +417,7 @@ export type FeeBill = {
   courtTotal: number;
   processTotal: number;
   deliveryTotal: number;
-  /** Addresses process is served at — what the per-address lines are multiplied by. */
+  /** Addresses summons is served at, across every accused. */
   addresses: number;
   /** `true` when the filing is past the limitation period and the extra fee applies. */
   delayed: boolean;
@@ -423,27 +425,93 @@ export type FeeBill = {
   total: number;
 };
 
-/**
- * The rounds this draft is prepaying, held to the court's own floor and ceiling.
- *
- * The floor is the point: **one round of summons is mandatory**, so a draft that says
- * otherwise — an old one, or a stored value that has drifted — is still billed for it.
- * There is no blanket opt-out to honour, only a per-process count to clamp.
- */
-export function processRounds(draft: FilingDraft): Record<string, number> {
-  const stored = draft.sign.processRounds ?? {};
-  const out: Record<string, number> = {};
-  for (const option of PROCESS_OPTIONS) {
-    const n = Number.isFinite(stored[option.key]) ? Math.trunc(stored[option.key]) : 0;
-    out[option.key] = Math.min(option.maxRounds, Math.max(option.minRounds, n));
-  }
-  return out;
+/** Is this filing past the limitation period, so a condonation application applies? */
+export function isDelayed(draft: FilingDraft): boolean {
+  const delay = daysBetween(draft.jurisdiction.causeDate, draft.jurisdiction.filingDate);
+  return delay !== null && delay > LIMITATION_DAYS;
 }
 
+/** One address of one accused, as the choosing screen and the bill both need it. */
+export type PlanAddress = { index: number; label: string; text: string };
+
 /**
- * How a line's unit count is arrived at — the multiplication, said in words, and said
+ * What one accused is having served, resolved — defaults applied, choices clamped.
+ */
+export type AccusedPlan = {
+  accusedId: string;
+  /** "Suresh Menon", or "Accused 2" until they are named. */
+  label: string;
+  /** Every address on record for this accused; summons can go to any of them. */
+  addresses: PlanAddress[];
+  /** The addresses summons is actually served at — never empty when any exist. */
+  selected: number[];
+  /** Rounds prepaid, by `PROCESS_OPTIONS` key. */
+  rounds: Record<string, number>;
+  /** Rounds of e-post prepaid: 1 … `rounds.summons` (`PAY-15`). */
+  delivery: number;
+};
+
+/**
+ * The upfront plan for every accused — the one place defaults, floors and ceilings are
+ * applied, so the screen that offers the choice and the bill that prices it cannot
+ * disagree.
+ *
+ * Three rules live here and nowhere else:
+ *  - the mandatory summons round is **per accused** (`PAY-10`), so an accused can never
+ *    resolve to zero rounds however the stored record drifted;
+ *  - the notice default follows the Delay Condonation section as it stands *now*
+ *    (`PAY-11`) — it is not frozen at draft creation;
+ *  - e-post cannot exceed the summons rounds it delivers, nor fall below the mandatory
+ *    first round (`PAY-15`).
+ */
+export function processPlan(draft: FilingDraft): AccusedPlan[] {
+  const delayed = isDelayed(draft);
+  const defaults = defaultProcessRounds(delayed);
+
+  return draft.accused.map((accused, ai) => {
+    const stored = draft.sign.process?.[accused.id] ?? {};
+
+    const addresses: PlanAddress[] = accused.addresses.flatMap((block, index) => {
+      const text = addressToString(block.addr);
+      return text.trim() ? [{ index, label: `Address ${index + 1}`, text }] : [];
+    });
+
+    // Nothing chosen yet means every address on record, which is what the court
+    // assumes; a stored choice that no longer matches the addresses is filtered, and an
+    // empty result falls back rather than pricing a summons that goes nowhere.
+    const onRecord = addresses.map((a) => a.index);
+    const kept = (stored.addresses ?? onRecord).filter((i) => onRecord.includes(i));
+    const selected = kept.length ? kept : onRecord;
+
+    const rounds: Record<string, number> = {};
+    for (const option of PROCESS_OPTIONS) {
+      const raw = stored.rounds?.[option.key];
+      const n = Number.isFinite(raw) ? Math.trunc(raw as number) : defaults[option.key];
+      rounds[option.key] = Math.min(option.maxRounds, Math.max(option.minRounds, n ?? 0));
+    }
+
+    const deliveryRaw = Number.isFinite(stored.delivery)
+      ? Math.trunc(stored.delivery as number)
+      : rounds.summons;
+    const delivery = Math.min(
+      rounds.summons,
+      Math.max(DELIVERY_MIN_ROUNDS, deliveryRaw)
+    );
+
+    return {
+      accusedId: accused.id,
+      label: accusedLabel(accused, ai),
+      addresses,
+      selected,
+      rounds,
+      delivery,
+    };
+  });
+}
+
+/** How a line's unit count is arrived at — the multiplication, said in words, and said
  * even when a factor is 1. "₹100 × 1 address × 1 round" is longer than "₹100" and it is
- * the only version that tells you what would happen if you added an address.
+ * the only version that tells you what would happen if you added an address (`PAY-13`).
  */
 function unitNote(rounds: number, addresses: number | null): string {
   const parts: string[] = [];
@@ -457,15 +525,17 @@ function unitNote(rounds: number, addresses: number | null): string {
 /**
  * What this filing owes, derived — never stored.
  *
- * Two things make the bill specific to the draft rather than a fixed price list: whether
- * the complaint is late (which adds the condonation application fee), and how many
- * addresses process has to reach (which multiplies every delivery line). Both are read
- * from the draft here so the screen can state them, because a total nobody can account
- * for is a total nobody should be asked to pay.
+ * Three groups, because the money has three sources and the filer is answerable for
+ * them differently: the filing fees that decide whether the complaint is registered at
+ * all, the nominal court fee on each process round prepaid, and e-post — which is the
+ * post office's charge, not the court's, and the large one.
+ *
+ * Process and delivery are priced per accused (§19.3): each accused's own rounds, over
+ * each accused's own selected addresses. Lines name the accused only when there is more
+ * than one, so the ordinary single-accused bill does not repeat a name on every row.
  */
 export function feeBill(draft: FilingDraft): FeeBill {
-  const delay = daysBetween(draft.jurisdiction.causeDate, draft.jurisdiction.filingDate);
-  const delayed = delay !== null && delay > 30;
+  const delayed = isDelayed(draft);
 
   const court: BilledLine[] = COURT_FEE_LINES.map((l) => ({
     key: l.key,
@@ -489,51 +559,41 @@ export function feeBill(draft: FilingDraft): FeeBill {
     });
   }
 
-  // Process goes to every address chosen on the process-and-address step; before that
-  // choice is made it goes to every address on record, which is what the court assumes.
-  const onRecord = draft.accused.reduce(
-    (n, a) => n + a.addresses.filter((b) => b.addr.line1.trim()).length,
-    0
-  );
-  const chosen = draft.sign.processAddresses.length;
-  const addresses = Math.max(1, chosen || onRecord);
-
-  // One line per process the filer is prepaying, priced by rounds — and by addresses
-  // again for the ones the court serves address by address. A process nobody asked for
-  // has no line at all, so the bill never charges for something that was declined.
-  const rounds = processRounds(draft);
+  const plans = processPlan(draft);
+  const named = plans.length > 1;
   const process: BilledLine[] = [];
-  for (const option of PROCESS_OPTIONS) {
-    const n = rounds[option.key] ?? 0;
-    if (n < 1) continue;
-    const units = option.perAddress ? n * addresses : n;
-    process.push({
-      key: option.key,
-      label: `Court fee — ${option.label.toLowerCase()}`,
-      rate: option.fee,
-      units,
-      unitNote: unitNote(n, option.perAddress ? addresses : null),
-      amount: option.fee * units,
-    });
-  }
-
-  // The delivery tariff rides with the summons — one article per address, every round —
-  // so it appears only when summons is being prepaid, and it moves with it. It is the
-  // post office's charge, not the court's, and it is the big number on this bill, so it
-  // is billed as its own group rather than buried among the nominal court fees.
   const delivery: BilledLine[] = [];
-  const summonsRounds = rounds.summons ?? 0;
-  if (summonsRounds > 0) {
-    const units = summonsRounds * addresses;
-    delivery.push({
-      key: CHANNEL_FEE.key,
-      label: CHANNEL_FEE.label,
-      rate: CHANNEL_FEE.amount,
-      units,
-      unitNote: unitNote(summonsRounds, addresses),
-      amount: CHANNEL_FEE.amount * units,
-      note: CHANNEL_FEE.note,
-    });
+
+  for (const plan of plans) {
+    const addresses = Math.max(1, plan.selected.length);
+    const who = named ? `${plan.label} · ` : "";
+
+    for (const option of PROCESS_OPTIONS) {
+      const n = plan.rounds[option.key] ?? 0;
+      if (n < 1) continue;
+      const units = option.perAddress ? n * addresses : n;
+      process.push({
+        key: `${plan.accusedId}:${option.key}`,
+        label: `${who}${option.label}`,
+        rate: option.fee,
+        units,
+        unitNote: unitNote(n, option.perAddress ? addresses : null),
+        amount: option.fee * units,
+      });
+    }
+
+    if (plan.delivery > 0) {
+      const units = plan.delivery * addresses;
+      delivery.push({
+        key: `${plan.accusedId}:channel`,
+        label: `${who}${CHANNEL_FEE.label}`,
+        rate: CHANNEL_FEE.amount,
+        units,
+        unitNote: unitNote(plan.delivery, addresses),
+        amount: CHANNEL_FEE.amount * units,
+        note: CHANNEL_FEE.note,
+      });
+    }
   }
 
   const sum = (rows: BilledLine[]) => rows.reduce((t, r) => t + r.amount, 0);
@@ -547,7 +607,7 @@ export function feeBill(draft: FilingDraft): FeeBill {
     courtTotal,
     processTotal,
     deliveryTotal,
-    addresses,
+    addresses: plans.reduce((n, p) => n + Math.max(1, p.selected.length), 0),
     delayed,
     total: courtTotal + processTotal + deliveryTotal,
   };

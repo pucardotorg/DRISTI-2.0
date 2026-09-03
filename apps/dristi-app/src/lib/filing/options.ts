@@ -185,27 +185,26 @@ export const DELIVERY_CHANNEL = "E-post";
 
 /**
  * The processes collectable upfront, and the court's rule for each (handover §19.3).
- * These are not equals, so there is no blanket opt-out: **one round of summons is
- * mandatory — its court fee and its delivery fee both** — and everything beyond that
- * round is the filer's choice, made process by process. Whatever is not prepaid is
- * only charged if the court later orders that process; whatever is prepaid is served
- * with no second payment step.
  *
- * `defaultRounds` is what a fresh draft starts with: the one mandatory summons round,
- * serving every address on record, and four rounds of warrant (owner, 2026-09-03).
+ * Two things make this more than a price list. First, **none of it is a blanket
+ * opt-out**: one round of summons is mandatory, and it is mandatory *per accused* —
+ * three accused carry at least three rounds. Second, the notice default is not a
+ * constant: it follows the Delay Condonation section, evaluated when the bill is drawn
+ * rather than cached (`PAY-11`), because a correction cycle can attract the DCA weeks
+ * after the draft was started.
+ *
+ * Everything here is chosen per accused, independently — see `processPlan()`.
  */
 export type ProcessOption = {
   key: string;
   label: string;
   /** What this process is, in the words the filer needs to choose by. */
   note: string;
-  /** Rounds the court insists on — the choice never falls below this. */
+  /** Rounds the court insists on, for each accused — the choice never falls below this. */
   minRounds: number;
-  /** Rounds preselected on a fresh draft. */
-  defaultRounds: number;
   /** The most rounds collectable upfront. */
   maxRounds: number;
-  /** Charged for every address process is served at, each round. */
+  /** Charged for every address summons is served at, each round. */
   perAddress: boolean;
   /**
    * The nominal court fee per round (× addresses when `perAddress`) — §19.3's "small
@@ -220,7 +219,6 @@ export const PROCESS_OPTIONS: ProcessOption[] = [
     label: "Summons",
     note: "The court's call to the accused to appear. One round is required, delivered to every address you choose.",
     minRounds: 1,
-    defaultRounds: 1,
     maxRounds: 4,
     perAddress: true,
     fee: 12.5,
@@ -230,7 +228,6 @@ export const PROCESS_OPTIONS: ProcessOption[] = [
     label: "Warrants",
     note: "Issued if the accused does not appear after summons.",
     minRounds: 0,
-    defaultRounds: 4,
     maxRounds: 4,
     perAddress: false,
     fee: 12.5,
@@ -238,18 +235,23 @@ export const PROCESS_OPTIONS: ProcessOption[] = [
   {
     key: "notice",
     label: "Notice",
-    note: "One round, if the court is to issue a notice as well.",
+    note: "Issued on the application to condone the delay in filing.",
     minRounds: 0,
-    defaultRounds: 0,
     maxRounds: 1,
     perAddress: false,
     fee: 12.5,
   },
 ];
 
-/** A fresh draft's upfront choice — the court's defaults from the schedule above. */
-export function defaultProcessRounds(): Record<string, number> {
-  return Object.fromEntries(PROCESS_OPTIONS.map((p) => [p.key, p.defaultRounds]));
+/**
+ * What one accused starts with, before the filer touches anything (`PAY-11`).
+ *
+ * `delayed` is the only input, and it is passed rather than stored: the notice round is
+ * opted in when a Delay Condonation application applies and not otherwise, and that can
+ * change under a draft that sat through a correction cycle.
+ */
+export function defaultProcessRounds(delayed: boolean): Record<string, number> {
+  return { summons: 1, warrants: 1, notice: delayed ? 1 : 0 };
 }
 
 /**
@@ -312,6 +314,14 @@ export const CHANNEL_FEE: FeeLine = {
   perAddress: true,
   note: "Placeholder e-post rate — the real charge is still to come.",
 };
+
+/**
+ * Delivery is chosen separately from the summons court fee, round by round (`PAY-15`) —
+ * an accused with three summons rounds prepaid may prepay delivery for one, two or
+ * three of them. The floor is the mandatory first round, whose e-post is collected with
+ * it, so the count runs 1 … summons rounds and never reaches zero.
+ */
+export const DELIVERY_MIN_ROUNDS = 1;
 
 
 /* ───────────────────────────── Police stations ─────────────────────── */

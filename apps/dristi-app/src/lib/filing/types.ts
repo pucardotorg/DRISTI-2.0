@@ -377,6 +377,19 @@ export type PhoneConfirmation = {
   at: string;
 };
 
+/**
+ * One accused's upfront choice. Every field is optional because the stored record is
+ * an override of the defaults, not a snapshot of them.
+ */
+export type AccusedProcessChoice = {
+  /** Rounds prepaid, by `PROCESS_OPTIONS` key. */
+  rounds?: Record<string, number>;
+  /** Rounds of e-post prepaid — 1 … summons rounds (`PAY-15`). */
+  delivery?: number;
+  /** Address indices of *this* accused that summons is served at; at least one. */
+  addresses?: number[];
+};
+
 export type SignState = {
   mode: "esign" | "upload" | null;
   /** Signatory id → signed. Signatories themselves are derived, not stored. */
@@ -389,16 +402,14 @@ export type SignState = {
    */
   confirmed: Record<string, PhoneConfirmation>;
   deliveryChannel: string;
-  /** `${accusedId}:${addressIndex}` for each address process goes to. */
-  processAddresses: string[];
   /**
-   * Rounds of each process paid for upfront, keyed by `PROCESS_OPTIONS` key. One
-   * summons round is mandatory — court fee and delivery fee both — so `summons`
-   * never falls below 1; every other round is the filer's own per-process choice,
-   * there is no blanket deferral. A round left out is only charged if the court
-   * later orders that process; a prepaid one is served with no second payment step.
+   * The upfront process choice, per accused (`sign.process[accusedId]`) — handover
+   * §19.3. Only what the filer has explicitly changed is stored; anything absent
+   * follows the defaults, which is what lets the notice round track the Delay
+   * Condonation section instead of freezing at draft creation (`PAY-11`). Resolve it
+   * with `processPlan()` rather than reading it raw.
    */
-  processRounds: Record<string, number>;
+  process: Record<string, AccusedProcessChoice>;
   paid: boolean;
   paidAt: string | null;
   /** Rupees actually taken — the court fees plus every prepaid process round. */

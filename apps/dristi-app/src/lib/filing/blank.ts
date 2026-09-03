@@ -9,11 +9,9 @@
 import { newId } from "./data";
 import {
   AFFIDAVIT_PIP_TEMPLATE,
-  defaultProcessRounds,
   DELIVERY_CHANNEL,
   FINAL_RELIEF_TEMPLATE,
   INTERIM_RELIEF_TEMPLATE,
-  PROCESS_OPTIONS,
 } from "./options";
 import type {
   Accused,
@@ -443,8 +441,7 @@ export function createBlankDraft(id: string, profile?: UserProfile | null): Fili
       signedCopy: null,
       confirmed: {},
       deliveryChannel: DELIVERY_CHANNEL,
-      processAddresses: [],
-      processRounds: defaultProcessRounds(),
+      process: {},
       paid: false,
       paidAt: null,
       paidAmount: null,
@@ -496,22 +493,10 @@ export function migrateDraft(draft: FilingDraft): FilingDraft {
     c.fetched ??= false;
     c.rep.designation ??= "";
   }
-  // Process used to be a set of types with one blanket "pay later" switch. It is now
-  // rounds per process with a mandatory summons round, so an old draft's chosen types
-  // each become one round and the summons round is restored whether or not it was
-  // deferred — the court will not take the filing without it.
-  if (!draft.sign.processRounds) {
-    const legacy = (draft.sign as unknown as { processTypes?: string[] }).processTypes;
-    const rounds = defaultProcessRounds();
-    if (legacy) {
-      for (const p of PROCESS_OPTIONS) {
-        rounds[p.key] = Math.max(p.minRounds, legacy.includes(p.key) ? 1 : 0);
-      }
-    }
-    draft.sign.processRounds = rounds;
-  }
-  // There is one delivery channel now, so any channel an older draft chose is stale.
-  draft.sign.deliveryChannel = DELIVERY_CHANNEL;
+  // The upfront choice used to be one set of rounds for the whole case; it is now made
+  // per accused (§19.3). Nothing is carried across: an old draft's single choice cannot
+  // say which accused it was for, and the defaults it falls back to are the court's.
+  draft.sign.process ??= {};
   draft.sign.paidAmount ??= null;
   draft.affidavit ??= "";
   // Phone confirmation on the upload path is newer than these drafts.
