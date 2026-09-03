@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 
+import { CHROME_PAGE_DIALOG } from "@/components/chrome/app-chrome";
 import { CommentsPane } from "@/components/cases/document-record-dialog";
 import { DocumentPreview } from "@/components/cases/document-preview";
 import { ReviewRow } from "@/components/cases/filing-form-shared";
@@ -95,7 +96,7 @@ function RequestBody({
 
   return (
     <DialogContent
-      className="flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl md:h-[85dvh]"
+      className={`flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl md:h-[85dvh] ${CHROME_PAGE_DIALOG}`}
       onCloseAutoFocus={(event) => {
         event.preventDefault();
         onReturnFocus();

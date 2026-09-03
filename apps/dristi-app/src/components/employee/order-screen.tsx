@@ -2,9 +2,21 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, CalendarX2Icon, FilePlusIcon, PlusIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  CalendarX2Icon,
+  ChevronDownIcon,
+  FilePlusIcon,
+  PlusIcon,
+} from "lucide-react";
 
+import { CHROME_PAGE_DIALOG } from "@/components/chrome/app-chrome";
 import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
@@ -69,9 +81,13 @@ import {
  * How a panel sits on the court-side page — the same recipe as today's cause list
  * (`HearingsScreen`) and bulk reschedule. One lifted sheet, hairline edge, no nested
  * second frame inside it.
+ *
+ * The surface only. Each of the page's three panels (the listing band, Directions,
+ * the document) adds its own inner layout, because the band is a grid at `lg` where
+ * the other two are stacks.
  */
 const PANEL =
-  "flex min-w-0 flex-col gap-8 rounded-xl border border-hairline bg-card p-6 shadow-raised";
+  "min-w-0 rounded-xl border border-hairline bg-card p-6 shadow-raised";
 
 /**
  * Compose the order of one listing.
@@ -124,15 +140,37 @@ function OrderReady({ hearing }: { hearing: CourtHearing }) {
   const [draft, setDraft] = React.useState<OrderDraft>(EMPTY_ORDER_DRAFT);
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
+  const [rollOpen, setRollOpen] = React.useState(true);
   const nextId = React.useRef(1);
+  const autoFolded = React.useRef(false);
 
   const assembled = assembleOrder(hearing, draft);
 
+  /**
+   * Marking the last appearance folds the roll: the roll call is done, so the
+   * section gives its height back to the directions below it.
+   *
+   * Folded on the *transition* into "all marked", never on every change —
+   * otherwise reopening the section would slam it shut again on the next click.
+   * Unmarking someone re-arms the fold but does not reopen the section; whether
+   * to look at the roll again is the bench's call, not the screen's. Done here
+   * rather than in an effect so nothing sets state during render.
+   */
   function setMark(id: string, mark: AttendanceMark | undefined) {
+    const marks = { ...draft.marks, [id]: mark };
     setDraft((current) => ({
       ...current,
       marks: { ...current.marks, [id]: mark },
     }));
+    const allMarked = appearances.every(
+      (appearance) => marks[appearance.id] !== undefined,
+    );
+    if (!allMarked) {
+      autoFolded.current = false;
+    } else if (!autoFolded.current) {
+      autoFolded.current = true;
+      setRollOpen(false);
+    }
   }
 
   function setNext(next: NextListingChoice) {
@@ -188,10 +226,12 @@ function OrderReady({ hearing }: { hearing: CourtHearing }) {
           </p>
         </header>
 
-        <div className="grid min-w-0 items-start gap-8 lg:grid-cols-2">
+        <div className="grid min-w-0 items-start gap-8 lg:grid-cols-5">
           <WorkPanel
             appearances={appearances}
             draft={draft}
+            rollOpen={rollOpen}
+            onRollOpenChange={setRollOpen}
             onMark={setMark}
             onNext={setNext}
             onPurpose={(nextPurpose) =>
@@ -255,9 +295,22 @@ function OrderReady({ hearing }: { hearing: CourtHearing }) {
   );
 }
 
+/**
+ * The composer: the roll, the next listing, the directions — one container, in the
+ * order a sitting runs.
+ *
+ * Attendance is the only section here that is expensive in height and short-lived
+ * in relevance: it is marked once, at the top of the matter, and then it is history
+ * the document already carries. So it folds when the roll is complete and hands its
+ * height to the directions below, which is where the typing happens. That is the
+ * fix for the composer's scroll problem — the layout no longer has to buy the space
+ * by rearranging everything around it.
+ */
 function WorkPanel({
   appearances,
   draft,
+  rollOpen,
+  onRollOpenChange,
   onMark,
   onNext,
   onPurpose,
@@ -268,6 +321,8 @@ function WorkPanel({
 }: {
   appearances: Appearance[];
   draft: OrderDraft;
+  rollOpen: boolean;
+  onRollOpenChange: (open: boolean) => void;
   onMark: (id: string, mark: AttendanceMark | undefined) => void;
   onNext: (next: NextListingChoice) => void;
   onPurpose: (purpose: CourtHearingPurposeId | "") => void;
@@ -277,11 +332,13 @@ function WorkPanel({
   onRemove: (id: string) => void;
 }) {
   return (
-    <section className={PANEL} aria-label="Compose this order">
+    <div className={`${PANEL} flex flex-col gap-8 lg:col-span-3`}>
       <AttendanceSection
         appearances={appearances}
         marks={draft.marks}
         onMark={onMark}
+        open={rollOpen}
+        onOpenChange={onRollOpenChange}
       />
       <div role="separator" className="h-px w-full bg-hairline" />
       <NextListingSection
@@ -299,42 +356,87 @@ function WorkPanel({
         onUpdate={onUpdate}
         onRemove={onRemove}
       />
-    </section>
+    </div>
   );
+}
+
+/**
+ * What the folded roll says, so collapsing hides the rows and not the fact.
+ * Words, not colour — the document is where an absence is inked.
+ */
+function rollSummary(
+  appearances: Appearance[],
+  marks: OrderDraft["marks"],
+): string {
+  const present = appearances.filter(
+    (appearance) => marks[appearance.id] === "present",
+  ).length;
+  const absent = appearances.filter(
+    (appearance) => marks[appearance.id] === "absent",
+  ).length;
+  const marked = present + absent;
+  if (marked === 0) return "Not marked";
+  if (marked < appearances.length) {
+    return `${marked} of ${appearances.length} marked`;
+  }
+  if (absent === 0) return `All ${present} present`;
+  if (present === 0) return `All ${absent} absent`;
+  return `${present} present · ${absent} absent`;
 }
 
 function AttendanceSection({
   appearances,
   marks,
   onMark,
+  open,
+  onOpenChange,
 }: {
   appearances: Appearance[];
   marks: OrderDraft["marks"];
   onMark: (id: string, mark: AttendanceMark | undefined) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
   return (
-    <section className="flex flex-col gap-4" aria-labelledby="order-attendance">
-      <h2 id="order-attendance" className="text-body font-semibold">
-        Attendance
-      </h2>
-      <ul className="flex flex-col">
+    <section className="flex min-w-0 flex-col" aria-labelledby="order-attendance">
+      {/* The heading owns the button, not the other way round. `Accordion`'s own
+          header is a fixed `h3`, which would put the roll a level below the two
+          sections beside it and skip a level under the page `h1`; `Collapsible`
+          leaves the markup to us, so the three sections stay siblings. */}
+      <Collapsible open={open} onOpenChange={onOpenChange}>
+        <h2 id="order-attendance" className="text-body font-semibold">
+          <CollapsibleTrigger className="group flex w-full items-center justify-between gap-4 rounded-lg py-2 text-left hover:underline focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none">
+            Attendance
+            <span className="flex shrink-0 items-center gap-2 text-caption font-medium tabular-nums text-muted-foreground">
+              {open ? null : rollSummary(appearances, marks)}
+              <ChevronDownIcon
+                className="size-4 transition-transform group-data-[state=open]:rotate-180"
+                aria-hidden
+              />
+            </span>
+          </CollapsibleTrigger>
+        </h2>
+        <CollapsibleContent>
+          <ul className="flex flex-col pt-2">
         {appearances.map((appearance, index) => (
           <li
             key={appearance.id}
             className={
               index === 0
-                ? "py-3 first:pt-0"
-                : "border-t border-hairline py-3 last:pb-0"
+                ? "py-2 first:pt-0"
+                : "border-t border-hairline py-2 last:pb-0"
             }
           >
             <AttendanceRow
               appearance={appearance}
               mark={marks[appearance.id]}
               onMark={(mark) => onMark(appearance.id, mark)}
-            />
-          </li>
-        ))}
-      </ul>
+              />
+            </li>
+          ))}
+          </ul>
+        </CollapsibleContent>
+      </Collapsible>
     </section>
   );
 }
@@ -350,7 +452,7 @@ function AttendanceRow({
 }) {
   const label = `Attendance for ${appearance.name}, ${appearance.role.toLowerCase()}`;
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+    <div className="flex min-h-10 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="min-w-0">
         <p className="text-body font-medium">{appearance.name}</p>
         <p className="text-caption text-muted-foreground">{appearance.role}</p>
@@ -392,7 +494,7 @@ function NextListingSection({
   onDate: (day: string | null) => void;
 }) {
   return (
-    <section className="flex flex-col gap-4" aria-labelledby="order-next">
+    <section className="flex min-w-0 flex-col gap-4" aria-labelledby="order-next">
       <h2 id="order-next" className="text-body font-semibold">
         Next listing
       </h2>
@@ -466,7 +568,10 @@ function DirectionsSection({
   onRemove: (id: string) => void;
 }) {
   return (
-    <section className="flex flex-col gap-4" aria-labelledby="order-directions">
+    <section
+      className="flex min-w-0 flex-col gap-4"
+      aria-labelledby="order-directions"
+    >
       <h2 id="order-directions" className="text-body font-semibold">
         Directions
       </h2>
@@ -582,10 +687,14 @@ function DirectionWell({
   );
 }
 
+/**
+ * The order as it will read, beside the work and sticky, so the words land in a
+ * document while they are being written.
+ */
 function DocumentPanel({ order }: { order: AssembledOrder }) {
   return (
     <section
-      className={`${PANEL} lg:sticky lg:top-8`}
+      className={`${PANEL} lg:sticky lg:top-8 lg:col-span-2`}
       aria-label="Order as it will read"
     >
       <OrderProse order={order} />
@@ -682,7 +791,9 @@ function PreviewDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90svh] flex-col gap-6 overflow-hidden sm:max-w-2xl">
+      <DialogContent
+        className={`flex max-h-[90svh] flex-col gap-6 overflow-hidden sm:max-w-2xl ${CHROME_PAGE_DIALOG}`}
+      >
         <DialogHeader className="shrink-0 pr-12">
           <DialogTitle className="text-title font-semibold">Preview</DialogTitle>
           <DialogDescription className="text-body">

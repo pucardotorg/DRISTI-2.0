@@ -105,6 +105,28 @@ export const RAIL_SEAM = "border-(--rail-seam)";
 export const RAIL_BRAND_ROW = `${BAR} flex flex-row items-center justify-between border-b ${RAIL_SEAM} px-3 py-0`;
 
 /**
+ * Centre a portalled overlay over the page column instead of over the whole window.
+ *
+ * `DialogContent` is `fixed left-1/2 -translate-x-1/2`, so it centres on the viewport —
+ * and the viewport here starts 16rem left of where the page does. Measured on the court
+ * screens at 1699px: a `5xl` dialog sat 82px off the rail with 337px of air to its right.
+ * That is mathematically centred and visibly leaning, because the reader's frame is the
+ * page, not the window.
+ *
+ * So above `md` the box spans the page column instead: `left` at the rail plus a gutter,
+ * `right` at the matching gutter, `w-auto` because a specified width makes the `right`
+ * offset a no-op (an over-constrained box drops it), `translate-x-0` to hand centring
+ * back to the offsets, and `mx-auto` to split whatever the dialog's own `max-w-*` leaves
+ * over. The dialog keeps its own width cap; this only decides where the slack goes, so a
+ * column narrower than the cap yields the gutters instead of overflowing the page.
+ *
+ * Below `md` the rail is off-canvas and the window *is* the page, so none of it applies.
+ * The scrim is untouched — modality still covers the rail, only the sheet moves.
+ */
+export const CHROME_PAGE_DIALOG =
+  "md:left-68 md:right-4 md:mx-auto md:w-auto md:translate-x-0";
+
+/**
  * The label a rail row says out loud past its own text.
  *
  * Counts, external destinations and unbuilt rows are all things a sighted person reads

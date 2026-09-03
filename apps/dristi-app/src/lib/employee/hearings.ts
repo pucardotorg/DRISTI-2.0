@@ -124,6 +124,20 @@ export function canEndHearing(status: CourtHearingStatus): boolean {
 }
 
 /**
+ * Orders on a listing open once the bench has called it.
+ *
+ * The composer drafts an order *in* a hearing, so a listing that has not been called has
+ * nothing to draft from: on a scheduled row the Orders control is disabled, and Start
+ * hearing beside it is what opens it. It stays open after End hearing — the order on a
+ * matter the bench has just heard is the ordinary case, and closing the composer at the
+ * end of the sitting would strand a draft written during it. A passed-over listing was
+ * never heard, so no order comes out of today's sitting on it.
+ */
+export function canDraftOrder(status: CourtHearingStatus): boolean {
+  return status === "ongoing" || status === "completed";
+}
+
+/**
  * A listing still on the call can be passed over — scheduled (skip without
  * starting) or ongoing (stop without completing). Completed and already
  * passed-over listings cannot.

@@ -1,0 +1,379 @@
+"use client";
+
+import * as React from "react";
+import { FolderCheckIcon, SearchIcon, SearchXIcon } from "lucide-react";
+
+import { CounselCell } from "@/components/employee/counsel-cell";
+import { ListFooter } from "@/components/employee/list-footer";
+import { OtherApplicationsTable } from "@/components/employee/other-applications-table";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Field, FieldLabel } from "@/components/ui/field";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  causeTitle,
+  counselFor,
+  PAGE_SIZE,
+  type HearingsPageSize,
+} from "@/lib/employee/hearings";
+import {
+  EMPTY_OTHER_APPLICATION_FILTERS,
+  OTHER_APPLICATIONS_QUEUE,
+  OTHER_APPLICATION_STAGES,
+  OTHER_APPLICATION_TYPES,
+  filterOtherApplications,
+  otherApplicationStageLabel,
+  otherApplicationTypeLabel,
+  type OtherApplication,
+  type OtherApplicationFilters,
+} from "@/lib/employee/other-applications";
+
+/**
+ * Others — every application in front of this court, whatever it asks for.
+ *
+ * Deliberately the same screen as `DelayCondonationScreen`, one row down in the same
+ * rail group: the page title stands on the page, and **one** lifted panel holds the
+ * filters, the table and the pagination footer together. Same panel recipe, same
+ * `gap-6` / `p-6`, same table treatment, same empty states, literally the same footer
+ * component. A bench moving between the three Review-applications rows is looking at one
+ * body of work through three different windows, and should not have to re-learn the
+ * furniture in between.
+ *
+ * What differs is one control and one column: the application type. It is the whole
+ * reason this queue is wider than its two siblings, so it is the filter added on the end
+ * of the row and the column added on the end of the table — everything else stays where a
+ * clerk already knows to look for it. There is no click: the reference is the list, and
+ * this build has no review overlay to open.
+ */
+export function OtherApplicationsScreen() {
+  /* The reference filters on a button rather than as you type, so the clerk composes a
+     query and then asks for it. `draft` is what the controls hold; `applied` is what the
+     table is showing. Clear resets both. */
+  const [draft, setDraft] = React.useState<OtherApplicationFilters>(
+    EMPTY_OTHER_APPLICATION_FILTERS,
+  );
+  const [applied, setApplied] = React.useState<OtherApplicationFilters>(
+    EMPTY_OTHER_APPLICATION_FILTERS,
+  );
+  const [pageSize, setPageSize] = React.useState<HearingsPageSize>(PAGE_SIZE);
+  const [page, setPage] = React.useState(1);
+
+  const rows = filterOtherApplications(OTHER_APPLICATIONS_QUEUE, applied);
+
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const start = (currentPage - 1) * pageSize;
+  const pageRows = rows.slice(start, start + pageSize);
+  const isFiltered =
+    applied.stage !== "all" || applied.query !== "" || applied.type !== "all";
+
+  function applyFilters() {
+    setApplied(draft);
+    setPage(1);
+  }
+
+  function clearFilters() {
+    setDraft(EMPTY_OTHER_APPLICATION_FILTERS);
+    setApplied(EMPTY_OTHER_APPLICATION_FILTERS);
+    setPage(1);
+  }
+
+  return (
+    <div className="flex min-w-0 flex-1 flex-col gap-8 p-6 md:p-8">
+      <header className="flex flex-col gap-2">
+        <h1 className="text-title text-balance font-semibold sm:text-title-l">
+          Others
+        </h1>
+        {/* The count is the whole point of the queue, so the supporting line carries it
+            rather than restating the title. Singular is spelled out because "1
+            applications" is the kind of thing a court notices. */}
+        <p className="text-body text-muted-foreground">
+          {OTHER_APPLICATIONS_QUEUE.length === 1
+            ? "1 application is waiting for review."
+            : `${OTHER_APPLICATIONS_QUEUE.length} applications are waiting for review.`}
+        </p>
+      </header>
+
+      {/* One panel: filters, list and footer are one unit of work, so they share one
+          lifted sheet — the same recipe the cause list and the other review queues use.
+          Nothing inside draws a second frame. */}
+      <section className="flex min-w-0 flex-col gap-6 rounded-xl border border-hairline bg-card shadow-raised p-6">
+        <OtherApplicationFiltersForm
+          draft={draft}
+          onDraftChange={setDraft}
+          onApply={applyFilters}
+          onClear={clearFilters}
+        />
+
+        {pageRows.length === 0 ? (
+          <OtherApplicationsEmpty
+            isFiltered={isFiltered}
+            onClear={clearFilters}
+          />
+        ) : (
+          <div className="flex min-w-0 flex-col gap-4">
+            {/* min-w-0 lets this flex item shrink below the table's content width, so a
+                wide table scrolls inside the panel instead of pushing the page sideways. */}
+            <div className="min-w-0 overflow-x-auto">
+              {/* Five columns do not survive a phone. Below `md` the same rows stack as
+                  items — the answer the rest of the court side already gives. */}
+              <div className="hidden md:block">
+                <OtherApplicationsTable rows={pageRows} />
+              </div>
+              <div className="md:hidden">
+                <OtherApplicationsItemList rows={pageRows} />
+              </div>
+            </div>
+
+            <ListFooter
+              id="other-applications-page-size"
+              from={start + 1}
+              to={start + pageRows.length}
+              total={rows.length}
+              page={currentPage}
+              pageCount={pageCount}
+              onPageChange={setPage}
+              pageSize={pageSize}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
+            />
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+/**
+ * Stage, free text and application type, then apply — the reference's three controls, in
+ * the reference's order, laid out the way the sibling queues lay out the first two.
+ *
+ * Every control carries a visible label. The reference labels the search box with the
+ * things it searches, which is a hint rather than a name; ACCESSIBILITY §12 wants a
+ * permanent label, so "Search cases" is the deviation, and the smallest one available.
+ * The placeholder keeps the reference's reach (name, number, advocate).
+ *
+ * "Search" is the teal one here. The Ration Teal Law allows one strong action per view
+ * and it is spent on the loudest thing present: there is nothing above the filters, and
+ * the reference paints Search as the primary.
+ */
+function OtherApplicationFiltersForm({
+  draft,
+  onDraftChange,
+  onApply,
+  onClear,
+}: {
+  draft: OtherApplicationFilters;
+  onDraftChange: (filters: OtherApplicationFilters) => void;
+  onApply: () => void;
+  onClear: () => void;
+}) {
+  return (
+    <form
+      className="flex min-w-0 flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onApply();
+      }}
+    >
+      <div className="flex min-w-0 flex-col gap-2">
+        <Label htmlFor="other-applications-stage" className="w-fit text-body">
+          Stage
+        </Label>
+        <Select
+          value={draft.stage}
+          onValueChange={(value) =>
+            onDraftChange({
+              ...draft,
+              stage: value as OtherApplicationFilters["stage"],
+            })
+          }
+        >
+          <SelectTrigger id="other-applications-stage" className="w-full sm:w-52">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All stages</SelectItem>
+            {OTHER_APPLICATION_STAGES.map((stage) => (
+              <SelectItem key={stage.id} value={stage.id}>
+                {stage.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* `Field` rather than a bare `Label htmlFor` beside an `Input id`. The DS `Input`
+          destructures `id` out of its props and only puts it back through
+          `useFieldControlProps`, which returns nothing when there is no `Field` context —
+          so an `id` handed to an `Input` outside a `Field` is dropped and the label points
+          at an element that does not exist. `Field` supplies the context, and the label
+          and the control agree on one generated id. Upstream DS bug; see
+          `HearingsFilters`. */}
+      <Field className="min-w-0 sm:w-72">
+        <FieldLabel className="text-body">Search cases</FieldLabel>
+        <InputGroup>
+          <InputGroupAddon>
+            <SearchIcon aria-hidden />
+          </InputGroupAddon>
+          <InputGroupInput
+            type="search"
+            autoComplete="off"
+            value={draft.query}
+            onChange={(event) =>
+              onDraftChange({ ...draft, query: event.target.value })
+            }
+            placeholder="case name, number or advocate"
+          />
+        </InputGroup>
+      </Field>
+
+      <div className="flex min-w-0 flex-col gap-2">
+        <Label htmlFor="other-applications-type" className="w-fit text-body">
+          Application type
+        </Label>
+        {/* The two longest heads run past the trigger and clamp to one line — the
+            primitive's own behaviour, kept rather than widened. All fourteen are unique
+            well inside the width that survives, the full text is in the list, and a
+            trigger wide enough for "Application for extension of submission deadline"
+            would push the filter row onto two lines at every laptop width. */}
+        <Select
+          value={draft.type}
+          onValueChange={(value) =>
+            onDraftChange({
+              ...draft,
+              type: value as OtherApplicationFilters["type"],
+            })
+          }
+        >
+          <SelectTrigger id="other-applications-type" className="w-full sm:w-72">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All application types</SelectItem>
+            {OTHER_APPLICATION_TYPES.map((type) => (
+              <SelectItem key={type.id} value={type.id}>
+                {type.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Button type="submit">Search</Button>
+        <Button type="button" variant="ghost" onClick={onClear}>
+          Clear
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/**
+ * Why the list is empty, and what to do about it.
+ *
+ * Two different facts, so two different states: a filter that matched nothing is a dead
+ * end with an action worth offering, while an empty queue is the court being up to date —
+ * the same good-empty the sibling queues use. Borderless and unpadded; the panel is
+ * already the frame.
+ */
+function OtherApplicationsEmpty({
+  isFiltered,
+  onClear,
+}: {
+  isFiltered: boolean;
+  onClear: () => void;
+}) {
+  return (
+    <Empty className="border-0 p-0">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          {isFiltered ? (
+            <SearchXIcon aria-hidden />
+          ) : (
+            <FolderCheckIcon aria-hidden />
+          )}
+        </EmptyMedia>
+        <EmptyTitle className="text-title-s font-semibold">
+          {isFiltered ? "No matters match these filters" : "Nothing waiting"}
+        </EmptyTitle>
+        <EmptyDescription className="text-body">
+          {isFiltered
+            ? "No application matches the stage, type or search you asked for."
+            : "There are no applications waiting for this court."}
+        </EmptyDescription>
+      </EmptyHeader>
+      {isFiltered ? (
+        <EmptyContent>
+          <Button variant="outline" onClick={onClear}>
+            Clear filters
+          </Button>
+        </EmptyContent>
+      ) : null}
+    </Empty>
+  );
+}
+
+/**
+ * The same rows below `md`, stacked.
+ *
+ * A queue read on a phone is still the cause, what is being asked for, and where the case
+ * has reached — the advocates drop to their own line rather than forcing a five-column
+ * table through a 375px screen. The application type sits directly under the cause title
+ * rather than in the metadata line: it is the substance of the row here, not a detail
+ * about it, and both of the long heads need the full width to wrap into.
+ */
+function OtherApplicationsItemList({ rows }: { rows: OtherApplication[] }) {
+  return (
+    <ul className="flex flex-col gap-3">
+      {rows.map((application) => (
+        <li
+          key={application.id}
+          className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-4"
+        >
+          <p className="min-w-0 text-body-compact font-medium">
+            {causeTitle(application)}
+          </p>
+          <p className="min-w-0 text-body-compact">
+            {otherApplicationTypeLabel(application.type)}
+          </p>
+          <p className="text-caption text-muted-foreground">
+            <span className="tabular-nums">{application.caseNumber}</span>
+            {" · "}
+            {otherApplicationStageLabel(application.stage)}
+          </p>
+          <CounselCell
+            complainant={counselFor(application, "complainant").map(
+              (counsel) => counsel.name,
+            )}
+            accused={counselFor(application, "accused").map(
+              (counsel) => counsel.name,
+            )}
+          />
+        </li>
+      ))}
+    </ul>
+  );
+}

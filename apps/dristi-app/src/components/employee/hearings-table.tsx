@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  canDraftOrder,
   canEndHearing,
   canPassOver,
   canStartHearing,
@@ -207,8 +208,37 @@ export function HearingPassOverMenu({
  * meaning draft or add an order for this matter. Opens the composer for this
  * listing. Issuing the order is still a real judicial act this build does not
  * perform; the composer itself says so.
+ *
+ * The control follows the sitting, not the row: a matter the bench has not called
+ * yet has no hearing to pass an order in, so on a scheduled listing the icon holds
+ * the column disabled and Start hearing on the same row is what opens it
+ * (`canDraftOrder`). Disabled by the DS `disabled` prop rather than an
+ * `aria-disabled` mark, because this is a live precondition and not a missing
+ * build — the same distinction as Sign selected forms with nothing ticked.
+ *
+ * The reason lives in the accessible name: an icon-only control has no room to
+ * carry it, and a tooltip cannot be hovered through the DS's
+ * `disabled:pointer-events-none`. Sighted readers get it from the row — the
+ * Scheduled chip and Start hearing sit inches away.
  */
 export function HearingOrdersButton({ hearing }: { hearing: CourtHearing }) {
+  const label = `Order for item ${hearing.item}, ${causeTitle(hearing)}`;
+
+  if (!canDraftOrder(hearing.status)) {
+    return (
+      <Button
+        type="button"
+        disabled
+        variant="ghost"
+        size="icon"
+        className="shrink-0 text-muted-foreground"
+        aria-label={`${label} (available once the hearing starts)`}
+      >
+        <FilePlusIcon aria-hidden />
+      </Button>
+    );
+  }
+
   return (
     <Button
       asChild
@@ -218,7 +248,7 @@ export function HearingOrdersButton({ hearing }: { hearing: CourtHearing }) {
     >
       <Link
         href={`/employee/hearings/${hearing.id}/order`}
-        aria-label={`Order for item ${hearing.item}, ${causeTitle(hearing)}`}
+        aria-label={label}
       >
         <FilePlusIcon aria-hidden />
       </Link>
