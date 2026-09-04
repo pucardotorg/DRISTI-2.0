@@ -10,7 +10,7 @@ import {
   PlusIcon,
 } from "lucide-react";
 
-import { CHROME_PAGE_DIALOG } from "@/components/chrome/app-chrome";
+import { useChromePageDialog } from "@/components/chrome/app-chrome";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -789,10 +789,11 @@ function PreviewDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const pageDialog = useChromePageDialog();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className={`flex max-h-[90svh] flex-col gap-6 overflow-hidden sm:max-w-2xl ${CHROME_PAGE_DIALOG}`}
+        className={`flex max-h-[90svh] flex-col gap-6 overflow-hidden sm:max-w-2xl ${pageDialog}`}
       >
         <DialogHeader className="shrink-0 pr-12">
           <DialogTitle className="text-title font-semibold">Preview</DialogTitle>

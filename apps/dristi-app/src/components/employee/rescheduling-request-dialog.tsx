@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 
-import { CHROME_PAGE_DIALOG } from "@/components/chrome/app-chrome";
+import { useChromePageDialog } from "@/components/chrome/app-chrome";
 import { CommentsPane } from "@/components/cases/document-record-dialog";
 import { DocumentPreview } from "@/components/cases/document-preview";
 import { ReviewRow } from "@/components/cases/filing-form-shared";
@@ -93,10 +93,11 @@ function RequestBody({
   const listedOn = formatRequestLongDate(request.listedOn);
   const purpose = courtHearingPurposeLabel(request.purpose);
   const currentHearing = `${listedOn} · ${purpose}`;
+  const pageDialog = useChromePageDialog();
 
   return (
     <DialogContent
-      className={`flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl md:h-[85dvh] ${CHROME_PAGE_DIALOG}`}
+      className={`flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl md:h-[85dvh] ${pageDialog}`}
       onCloseAutoFocus={(event) => {
         event.preventDefault();
         onReturnFocus();

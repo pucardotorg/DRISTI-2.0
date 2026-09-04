@@ -23,7 +23,14 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
  */
 export function EmployeeArea({ children }: { children: React.ReactNode }) {
   return (
-    <ChromeShell rail={<EmployeeNav />} topBar={<EmployeeTopBar />}>
+    /* The rail folds to a 4rem strip. The prop is the shell's rather than the rail's
+       because the page column's overlays measure their left edge from it too, and one of
+       them is portalled out of this tree — see `ChromeShell`. */
+    <ChromeShell
+      rail={<EmployeeNav />}
+      topBar={<EmployeeTopBar />}
+      railCollapsible="icon"
+    >
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</main>
     </ChromeShell>
   );
@@ -43,7 +50,12 @@ function EmployeeTopBar() {
       {/* The only way into the rail once it is off-canvas. Sized to the 40×40 touch floor. */}
       <SidebarTrigger
         aria-label="Open court navigation"
-        className="size-10 shrink-0 text-muted-foreground [&_svg]:size-5"
+        /* The guarded selector, not the plain `[&_svg]:size-5`: `Button` declares its own
+           `[&_svg:not([class*='size-'])]:size-4`, which tailwind-merge treats as a
+           different key and leaves in place — and it then out-specifies the plain form
+           and holds the panel icon at 16px inside a 40px square. Matching the key is what
+           makes the override an override. Full reasoning at `RAIL_ICON_BUTTON`. */
+        className="size-10 shrink-0 text-muted-foreground [&_svg:not([class*='size-'])]:size-5"
       />
     </ChromeTopBar>
   );

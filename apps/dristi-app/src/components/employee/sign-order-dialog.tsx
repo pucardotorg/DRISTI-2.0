@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { CHROME_PAGE_DIALOG } from "@/components/chrome/app-chrome";
+import { useChromePageDialog } from "@/components/chrome/app-chrome";
 import { DocumentPreview } from "@/components/cases/document-preview";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -92,10 +92,11 @@ function SignOrderBody({
 }) {
   const document = React.useMemo(() => buildSignOrderDocument(order), [order]);
   const pending = order.status === "pending-signature";
+  const pageDialog = useChromePageDialog();
 
   return (
     <DialogContent
-      className={`flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl md:h-[85dvh] ${CHROME_PAGE_DIALOG}`}
+      className={`flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl md:h-[85dvh] ${pageDialog}`}
       onCloseAutoFocus={(event) => {
         event.preventDefault();
         onReturnFocus();

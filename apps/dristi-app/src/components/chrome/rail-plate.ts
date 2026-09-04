@@ -52,9 +52,13 @@ const CARD = {
   "--rail-badge-ink": "#ffffff",
   /* The initials are what carries the meaning, and they are the pair that is measured:
      4.9:1 on the disc, in both modes, on every plate. The disc's own edge lands at 2.67:1
-     against charcoal (4.9:1 against a white plate) — a decorative boundary behind text,
-     which is exactly what the DS's rule 9 holds out of the 3:1 mark floor. Nothing has to
-     be identified by it; the name is spelled out beside it. */
+     against charcoal (4.9:1 against a white plate), and that is inside the rule rather
+     than an exception carved out of it: `ACCESSIBILITY.md` §6 asks 3:1 of non-text
+     "where required by WCAG", and WCAG 1.4.11 requires it only of the parts of a graphic
+     needed to understand the content. The disc is not one of those parts — the initials
+     on it are, and the name is spelled out beside it. (`AGENTS.md` rule 9 makes the same
+     move for the neutral ramp, but its exemption is scoped to structural neutrals and
+     does not stretch to a saturated brand mark.) */
   "--rail-avatar": "#007e7e", //                        brand-solid — its initials 4.9:1
   "--rail-avatar-ink": "#ffffff",
 };

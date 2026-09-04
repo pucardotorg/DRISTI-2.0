@@ -251,6 +251,50 @@ function CourtNavRow({ item }: { item: CourtNavItem }) {
   );
 }
 
+/**
+ * Keep the keyboard when the fold takes the focused element away.
+ *
+ * Folding this rail unmounts controls, in both directions: the strip closes over a
+ * section's rows, opening it takes the section mark away, and the settings control leaves
+ * with the labels. A removed element drops focus onto `<body>`, so a magistrate who folds
+ * with ⌘B while reading a queue — or who tabs to a section mark and presses Enter — ends
+ * up nowhere, with the next Tab starting again from the top of the document.
+ * (`ACCESSIBILITY.md` §4, §5.)
+ *
+ * Each region that can lose the focused element says where the keyboard should land
+ * instead, and two guards keep it from claiming focus that was never its own. It only
+ * acts if it *held* focus: `onBlur` drops the claim when focus moves to another real
+ * element, and deliberately keeps it when there is no `relatedTarget` — which is exactly
+ * what an element being unmounted reports. And it only acts if focus actually landed on
+ * `<body>`; anything else means focus survived and is not ours to take.
+ */
+function useFoldFocusHandoff(
+  collapsed: boolean,
+  target: React.RefObject<HTMLButtonElement | null>,
+) {
+  const held = React.useRef(false);
+  const previous = React.useRef(collapsed);
+
+  React.useEffect(() => {
+    if (previous.current === collapsed) return;
+    previous.current = collapsed;
+    if (!held.current) return;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    held.current = false;
+    target.current?.focus();
+  }, [collapsed, target]);
+
+  return {
+    onFocus: () => {
+      held.current = true;
+    },
+    onBlur: (event: React.FocusEvent) => {
+      if (event.relatedTarget) held.current = false;
+    },
+  };
+}
+
 /** A group is current when the page open is one of its rows. */
 function isCourtNavGroupActive(
   pathname: string,
@@ -294,14 +338,18 @@ function CourtNavGroupMark({
   group,
   isActive,
   onPress,
+  ref,
 }: {
   group: CourtNavGroup;
   isActive: boolean;
   onPress: () => void;
+  /** The section's header while the strip is closed — see `useFoldFocusHandoff`. */
+  ref: React.Ref<HTMLButtonElement>;
 }) {
   const Icon = group.icon;
   return (
     <SidebarMenuButton
+      ref={ref}
       type="button"
       isActive={isActive}
       /* Not `page`: this is not the page's own link, it is the section the page sits in —
@@ -347,11 +395,17 @@ function CourtNavGroupSection({ group }: { group: CourtNavGroup }) {
   const collapsed = useRailCollapsed();
   const { setOpen: setRailOpen } = useSidebar();
   const [open, setOpen] = React.useState(true);
+  /* One ref for whichever header is mounted. The two never coexist, and React detaches
+     the outgoing one before it attaches the incoming one, so by the time the handoff
+     effect runs this points at the header that is actually on screen. */
+  const headerRef = React.useRef<HTMLButtonElement>(null);
+  const handoff = useFoldFocusHandoff(collapsed, headerRef);
 
   return (
     <Collapsible
       open={open && !collapsed}
       onOpenChange={setOpen}
+      {...handoff}
       /* The section's own column carries the folded centring that `RAIL_MENU` gives the
          lists, because folded the header stands in this column directly rather than
          inside one. */
@@ -359,6 +413,7 @@ function CourtNavGroupSection({ group }: { group: CourtNavGroup }) {
     >
       {collapsed ? (
         <CourtNavGroupMark
+          ref={headerRef}
           group={group}
           isActive={isCourtNavGroupActive(pathname, group)}
           onPress={() => {
@@ -368,7 +423,7 @@ function CourtNavGroupSection({ group }: { group: CourtNavGroup }) {
         />
       ) : (
         <SidebarGroupLabel asChild className={RAIL_GROUP_LABEL}>
-          <CollapsibleTrigger>
+          <CollapsibleTrigger ref={headerRef}>
             <Icon aria-hidden />
             <span className="min-w-0 flex-1 truncate text-left">
               {group.label}
@@ -417,7 +472,12 @@ function CourtNavGroupSection({ group }: { group: CourtNavGroup }) {
  * top right, and a second one 40px from it in the same row would overlap it and mean the
  * same thing.
  */
-function CourtRailHeader() {
+function CourtRailHeader({
+  triggerRef,
+}: {
+  /** Handed out so anything the fold unmounts has somewhere to put the keyboard. */
+  triggerRef: React.Ref<HTMLButtonElement>;
+}) {
   const { isMobile } = useSidebar();
   const collapsed = useRailCollapsed();
   return (
@@ -428,6 +488,7 @@ function CourtRailHeader() {
       />
       {isMobile ? null : (
         <SidebarTrigger
+          ref={triggerRef}
           aria-label={
             collapsed ? "Expand court navigation" : "Collapse court navigation"
           }
@@ -513,10 +574,20 @@ function CourtSettingsControl() {
  * block can offer in place of the tooltip a control would get, and it beats hanging a
  * person's name off a hover the keyboard cannot reach.
  */
-function CourtIdentityFooter() {
+function CourtIdentityFooter({
+  foldTriggerRef,
+}: {
+  foldTriggerRef: React.RefObject<HTMLButtonElement | null>;
+}) {
   const { name, court, role } = CURRENT_STAFF;
+  /* The settings control leaves the layout with the labels, so folding while it holds
+     focus drops the keyboard the same way a section's rows do. Its fallback is the fold
+     trigger — the control that caused the change, and the only one present in both
+     states. The identity block itself is static and takes no focus to lose. */
+  const handoff = useFoldFocusHandoff(useRailCollapsed(), foldTriggerRef);
   return (
     <div
+      {...handoff}
       className={`flex items-center gap-3 border-t ${RAIL_SEAM} p-3 group-data-[collapsible=icon]:justify-center`}
     >
       <span
@@ -525,14 +596,25 @@ function CourtIdentityFooter() {
       >
         {initialsOf(name)}
       </span>
+      {/* Nothing in this block truncates. "JMFC Court 1, Kollam" fits the 147px column and
+          "JMFC Court 1, Thiruvananthapuram" does not, nor will a Malayalam rendering of
+          either — and an ellipsis here has nothing behind it: there is no tooltip to open,
+          and folded the whole block is `sr-only`, so there is no second place to read it.
+          That matters more than an ordinary clipped label for the reason the court is here
+          at all: every order and form the sign queues produce is headed with it. So the
+          lines wrap and the footer grows, per `ACCESSIBILITY.md` §10 and §13, and
+          `wrap-break-word` catches the long unspaced compounds an Indic script produces
+          that a space-based wrap would push past the rail's edge. */}
       <div className="flex min-w-0 flex-1 flex-col leading-tight group-data-[collapsible=icon]:sr-only">
-        <span className="truncate text-body-compact font-medium">{name}</span>
+        <span className="wrap-break-word text-body-compact font-medium">
+          {name}
+        </span>
         {/* One weight down the whole block, so a long court name never starts competing
             with the person's; the step between them is size and ink. */}
-        <span className={`truncate text-caption font-medium ${RAIL_MUTED}`}>
+        <span className={`wrap-break-word text-caption font-medium ${RAIL_MUTED}`}>
           {COURT_ROLE_LABEL[role]}
         </span>
-        <span className={`truncate text-caption font-medium ${RAIL_MUTED}`}>
+        <span className={`wrap-break-word text-caption font-medium ${RAIL_MUTED}`}>
           {court}
         </span>
       </div>
@@ -542,18 +624,20 @@ function CourtIdentityFooter() {
 }
 
 export function EmployeeNav() {
+  /* Owned here because the header mounts the trigger and the footer needs it as a focus
+     fallback, and the two are siblings passed into the frame as slots. */
+  const foldTriggerRef = React.useRef<HTMLButtonElement>(null);
   return (
     /* Rows that go nowhere explain themselves on hover and on focus; at the DS default of
        0ms that turns a sweep down the rail into a strobe. */
     <TooltipProvider delayDuration={500}>
       <ChromeRail
         plate={CHARCOAL_PLATE}
-        collapsible="icon"
         navLabel="Court navigation"
         sheetTitle="Court navigation"
         sheetDescription="Hearings, actions, applications and signing for this court."
-        header={<CourtRailHeader />}
-        footer={<CourtIdentityFooter />}
+        header={<CourtRailHeader triggerRef={foldTriggerRef} />}
+        footer={<CourtIdentityFooter foldTriggerRef={foldTriggerRef} />}
       >
         {/* One group, one inset, one gap: standalone links and disclosures share the
             same vertical rhythm instead of each section padding itself. */}

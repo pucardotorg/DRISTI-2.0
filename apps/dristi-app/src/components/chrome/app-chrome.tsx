@@ -273,37 +273,53 @@ export function useRailCollapsed(): boolean {
  * rails at once. `open`/`onOpenChange` are passed straight through for areas that drive
  * the rail's width from the route; leave them off and the primitive keeps its own state.
  *
- * The icon rail is 4rem, not the DS's 3rem: 3rem leaves a 40px row 4px a side and reads
- * as a margin the icons were wedged into. 4rem gives each square 12px of air.
+ * `railCollapsible` is declared here rather than on `ChromeRail` because it is a fact
+ * about the frame's geometry, not about the rail's contents: the rail reads it to size
+ * itself, and the page column's overlays read it to find their left edge. Those two sit
+ * on either side of this component and one of them is portalled out of the tree
+ * altogether, so the shell is the only place both can reach.
  */
 export function ChromeShell({
   rail,
   topBar,
   children,
+  railCollapsible = "none",
   open,
   onOpenChange,
 }: {
   rail: React.ReactNode;
   topBar: React.ReactNode;
   children: React.ReactNode;
+  /**
+   * `"none"` — the rail is fixed at full width. `"icon"` — it folds to the icon strip on
+   * the provider's `open` state, and on ⌘B.
+   */
+  railCollapsible?: "none" | "icon";
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
   return (
-    <SidebarProvider
-      open={open}
-      onOpenChange={onOpenChange}
-      style={{ "--sidebar-width-icon": "4rem" } as React.CSSProperties}
-    >
-      {rail}
-      {/* Not `SidebarInset`: that primitive is itself a `<main>`, and the screens below
-          already own that landmark. `min-w-0` on this column is what lets a wide table
-          scroll inside the page instead of stretching the shell past the viewport. */}
-      <div className="flex min-h-svh min-w-0 flex-1 flex-col bg-background">
-        {topBar}
-        <div className="flex min-h-0 min-w-0 flex-1">{children}</div>
-      </div>
-    </SidebarProvider>
+    <ChromeRailFoldContext.Provider value={railCollapsible === "icon"}>
+      <SidebarProvider
+        open={open}
+        onOpenChange={onOpenChange}
+        style={
+          {
+            "--sidebar-width": RAIL_WIDTH,
+            "--sidebar-width-icon": RAIL_WIDTH_ICON,
+          } as React.CSSProperties
+        }
+      >
+        {rail}
+        {/* Not `SidebarInset`: that primitive is itself a `<main>`, and the screens below
+            already own that landmark. `min-w-0` on this column is what lets a wide table
+            scroll inside the page instead of stretching the shell past the viewport. */}
+        <div className="flex min-h-svh min-w-0 flex-1 flex-col bg-background">
+          {topBar}
+          <div className="flex min-h-0 min-w-0 flex-1">{children}</div>
+        </div>
+      </SidebarProvider>
+    </ChromeRailFoldContext.Provider>
   );
 }
 
@@ -336,7 +352,7 @@ function RailBody({
 /**
  * The navigation rail, on its plate.
  *
- * **Both modes render through the DS's `collapsible="none"` branch.** That is the only
+ * **It renders through the DS's `collapsible="none"` branch in both states.** That is the only
  * one of the three that keeps a plate. The other two fork to a `Sheet` on mobile and
  * spread the caller's props onto `Sheet.Root` — a Radix Root, which renders no DOM node —
  * while `className` is destructured out of those props and never applied at all. So below
@@ -362,7 +378,6 @@ function RailBody({
  */
 export function ChromeRail({
   plate,
-  collapsible = "none",
   navLabel,
   sheetTitle,
   sheetDescription,
@@ -371,15 +386,6 @@ export function ChromeRail({
   children,
 }: {
   plate: RailPlate;
-  /**
-   * `"none"` — a fixed rail at the full width. `"icon"` — the same rail, foldable to the
-   * icon strip by the provider's `open` state (and by ⌘B, which the provider binds).
-   *
-   * The DS's own `"offcanvas"` is deliberately not offered: it is the third of the three
-   * modes that throws the plate away below `md`, and nothing here has wanted a rail that
-   * leaves the desktop layout entirely.
-   */
-  collapsible?: "none" | "icon";
   navLabel?: string;
   /** Names the off-canvas rail for screen readers. */
   sheetTitle?: string;
@@ -388,8 +394,11 @@ export function ChromeRail({
   footer?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  // Whether this rail folds is the shell's to say — see `ChromeShell`. The DS's third
+  // mode, `"offcanvas"`, is offered by neither: it is the other one that throws the plate
+  // away below `md`, and nothing here has wanted a rail that leaves the layout entirely.
+  const folds = React.useContext(ChromeRailFoldContext);
   const { state } = useSidebar();
-  const folds = collapsible === "icon";
   const body = (
     <RailBody header={header} footer={footer} navLabel={navLabel}>
       {children}

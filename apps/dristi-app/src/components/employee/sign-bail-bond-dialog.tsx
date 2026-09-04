@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { CHROME_PAGE_DIALOG } from "@/components/chrome/app-chrome";
+import { useChromePageDialog } from "@/components/chrome/app-chrome";
 import { DocumentPreview } from "@/components/cases/document-preview";
 import {
   SignatureFields,
@@ -128,6 +128,7 @@ function SignBailBondBody({
     [bond],
   );
   const [step, setStep] = React.useState<"read" | "sign">("read");
+  const pageDialog = useChromePageDialog();
   const choice = useSignatureChoice(NOUN);
   const titleRef = React.useRef<HTMLHeadingElement>(null);
 
@@ -142,7 +143,7 @@ function SignBailBondBody({
     <DialogContent
       className={
         step === "read"
-          ? `flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl md:h-[85dvh] ${CHROME_PAGE_DIALOG}`
+          ? `flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl md:h-[85dvh] ${pageDialog}`
           : "max-h-[85dvh] overflow-y-auto sm:max-w-lg"
       }
       onCloseAutoFocus={(event) => {

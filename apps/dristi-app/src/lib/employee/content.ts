@@ -17,10 +17,16 @@ export type CourtRole = "magistrate" | "bench-clerk" | "scrutiny-officer";
 /**
  * How a role is written where it is shown to the person holding it.
  *
- * The domain model's own role names, in sentence case per the DS Laws, and nothing more:
- * no honorific, no designation, no rank. What a particular establishment calls the person
- * on this bench arrives with the directory that replaces `CURRENT_STAFF` — inventing it
- * here would put a title on a screen that no document, order or record backs up.
+ * These are shortenings, not the model's names. `docs/product/domain/actors.md` calls the
+ * first one *Judicial Magistrate of the First Class* — "Magistrate" drops the class, and
+ * it can, because in this rail the label sits directly above "JMFC Court 1, Kollam" and
+ * the court supplies what the role leaves out. A label that repeated it would read
+ * "Judicial Magistrate of the First Class / JMFC Court 1, Kollam".
+ *
+ * Shortened downwards only. Nothing here adds an honorific, a designation or a rank the
+ * model does not carry: what a particular establishment calls the person on this bench
+ * arrives with the directory that replaces `CURRENT_STAFF`, and inventing it would put a
+ * title on a screen that no document, order or record backs up.
  */
 export const COURT_ROLE_LABEL: Record<CourtRole, string> = {
   magistrate: "Magistrate",
