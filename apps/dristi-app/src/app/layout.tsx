@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { DesignModeLoader } from "@/components/design-mode-loader";
 import { FeedbackProvider } from "@/components/feedback-provider";
 import { LocaleProvider } from "@/components/shell/locale";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -36,6 +37,7 @@ export default function RootLayout({
         >
           <LocaleProvider>
             <FeedbackProvider>{children}</FeedbackProvider>
+            <DesignModeLoader />
           </LocaleProvider>
         </ThemeProvider>
       </body>
