@@ -20,6 +20,24 @@ export const TABLE_COLUMNS = [
     locked: false,
     defaultVisible: true,
   },
+  /* Which side the signed-in advocate appears for (PM, Sept 2): with a long
+     list, "where am I for the accused?" was unanswerable at a scan. Off by
+     default; enabled from the Columns menu. */
+  {
+    id: "representation",
+    label: "Representation",
+    locked: false,
+    defaultVisible: false,
+  },
+  /* How the case reaches the viewer — on the vakalatnama (they can act) or
+     through office access (owner, Sept 2: with 74 cases, which was which
+     was unanswerable). */
+  {
+    id: "access",
+    label: "Access",
+    locked: false,
+    defaultVisible: false,
+  },
   {
     id: "nextHearing",
     label: "Next hearing",

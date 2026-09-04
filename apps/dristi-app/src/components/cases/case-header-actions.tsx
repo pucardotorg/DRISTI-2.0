@@ -19,6 +19,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ShareDialog } from "@/components/access/share-dialog";
+import type { AccessPerson } from "@/lib/access/content";
 import { useCaseBail } from "@/components/cases/case-bail-flow";
 import type { AccessCase } from "@/lib/access/content";
 
@@ -28,7 +29,17 @@ import type { AccessCase } from "@/lib/access/content";
  * generate bond, status). The bail lifecycle + dialogs live in <CaseBailProvider>, which
  * wraps the page, so the in-page bond-task card and these entries share one state.
  */
-export function CaseHeaderActions({ accessCase }: { accessCase: AccessCase }) {
+export function CaseHeaderActions({
+  accessCase,
+  shareReadOnly = false,
+  shareExtraPeople,
+}: {
+  accessCase: AccessCase;
+  /** The viewer holds only office access here — share becomes view-only. */
+  shareReadOnly?: boolean;
+  /** The case's own nama advocates and staff, derived server-side. */
+  shareExtraPeople?: AccessPerson[];
+}) {
   const bail = useCaseBail();
   const [shareOpen, setShareOpen] = React.useState(false);
   const caseId = accessCase.id;
@@ -122,6 +133,8 @@ export function CaseHeaderActions({ accessCase }: { accessCase: AccessCase }) {
         onOpenChange={setShareOpen}
         cases={[accessCase]}
         locale="en"
+        readOnly={shareReadOnly}
+        extraPeople={shareExtraPeople}
       />
     </TooltipProvider>
   );

@@ -11,6 +11,7 @@ import {
 
 import { BrandLockup } from "@/components/brand-lockup";
 import { RegistrationFlow } from "@/components/registration/registration-flow";
+import { ResubmissionFlow } from "@/components/registration/resubmission-flow";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,6 +54,10 @@ import {
   type Role,
 } from "@/lib/sign-in/content";
 import { registeredRole } from "@/lib/sign-in/demo-accounts";
+import {
+  rejectedRegistrationFor,
+  type RejectedRegistration,
+} from "@/lib/registration/rejection";
 
 /**
  * The page under the onboarding modal.
@@ -178,6 +183,11 @@ export function SignInBlock({
   summoned?: boolean;
 }) {
   const [registrationOpen, setRegistrationOpen] = React.useState(false);
+  /* A rejected registration on the signed-in number routes into its
+     correction round instead of the portal — the SMS told them to sign in
+     again, and this is where signing in lands them. */
+  const [resubmission, setResubmission] =
+    React.useState<RejectedRegistration | null>(null);
   const [step, setStep] = React.useState<"credentials" | "code">("credentials");
   const [method, setMethod] = React.useState<Method>("password");
   const [mobile, setMobile] = React.useState("");
@@ -219,6 +229,21 @@ export function SignInBlock({
     if (mobile.length !== 10) return;
     if (method === "password" && !password) return;
 
+    /* A rejected registration outranks "not registered": the account does
+       not exist yet, but the number is known — and the person was told to
+       sign in to fix it. */
+    const rejected = rejectedRegistrationFor(mobile);
+    if (rejected) {
+      if (method === "otp") {
+        setStep("code");
+        setTouched(false);
+        setResendIn(RESEND_SECONDS);
+        return;
+      }
+      setResubmission(rejected);
+      return;
+    }
+
     const registered = registeredRole(mobile);
     if (!registered) {
       setNotRegistered(true);
@@ -243,6 +268,12 @@ export function SignInBlock({
     event.preventDefault();
     setTouched(true);
     if (code.length !== OTP_LENGTH) return;
+    const rejected = rejectedRegistrationFor(mobile);
+    if (rejected) {
+      setResubmission(rejected);
+      setStep("credentials");
+      return;
+    }
     if (onSignedIn) {
       // The credentials step verified this number is registered before sending a code.
       onSignedIn(registeredRole(mobile) ?? "litigant");
@@ -305,12 +336,15 @@ export function SignInBlock({
             sacrificing the 40px touch-target floor. The court subline already drops
             below `sm`, leaving the full lockup in the desktop canvas. */}
         <header className="sticky top-0 z-30 flex shrink-0 items-center justify-between gap-4 border-b border-hairline bg-background px-6 py-5 lg:absolute lg:inset-x-0 lg:top-0 lg:border-b-0 lg:px-12 lg:pt-10 lg:pb-0">
-          {registrationOpen ? (
+          {registrationOpen || resubmission ? (
             <Button
               type="button"
               variant="ghost"
               className="-ml-2 lg:ml-0"
-              onClick={() => setRegistrationOpen(false)}
+              onClick={() => {
+                setRegistrationOpen(false);
+                setResubmission(null);
+              }}
             >
               <ArrowLeftIcon data-icon="inline-start" aria-hidden />
               {pick(registrationUi.backToSignIn, locale)}
@@ -343,12 +377,14 @@ export function SignInBlock({
         <main
           className={cn(
             "flex flex-1 items-start justify-center overflow-y-auto px-6 pb-10 lg:min-h-0 lg:px-12",
-            registrationOpen
+            registrationOpen || resubmission
               ? "pt-4 md:pt-8 lg:pt-32 lg:pb-12"
               : "pt-8 lg:items-center lg:py-12",
           )}
         >
-          {registrationOpen ? (
+          {resubmission ? (
+            <ResubmissionFlow locale={locale} rejection={resubmission} />
+          ) : registrationOpen ? (
             <RegistrationFlow
               locale={locale}
               summoned={summoned}

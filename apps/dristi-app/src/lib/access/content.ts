@@ -32,7 +32,22 @@ export type AccessCase = {
   court: string;
   /** Display date of the next hearing — wireframe-level fidelity only. */
   nextHearing: string;
+  /**
+   * How the signed-in advocate reaches THIS case: on its vakalatnama (may
+   * add and remove people) or through office access a colleague shared
+   * (sees who has access, touches nobody — the share dialog has said so
+   * since Aug). Defaults to "vakalatnama"; the case screens derive the
+   * same fact from the record's counsel lists (`lib/cases/viewer`).
+   */
+  viewerAccess?: "vakalatnama" | "office";
 };
+
+/** May the signed-in advocate remove people from this case? Office access
+    never may — removal belongs to the advocates on the vakalatnama. */
+export function viewerHoldsVakalat(caseId: string): boolean {
+  const entry = ACCESS_CASES.find((c) => c.id === caseId);
+  return (entry?.viewerAccess ?? "vakalatnama") !== "office";
+}
 
 export type AccessGrant = {
   caseId: string;
@@ -77,6 +92,9 @@ export const ACCESS_CASES: AccessCase[] = [
     caseNumber: "CC 847 / 2026",
     court: "JFCM I, Kollam · Court No. 3",
     nextHearing: "28 Aug 2026",
+    /* The demo's two office-access cases (owner, Sept 3): the viewer reads
+       these but removes nobody, here or on the case's Parties tab. */
+    viewerAccess: "office",
   },
   {
     id: "c-612",
@@ -91,6 +109,7 @@ export const ACCESS_CASES: AccessCase[] = [
     caseNumber: "CC 533 / 2026",
     court: "24×7 ON Court, Kollam",
     nextHearing: "2 Sep 2026",
+    viewerAccess: "office",
   },
   {
     id: "c-410",
@@ -511,13 +530,22 @@ export const FREQUENT_COLLABORATORS: Array<{ name: string; phone: string; role: 
  * Stand-in for the DRISTI account lookup: the tenth digit resolves the number
  * to the registered name (and, for past team members, their designation).
  */
-export const PHONE_DIRECTORY: Record<string, { name: string; designation?: AccessRole }> = {
+export const PHONE_DIRECTORY: Record<
+  string,
+  { name: string; designation?: AccessRole; advocate?: boolean }
+> = {
   "9447088221": { name: "Anil Raghavan", designation: "clerk" },
   "9495033417": { name: "Adv. Priya Nair", designation: "junior" },
   "9495166778": { name: "Adv. Rahul Menon", designation: "junior" },
   "9072055190": { name: "Sameer K.", designation: "clerk" },
-  "9847012345": { name: "Adv. Thomas K. George" },
-  "9847098765": { name: "Adv. Rajesh Kurup" },
+  /* `advocate` marks independent advocates — people who would act on the
+     case through a vakalatnama rather than as somebody's office staff. The
+     share dialog uses it to notice a wrong-door moment: sharing to an
+     advocate is almost always "add them to the case" intended, and it points
+     to the Parties tab instead of silently granting office access. Juniors
+     stay unmarked — sharing to them is exactly what the dialog is for. */
+  "9847012345": { name: "Adv. Thomas K. George", advocate: true },
+  "9847098765": { name: "Adv. Rajesh Kurup", advocate: true },
   "9876501234": { name: "Ramesh Chandran" },
   "9746140832": { name: "Adv. Leena S. Nair", designation: "junior" },
   "9961472058": { name: "Adv. Sreeja Mohan", designation: "junior" },
@@ -534,8 +562,8 @@ export const shareCopy = {
   title: t("Share access", "ആക്‌സസ് പങ്കിടുക"),
   scopeManyTitle: t("{count} cases selected", "{count} കേസുകൾ തിരഞ്ഞെടുത്തു"),
   bodySingle: t(
-    "People you add can see and work on everything in this case.",
-    "നിങ്ങൾ ചേർക്കുന്നവർക്ക് ഈ കേസിലെ എല്ലാം കാണാനും പ്രവർത്തിക്കാനും കഴിയും.",
+    "Office access only: people you add can work on the case but are not on the case record.",
+    "ഓഫീസ് ആക്‌സസ് മാത്രം: നിങ്ങൾ ചേർക്കുന്നവർക്ക് കേസിൽ പ്രവർത്തിക്കാം, പക്ഷേ അവർ കേസ് രേഖയിൽ ഉണ്ടാകില്ല.",
   ),
   phonePlaceholder: t("Mobile number", "മൊബൈൽ നമ്പർ"),
   phoneAdd: t("Add number", "നമ്പർ ചേർക്കുക"),
@@ -561,6 +589,15 @@ export const shareCopy = {
   accessSearchPlaceholder: t("Search people", "ആളുകളെ തിരയുക"),
   you: t("(you)", "(നിങ്ങൾ)"),
   statusInvited: t("Yet to join", "ചേരാനുണ്ട്"),
+  readOnlyNote: t(
+    "You hold office access on this case, so you can see who has access. Adding and removing people belongs to the advocates on the vakalatnama.",
+    "ഈ കേസിൽ നിങ്ങൾക്ക് ഓഫീസ് ആക്‌സസ് ആയതിനാൽ ആർക്കൊക്കെ ആക്‌സസ് ഉണ്ടെന്ന് കാണാം. ആളുകളെ ചേർക്കുന്നതും നീക്കുന്നതും വക്കാലത്ത്നാമയിലെ അഭിഭാഷകർക്കാണ്.",
+  ),
+  selfOfficeAccess: t("Office access", "ഓഫീസ് ആക്‌സസ്"),
+  advocateNotice: t(
+    "{name} is an advocate. Sharing gives office access only. To have them act on this case, add them from the Parties tab with a vakalatnama.",
+    "{name} ഒരു അഭിഭാഷകനാണ്. പങ്കിടുന്നത് ഓഫീസ് ആക്‌സസ് മാത്രമേ നൽകൂ. ഈ കേസിൽ പ്രവർത്തിക്കാൻ, വക്കാലത്ത്നാമയോടെ പാർട്ടീസ് ടാബിൽ നിന്ന് അവരെ ചേർക്കുക.",
+  ),
 };
 
 export const roleCopy: Record<AccessRole, Copy> = {
@@ -611,10 +648,12 @@ export const peopleCopy = {
   caseSearchPlaceholder: t("Case name or number", "കേസിന്റെ പേരോ നമ്പറോ"),
   noCaseMatches: t("No matching cases.", "പൊരുത്തപ്പെടുന്ന കേസുകളില്ല."),
   vakalatCasesHeading: t("Access through Vakalatnama", "വക്കാലത്ത്നാമ വഴിയുള്ള ആക്‌സസ്"),
-  staffCasesHeading: t("Administrative access", "അഡ്മിനിസ്ട്രേറ്റീവ് ആക്‌സസ്"),
+  /* "Office access", never "administrative access" (user, Sept 2): admin
+     reads as all-access elsewhere, which is the opposite of what this is. */
+  staffCasesHeading: t("Office access", "ഓഫീസ് ആക്‌സസ്"),
   staffTooltipLabel: t(
-    "What administrative access means",
-    "അഡ്മിനിസ്ട്രേറ്റീവ് ആക്‌സസ് എന്നതിന്റെ അർത്ഥം",
+    "What office access means",
+    "ഓഫീസ് ആക്‌സസ് എന്നതിന്റെ അർത്ഥം",
   ),
   staffTooltip: t(
     "People who are not on the Vakalatnama, such as clerks and junior advocates, but have been given access to work on the case.",
@@ -649,6 +688,16 @@ export const peopleCopy = {
   removeAllCancel: t("Cancel", "റദ്ദാക്കുക"),
   removedNote: t("{name} no longer has access to {case}.", "{name}-ന് ഇനി {case}-ൽ ആക്‌സസ് ഇല്ല."),
   removedAllNote: t("{name} no longer has access to any of your cases.", "{name}-ന് ഇനി നിങ്ങളുടെ കേസുകളിലൊന്നും ആക്‌സസ് ഇല്ല."),
+  /* One removal flow, entered from here too: a vakalat row's Remove opens
+     the same court-application dialog the Parties tab uses. */
+  removalPending: t("Removal requested", "നീക്കം ചെയ്യാൻ അഭ്യർത്ഥിച്ചു"),
+  /* On office-access cases the Remove stays visible but disabled, with this
+     as its tooltip — an absent button reads as a bug, a locked one as a
+     rule (owner, Sept 3). */
+  officeLockedTooltip: t(
+    "You hold office access on this case. Removing people belongs to the advocates on the vakalatnama.",
+    "ഈ കേസിൽ നിങ്ങൾക്ക് ഓഫീസ് ആക്‌സസ് ആണ്. ആളുകളെ നീക്കം ചെയ്യുന്നത് വക്കാലത്ത്നാമയിലെ അഭിഭാഷകർക്കാണ്.",
+  ),
 };
 
 export const casesCopy = {

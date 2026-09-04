@@ -11,6 +11,7 @@ import { markDone } from "@/lib/tasks/transitions";
 import type { Task } from "@/lib/tasks/types";
 import { ConfirmDialog } from "@/components/shell/confirm-dialog";
 import { TaskActModal } from "@/components/tasks/act/act-modal";
+import { TaskRespondDialog } from "@/components/tasks/act/respond-dialog";
 import {
   type ActMode,
   type Flow,
@@ -40,6 +41,7 @@ export function useTaskAct() {
   const [acting, setActing] = React.useState<{ task: Task; mode: ActMode } | null>(null);
   const [flowNotice, setFlowNotice] = React.useState<{ task: Task; flow: Flow } | null>(null);
   const [confirmDone, setConfirmDone] = React.useState<Task | null>(null);
+  const [responding, setResponding] = React.useState<Task | null>(null);
 
   const run = React.useCallback(
     (task: Task) => {
@@ -68,6 +70,9 @@ export function useTaskAct() {
           }
           return;
         }
+        case "Respond":
+          setResponding(task);
+          return;
         case "Mark done":
           setConfirmDone(task);
           return;
@@ -90,6 +95,16 @@ export function useTaskAct() {
         open={!!acting && !!actingCase}
         onOpenChange={(open) => {
           if (!open) setActing(null);
+        }}
+        onFinished={(id) => store.requestHighlight(id)}
+      />
+
+      <TaskRespondDialog
+        task={responding}
+        kase={responding ? (caseOf({ cases: store.cases }, responding) ?? null) : null}
+        open={!!responding}
+        onOpenChange={(open) => {
+          if (!open) setResponding(null);
         }}
         onFinished={(id) => store.requestHighlight(id)}
       />

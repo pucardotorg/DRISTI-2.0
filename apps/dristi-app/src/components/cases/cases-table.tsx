@@ -40,6 +40,8 @@ const COLUMN_WIDTH: Record<TableColumnId, string> = {
   caseNumber: "whitespace-nowrap",
   caseName: "min-w-64 whitespace-normal",
   advocates: "whitespace-nowrap",
+  representation: "whitespace-nowrap",
+  access: "whitespace-nowrap",
   stage: "whitespace-nowrap",
   nextHearing: "whitespace-nowrap",
   hearingPurpose: "min-w-48 whitespace-normal",

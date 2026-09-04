@@ -24,6 +24,14 @@ import { cn } from "@/lib/utils";
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 5;
 
+/**
+ * What the thumbnail and viewer actually read off a document: its MIME type.
+ * A structural type so a document already on the record — known only by a
+ * served URL, never held as a `File` — gets the same treatment as a fresh
+ * upload (the Sept 3 edit-litigant ID row is the first such caller).
+ */
+export type PreviewableDoc = { type: string };
+
 /** Object URL for a File, revoked automatically when the file changes or unmounts. */
 export function useObjectUrl(file: File | null) {
   const url = React.useMemo(() => (file ? URL.createObjectURL(file) : ""), [file]);
@@ -36,7 +44,7 @@ export function useObjectUrl(file: File | null) {
 }
 
 export function DocumentThumbnailButton({ file, url, locale, onOpen, className }: {
-  file: File;
+  file: PreviewableDoc;
   url: string;
   locale: Locale;
   onOpen: () => void;
@@ -62,7 +70,7 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 export function DocumentPreviewDialog({ open, onOpenChange, file, url, locale, copy }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  file: File | null;
+  file: PreviewableDoc | null;
   url: string;
   locale: Locale;
   /** Header copy override — the defaults speak about IDs, which is wrong for other

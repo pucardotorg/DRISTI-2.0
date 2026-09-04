@@ -1,5 +1,6 @@
 import { type TableColumnId } from "@/lib/cases/table-columns";
 import { counselFor, type CaseRecord } from "@/lib/cases/types";
+import { viewerAccess, viewerRepresentation } from "@/lib/cases/viewer";
 
 import { CaseAdvocatesPair } from "./case-advocates";
 import {
@@ -38,6 +39,27 @@ export function CaseField({
       return <CaseTitle record={record} />;
     case "advocates":
       return <CaseAdvocatesPair record={record} dense={!list} />;
+    case "representation": {
+      /* Which side the viewer works for — always a side (owner, Sept 2):
+         office access itself belongs to one side's team, so the column
+         never answers anything but complainant or accused. */
+      const sides = viewerRepresentation(record);
+      return (
+        <CasePlain>
+          {sides
+            .map((side) => (side === "complainant" ? "Complainant" : "Accused"))
+            .join(" · ")}
+        </CasePlain>
+      );
+    }
+    case "access": {
+      const access = viewerAccess(record);
+      return (
+        <CasePlain>
+          {access.kind === "vakalatnama" ? "Vakalatnama" : "Office access"}
+        </CasePlain>
+      );
+    }
     case "stage":
       return <CaseStage record={record} detail={list} />;
     case "nextHearing":
@@ -58,6 +80,8 @@ export function caseFieldIsEmpty(record: CaseRecord, id: TableColumnId): boolean
     case "caseNumber":
     case "caseName":
     case "stage":
+    case "representation":
+    case "access":
       return false;
     case "advocates":
       return (

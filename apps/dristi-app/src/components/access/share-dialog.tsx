@@ -3,6 +3,7 @@
 import * as React from "react";
 import { CheckCircle2Icon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { CaseAccessList, initials } from "@/components/access/access-list";
 import { formatPhone, useAccess, type InviteResult } from "@/components/access/access-state";
+import { RemoveAdvocateDialog } from "@/components/cases/remove-advocate-dialog";
 import { pick, type Locale } from "@/lib/onboarding/content";
 import {
   FREQUENT_COLLABORATORS,
@@ -24,6 +26,7 @@ import {
   roleCopy,
   shareCopy,
   type AccessCase,
+  type AccessPerson,
 } from "@/lib/access/content";
 
 /**
@@ -47,12 +50,28 @@ export function ShareDialog({
   onOpenChange,
   cases,
   locale,
+  readOnly = false,
+  extraPeople,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** One case = full share+manage surface; several = bulk grant-only. */
   cases: AccessCase[];
   locale: Locale;
+  /**
+   * The viewer holds only office access on this case (owner, Sept 2):
+   * they can see who has access, but adding and removing people belongs
+   * to the vakalatnama holders. Inputs and removes disable; the list
+   * stays readable.
+   */
+  readOnly?: boolean;
+  /**
+   * The case's own people, derived from its record (nama advocates and
+   * office staff) — merged with the access store so "Who has access"
+   * matches the case file. The store never held them, so removing one is
+   * this dialog's local state.
+   */
+  extraPeople?: AccessPerson[];
 }) {
   const { invite, removeGrant, personsOnCase } = useAccess();
 
@@ -62,13 +81,41 @@ export function ShareDialog({
   const [focused, setFocused] = React.useState(false);
   const [result, setResult] = React.useState<InviteResult | null>(null);
   const [accessQuery, setAccessQuery] = React.useState("");
+  /* An on-nama advocate whose Remove was clicked; opens the formal removal
+     flow (3a/3b) over this dialog. Staff removal stays the one-click revoke. */
+  const [removeTarget, setRemoveTarget] = React.useState<string | null>(null);
+  const [removedDerived, setRemovedDerived] = React.useState<ReadonlySet<string>>(
+    new Set(),
+  );
 
   const bulk = cases.length > 1;
   const single = cases.length === 1 ? cases[0] : null;
-  const onCase = single ? personsOnCase(single.id) : [];
+  const storePeople = single ? personsOnCase(single.id) : [];
+  const storeNames = new Set(storePeople.map((p) => p.name));
+  const onCase = single
+    ? [
+        ...storePeople,
+        ...(extraPeople ?? []).filter(
+          (p) => !storeNames.has(p.name) && !removedDerived.has(p.id),
+        ),
+      ]
+    : [];
 
   const inputValid = /^\d{10}$/.test(input);
   const lookup = inputValid ? (PHONE_DIRECTORY[input] ?? null) : null;
+
+  /* The wrong-door check: an advocate's number in the share box almost
+     always means "add them to the case", which is the Parties tab's job —
+     office access is all this dialog can grant. The notice names whoever is
+     stacked (or currently resolved) and points to the other door; it warns,
+     never blocks, because giving an advocate plain office access is rare but
+     legitimate. */
+  const advocateNames = [
+    ...chips
+      .filter((chip) => PHONE_DIRECTORY[chip.phone.replace(/\D/g, "")]?.advocate)
+      .map((chip) => chip.name ?? chip.phone),
+    ...(lookup?.advocate ? [lookup.name] : []),
+  ];
 
   function handleOpenChange(nextOpen: boolean) {
     // Closing clears transient invite state so reopening any case scope starts
@@ -79,6 +126,7 @@ export function ShareDialog({
       setTouched(false);
       setResult(null);
       setAccessQuery("");
+      setRemovedDerived(new Set());
     }
     onOpenChange(nextOpen);
   }
@@ -133,6 +181,13 @@ export function ShareDialog({
           <DialogTitle className="text-title-s font-semibold">
             {pick(shareCopy.title, locale)}
           </DialogTitle>
+          {/* The one-line boundary against Add people (PM, Sept 2): what
+              sharing grants, and what it does not. */}
+          <p className="text-caption text-pretty text-muted-foreground">
+            {readOnly
+              ? pick(shareCopy.readOnlyNote, locale)
+              : pick(shareCopy.bodySingle, locale)}
+          </p>
           {single ? (
             <div className="flex min-w-0 flex-col gap-0.5">
               <p className="truncate text-body-compact font-medium">{single.title}</p>
@@ -198,6 +253,7 @@ export function ShareDialog({
                       type="tel"
                       inputMode="numeric"
                       autoComplete="off"
+                      disabled={readOnly}
                       maxLength={10}
                       placeholder={pick(shareCopy.phonePlaceholder, locale)}
                       value={input}
@@ -260,13 +316,27 @@ export function ShareDialog({
                     {pick(shareCopy.demoProfiles, locale)}
                   </p>
                 </div>
-                <Button type="button" disabled={!chips.length && !inputValid} onClick={send}>
+                <Button
+                  type="button"
+                  disabled={readOnly || (!chips.length && !inputValid)}
+                  onClick={send}
+                >
                   {pick(shareCopy.send, locale)}
                 </Button>
               </div>
             </Field>
 
-            {suggestions.length ? (
+            {advocateNames.length ? (
+              <Alert>
+                <AlertDescription>
+                  {fillCopy(shareCopy.advocateNotice, locale, {
+                    name: [...new Set(advocateNames)].join(", "),
+                  })}
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
+            {suggestions.length && !readOnly ? (
               <div className="mt-2 flex flex-col gap-2">
                 <p className="text-caption font-medium text-muted-foreground">
                   {pick(shareCopy.suggestionsLabel, locale)}
@@ -348,13 +418,45 @@ export function ShareDialog({
                   people={onCase}
                   locale={locale}
                   query={accessQuery}
-                  onRemove={(personId) => removeGrant(personId, single.id)}
+                  onRemove={
+                    readOnly
+                      ? undefined
+                      : (personId) => {
+                          removeGrant(personId, single.id);
+                          if (personId.startsWith("derived-")) {
+                            setRemovedDerived(
+                              (current) => new Set(current).add(personId),
+                            );
+                          }
+                        }
+                  }
+                  onRemoveVakalat={
+                    readOnly
+                      ? undefined
+                      : (person) => setRemoveTarget(person.name)
+                  }
+                  selfAccessLabel={
+                    readOnly ? pick(shareCopy.selfOfficeAccess, locale) : undefined
+                  }
                 />
               </section>
             </>
           ) : null}
         </div>
       </DialogContent>
+
+      <RemoveAdvocateDialog
+        open={Boolean(removeTarget)}
+        onOpenChange={(next) => {
+          if (!next) setRemoveTarget(null);
+        }}
+        advocateName={removeTarget ?? ""}
+        caseRef={{
+          title: single?.title ?? "",
+          caseNumber: single?.caseNumber ?? "",
+          court: single?.court ?? "",
+        }}
+      />
     </Dialog>
   );
 }

@@ -47,11 +47,13 @@ export type Case = {
 /**
  * What the task asks for. Each kind is one overview card:
  * sign · pay · file (a document or application due) · returned (scrutiny sent a filing
- * back: fix the defects and re-file) · hearing (court-initiated, anchored to a posting:
- * the plea, a deposition, the sworn statement, arguments) · draft (a filing or
- * application someone started and left in draft).
+ * back: fix the defects and re-file) · review (a request addressed to this advocate
+ * that needs their decision — a consent to a removal, and whatever review-type asks
+ * follow) · hearing (court-initiated, anchored to a posting: the plea, a deposition,
+ * the sworn statement, arguments) · draft (a filing or application someone started and
+ * left in draft).
  */
-export type TaskKind = "sign" | "pay" | "file" | "returned" | "hearing" | "draft";
+export type TaskKind = "sign" | "pay" | "file" | "returned" | "review" | "hearing" | "draft";
 
 /** The six overview cards — the same set as the kinds; see `cardKindOf`. */
 export type CardKind = TaskKind;
@@ -214,6 +216,19 @@ export type Returned = {
   defects: Defect[];
 };
 
+/**
+ * Why a `review` task exists: someone asked this advocate to decide something. `of`
+ * names the addressee — the one person whose decision it is; everyone else on the case
+ * watches it wait. `decision` is written by the respond transition.
+ */
+export type Review = {
+  /** Who raised the request. */
+  requestedBy: PersonId;
+  /** Whose decision it is. */
+  of: PersonId;
+  decision?: { by: PersonId; at: string; accepted: boolean; note?: string };
+};
+
 /** Set while a task is archived: who put it away, when, and the state to restore. */
 export type Archived = {
   by?: PersonId;
@@ -278,6 +293,8 @@ export type Task = {
   prepared?: Prepared;
   /** Set on a `returned` task: the scrutiny return that created it. */
   returned?: Returned;
+  /** Set on a `review` task: the request awaiting this advocate's decision. */
+  review?: Review;
   /**
    * The e-filing draft this task acts on. A scrutiny return opens that draft in a
    * correction posture, so the defects can point at real fields rather than at prose.
@@ -311,6 +328,8 @@ export type Verb =
   | "Re-file"
   /** Any viewer, on a draft. */
   | "Continue"
+  /** The addressee of a review task — accept or decline the request. */
+  | "Respond"
   /** Any open-state task, by anyone on the case — records completion outside DRISTI. */
   | "Mark done"
   /** An archived task, by anyone on the case — back to the state it left. */

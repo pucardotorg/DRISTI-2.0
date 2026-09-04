@@ -30,6 +30,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Breadcrumbs, useChrome } from "@/components/shell/chrome";
 import { ConfirmDialog } from "@/components/shell/confirm-dialog";
 import { TaskActModal } from "@/components/tasks/act/act-modal";
+import { TaskRespondDialog } from "@/components/tasks/act/respond-dialog";
 import { FilterRow } from "@/components/tasks/filter-row";
 import { useFilters } from "@/components/tasks/filters";
 import { OverviewCards } from "@/components/tasks/overview-cards";
@@ -99,6 +100,8 @@ export function TasksScreen() {
   const [flowNotice, setFlowNotice] = React.useState<{ task: Task; flow: Flow } | null>(null);
   /** The act modal — pay and file only (the owner's rule). */
   const [acting, setActing] = React.useState<{ taskId: TaskId; mode: ActMode } | null>(null);
+  /** The respond dialog — a review task's decision acts in place. */
+  const [responding, setResponding] = React.useState<Task | null>(null);
   const actingTask = React.useMemo(
     () => (acting ? (tasks.find((t) => t.id === acting.taskId) ?? null) : null),
     [acting, tasks]
@@ -206,6 +209,9 @@ export function TasksScreen() {
           else openAct(task, actModeOf(task));
           return;
         }
+        case "Respond":
+          setResponding(task);
+          return;
         case "Mark done":
           setConfirmDone([task]);
           return;
@@ -463,6 +469,19 @@ export function TasksScreen() {
         open={!!acting && !!actingTask && !!actingCase}
         onOpenChange={(open) => {
           if (!open) setActing(null);
+        }}
+        onFinished={(id) => {
+          requestHighlight(id);
+          focusRow(id);
+        }}
+      />
+
+      <TaskRespondDialog
+        task={responding}
+        kase={responding ? (cases.find((c) => c.id === responding.caseId) ?? null) : null}
+        open={!!responding}
+        onOpenChange={(open) => {
+          if (!open) setResponding(null);
         }}
         onFinished={(id) => {
           requestHighlight(id);

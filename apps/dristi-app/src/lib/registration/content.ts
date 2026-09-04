@@ -95,6 +95,54 @@ export const verificationUi = {
   noFile: t("No file chosen yet", "ഫയൽ ഇതുവരെ തിരഞ്ഞെടുത്തിട്ടില്ല"),
   chooseFile: t("Choose file", "ഫയൽ തിരഞ്ഞെടുക്കുക"),
   changeFile: t("Change file", "ഫയൽ മാറ്റുക"),
+  removeFile: t("Remove", "നീക്കം ചെയ്യുക"),
+} as const;
+
+/**
+ * The rejected-and-resubmit round. The officer types ONE general message on
+ * rejection (PM, Sept 3); fields the officer marked are flagged in place, and
+ * the person corrects them and resubmits the same application.
+ */
+export const rejectionUi = {
+  /** The first step's headline — the rejection is page structure, not an
+      alarm box (owner, Sept 3). */
+  notApprovedTitle: t(
+    "Your registration was not approved",
+    "നിങ്ങളുടെ രജിസ്ട്രേഷൻ അംഗീകരിച്ചില്ല",
+  ),
+  notApprovedBody: t(
+    "Correct the flagged details and resubmit for approval.",
+    "ഫ്ലാഗ് ചെയ്ത വിവരങ്ങൾ തിരുത്തി അംഗീകാരത്തിനായി വീണ്ടും സമർപ്പിക്കുക.",
+  ),
+  /** `{id}` is the application number the rejection belongs to. */
+  messageMeta: t(
+    "Application {id} · message from the verifying officer",
+    "അപേക്ഷ {id} · പരിശോധിക്കുന്ന ഉദ്യോഗസ്ഥന്റെ സന്ദേശം",
+  ),
+  /** The field marker — it points; the officer's message explains. */
+  flagged: t("Flagged", "ഫ്ലാഗ് ചെയ്തു"),
+  /** A long message clamps to three lines; these toggle the rest. */
+  readMore: t("Read more", "കൂടുതൽ വായിക്കുക"),
+  showLess: t("Show less", "ചുരുക്കുക"),
+  /** sr-only suffix on a flagged stepper step. */
+  stepFlagged: t("has flagged details", "ഫ്ലാഗ് ചെയ്ത വിവരങ്ങളുണ്ട്"),
+  mobileVerified: t(
+    "Verified. This is the number you sign in with.",
+    "പരിശോധിച്ചു. ഇതാണ് നിങ്ങൾ സൈൻ ഇൻ ചെയ്യുന്ന നമ്പർ.",
+  ),
+  previousUpload: t(
+    "The earlier upload ({name}) was rejected. Upload a clear scan.",
+    "മുമ്പ് അപ്‌ലോഡ് ചെയ്തത് ({name}) നിരസിച്ചു. വ്യക്തമായ സ്കാൻ അപ്‌ലോഡ് ചെയ്യുക.",
+  ),
+  resubmit: t("Resubmit for approval", "അംഗീകാരത്തിനായി വീണ്ടും സമർപ്പിക്കുക"),
+  resubmittedTitle: t(
+    "Your registration is awaiting approval",
+    "നിങ്ങളുടെ രജിസ്ട്രേഷൻ അംഗീകാരം കാത്തിരിക്കുന്നു",
+  ),
+  resubmittedBody: t(
+    "Your corrected registration (ID: {id}) is in progress. You will get an SMS when it is done.",
+    "തിരുത്തിയ രജിസ്ട്രേഷൻ (ID: {id}) നടന്നുകൊണ്ടിരിക്കുന്നു. പൂർത്തിയാകുമ്പോൾ SMS ലഭിക്കും.",
+  ),
 } as const;
 
 export const termsStep = {

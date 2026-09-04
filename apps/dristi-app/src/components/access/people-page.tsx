@@ -42,6 +42,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { initials } from "@/components/access/access-list";
 import { useAccess } from "@/components/access/access-state";
+import { RemoveAdvocateDialog } from "@/components/cases/remove-advocate-dialog";
 import { pick, type Locale } from "@/lib/onboarding/content";
 import {
   ACCESS_CASES,
@@ -49,6 +50,7 @@ import {
   listCopy,
   peopleCopy,
   shareCopy,
+  viewerHoldsVakalat,
   type AccessGrant,
   type AccessPerson,
 } from "@/lib/access/content";
@@ -201,6 +203,8 @@ function CaseEntry({
   onCheck,
   onOpenCase,
   onRemove,
+  removeLocked = false,
+  removalPending = false,
 }: {
   grant: AccessGrant;
   person: AccessPerson;
@@ -209,7 +213,14 @@ function CaseEntry({
   checked: boolean;
   onCheck?: (value: boolean) => void;
   onOpenCase: () => void;
+  /** Absent where a remove affordance makes no sense at all; on
+      office-access cases pass `removeLocked` instead so the button stays
+      visible but disabled — an absent button reads as a bug. */
   onRemove?: () => void;
+  /** Office access: Remove renders disabled with the why in a tooltip. */
+  removeLocked?: boolean;
+  /** A vakalat removal already requested — the row waits, Remove retires. */
+  removalPending?: boolean;
 }) {
   const grantCase = caseById(grant.caseId);
   if (!grantCase) return null;
@@ -255,7 +266,26 @@ function CaseEntry({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1 pt-1 @xs/case-entry:self-center @xs/case-entry:pt-0">
-          {!isVakalat && onRemove ? (
+          {removalPending ? (
+            <span className="px-2 text-caption text-muted-foreground">
+              {pick(peopleCopy.removalPending, locale)}
+            </span>
+          ) : removeLocked ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {/* Disabled buttons swallow pointer events — the span
+                    carries the hover (LockedRemove's own trick). */}
+                <span tabIndex={0} className="inline-flex">
+                  <Button type="button" variant="ghost" size="sm" disabled>
+                    {pick(peopleCopy.removeFromCase, locale)}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-64 text-pretty">
+                {pick(peopleCopy.officeLockedTooltip, locale)}
+              </TooltipContent>
+            </Tooltip>
+          ) : onRemove ? (
             <Button type="button" variant="destructive-ghost" size="sm" onClick={onRemove}>
               {pick(peopleCopy.removeFromCase, locale)}
             </Button>
@@ -286,6 +316,16 @@ export function PeoplePage({
   const [checkedCases, setCheckedCases] = React.useState<string[]>([]);
   const [confirmRemove, setConfirmRemove] = React.useState(false);
   const [removedNote, setRemovedNote] = React.useState<string | null>(null);
+  /* Removing from the vakalatnama is the Parties tab's court-application
+     flow, entered from here too (owner, Sept 3). The dialog rides the open
+     person; a sent request retires that row's Remove for the session —
+     the real record of a pending request is the tasks service. */
+  const [removeVakalatCaseId, setRemoveVakalatCaseId] = React.useState<
+    string | null
+  >(null);
+  const [pendingRemovals, setPendingRemovals] = React.useState<
+    ReadonlySet<string>
+  >(new Set());
 
   // People with no grants left have no access anywhere — they drop off the page.
   const active = people.filter((person) => person.grants.length > 0);
@@ -320,10 +360,17 @@ export function PeoplePage({
   };
   const visibleVakalatGrants = vakalatGrants.filter(matchesCaseQuery);
   const visibleStaffGrants = staffGrants.filter(matchesCaseQuery);
+  // Removal is a vakalatnama holder's act, case by case. Office-access
+  // cases drop out of every removal surface here: no per-row Remove, no
+  // checkbox, and the bulk action counts only the cases the viewer may
+  // actually touch (owner, Sept 3).
+  const removableStaffGrants = staffGrants.filter((g) =>
+    viewerHoldsVakalat(g.caseId),
+  );
   // Bulk removal only ever touches the administrative group — nama grants are
   // court applications, so "all cases" honestly means "all administrative ones".
   const removingAll = checkedCases.length === 0;
-  const removeCount = checkedCases.length || staffGrants.length;
+  const removeCount = checkedCases.length || removableStaffGrants.length;
 
   function openPanel(personId: string) {
     setOpenPersonId(personId);
@@ -346,8 +393,14 @@ export function PeoplePage({
 
   function confirmBulkRemove() {
     if (!openPerson) return;
-    const targets = removingAll ? staffGrants.map((g) => g.caseId) : checkedCases;
-    if (removingAll && vakalatGrants.length === 0) {
+    const targets = removingAll
+      ? removableStaffGrants.map((g) => g.caseId)
+      : checkedCases;
+    if (
+      removingAll &&
+      vakalatGrants.length === 0 &&
+      removableStaffGrants.length === staffGrants.length
+    ) {
       removeAll(openPerson.id);
       setRemovedNote(fillCopy(peopleCopy.removedAllNote, locale, { name: openPerson.name }));
     } else {
@@ -383,6 +436,19 @@ export function PeoplePage({
                     closePanel();
                     onOpenCase(grant.caseId);
                   }}
+                  /* Remove here is the Parties tab's removal application,
+                     one case at a time — never bulk — and only where the
+                     viewer holds that case's vakalatnama themself. On
+                     office-access cases it renders locked, with the why. */
+                  onRemove={
+                    viewerHoldsVakalat(grant.caseId)
+                      ? () => setRemoveVakalatCaseId(grant.caseId)
+                      : undefined
+                  }
+                  removeLocked={!viewerHoldsVakalat(grant.caseId)}
+                  removalPending={pendingRemovals.has(
+                    `${openPerson.id}:${grant.caseId}`,
+                  )}
                 />
               ))}
             </div>
@@ -404,39 +470,47 @@ export function PeoplePage({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1">
           {visibleStaffGrants.length ? (
             <div className="flex flex-col divide-y divide-hairline">
-              {visibleStaffGrants.map((grant) => (
-                <CaseEntry
-                  key={grant.caseId}
-                  grant={grant}
-                  person={openPerson}
-                  locale={locale}
-                  selectable={staffGrants.length > 1}
-                  checked={checkedCases.includes(grant.caseId)}
-                  onCheck={(value) =>
-                    setCheckedCases((current) =>
-                      value
-                        ? [...current, grant.caseId]
-                        : current.filter((id) => id !== grant.caseId),
-                    )
-                  }
-                  onOpenCase={() => {
-                    closePanel();
-                    onOpenCase(grant.caseId);
-                  }}
-                  onRemove={() => {
-                    removeGrant(openPerson.id, grant.caseId);
-                    setCheckedCases((current) =>
-                      current.filter((id) => id !== grant.caseId),
-                    );
-                    setRemovedNote(
-                      fillCopy(peopleCopy.removedNote, locale, {
-                        name: openPerson.name,
-                        case: caseById(grant.caseId)?.caseNumber ?? "",
-                      }),
-                    );
-                  }}
-                />
-              ))}
+              {visibleStaffGrants.map((grant) => {
+                const canRemove = viewerHoldsVakalat(grant.caseId);
+                return (
+                  <CaseEntry
+                    key={grant.caseId}
+                    grant={grant}
+                    person={openPerson}
+                    locale={locale}
+                    selectable={canRemove && removableStaffGrants.length > 1}
+                    checked={checkedCases.includes(grant.caseId)}
+                    onCheck={(value) =>
+                      setCheckedCases((current) =>
+                        value
+                          ? [...current, grant.caseId]
+                          : current.filter((id) => id !== grant.caseId),
+                      )
+                    }
+                    onOpenCase={() => {
+                      closePanel();
+                      onOpenCase(grant.caseId);
+                    }}
+                    removeLocked={!canRemove}
+                    onRemove={
+                      canRemove
+                        ? () => {
+                            removeGrant(openPerson.id, grant.caseId);
+                            setCheckedCases((current) =>
+                              current.filter((id) => id !== grant.caseId),
+                            );
+                            setRemovedNote(
+                              fillCopy(peopleCopy.removedNote, locale, {
+                                name: openPerson.name,
+                                case: caseById(grant.caseId)?.caseNumber ?? "",
+                              }),
+                            );
+                          }
+                        : undefined
+                    }
+                  />
+                );
+              })}
             </div>
           ) : (
             <p className="py-4 text-caption text-muted-foreground">
@@ -444,19 +518,21 @@ export function PeoplePage({
             </p>
           )}
         </div>
-        <div className="shrink-0 px-1 pt-2 pb-1">
-          <Button
-            type="button"
-            variant="destructive"
-            className="w-full"
-            data-preserve-admin-selection
-            onClick={() => setConfirmRemove(true)}
-          >
-            {checkedCases.length
-              ? pick(peopleCopy.removeFromThese, locale)
-              : pick(peopleCopy.removeFromAll, locale)}
-          </Button>
-        </div>
+        {removableStaffGrants.length > 0 ? (
+          <div className="shrink-0 px-1 pt-2 pb-1">
+            <Button
+              type="button"
+              variant="destructive"
+              className="w-full"
+              data-preserve-admin-selection
+              onClick={() => setConfirmRemove(true)}
+            >
+              {checkedCases.length
+                ? pick(peopleCopy.removeFromThese, locale)
+                : pick(peopleCopy.removeFromAll, locale)}
+            </Button>
+          </div>
+        ) : null}
       </section>
     );
   }
@@ -805,6 +881,38 @@ export function PeoplePage({
           ) : null}
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ------------------------------------- vakalat removal (court flow) */}
+      {/* The Parties tab's own removal dialog, unchanged: grounds, then who
+          approves (their consent or the magistrate), then sign. English like
+          every application flow. */}
+      {openPerson && removeVakalatCaseId ? (
+        <RemoveAdvocateDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) setRemoveVakalatCaseId(null);
+          }}
+          advocateName={openPerson.name}
+          partyName={
+            caseById(removeVakalatCaseId)?.title.split(" vs ")[0] ??
+            "the party"
+          }
+          caseRef={{
+            title: caseById(removeVakalatCaseId)?.title ?? "",
+            caseNumber: caseById(removeVakalatCaseId)?.caseNumber ?? "",
+            court: caseById(removeVakalatCaseId)?.court ?? "",
+          }}
+          onRequested={() =>
+            setPendingRemovals(
+              (current) =>
+                new Set([
+                  ...current,
+                  `${openPerson.id}:${removeVakalatCaseId}`,
+                ]),
+            )
+          }
+        />
+      ) : null}
     </div>
   );
 }

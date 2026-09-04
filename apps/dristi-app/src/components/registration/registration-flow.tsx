@@ -2,14 +2,14 @@
 
 import * as React from "react";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
-import { ArrowLeftIcon, CheckCircle2Icon, ClockIcon, FileTextIcon } from "lucide-react";
+import { ArrowLeftIcon, CheckCircle2Icon, ClockIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DescriptionDetails, DescriptionList, DescriptionRow, DescriptionTerm } from "@/components/ui/description-list";
-import { DocumentPreviewDialog, DocumentRowValue, DocumentThumbnailButton, useObjectUrl } from "@/components/document-preview";
-import { DocumentSlot } from "@/components/ui/document-slot";
+import { DocumentRowValue } from "@/components/document-preview";
+import { UploadedDocField } from "@/components/cases/uploaded-doc-field";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
@@ -97,10 +97,7 @@ export function RegistrationFlow({ locale, summoned, initialMobile = "", onFinis
   // Advocate / clerk verification.
   const [regNumber, setRegNumber] = React.useState("");
   const [idFile, setIdFile] = React.useState<File | null>(null);
-  const [idPreviewOpen, setIdPreviewOpen] = React.useState(false);
   const [appId, setAppId] = React.useState("");
-  const idFileInputRef = React.useRef<HTMLInputElement>(null);
-  const idFileUrl = useObjectUrl(idFile);
 
   React.useEffect(() => {
     if (resendIn <= 0) return;
@@ -273,28 +270,24 @@ export function RegistrationFlow({ locale, summoned, initialMobile = "", onFinis
             </Field>
             <Field data-invalid={touched && !idFile}>
               <FieldLabel>{pick(verification.uploadLabel, locale)} <span className="text-destructive">*</span></FieldLabel>
-              <input ref={idFileInputRef} type="file" className="hidden" tabIndex={-1} aria-hidden="true" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" onChange={(event) => { setIdFile(event.target.files?.[0] ?? null); setTouched(false); }} />
-              <DocumentSlot
-                status={idFile ? "filled" : "empty"}
-                media={idFile && idFileUrl ? "thumbnail" : "icon"}
+              {/* The app's one upload row (Sept 3): the filled state is the
+                  Attachment row with Change file / Remove on its right edge —
+                  not a Change link stranded under the box. */}
+              <UploadedDocField
                 label={pick(verification.uploadLabel, locale)}
                 required
-                filename={idFile?.name}
-                thumbnail={idFile && idFileUrl ? (
-                  <DocumentThumbnailButton file={idFile} url={idFileUrl} locale={locale} onOpen={() => setIdPreviewOpen(true)} className="size-full" />
-                ) : (
-                  <FileTextIcon className="size-5" aria-hidden />
-                )}
-                onChooseFile={() => idFileInputRef.current?.click()}
-                copy={{ noFile: pick(verificationUi.noFile, locale), chooseFile: pick(verificationUi.chooseFile, locale) }}
+                file={idFile}
+                onFileChange={(file) => { setIdFile(file); setTouched(false); }}
+                copy={{
+                  changeFile: pick(verificationUi.changeFile, locale),
+                  remove: pick(verificationUi.removeFile, locale),
+                  noFile: pick(verificationUi.noFile, locale),
+                  chooseFile: pick(verificationUi.chooseFile, locale),
+                }}
               />
-              <div className="flex items-start justify-between gap-4">
-                <FieldDescription>{pick(verification.uploadHint, locale)} {pick(verificationUi.fileHelp, locale)}</FieldDescription>
-                {idFile ? <Button type="button" variant="link" className="h-auto shrink-0 p-0" onClick={() => idFileInputRef.current?.click()}>{pick(verificationUi.changeFile, locale)}</Button> : null}
-              </div>
+              <FieldDescription>{pick(verification.uploadHint, locale)} {pick(verificationUi.fileHelp, locale)}</FieldDescription>
               <FieldError>{touched && !idFile ? pick(verification.uploadError, locale) : null}</FieldError>
             </Field>
-            <DocumentPreviewDialog open={idPreviewOpen} onOpenChange={setIdPreviewOpen} file={idFile} url={idFileUrl} locale={locale} />
             <Actions locale={locale} onBack={() => { setTouched(false); setStep("contact"); }} />
           </form>
         ) : null}

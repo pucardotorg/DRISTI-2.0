@@ -656,15 +656,23 @@
       ],
       "legalTeams": [
         {
+          "id": "team-1001-0",
+          "advocate": "Adv. Anjali Nair",
+          "side": "complainant",
+          "clientPartyIds": [
+            "pty-1001-c1"
+          ],
+          "juniors": [],
+          "clerks": []
+        },
+        {
           "id": "team-1001-1",
           "advocate": "Adv. Ramesh Menon",
           "side": "complainant",
           "clientPartyIds": [
             "pty-1001-c1"
           ],
-          "juniors": [
-            "Adv. Anjali Nair"
-          ],
+          "juniors": [],
           "clerks": [
             "Suresh Kumar"
           ]

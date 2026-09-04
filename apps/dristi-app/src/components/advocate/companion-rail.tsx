@@ -10,6 +10,7 @@ import {
   Gavel,
   IndianRupee,
   ListChecks,
+  MailQuestion,
   PenLine,
   Undo2,
   X,
@@ -78,6 +79,7 @@ const KIND_ICON: Record<TaskKind, LucideIcon> = {
   pay: IndianRupee,
   file: FileUp,
   returned: Undo2,
+  review: MailQuestion,
   hearing: Gavel,
   draft: FileClock,
 };

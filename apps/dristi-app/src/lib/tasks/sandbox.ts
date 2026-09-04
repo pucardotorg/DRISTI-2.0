@@ -14,7 +14,7 @@ import { SCRUTINY_DEFECTS, SCRUTINY_DRAFT_ID } from "./scrutiny-return";
 import type { Case, Defect, Person, Task } from "./types";
 
 /** Bump when the seed's shape changes; a browser holding an older seed is re-seeded. */
-export const SEED_VERSION = 10;
+export const SEED_VERSION = 11;
 
 /**
  * A defect on a filing that was made outside this app, so there is no draft to open and
@@ -771,7 +771,22 @@ export function buildTasks(): Task[] {
       ],
     }),
 
-    /* ── For a hearing ───────────────────────────────────────────── */
+    /* ── To review ───────────────────────────────────────────────── */
+    task({
+      id: "t-remove144",
+      caseId: "c-144",
+      kind: "review",
+      title: "Respond to the request for your removal from the case",
+      why: created(-1, "Deepa Varghese asked for your consent to your removal from the case"),
+      whatToDo:
+        "The client wants to consolidate representation with Deepa Varghese. Accepting records your consent and the removal goes ahead; declining sends the request to the magistrate to decide.",
+      dueKind: "none",
+      status: "open",
+      closesWhen: "Closes when you respond, or when the magistrate decides the removal instead.",
+      review: { requestedBy: "p-dv", of: "p-an" },
+    }),
+
+    /* ── To submit (at a posting) ────────────────────────────────── */
     task({
       id: "t-plea88",
       caseId: "c-88",

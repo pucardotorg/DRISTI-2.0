@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
-import { TASKS_HOME } from "@/lib/tasks/routes";
+import { TASKS_HOME, taskHref } from "@/lib/tasks/routes";
 import { caseOf, tasksInView } from "@/lib/tasks/selectors";
 import { compareUrgency, daysUntil, isOverdue } from "@/lib/tasks/urgency";
 import { useChrome } from "@/components/shell/chrome";
@@ -148,7 +148,8 @@ function useTaskNotifications() {
     if (state !== "ready") return [];
     const now = new Date();
     const w = { people, cases, tasks, user, now };
-    return tasksInView(w, "needs-action")
+    const pending = tasksInView(w, "needs-action");
+    const overdue: ShellNotification[] = pending
       .filter((t) => isOverdue(t, now))
       .sort((a, b) => compareUrgency(a, b, now))
       .slice(0, 8)
@@ -164,8 +165,28 @@ function useTaskNotifications() {
           unread: !readIds.has(t.id),
           tone: "warning" as const,
           persistent: true,
+          // Every task notification opens the task itself — the row is a
+          // doorway to the action, not a status readout.
+          href: taskHref(t.id),
         };
       });
+    // A request addressed to this person is a thing that needs attention the moment it
+    // arrives, deadline or none — still a restatement of their own data, not a feed.
+    const requests: ShellNotification[] = pending
+      .filter((t) => t.kind === "review" && !isOverdue(t, now))
+      .map((t) => {
+        const kase = caseOf(w, t);
+        return {
+          id: t.id,
+          title: t.title,
+          body: `Awaiting your decision${kase ? ` · ${kase.parties}` : ""}`,
+          unread: !readIds.has(t.id),
+          tone: "info" as const,
+          persistent: true,
+          href: taskHref(t.id),
+        };
+      });
+    return [...requests, ...overdue];
   }, [state, people, cases, tasks, user, readIds]);
 
   const markAllRead = React.useCallback(() => {
