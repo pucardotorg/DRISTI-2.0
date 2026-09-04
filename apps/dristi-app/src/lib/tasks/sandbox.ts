@@ -14,7 +14,7 @@ import { SCRUTINY_DEFECTS, SCRUTINY_DRAFT_ID } from "./scrutiny-return";
 import type { Case, Defect, Person, Task } from "./types";
 
 /** Bump when the seed's shape changes; a browser holding an older seed is re-seeded. */
-export const SEED_VERSION = 11;
+export const SEED_VERSION = 12;
 
 /**
  * A defect on a filing that was made outside this app, so there is no draft to open and
@@ -43,6 +43,9 @@ export const PEOPLE: Person[] = [
   { id: "p-dv", name: "Deepa Varghese", initials: "DV", role: "senior" },
   { id: "p-rm", name: "R. Manoj", initials: "RM", role: "senior" },
   { id: "p-ri", name: "Rahul Iyer", initials: "RI", role: "junior" },
+  /* Bulk-people concept (Sept 2026): the vakalatnama holder who shared
+     office access with Anjali on Canara Bank; sign-later requests go to him. */
+  { id: "p-rp", name: "Ramesh Pillai", initials: "RP", role: "senior" },
 ];
 
 /** Who the sandbox signs in as until the account menu says otherwise. */
@@ -216,6 +219,9 @@ export const CASES: Case[] = [
   { id: "c-up8", stNumber: "ST 194/2026", cnr: "KLKL01-000194-2026", parties: "Devassy Joseph v. Anchor Marine", court: ON, stage: "Appearance", nextHearingAt: at(8, 10, 30), signatories: ["p-rm"], advocates: ["p-rm", "p-an"] },
   { id: "c-up9", stNumber: "ST 872/2025", cnr: "KLKL01-000872-2025", parties: "Radhamani T. v. Sunlight Agro", court: ON, stage: "Evidence of the accused", nextHearingAt: at(13, 11, 0), signatories: ["p-an", "p-dv"], advocates: ["p-an", "p-dv", "p-sp"] },
   { id: "c-up10", stNumber: "ST 331/2026", cnr: "KLKL04-000331-2026", parties: "Ouseph Varkey v. Nilgiri Rubbers", court: CJM, stage: "Arguments", nextHearingAt: at(17, 10, 30), signatories: ["p-an"], advocates: ["p-an", "p-ri"] },
+  // Bulk-people concept: the one case Anjali reaches by office access alone (the
+  // firm directory's c-778). Ramesh holds the vakalatnama; she can see and prepare.
+  { id: "c-778", stNumber: "CC 778/2026", cnr: "KLKL02-000778-2026", parties: "Canara Bank v. Deepak R.", court: JMFC1, stage: "Evidence of the complainant", nextHearingAt: hearing(15), signatories: ["p-rp"], advocates: ["p-rp", "p-an"] },
   // Matters before filing — no ST number, no CNR yet; the statutory clocks live here.
   { id: "c-sainaba", stNumber: "", cnr: "", parties: "Sainaba K. v. Riyas M.", court: ON, stage: "Pre-filing", signatories: ["p-an"], advocates: ["p-an", "p-sp"] },
   { id: "c-arun", stNumber: "", cnr: "", parties: "Arun K. v. Meera Enterprises", court: ON, stage: "Pre-filing", signatories: ["p-rm"], advocates: ["p-rm", "p-sp"] },

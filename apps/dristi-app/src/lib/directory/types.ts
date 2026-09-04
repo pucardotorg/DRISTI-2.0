@@ -40,6 +40,13 @@ export type DirectoryCase = {
    */
   viewer: { kind: "vakalatnama" } | { kind: "office"; via: string };
   parties: { complainant: CaseParty; accused: CaseParty };
+  /**
+   * Office staff already on the case record, shared by a vakalatnama holder
+   * before the directory existed. Linked to a directory person by phone
+   * when they are imported; they surface as direct grants with the sharer's
+   * name, never as something the viewer granted.
+   */
+  officeStaff?: Array<{ name: string; phone: string; addedBy: string; since: string }>;
 };
 
 export type PersonStatus = "registered" | "invited";
@@ -70,11 +77,13 @@ export type DirectGrant = {
   personId: string;
   caseId: string;
   since: string;
+  /** Who shared it; absent means the signed-in advocate. */
+  addedBy?: string;
 };
 
 export type GrantSource =
   | { kind: "group"; groupId: string }
-  | { kind: "direct" }
+  | { kind: "direct"; addedBy?: string }
   | { kind: "vakalatnama" };
 
 /**
@@ -109,6 +118,14 @@ export type PendingRequest =
       id: string;
       kind: "assign-group";
       groupId: string;
+      caseId: string;
+      holder: string;
+      requestedOn: string;
+    }
+  | {
+      id: string;
+      kind: "grant-person";
+      personId: string;
       caseId: string;
       holder: string;
       requestedOn: string;

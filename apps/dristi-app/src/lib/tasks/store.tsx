@@ -62,6 +62,11 @@ export type TasksContextValue = {
   resetSandbox: () => Promise<void>;
   /** Apply a transition to one task. Throws `TransitionError` on an illegal move. */
   dispatch: (taskId: TaskId, transition: Transition) => Promise<Task>;
+  /**
+   * Add a task this front end authored itself (a sign-later request from the
+   * firm directory). The tasks service will own creation; this is its seam.
+   */
+  createTask: (task: Task) => Promise<void>;
   requestHighlight: (taskId: TaskId) => void;
   dismissGhost: (taskId: TaskId) => void;
 };
@@ -230,6 +235,15 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     [announce, cases, people, user]
   );
 
+  const createTask = React.useCallback(
+    async (task: Task) => {
+      await getRepository().putTasks([task]);
+      setTasks((prev) => (prev.some((t) => t.id === task.id) ? prev : [...prev, task]));
+      announce({ type: "changed", ids: [task.id], byId: user.id, byName: user.name, closed: [] });
+    },
+    [announce, user]
+  );
+
   const setUser = React.useCallback(async (id: PersonId) => {
     setUserId(id);
     await getRepository().putCurrentUserId(id);
@@ -265,10 +279,11 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       setUser,
       resetSandbox,
       dispatch,
+      createTask,
       requestHighlight,
       dismissGhost,
     }),
-    [state, error, people, cases, tasks, user, online, ghosts, highlight, reload, setUser, resetSandbox, dispatch, requestHighlight, dismissGhost]
+    [state, error, people, cases, tasks, user, online, ghosts, highlight, reload, setUser, resetSandbox, dispatch, createTask, requestHighlight, dismissGhost]
   );
 
   return <TasksContext.Provider value={value}>{children}</TasksContext.Provider>;

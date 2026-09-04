@@ -42,7 +42,8 @@ export type DirectoryContextValue = DirectoryWorld & {
   removeMember: (groupId: string, personId: string) => void;
   assignCases: (groupId: string, caseIds: string[]) => AssignResult;
   removeCaseFromGroup: (groupId: string, caseId: string) => void;
-  grantDirect: (personId: string, caseIds: string[]) => void;
+  /** Direct office grants; cases the viewer holds by office access alone go to their holder to sign. */
+  grantDirect: (personId: string, caseIds: string[]) => { granted: DirectoryCase[]; sentToSign: Array<{ kase: DirectoryCase; holder: string }> };
   removeDirect: (personId: string, caseId: string) => void;
   requestRemoval: (personId: string, caseId: string, note?: string) => PendingRequest;
   /** For the demo: reset to day one. */
@@ -70,16 +71,43 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
   const [pending, setPending] = React.useState<PendingRequest[]>([]);
   const cases = DIRECTORY_CASES;
 
-  const addPeople = React.useCallback((incoming: Person[]) => {
-    setPeople((current) => {
-      const byPhone = new Map(current.map((p) => [p.phone, p]));
-      for (const person of incoming) {
-        // Identity is the phone: re-importing a known number links, never duplicates.
-        if (!byPhone.has(person.phone)) byPhone.set(person.phone, person);
+  const addPeople = React.useCallback(
+    (incoming: Person[]) => {
+      setPeople((current) => {
+        const byPhone = new Map(current.map((p) => [p.phone, p]));
+        for (const person of incoming) {
+          // Identity is the phone: re-importing a known number links, never duplicates.
+          if (!byPhone.has(person.phone)) byPhone.set(person.phone, person);
+        }
+        return [...byPhone.values()];
+      });
+      // Office access a colleague already shared on a case record follows the
+      // person in, attributed to whoever shared it.
+      const seeded: DirectGrant[] = [];
+      for (const kase of cases) {
+        for (const staff of kase.officeStaff ?? []) {
+          const person = incoming.find((p) => p.phone === staff.phone);
+          if (person) {
+            seeded.push({
+              personId: person.id,
+              caseId: kase.id,
+              since: staff.since,
+              addedBy: staff.addedBy,
+            });
+          }
+        }
       }
-      return [...byPhone.values()];
-    });
-  }, []);
+      if (seeded.length) {
+        setDirectGrants((current) => [
+          ...current,
+          ...seeded.filter(
+            (g) => !current.some((c) => c.personId === g.personId && c.caseId === g.caseId),
+          ),
+        ]);
+      }
+    },
+    [cases],
+  );
 
   const createGroup = React.useCallback((name: string, memberIds: string[]): Group => {
     const group: Group = {
@@ -181,16 +209,42 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
-  const grantDirect = React.useCallback((personId: string, caseIds: string[]) => {
-    const today = displayToday();
-    setDirectGrants((current) => {
-      const have = new Set(
-        current.filter((g) => g.personId === personId).map((g) => g.caseId),
-      );
-      const fresh = caseIds.filter((id) => !have.has(id));
-      return [...current, ...fresh.map((caseId) => ({ personId, caseId, since: today }))];
-    });
-  }, []);
+  const grantDirect = React.useCallback(
+    (personId: string, caseIds: string[]) => {
+      const today = displayToday();
+      const granted: DirectoryCase[] = [];
+      const sentToSign: Array<{ kase: DirectoryCase; holder: string }> = [];
+      for (const id of caseIds) {
+        const kase = cases.find((c) => c.id === id);
+        if (!kase) continue;
+        if (kase.viewer.kind === "office") {
+          if (!pending.some((r) => r.kind === "grant-person" && r.personId === personId && r.caseId === id)) {
+            sentToSign.push({ kase, holder: kase.viewer.via });
+          }
+        } else granted.push(kase);
+      }
+      setDirectGrants((current) => {
+        const have = new Set(current.filter((g) => g.personId === personId).map((g) => g.caseId));
+        const fresh = granted.filter((c) => !have.has(c.id));
+        return [...current, ...fresh.map((c) => ({ personId, caseId: c.id, since: today }))];
+      });
+      if (sentToSign.length) {
+        setPending((current) => [
+          ...current,
+          ...sentToSign.map(({ kase, holder }) => ({
+            id: nextId("req"),
+            kind: "grant-person" as const,
+            personId,
+            caseId: kase.id,
+            holder,
+            requestedOn: today,
+          })),
+        ]);
+      }
+      return { granted, sentToSign };
+    },
+    [cases, pending],
+  );
 
   const removeDirect = React.useCallback((personId: string, caseId: string) => {
     setDirectGrants((current) =>

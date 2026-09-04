@@ -114,6 +114,13 @@ export const DIRECTORY_CASES: DirectoryCase[] = [
       complainant: { name: "Canara Bank", phone: "9447100213" },
       accused: { name: "Deepak R.", phone: "9447100214" },
     },
+    /* Ramesh shared this case with two of the office before the directory
+       existed. Once imported they show it as his direct grant, and taking
+       them off it is his to sign. */
+    officeStaff: [
+      { name: "Suresh Kumar", phone: "9846778123", addedBy: "Adv. Ramesh Pillai", since: "11 Jul 2026" },
+      { name: "Bindu Rajan", phone: "9744551209", addedBy: "Adv. Ramesh Pillai", since: "11 Jul 2026" },
+    ],
   },
   {
     id: "c-289",

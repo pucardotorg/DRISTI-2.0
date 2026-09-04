@@ -69,7 +69,9 @@ export function effectiveGrants(person: Person, world: DirectoryWorld): Effectiv
     for (const caseId of group.caseIds) add(caseId, { kind: "group", groupId: group.id });
   }
   for (const grant of world.directGrants) {
-    if (grant.personId === person.id) add(grant.caseId, { kind: "direct" });
+    if (grant.personId === person.id) {
+      add(grant.caseId, grant.addedBy ? { kind: "direct", addedBy: grant.addedBy } : { kind: "direct" });
+    }
   }
 
   return [...byCase.entries()].map(([caseId, sources]) => ({
@@ -157,7 +159,9 @@ export function removalPreview(
 /** Name the source the way the person meets it. */
 export function sourceLabel(source: GrantSource, groups: Group[]): string {
   if (source.kind === "vakalatnama") return "Vakalatnama";
-  if (source.kind === "direct") return "Added directly";
+  if (source.kind === "direct") {
+    return source.addedBy ? `Added directly by ${displayName(source.addedBy)}` : "Added directly";
+  }
   const group = groups.find((g) => g.id === source.groupId);
   return group ? `via ${group.name}` : "via a group";
 }
