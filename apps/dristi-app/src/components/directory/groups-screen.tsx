@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -43,6 +44,7 @@ import {
 } from "@/components/ui/empty";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { initials } from "@/components/access/access-list";
 import { CasePickerDialog } from "@/components/directory/case-picker-dialog";
 import { directoryCopy as copy } from "@/components/directory/copy";
@@ -61,6 +63,9 @@ import { cn } from "@/lib/utils";
  */
 
 const GRID = "grid-cols-[minmax(0,1fr)_5rem_1.5rem] sm:grid-cols-[minmax(0,3fr)_2fr_2fr_1.5rem]";
+
+const TAB_CLASS =
+  "-mb-px flex-none items-end gap-1.5 rounded-none px-0 pb-2.5 text-body-compact group-data-horizontal/tabs:h-10 group-data-horizontal/tabs:after:bottom-0 group-data-[variant=line]/tabs-list:data-active:after:bg-brand-accent";
 
 export function GroupsList({
   openGroupId,
@@ -142,6 +147,7 @@ export function GroupPanel({
   const signLater = useSignLater();
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [casesOpen, setCasesOpen] = React.useState(false);
+  const [lane, setLane] = React.useState<"members" | "cases">("members");
   const [renaming, setRenaming] = React.useState(false);
   const [newName, setNewName] = React.useState(group.name);
   const [confirm, setConfirm] = React.useState<
@@ -202,19 +208,45 @@ export function GroupPanel({
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-4">
-        {/* ------------------------------------------------------- members */}
-        <section className="flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-3 border-b border-hairline pb-2">
-            <h3 className="text-body-compact font-semibold">
-              {copy.groupMembers}{" "}
-              <span className="font-normal text-muted-foreground tabular-nums">{members.length}</span>
-            </h3>
-            <Button type="button" variant="ghost" size="sm" data-icon="inline-start" onClick={() => setMembersOpen(true)}>
-              <PlusIcon aria-hidden />
-              {copy.addMembers}
-            </Button>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
+        {/* Members and cases as two lanes, so neither list has to be scrolled
+            past to reach the other (owner, Sept 4). */}
+        <Tabs value={lane} onValueChange={(v) => setLane(v as "members" | "cases")} className="min-h-0 flex-1 gap-3">
+          <div className="flex items-end justify-between gap-2 border-b border-hairline">
+            <TabsList variant="line" className="min-w-0 justify-start gap-6 p-0 pb-0 group-data-horizontal/tabs:h-auto">
+              <TabsTrigger value="members" className={TAB_CLASS}>
+                {copy.groupMembers}
+                <Badge
+                  variant="secondary"
+                  className={cn("tabular-nums", lane === "members" && "bg-brand-muted text-brand-muted-foreground")}
+                >
+                  {members.length}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="cases" className={TAB_CLASS}>
+                {copy.groupCases}
+                <Badge
+                  variant="secondary"
+                  className={cn("tabular-nums", lane === "cases" && "bg-brand-muted text-brand-muted-foreground")}
+                >
+                  {groupCases.length}
+                </Badge>
+              </TabsTrigger>
+            </TabsList>
+            {lane === "members" ? (
+              <Button type="button" variant="ghost" size="sm" className="mb-1" data-icon="inline-start" onClick={() => setMembersOpen(true)}>
+                <PlusIcon aria-hidden />
+                {copy.addMembers}
+              </Button>
+            ) : (
+              <Button type="button" variant="ghost" size="sm" className="mb-1" data-icon="inline-start" onClick={() => setCasesOpen(true)}>
+                <PlusIcon aria-hidden />
+                {copy.assignCases}
+              </Button>
+            )}
           </div>
+
+          <TabsContent value="members" className="min-h-0 flex-1 overflow-y-auto">
           {members.length ? (
             <ul className="flex flex-col divide-y divide-hairline">
               {members.map((p) => {
@@ -259,20 +291,8 @@ export function GroupPanel({
           ) : (
             <p className="py-3 text-caption text-muted-foreground">{copy.noGroupMembers}</p>
           )}
-        </section>
-
-        {/* --------------------------------------------------------- cases */}
-        <section className="flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-3 border-b border-hairline pb-2">
-            <h3 className="text-body-compact font-semibold">
-              {copy.groupCases}{" "}
-              <span className="font-normal text-muted-foreground tabular-nums">{groupCases.length}</span>
-            </h3>
-            <Button type="button" variant="ghost" size="sm" data-icon="inline-start" onClick={() => setCasesOpen(true)}>
-              <PlusIcon aria-hidden />
-              {copy.assignCases}
-            </Button>
-          </div>
+          </TabsContent>
+          <TabsContent value="cases" className="min-h-0 flex-1 overflow-y-auto">
           {groupCases.length || awaiting.length ? (
             <ul className="flex flex-col divide-y divide-hairline">
               {groupCases.map((c) => (
@@ -315,7 +335,8 @@ export function GroupPanel({
           ) : (
             <p className="py-3 text-caption text-muted-foreground">{copy.noGroupCases}</p>
           )}
-        </section>
+          </TabsContent>
+        </Tabs>
       </div>
 
       <PeoplePickerDialog open={membersOpen} onOpenChange={setMembersOpen} group={group} />

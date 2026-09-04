@@ -1,10 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircle2Icon, FileTextIcon } from "lucide-react";
+import { CheckCircle2Icon, ChevronDownIcon, FileTextIcon } from "lucide-react";
 
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -210,17 +211,41 @@ export function ImportWizard({
               {step === 2 && rows ? (
                 <>
                   {blocking.length ? (
-                    <ul className="flex flex-col divide-y divide-hairline">
-                      {blocking.map((row) => (
-                        <ProblemRow key={row.row} row={row} rows={rows} onResolve={resolve} caseTitle={(id) => cases.find((c) => c.id === id)?.title ?? id} />
-                      ))}
-                    </ul>
+                    <section className="flex flex-col gap-1">
+                      <h3 className="text-body font-semibold">{copy.decisionsHeading(blocking.length)}</h3>
+                      <ol className="flex flex-col divide-y divide-hairline">
+                        {blocking.map((row, index) => (
+                          <ProblemRow
+                            key={row.row}
+                            index={index + 1}
+                            row={row}
+                            rows={rows}
+                            onResolve={resolve}
+                            caseTitle={(id) => cases.find((c) => c.id === id)?.title ?? id}
+                          />
+                        ))}
+                      </ol>
+                    </section>
                   ) : (
                     <Banner variant="success">{copy.checkClean}</Banner>
                   )}
                   {known.length ? (
-                    <section className="flex flex-col gap-2">
-                      <h3 className="text-body-compact font-semibold">{copy.knownHeading(known.length)}</h3>
+                    /* Informational, so folded by default: the people DRISTI
+                       already knows need no decision. */
+                    <Collapsible className="group/known flex flex-col gap-2">
+                      <CollapsibleTrigger asChild>
+                        <button
+                          type="button"
+                          className="flex w-full items-center justify-between gap-2 rounded-lg py-1 text-left text-body-compact font-semibold hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >
+                          {copy.knownHeading(known.length)}
+                          <ChevronDownIcon
+                            className="size-4 text-muted-foreground transition-transform group-data-[state=open]/known:rotate-180"
+                            aria-hidden
+                          />
+                        </button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
                       <ul className="flex flex-col gap-1">
                         {known.map((row) => {
                           const k = row.problems.find((p): p is Extract<Problem, { kind: "known" }> => p.kind === "known")!;
@@ -231,7 +256,8 @@ export function ImportWizard({
                           );
                         })}
                       </ul>
-                    </section>
+                      </CollapsibleContent>
+                    </Collapsible>
                   ) : null}
                 </>
               ) : null}
@@ -285,11 +311,13 @@ export function ImportWizard({
 
 /** One row that needs a decision, with its inline fix. */
 function ProblemRow({
+  index,
   row,
   rows,
   onResolve,
   caseTitle,
 }: {
+  index: number;
   row: CheckedRow;
   rows: CheckedRow[];
   onResolve: (row: number, resolution: Resolution) => void;
@@ -306,7 +334,9 @@ function ProblemRow({
   return (
     <li className="flex flex-col gap-3 py-4">
       <div className="flex flex-col gap-0.5">
-        <p className="text-caption font-medium text-muted-foreground tabular-nums">{copy.rowLabel(row.row)}</p>
+        <p className="text-caption font-medium text-muted-foreground tabular-nums">
+          {index}. {copy.rowLabel(row.row)}
+        </p>
         <p className="text-body-compact font-medium tabular-nums">{raw}</p>
         <p className={cn("text-body-compact text-pretty", hard ? "text-destructive-ink" : "text-foreground")}>
           {problem.kind === "duplicate"
@@ -364,11 +394,16 @@ function ProblemRow({
               data-fix-row={row.row}
               className="h-9"
               inputMode={problem.kind === "bad-mobile" ? "numeric" : undefined}
+              maxLength={problem.kind === "bad-mobile" ? 10 : undefined}
               placeholder={
                 problem.kind === "missing-name" ? copy.namePlaceholder : problem.kind === "bad-mobile" ? copy.phonePlaceholder : copy.barIdPlaceholder
               }
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) =>
+                setText(
+                  problem.kind === "bad-mobile" ? e.target.value.replace(/\D/g, "").slice(0, 10) : e.target.value,
+                )
+              }
               onKeyDown={(e) => {
                 if (e.key === "Enter" && text.trim()) {
                   e.preventDefault();

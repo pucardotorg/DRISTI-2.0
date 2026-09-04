@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { initials } from "@/components/access/access-list";
 import { AddPeopleDialog } from "@/components/directory/add-people-dialog";
@@ -48,8 +49,9 @@ const GRID = "grid-cols-[1.25rem_minmax(0,1fr)_5rem_1.5rem] sm:grid-cols-[1.25re
 
 export function PeopleScreen({ onOpenCase }: { onOpenCase: (caseId: string) => void }) {
   const directory = useDirectory();
-  const { people, groups } = directory;
+  const { people, groups, ready } = directory;
   const [tab, setTab] = React.useState<Tab>("people");
+  const [kind, setKind] = React.useState<"advocates" | "clerks">("advocates");
   const [query, setQuery] = React.useState("");
   const [selected, setSelected] = React.useState<string[]>([]);
   const [openPersonId, setOpenPersonId] = React.useState<string | null>(null);
@@ -70,6 +72,7 @@ export function PeopleScreen({ onOpenCase }: { onOpenCase: (caseId: string) => v
     .sort((a, b) => displayName(a.name).localeCompare(displayName(b.name)));
   const advocates = matches.filter(isAdvocate);
   const staff = matches.filter((p) => !isAdvocate(p));
+  const shown = kind === "advocates" ? advocates : staff;
 
   const openPerson = people.find((p) => p.id === openPersonId) ?? null;
   const openGroup = groups.find((g) => g.id === openGroupId) ?? null;
@@ -96,7 +99,16 @@ export function PeopleScreen({ onOpenCase }: { onOpenCase: (caseId: string) => v
     <div className="flex h-[calc(100svh---spacing(14))] min-h-0 w-full flex-1 items-stretch overflow-hidden">
       <ResizablePanelGroup key={panelOpen ? "open" : "closed"} orientation="horizontal">
         <ResizablePanel defaultSize={panelOpen ? "48%" : "100%"} minSize={panelOpen ? "35%" : "100%"}>
-          <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 overflow-hidden px-4 py-8 md:px-8 md:py-10">
+          <main
+            className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-6 overflow-hidden px-4 py-8 md:px-8 md:py-10"
+            onPointerDown={(event) => {
+              // Clicking anywhere outside the table clears a selection, the
+              // same way the older People page did.
+              if (!selected.length) return;
+              const target = event.target as HTMLElement;
+              if (!target.closest("[data-preserve-selection]")) setSelected([]);
+            }}
+          >
             <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex min-w-0 flex-col gap-2">
                 <h1 className="text-title text-balance font-semibold sm:text-title-l">{copy.title}</h1>
@@ -110,7 +122,7 @@ export function PeopleScreen({ onOpenCase }: { onOpenCase: (caseId: string) => v
               ) : null}
             </header>
 
-            {people.length === 0 ? (
+            {!ready ? null : people.length === 0 ? (
               <Empty className="flex-1 py-12">
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
@@ -178,35 +190,40 @@ export function PeopleScreen({ onOpenCase }: { onOpenCase: (caseId: string) => v
                       </div>
                     </Field>
 
-                    {matches.length === 0 ? (
+                    <SegmentedControl
+                      type="single"
+                      value={kind}
+                      onValueChange={(value) => {
+                        if (value) setKind(value as "advocates" | "clerks");
+                      }}
+                      aria-label="Advocates or clerks"
+                      className="self-start"
+                    >
+                      <SegmentedControlItem value="advocates">
+                        {copy.sectionAdvocates}{" "}
+                        <span className="text-muted-foreground tabular-nums">{advocates.length}</span>
+                      </SegmentedControlItem>
+                      <SegmentedControlItem value="clerks">
+                        {copy.sectionStaff}{" "}
+                        <span className="text-muted-foreground tabular-nums">{staff.length}</span>
+                      </SegmentedControlItem>
+                    </SegmentedControl>
+
+                    {shown.length === 0 ? (
                       <p className="py-8 text-center text-body-compact text-muted-foreground">{copy.noMatches}</p>
                     ) : (
-                      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+                      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden" data-preserve-selection>
                         <div className="min-h-0 flex-1 overflow-y-auto">
-                          <div className="flex flex-col gap-8 pb-20">
-                            {advocates.length ? (
-                              <PeopleSection
-                                heading={copy.sectionAdvocates}
-                                people={advocates}
-                                selected={selected}
-                                openId={openPersonId}
-                                onToggle={toggle}
-                                onToggleAll={(value) => toggleSection(advocates.map((p) => p.id), value)}
-                                onOpen={openPersonTab}
-                              />
-                            ) : null}
-                            {staff.length ? (
-                              <PeopleSection
-                                heading={copy.sectionStaff}
-                                people={staff}
-                                selected={selected}
-                                openId={openPersonId}
-                                onToggle={toggle}
-                                onToggleAll={(value) => toggleSection(staff.map((p) => p.id), value)}
-                                onOpen={openPersonTab}
-                              />
-                            ) : null}
-                          </div>
+                          <PeopleSection
+                            people={shown}
+                            selected={selected}
+                            openId={openPersonId}
+                            onToggle={toggle}
+                            onToggleAll={(value) => toggleSection(shown.map((p) => p.id), value)}
+                            onOpen={openPersonTab}
+                          />
+                          {/* Room so the last row clears the floating bar. */}
+                          {selected.length ? <div aria-hidden className="h-16" /> : null}
                         </div>
 
                         {selected.length ? (
@@ -295,7 +312,6 @@ export function PeopleScreen({ onOpenCase }: { onOpenCase: (caseId: string) => v
 }
 
 function PeopleSection({
-  heading,
   people,
   selected,
   openId,
@@ -303,7 +319,6 @@ function PeopleSection({
   onToggleAll,
   onOpen,
 }: {
-  heading: string;
   people: Person[];
   selected: string[];
   openId: string | null;
@@ -316,15 +331,13 @@ function PeopleSection({
   const someSelected = !allSelected && people.some((p) => selected.includes(p.id));
   return (
     <section className="flex flex-col gap-2">
-      <div className={cn("grid items-center gap-3 border-b border-hairline px-2 pb-2", GRID)}>
+      <div className={cn("sticky top-0 z-10 grid items-center gap-3 border-b border-hairline bg-background px-2 pb-2", GRID)}>
         <Checkbox
           aria-label={copy.selectAll}
           checked={allSelected ? true : someSelected ? "indeterminate" : false}
           onCheckedChange={(value) => onToggleAll(value === true)}
         />
-        <span className="text-caption font-semibold text-foreground">
-          {heading} <span className="font-medium text-muted-foreground tabular-nums">{people.length}</span>
-        </span>
+        <span className="text-caption font-medium text-muted-foreground">{copy.columnPerson}</span>
         <span className="hidden text-caption font-medium text-muted-foreground sm:block">{copy.columnGroups}</span>
         <span className="text-caption font-medium text-muted-foreground">{copy.columnCases}</span>
         <span />

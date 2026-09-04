@@ -34,6 +34,8 @@ export type AssignResult = {
 };
 
 export type DirectoryContextValue = DirectoryWorld & {
+  /** False until the saved state has been read back; screens wait for it. */
+  ready: boolean;
   addPeople: (people: Person[]) => void;
   createGroup: (name: string, memberIds: string[]) => Group;
   renameGroup: (groupId: string, name: string) => void;
@@ -64,12 +66,69 @@ function nextId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}${seq}`;
 }
 
+/**
+ * The directory survives navigation and reloads in this browser. The portal
+ * layout that mounts the provider does not wrap every route (Vakalatnama,
+ * Pending tasks), so without this a demo lost its office the moment the
+ * admin stepped out and back. A real deployment persists server-side.
+ */
+const STORAGE_KEY = "dristi.directory.v1";
+
+type Saved = Pick<DirectoryWorld, "people" | "groups" | "directGrants" | "pending">;
+
+function readSaved(): Saved | null {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<Saved>;
+    return {
+      people: parsed.people ?? [],
+      groups: parsed.groups ?? [],
+      directGrants: parsed.directGrants ?? [],
+      pending: parsed.pending ?? [],
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function DirectoryProvider({ children }: { children: React.ReactNode }) {
   const [people, setPeople] = React.useState<Person[]>([]);
   const [groups, setGroups] = React.useState<Group[]>([]);
   const [directGrants, setDirectGrants] = React.useState<DirectGrant[]>([]);
   const [pending, setPending] = React.useState<PendingRequest[]>([]);
+  const [ready, setReady] = React.useState(false);
   const cases = DIRECTORY_CASES;
+
+  // Read back after mount: the server render has no storage to agree with.
+  // Deferred a tick, the way the tasks store loads, so the effect only
+  // starts the read and every setState happens from the callback.
+  const hydrate = React.useCallback(() => {
+    const saved = readSaved();
+    if (saved) {
+      setPeople(saved.people);
+      setGroups(saved.groups);
+      setDirectGrants(saved.directGrants);
+      setPending(saved.pending);
+    }
+    setReady(true);
+  }, []);
+  React.useEffect(() => {
+    const t = window.setTimeout(hydrate, 0);
+    return () => window.clearTimeout(t);
+  }, [hydrate]);
+
+  React.useEffect(() => {
+    if (!ready) return;
+    try {
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ people, groups, directGrants, pending } satisfies Saved),
+      );
+    } catch {
+      // Storage full or blocked: the session still works, it just will not survive a reload.
+    }
+  }, [ready, people, groups, directGrants, pending]);
 
   const addPeople = React.useCallback(
     (incoming: Person[]) => {
@@ -276,10 +335,16 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
     setGroups([]);
     setDirectGrants([]);
     setPending([]);
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // nothing to clear
+    }
   }, []);
 
   const value = React.useMemo<DirectoryContextValue>(
     () => ({
+      ready,
       people,
       groups,
       directGrants,
@@ -299,6 +364,7 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
       reset,
     }),
     [
+      ready,
       people,
       groups,
       directGrants,

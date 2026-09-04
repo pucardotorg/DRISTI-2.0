@@ -18,11 +18,11 @@ export const directoryCopy = {
   noMatches: "No one matches your search.",
 
   emptyTitle: "No one here yet",
-  emptyBody: "Add your office to get started. Upload the list you already keep, or add a few people by hand.",
+  emptyBody: "Add your office to get started. Upload the list you already keep, or enter a few people one at a time.",
   emptyCta: "Add your office",
 
   sectionAdvocates: "Advocates",
-  sectionStaff: "Office staff",
+  sectionStaff: "Clerks",
   columnPerson: "Person",
   columnCases: "Cases",
   columnGroups: "Groups",
@@ -43,6 +43,11 @@ export const directoryCopy = {
   panelGroups: "Groups",
   notInAnyGroup: "Not in any group yet.",
   panelCases: "Cases",
+  tabOffice: "Office access",
+  tabVakalatnama: "Vakalatnama",
+  noOfficeCases: "No office access yet. Add them to a group, or give them a case directly.",
+  noVakalatCases: "Not on the vakalatnama of any of your cases.",
+  removalRequestedPlain: "Removal requested",
   noCasesYet: "No case access yet. Add them to a group, or give them a case directly.",
   addToCases: "Add to cases",
   accessOffice: "Office access",
@@ -58,17 +63,24 @@ export const directoryCopy = {
   /* remove-access dialog */
   removeTitle: (name: string, kase: string) => `Remove ${name} from ${kase}?`,
   reachesThrough: (name: string, group: string) => `This case reaches ${name} through your group ${group}.`,
-  reachesThroughMany: (name: string, groups: string) => `This case reaches ${name} through your groups ${groups}.`,
-  optionLeaveGroup: (name: string, group: string) => `Remove ${name} from ${group}`,
-  optionLeaveGroupDetail: (n: number) =>
+  reachesThroughMany: (name: string, groups: string) =>
+    `This case reaches ${name} through your groups ${groups}. Either choice takes them off this case; nothing else does.`,
+  optionLeaveGroup: (name: string, groups: string) => `Remove ${name} from ${groups}`,
+  optionLeaveGroupAndDirect: (name: string, groups: string) => `Remove ${name} from ${groups}, and the access given directly`,
+  optionLeaveGroupDetail: (n: number, many: boolean) =>
     n === 0
-      ? "They lose this case. It is the only case the group grants."
+      ? many
+        ? "They lose this case. It is the only case these groups grant."
+        : "They lose this case. It is the only case the group grants."
       : n === 1
-        ? "They lose this case and the group's one other case:"
-        : `They lose this case and the group's ${n} other cases:`,
-  optionDropCase: (group: string) => `Remove this case from ${group}`,
-  optionDropCaseDetail: (n: number) =>
-    n === 1 ? "The group's one member loses this case." : `Everyone in the group loses this case. ${n} people.`,
+        ? `They lose this case and ${many ? "these groups'" : "the group's"} one other case:`
+        : `They lose this case and ${many ? "these groups'" : "the group's"} ${n} other cases:`,
+  optionDropCase: (groups: string) => `Remove this case from ${groups}`,
+  optionDropCaseAndDirect: (groups: string, name: string) => `Remove this case from ${groups}, and ${name}'s direct access to it`,
+  optionDropCaseDetail: (n: number, many: boolean) =>
+    n === 1
+      ? "The group's one member loses this case."
+      : `Everyone in ${many ? "these groups" : "the group"} loses this case. ${n} people.`,
   optionDropDirect: "Remove the access you gave directly",
   optionDropDirectBy: (by: string) => `Remove the access ${by} gave directly`,
   optionDropDirectDetail: "Only this person, only this case. Groups and vakalatnama stay as they are.",
@@ -81,8 +93,8 @@ export const directoryCopy = {
   cancel: "Cancel",
   continue: "Continue",
   done: "Done",
-  removedFromGroup: (name: string, group: string) => `${name} is no longer in ${group}.`,
-  removedCaseFromGroup: (kase: string, group: string) => `${kase} is no longer in ${group}.`,
+  removedFromGroup: (name: string, groups: string) => `${name} is no longer in ${groups}.`,
+  removedCaseFromGroup: (kase: string, groups: string) => `${kase} is no longer in ${groups}.`,
   removedDirect: (name: string, kase: string) => `${name} no longer has office access to ${kase}.`,
   grantBackHint: "Want them to keep some of those cases? Add them back one at a time from their page.",
 
@@ -164,11 +176,11 @@ export const directoryCopy = {
   /* add people dialog */
   addTitle: "Add people",
   addBody: "Bring your office onto DRISTI. New numbers get an SMS with a registration link; people already on DRISTI are linked.",
-  chooseManual: "Add by hand",
-  chooseManualBody: "One to about ten people. Name and number, Bar ID for advocates.",
+  chooseManual: "Add a few people",
+  chooseManualBody: "One to about ten. Enter each number; DRISTI links the ones it knows and asks a name for the rest.",
   chooseUpload: "Upload a list",
   chooseUploadBody: "Your whole office at once. A CSV with names, numbers and Bar IDs.",
-  manualTitle: "Add by hand",
+  manualTitle: "Add a few people",
   manualBody: "Enter a mobile number. If DRISTI knows it, the person is linked. If not, give their name.",
   phoneLabel: "Mobile number",
   phonePlaceholder: "10-digit mobile number",
@@ -177,6 +189,7 @@ export const directoryCopy = {
     `This number belongs to ${party}, a party on ${kase}. You can't give them office access.`,
   phoneDuplicate: "Already in the list.",
   nameLabel: "Their name",
+  addName: "Add name",
   namePlaceholder: "Full name",
   barIdLabel: "Bar ID, if they are an advocate",
   barIdPlaceholder: "K/1234/2019",
@@ -216,6 +229,7 @@ export const directoryCopy = {
   checkBody: "Only the rows that need a decision. Fix them here; nothing is created until every stop is cleared.",
   checkClean: "Every row is clear.",
   rowLabel: (n: number) => `Row ${n}`,
+  decisionsHeading: (n: number) => (n === 1 ? "1 row needs a decision" : `${n} rows need a decision`),
   problemDuplicate: (n: number) => `Same number as row ${n}. Two rows, one person.`,
   problemMissingName: "No name. You can't invite a nameless number.",
   problemBadMobile: "That's not a 10-digit mobile number.",

@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
 import { initials } from "@/components/access/access-list";
 import { directoryCopy as copy } from "@/components/directory/copy";
 import { KNOWN_ACCOUNTS, partyByPhone } from "@/lib/directory/cases";
@@ -23,6 +22,7 @@ import { displayName, displayToday, formatPhone } from "@/lib/directory/derive";
 import { BAR_ID_PATTERN, isValidMobile } from "@/lib/directory/import";
 import { useDirectory } from "@/lib/directory/store";
 import type { Person } from "@/lib/directory/types";
+import { cn } from "@/lib/utils";
 
 /**
  * Add people: the two doors, then the by-hand flow. The list door hands off
@@ -151,7 +151,7 @@ export function AddPeopleDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
         {stage === "done" ? (
           <>
             <DialogHeader className="shrink-0 px-6 py-5 pr-14 text-left">
@@ -192,7 +192,9 @@ export function AddPeopleDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-5">
+            {/* The by-hand body keeps room for the number's dropdown so it
+                never has to be scrolled into view. */}
+            <div className={cn("flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-5", stage === "manual" && "min-h-80")}>
               {stage === "choose" ? (
                 <div className="grid gap-3 sm:grid-cols-2">
                   <DoorButton
@@ -242,21 +244,30 @@ export function AddPeopleDialog({
                   ) : null}
 
                   {morph ? (
-                    <Field data-invalid={Boolean(error)}>
-                      <FieldLabel htmlFor="add-morph">
-                        {morph.step === "name" ? copy.nameLabel : copy.barIdLabel}
-                      </FieldLabel>
-                      <div className="flex items-start gap-2">
-                        <InputGroup className="flex-1">
-                          <InputGroupAddon align="inline-start">
-                            <InputGroupText className="tabular-nums">
-                              {formatPhone(morph.phone)}
-                              {morph.step === "barId" && morph.name ? ` · ${morph.name}` : null}
-                            </InputGroupText>
-                          </InputGroupAddon>
-                          <InputGroupInput
+                    /* An unknown number: the number moves into its own
+                       read-only box and the field asks for the name, then a
+                       Bar ID. Each value gets its own box, so the boundary
+                       between them is visible (owner, Sept 4). */
+                    <div className="flex flex-col gap-4">
+                      <Field>
+                        <FieldLabel htmlFor="add-morph-number">{copy.phoneLabel}</FieldLabel>
+                        <Input id="add-morph-number" readOnly value={formatPhone(morph.phone)} className="tabular-nums" />
+                      </Field>
+                      {morph.step === "barId" ? (
+                        <Field>
+                          <FieldLabel htmlFor="add-morph-name">{copy.nameLabel}</FieldLabel>
+                          <Input id="add-morph-name" readOnly value={morph.name ?? ""} />
+                        </Field>
+                      ) : null}
+                      <Field data-invalid={Boolean(error)}>
+                        <FieldLabel htmlFor="add-morph">
+                          {morph.step === "name" ? copy.nameLabel : copy.barIdLabel}
+                        </FieldLabel>
+                        <div className="flex items-start gap-2">
+                          <Input
                             id="add-morph"
                             autoFocus
+                            className="flex-1"
                             value={text}
                             placeholder={morph.step === "name" ? copy.namePlaceholder : copy.barIdPlaceholder}
                             onChange={(e) => {
@@ -270,32 +281,32 @@ export function AddPeopleDialog({
                               }
                             }}
                           />
-                        </InputGroup>
-                        {morph.step === "barId" ? (
-                          <Button type="button" variant="outline" onClick={() => commitMorph(true)}>
-                            {copy.skip}
+                          {morph.step === "barId" ? (
+                            <Button type="button" variant="outline" onClick={() => commitMorph(true)}>
+                              {copy.skip}
+                            </Button>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              aria-label={copy.cancel}
+                              onClick={() => {
+                                setMorph(null);
+                                setText("");
+                                setError(null);
+                              }}
+                            >
+                              <XIcon aria-hidden />
+                            </Button>
+                          )}
+                          <Button type="button" onClick={() => commitMorph()}>
+                            {morph.step === "name" ? copy.addName : copy.addPerson}
                           </Button>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            aria-label={copy.cancel}
-                            onClick={() => {
-                              setMorph(null);
-                              setText("");
-                              setError(null);
-                            }}
-                          >
-                            <XIcon aria-hidden />
-                          </Button>
-                        )}
-                        <Button type="button" onClick={() => commitMorph()}>
-                          {copy.addPerson}
-                        </Button>
-                      </div>
-                      <FieldError>{error}</FieldError>
-                    </Field>
+                        </div>
+                        <FieldError>{error}</FieldError>
+                      </Field>
+                    </div>
                   ) : (
                     <Field data-invalid={Boolean(error)}>
                       <FieldLabel htmlFor="add-phone">{copy.phoneLabel}</FieldLabel>
