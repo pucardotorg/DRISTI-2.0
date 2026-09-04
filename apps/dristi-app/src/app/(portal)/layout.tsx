@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { TasksProvider } from "@/lib/tasks/store";
 import { AccessProvider } from "@/components/access/access-state";
+import { DirectoryProvider } from "@/lib/directory/store";
 import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/components/shell/app-shell";
 
@@ -19,8 +20,10 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   return (
     <TasksProvider>
       <AccessProvider>
-        <AppShell>{children}</AppShell>
-        <Toaster position="bottom-right" />
+        <DirectoryProvider>
+          <AppShell>{children}</AppShell>
+          <Toaster position="bottom-right" />
+        </DirectoryProvider>
       </AccessProvider>
     </TasksProvider>
   );

@@ -18,6 +18,14 @@ import { Separator } from "@/components/ui/separator";
 import { CaseAccessList, initials } from "@/components/access/access-list";
 import { formatPhone, useAccess, type InviteResult } from "@/components/access/access-state";
 import { RemoveAdvocateDialog } from "@/components/cases/remove-advocate-dialog";
+import { directoryCopy } from "@/components/directory/copy";
+import { RemoveAccessDialog } from "@/components/directory/remove-access-dialog";
+import { useSignLater } from "@/components/directory/sign-later";
+import { KNOWN_ACCOUNTS } from "@/lib/directory/cases";
+import { displayName, displayToday, effectiveGrants, formatPhone as formatDigits } from "@/lib/directory/derive";
+import { resolveCase } from "@/lib/directory/lookup";
+import { useDirectory, type AssignResult } from "@/lib/directory/store";
+import type { Group, Person } from "@/lib/directory/types";
 import { pick, type Locale } from "@/lib/onboarding/content";
 import {
   FREQUENT_COLLABORATORS,
@@ -73,7 +81,14 @@ export function ShareDialog({
    */
   extraPeople?: AccessPerson[];
 }) {
-  const { invite, removeGrant, personsOnCase } = useAccess();
+  const { removeGrant, personsOnCase } = useAccess();
+  /* The firm directory (bulk-people concept): groups can be shared onto a
+     case too, and their members show in "Who has access" with the group
+     named as the source. */
+  const directory = useDirectory();
+  const signLater = useSignLater();
+  const [groupResult, setGroupResult] = React.useState<{ group: Group; result: AssignResult } | null>(null);
+  const [removeGroupPerson, setRemoveGroupPerson] = React.useState<Person | null>(null);
 
   const [chips, setChips] = React.useState<Chip[]>([]);
   const [input, setInput] = React.useState("");
@@ -92,14 +107,70 @@ export function ShareDialog({
   const single = cases.length === 1 ? cases[0] : null;
   const storePeople = single ? personsOnCase(single.id) : [];
   const storeNames = new Set(storePeople.map((p) => p.name));
-  const onCase = single
-    ? [
-        ...storePeople,
-        ...(extraPeople ?? []).filter(
-          (p) => !storeNames.has(p.name) && !removedDerived.has(p.id),
-        ),
-      ]
+  const derivedPeople = single
+    ? (extraPeople ?? []).filter((p) => !storeNames.has(p.name) && !removedDerived.has(p.id))
     : [];
+  /* Directory people reaching this case through a group or a direct office
+     grant, shaped as list rows. The source is named the way the person meets
+     it: "Added by your group Kollam NI Cases". */
+  const knownPhones = new Set(
+    [...storePeople, ...derivedPeople].map((p) => p.phone.replace(/\D/g, "")),
+  );
+  const directoryRows: AccessPerson[] = single
+    ? directory.people.flatMap((person) => {
+        if (knownPhones.has(person.phone)) return [];
+        const grant = effectiveGrants(person, directory).find((g) => g.caseId === single.id);
+        const office = grant?.sources.filter((s) => s.kind !== "vakalatnama") ?? [];
+        if (!office.length) return [];
+        const groupNames = office
+          .filter((s) => s.kind === "group")
+          .map((s) => directory.groups.find((g) => s.kind === "group" && g.id === s.groupId)?.name)
+          .filter((n): n is string => Boolean(n));
+        const direct = office.find((s) => s.kind === "direct");
+        return [
+          {
+            id: `dir-${person.id}`,
+            name: person.name,
+            phone: formatDigits(person.phone),
+            barId: person.barId,
+            addedBy: groupNames.length
+              ? directoryCopy.addedByGroup(groupNames.join(" and "))
+              : direct?.kind === "direct" && direct.addedBy
+                ? direct.addedBy
+                : "self",
+            pending: person.status === "invited",
+            grants: [
+              {
+                caseId: single.id,
+                role: person.barId ? ("junior" as const) : ("clerk" as const),
+                status: person.status === "invited" ? ("invited" as const) : ("joined" as const),
+                since: person.addedOn,
+              },
+            ],
+          },
+        ];
+      })
+    : [];
+  const onCase = single ? [...storePeople, ...derivedPeople, ...directoryRows] : [];
+
+  /* Groups the viewer can share here, each with how many of these cases it
+     does not already cover. */
+  const groupRows = directory.groups.map((group) => {
+    const missing = cases.filter(
+      (c) =>
+        !group.caseIds.includes(c.id) &&
+        !directory.pending.some((r) => r.kind === "assign-group" && r.groupId === group.id && r.caseId === c.id),
+    ).length;
+    return { group, missing };
+  });
+
+  function shareGroup(group: Group) {
+    const result = directory.assignCases(group.id, cases.map((c) => c.id));
+    for (const { kase, holder } of result.sentToSign) {
+      signLater({ kind: "grant-group", groupName: group.name, people: result.people, kase, holder });
+    }
+    setGroupResult({ group, result });
+  }
 
   const inputValid = /^\d{10}$/.test(input);
   const lookup = inputValid ? (PHONE_DIRECTORY[input] ?? null) : null;
@@ -125,6 +196,7 @@ export function ShareDialog({
       setInput("");
       setTouched(false);
       setResult(null);
+      setGroupResult(null);
       setAccessQuery("");
       setRemovedDerived(new Set());
     }
@@ -161,7 +233,53 @@ export function ShareDialog({
       setTouched(true);
       return;
     }
-    setResult(invite(batch.map((c) => c.phone), cases.map((c) => c.id)));
+    /* Phone shares are DIRECT office grants in the firm directory (owner,
+       Sept 4), so the case's list and the People page tell one story. A
+       number the office already holds links to that person; a new one lands
+       as invited, known by number until they register. Cases the viewer
+       holds by office access alone route to the holder to sign. */
+    const today = displayToday();
+    const caseIds = cases.map((c) => c.id);
+    const names: string[] = [];
+    const casesTouched = new Set<string>();
+    const fresh: Person[] = [];
+    const targets: Person[] = [];
+    for (const chip of batch) {
+      const digits = chip.phone.replace(/\D/g, "");
+      const existing = directory.people.find((p) => p.phone === digits);
+      const known = KNOWN_ACCOUNTS[digits];
+      const registry = PHONE_DIRECTORY[digits];
+      const person: Person =
+        existing ??
+        {
+          id: `p-${digits}`,
+          name: chip.name ?? known?.name ?? registry?.name ?? `+91 ${formatDigits(digits)}`,
+          phone: digits,
+          barId: known?.barId,
+          status: known || registry ? "registered" : "invited",
+          addedOn: today,
+        };
+      if (!existing) fresh.push(person);
+      targets.push(person);
+      names.push(displayName(person.name));
+      const has = existing
+        ? new Set(effectiveGrants(existing, directory).map((g) => g.caseId))
+        : new Set<string>();
+      for (const id of caseIds) if (!has.has(id)) casesTouched.add(id);
+    }
+    if (fresh.length) directory.addPeople(fresh);
+    for (const person of targets) {
+      const outcome = directory.grantDirect(person.id, caseIds);
+      for (const { kase, holder } of outcome.sentToSign) {
+        signLater({ kind: "grant-person", personName: person.name, kase, holder });
+      }
+    }
+    setResult({
+      added: casesTouched.size,
+      skipped: caseIds.length - casesTouched.size,
+      total: caseIds.length,
+      names,
+    });
     setChips([]);
   }
 
@@ -360,6 +478,54 @@ export function ShareDialog({
               </div>
             ) : null}
 
+            {groupRows.length && !readOnly ? (
+              <div className="mt-2 flex flex-col gap-2">
+                <p className="text-caption font-medium text-muted-foreground">{directoryCopy.shareGroupHeading}</p>
+                <ul className="flex flex-col divide-y divide-hairline rounded-lg bg-surface-sunken px-3">
+                  {groupRows.map(({ group, missing }) => (
+                    <li key={group.id} className="flex items-center gap-3 py-2">
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="truncate text-body-compact font-medium">{group.name}</span>
+                        <span className="text-caption text-muted-foreground tabular-nums">
+                          {directoryCopy.memberCount(group.memberIds.length)} · {directoryCopy.caseCount(group.caseIds.length)}
+                        </span>
+                      </span>
+                      {missing === 0 ? (
+                        <span className="text-caption text-muted-foreground">{directoryCopy.shareGroupHas}</span>
+                      ) : (
+                        <Button type="button" variant="outline" size="sm" onClick={() => shareGroup(group)}>
+                          {directoryCopy.shareGroupButton}
+                        </Button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {groupResult ? (
+              <p className="flex items-start gap-1.5 rounded-lg border border-success bg-success-muted px-3 py-2 text-body-compact font-medium text-success-muted-foreground">
+                <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <span>
+                  {directoryCopy.shareGroupDone(
+                    groupResult.group.name,
+                    groupResult.result.people,
+                    groupResult.result.granted.length,
+                    cases.length,
+                  )}
+                  {groupResult.result.sentToSign.length ? (
+                    <>
+                      {" "}
+                      {directoryCopy.sentToSign(
+                        displayName(groupResult.result.sentToSign[0].holder),
+                        groupResult.result.sentToSign.map((s) => s.kase.title).join(" · "),
+                      )}
+                    </>
+                  ) : null}
+                </span>
+              </p>
+            ) : null}
+
             {result ? (
               <p className="flex items-start gap-1.5 rounded-lg border border-success bg-success-muted px-3 py-2 text-body-compact font-medium text-success-muted-foreground">
                 <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" aria-hidden />
@@ -422,6 +588,22 @@ export function ShareDialog({
                     readOnly
                       ? undefined
                       : (personId) => {
+                          if (personId.startsWith("dir-")) {
+                            // From the firm directory: a lone direct grant is a plain
+                            // Remove; anything group-sourced goes through the two-choice
+                            // modal, because removal acts on the source.
+                            const person = directory.people.find((p) => `dir-${p.id}` === personId);
+                            if (!person) return;
+                            const sources =
+                              effectiveGrants(person, directory).find((g) => g.caseId === single.id)?.sources ?? [];
+                            const office = sources.filter((x) => x.kind !== "vakalatnama");
+                            if (office.length === 1 && office[0].kind === "direct" && sources.length === 1) {
+                              directory.removeDirect(person.id, single.id);
+                            } else {
+                              setRemoveGroupPerson(person);
+                            }
+                            return;
+                          }
                           removeGrant(personId, single.id);
                           if (personId.startsWith("derived-")) {
                             setRemovedDerived(
@@ -444,6 +626,17 @@ export function ShareDialog({
           ) : null}
         </div>
       </DialogContent>
+
+      {removeGroupPerson && single && resolveCase(single.id) ? (
+        <RemoveAccessDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) setRemoveGroupPerson(null);
+          }}
+          person={removeGroupPerson}
+          kase={resolveCase(single.id)!}
+        />
+      ) : null}
 
       <RemoveAdvocateDialog
         open={Boolean(removeTarget)}

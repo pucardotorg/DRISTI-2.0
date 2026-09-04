@@ -111,6 +111,7 @@ export function RemoveAdvocateDialog({
   partyName,
   caseRef,
   onRequested,
+  signLater,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -123,6 +124,13 @@ export function RemoveAdvocateDialog({
   /** Fired when the removal goes out, with the route it took — the entry
       point's chance to show the wait ("requested · awaiting consent"). */
   onRequested?: (route: "consent" | "magistrate") => void;
+  /**
+   * The viewer holds only office access on this case (bulk-people concept,
+   * Sept 4): they author the whole removal but cannot send or sign it. At
+   * Review the one CTA becomes "Sign later" and the request waits on the
+   * named vakalatnama holder.
+   */
+  signLater?: { holder: string; onSignLater: () => void };
 }) {
   const [step, setStep] = useState<RemoveStep>(1);
   const [reason, setReason] = useState("");
@@ -228,14 +236,18 @@ export function RemoveAdvocateDialog({
                   </span>
                   <div className="flex min-w-0 flex-col gap-1.5">
                     <DialogTitle className="text-title-s font-semibold text-balance">
-                      {route === "consent"
-                        ? `Request sent to ${advocateName}`
-                        : "Application sent to the magistrate"}
+                      {signLater
+                        ? `Sent to ${signLater.holder} to sign`
+                        : route === "consent"
+                          ? `Request sent to ${advocateName}`
+                          : "Application sent to the magistrate"}
                     </DialogTitle>
                     <DialogDescription className="text-pretty">
-                      {route === "consent"
-                        ? "They can accept or reject it. You'll be notified either way."
-                        : `${advocateName} stays on the case until the order is passed.`}
+                      {signLater
+                        ? `You hold office access on this case, so the removal waits for their signature. ${advocateName} stays on the case until then.`
+                        : route === "consent"
+                          ? "They can accept or reject it. You'll be notified either way."
+                          : `${advocateName} stays on the case until the order is passed.`}
                     </DialogDescription>
                   </div>
                 </div>
@@ -431,6 +443,11 @@ export function RemoveAdvocateDialog({
                           ? `${advocateName}, by consent`
                           : "The magistrate, by order"}
                       </ReviewRow>
+                      {signLater ? (
+                        <ReviewRow term="Signed by">
+                          {`${signLater.holder}, who holds the vakalatnama. You hold office access on this case.`}
+                        </ReviewRow>
+                      ) : null}
                     </DescriptionList>
                   )}
                 </form>
@@ -451,6 +468,16 @@ export function RemoveAdvocateDialog({
                 {step < 3 ? (
                   <Button type="submit" form="remove-advocate-form">
                     Continue
+                  </Button>
+                ) : signLater ? (
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      signLater.onSignLater();
+                      setDone(true);
+                    }}
+                  >
+                    Sign later
                   </Button>
                 ) : route === "consent" ? (
                   <Button
