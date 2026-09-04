@@ -12,7 +12,7 @@ import * as React from "react";
 import { CheckIcon } from "lucide-react";
 
 import { blankComplainant } from "@/lib/filing/blank";
-import { ENTITY_TYPES } from "@/lib/filing/options";
+import { ENTITY_TYPES, GENDER_OPTIONS } from "@/lib/filing/options";
 import { fetchOnCourtRecord } from "@/lib/filing/registry";
 import { complainantLabel, partySourceSlot } from "@/lib/filing/selectors";
 import { neighbours } from "@/lib/filing/steps";
@@ -370,43 +370,8 @@ export function ComplainantSection() {
                 </FormField>
               </HalfWidth>
 
-              {/*
-                Verification used to stand on its own, next to a field that asked for the
-                same number twice — two chores with nothing offered back. Re-typing catches
-                nothing an OTP doesn't catch better, so it is gone, and the OTP now leads
-                with what it is for: the register fills the rest of this screen in.
-              */}
-              {c.verified ? (
-                <InfoWell className="text-foreground">
-                  <CheckIcon
-                    className="size-5 shrink-0 text-success-ink"
-                    aria-hidden
-                  />
-                  <p className="min-w-0 flex-1 text-body-compact">
-                    {c.fetched
-                      ? "Number verified, and the saved details below came from the ON Court register. Edit anything that has changed."
-                      : "Number verified. No saved record is held against it, so the details below are yours to fill in."}
-                  </p>
-                </InfoWell>
-              ) : (
-                <InfoWell>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setOtp("");
-                      setOtpOpen(true);
-                    }}
-                    disabled={!canVerify}
-                  >
-                    Verify &amp; fetch details
-                  </Button>
-                  <p className="min-w-0 flex-1 text-body-compact">
-                    Already registered with ON Court? Verify this number and we will fill
-                    in the name and address held against it.
-                  </p>
-                </InfoWell>
-              )}
+              {/* Verify & fetch details removed — the phone number is collected as
+                 contact information, not as a lookup key. */}
             </FormCard>
 
             {/* Basic details */}
@@ -451,6 +416,27 @@ export function ComplainantSection() {
                   />
                 </FormField>
               </HalfWidth>
+              <FormRow>
+                <FormField label="Gender" name="gender" optional>
+                  <OptionSelect
+                    value={c.gender}
+                    onValueChange={(v) => set("gender", v as Complainant["gender"])}
+                    options={GENDER_OPTIONS}
+                    placeholder="Select"
+                  />
+                </FormField>
+                <FormField
+                  asGroup
+                  label="Differently abled?"
+                  optional
+                >
+                  <YesNoSegmented
+                    value={c.differentlyAbled || undefined}
+                    onValueChange={(v) => set("differentlyAbled", v as Complainant["differentlyAbled"])}
+                    ariaLabel="Is the complainant differently abled?"
+                  />
+                </FormField>
+              </FormRow>
             </FormCard>
 
             {/* Residential address */}
@@ -655,6 +641,27 @@ export function ComplainantSection() {
                   />
                 </FormField>
               </HalfWidth>
+              <FormRow>
+                <FormField label="Gender" name="repGender" optional>
+                  <OptionSelect
+                    value={c.rep.gender}
+                    onValueChange={(v) => setRep("gender", v as Representative["gender"])}
+                    options={GENDER_OPTIONS}
+                    placeholder="Select"
+                  />
+                </FormField>
+                <FormField
+                  asGroup
+                  label="Differently abled?"
+                  optional
+                >
+                  <YesNoSegmented
+                    value={c.rep.differentlyAbled || undefined}
+                    onValueChange={(v) => setRep("differentlyAbled", v as Representative["differentlyAbled"])}
+                    ariaLabel="Is the representative differently abled?"
+                  />
+                </FormField>
+              </FormRow>
               <FormSubhead>Representative&apos;s address</FormSubhead>
               <AddressFields
                 value={c.rep.addr}

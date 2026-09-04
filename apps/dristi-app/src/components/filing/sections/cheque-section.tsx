@@ -433,7 +433,7 @@ export function ChequeSection() {
               name="presentDate"
               required
               tip="Date on which the cheque was presented in the bank for clearance."
-              help="Cannot be before the date on the cheque."
+              error={cheque.presentDate && cheque.dateOnCheque && cheque.presentDate < cheque.dateOnCheque ? "Cannot be before the date on the cheque." : undefined}
             >
               <DateField
                 value={cheque.presentDate}
@@ -448,7 +448,7 @@ export function ChequeSection() {
               name="returnDate"
               required
               tip="Date on which the cheque was dishonoured / returned, as written on the return memo."
-              help="Cannot be before the date of presentation."
+              error={cheque.returnDate && cheque.presentDate && cheque.returnDate < cheque.presentDate ? "Cannot be before the date of presentation." : undefined}
             >
               <DateField
                 value={cheque.returnDate}

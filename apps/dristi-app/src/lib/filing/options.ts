@@ -64,6 +64,13 @@ export const STATES = [
 
 /* ───────────────────────────── Complainant ─────────────────────────── */
 
+/** Optional — asked for the complainant (individual) and the legal representative. */
+export const GENDER_OPTIONS: Option[] = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "other", label: "Other" },
+];
+
 export const ENTITY_TYPES: Option[] = [
   { value: "proprietorship", label: "Proprietorship" },
   { value: "partnership", label: "Partnership firm" },

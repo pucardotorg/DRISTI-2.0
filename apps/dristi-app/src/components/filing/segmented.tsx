@@ -26,7 +26,7 @@ export function Segmented<T extends string>({
   disabled = false,
   className,
 }: {
-  value: T;
+  value: T | undefined;
   onValueChange: (value: T) => void;
   options: SegmentedOption<T>[];
   ariaLabel?: string;
@@ -41,7 +41,7 @@ export function Segmented<T extends string>({
   if (readOnly) {
     const chosen = options.find((o) => o.value === value);
     return (
-      <ReadOnlyValue value={chosen?.label ?? value} ariaLabel={ariaLabel} className="w-fit min-w-32" />
+      <ReadOnlyValue value={chosen?.label ?? value ?? ""} ariaLabel={ariaLabel} className="w-fit min-w-32" />
     );
   }
   return (
@@ -77,7 +77,7 @@ export function YesNoSegmented({
   ariaLabel,
   disabled = false,
 }: {
-  value: YesNo;
+  value: YesNo | undefined;
   onValueChange: (value: YesNo) => void;
   ariaLabel?: string;
   disabled?: boolean;

@@ -216,12 +216,11 @@ export function signatories(
     if (isPartyInPerson(c)) return [];
     const acting = advocatesForComplainant(draft.advocates, i);
     if (!acting.length) return [];
-    const first = acting[0];
-    // One signature is needed, so the row names the slot; the line beneath says who can
-    // fill it — the single advocate by name, or that any one of several may.
+    // The system does not know which specific advocate will sign — any one of those on
+    // record may. So the row names the slot only; no individual name is shown.
     const role =
       acting.length === 1
-        ? [first.name.trim(), first.barNumber.trim()].filter(Boolean).join(" · ")
+        ? "Advocate on record"
         : `Any one of ${acting.length} advocates on record`;
     const you = !!myBar && acting.some((a) => a.barNumber.trim().toUpperCase() === myBar);
     return [

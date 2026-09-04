@@ -58,6 +58,8 @@ export const blankRepresentative = (): Representative => ({
   designation: "",
   email: "",
   addr: blankAddress(),
+  gender: "",
+  differentlyAbled: "",
 });
 
 export const blankAddressBlock = (): AddressBlock => ({
@@ -75,6 +77,8 @@ export function blankComplainant(): Complainant {
     fetched: false,
     name: "",
     age: "",
+    gender: "",
+    differentlyAbled: "",
     email: "",
     res: blankAddress(),
     permSame: "yes",
@@ -487,11 +491,19 @@ export function migrateDraft(draft: FilingDraft): FilingDraft {
       a.type = "institution";
     }
     a.reps ??= [blankRepresentative()];
-    for (const r of a.reps) r.designation ??= "";
+    for (const r of a.reps) {
+      r.designation ??= "";
+      r.gender ??= "";
+      r.differentlyAbled ??= "";
+    }
   }
   for (const c of draft.complainants) {
     c.fetched ??= false;
     c.rep.designation ??= "";
+    c.gender ??= "";
+    c.differentlyAbled ??= "";
+    c.rep.gender ??= "";
+    c.rep.differentlyAbled ??= "";
   }
   // The upfront choice used to be one set of rounds for the whole case; it is now made
   // per accused (§19.3). Nothing is carried across: an old draft's single choice cannot

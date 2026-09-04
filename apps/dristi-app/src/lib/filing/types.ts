@@ -136,6 +136,10 @@ export type PoaHolder = {
   perm: Address;
 };
 
+/** Optional demographic fields — asked for the complainant and the legal representative. */
+export type Gender = "male" | "female" | "other" | "";
+export type DifferentlyAbled = YesNo | "";
+
 export type Representative = {
   mobile: string;
   name: string;
@@ -144,6 +148,10 @@ export type Representative = {
   designation: string;
   email: string;
   addr: Address;
+  /** Optional. */
+  gender: Gender;
+  /** Optional. */
+  differentlyAbled: DifferentlyAbled;
 };
 
 /** Field keys that document reading can machine-fill on a complainant. */
@@ -160,6 +168,10 @@ export type Complainant = {
   fetched: boolean;
   name: string;
   age: string;
+  /** Optional. */
+  gender: Gender;
+  /** Optional. */
+  differentlyAbled: DifferentlyAbled;
   email: string;
   res: Address;
   permSame: YesNo;

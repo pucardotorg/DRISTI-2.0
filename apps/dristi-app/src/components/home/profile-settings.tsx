@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircle2Icon, CheckIcon, ChevronsUpDownIcon, FileTextIcon, PlusIcon } from "lucide-react";
+import { CheckCircle2Icon, CheckIcon, ChevronsUpDownIcon, FileTextIcon, PencilIcon, PlusIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -67,7 +67,11 @@ export function ProfileSettings({ locale, profileName, idSubmitted, submittedId,
         <div className="flex flex-col items-center gap-3 text-center">
           <Avatar className="size-24"><AvatarFallback className="bg-brand-muted text-title font-semibold text-brand-muted-foreground">{initials}</AvatarFallback></Avatar>
           <div className="flex flex-col items-center gap-2">
-            <h1 className="text-title-l font-semibold">{profileName}</h1>
+            {profileRole === "litigant" ? (
+              <EditableName value={profileName} />
+            ) : (
+              <h1 className="text-title-l font-semibold">{profileName}</h1>
+            )}
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" aria-label="Switch profile">
@@ -130,10 +134,29 @@ export function ProfileSettings({ locale, profileName, idSubmitted, submittedId,
 
       <section className="flex flex-col gap-5 border-t border-border pt-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div><h2 className="text-title-s font-semibold">Request an advocate profile</h2><p className="text-body-compact text-muted-foreground">Request an advocate profile along with your current litigant access.</p></div>
+          <div>
+            <h2 className="text-title-s font-semibold">
+              {advocateProfileAvailable ? "Advocate details" : "Request an advocate profile"}
+            </h2>
+            <p className="text-body-compact text-muted-foreground">
+              {advocateProfileAvailable
+                ? "Your advocate enrolment details on file."
+                : "Request an advocate profile along with your current litigant access."}
+            </p>
+          </div>
           <div className="flex items-center gap-2">
-            {advocateProfileAvailable ? <Badge variant="success"><CheckIcon data-icon="inline-start" aria-hidden /> Accepted</Badge> : null}
-            {advocateRequest ? <Button variant="outline" onClick={() => setUpgradeDetailsOpen((current) => !current)}>{upgradeDetailsOpen ? "Hide submitted information" : "View submitted information"}</Button> : !upgradeOpen ? <Button variant="outline" onClick={() => setUpgradeOpen(true)}>Request advocate profile</Button> : null}
+            {advocateProfileAvailable ? <Badge variant="success"><CheckIcon data-icon="inline-start" aria-hidden /> Approved</Badge> : null}
+            {advocateRequest ? (
+              <Button variant="outline" onClick={() => setUpgradeDetailsOpen((current) => !current)}>
+                {advocateProfileAvailable
+                  ? (upgradeDetailsOpen ? "Hide details" : "Edit advocate details")
+                  : (upgradeDetailsOpen ? "Hide submitted information" : "View submitted information")}
+              </Button>
+            ) : advocateProfileAvailable ? (
+              <Button variant="outline" onClick={() => setUpgradeOpen(true)}>Edit advocate details</Button>
+            ) : !upgradeOpen ? (
+              <Button variant="outline" onClick={() => setUpgradeOpen(true)}>Request advocate profile</Button>
+            ) : null}
           </div>
         </div>
         {advocateRequest && !advocateProfileAvailable ? <Alert variant="success"><CheckCircle2Icon aria-hidden /><AlertTitle>Your request has been submitted</AlertTitle><AlertDescription>We will notify you when your advocate profile is approved. Your litigant profile remains active.</AlertDescription></Alert> : null}
@@ -146,7 +169,13 @@ export function ProfileSettings({ locale, profileName, idSubmitted, submittedId,
         {upgradeOpen && !advocateRequest ? (
           <form className="flex flex-col gap-4 rounded-lg bg-muted p-6" noValidate onSubmit={submitUpgrade}>
             <p className="text-body-compact text-muted-foreground">These details let the court verify your enrolment.</p>
-            <Field data-invalid={upgradeTouched && !barNumber.trim()}><FieldLabel>Bar registration number {REQUIRED_MARK}</FieldLabel><Input value={barNumber} onChange={(event) => { setBarNumber(event.target.value); setUpgradeTouched(false); }} placeholder="For example K/1234/2020" /><FieldError>{upgradeTouched && !barNumber.trim() ? "Enter your Bar registration number." : null}</FieldError></Field>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field data-invalid={upgradeTouched && !barNumber.trim()}>
+                <FieldLabel>Bar registration number {REQUIRED_MARK}</FieldLabel>
+                <Input value={barNumber} onChange={(event) => { setBarNumber(event.target.value); setUpgradeTouched(false); }} placeholder="For example K/1234/2020" />
+                <FieldError>{upgradeTouched && !barNumber.trim() ? "Enter your Bar registration number." : null}</FieldError>
+              </Field>
+            </div>
             <Field data-invalid={upgradeTouched && !barId}>
               <FieldLabel>Bar Council ID {REQUIRED_MARK}</FieldLabel>
               <input ref={barIdInputRef} type="file" className="hidden" tabIndex={-1} aria-hidden="true" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" onChange={(event) => { setBarId(event.target.files?.[0] ?? null); setUpgradeTouched(false); }} />
@@ -159,6 +188,63 @@ export function ProfileSettings({ locale, profileName, idSubmitted, submittedId,
           </form>
         ) : null}
       </section>
+
+      {/* Password */}
+      <section className="flex flex-col gap-5 border-t border-border pt-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-title-s font-semibold">Password</h2>
+            <p className="text-body-compact text-muted-foreground">Set or change the password you use to sign in.</p>
+          </div>
+          <Button variant="outline">Set password</Button>
+        </div>
+      </section>
     </main>
+  );
+}
+
+/* ────────────────────────── Helpers ────────────────────────── */
+
+/**
+ * The profile name, editable in-place for litigants (whose names are self-reported).
+ * Advocates' names come from the Bar Council register and must not be changed here.
+ */
+function EditableName({ value }: { value: string }) {
+  const [editing, setEditing] = React.useState(false);
+  const [name, setName] = React.useState(value);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        className="group flex items-center gap-2 rounded-md px-2 py-1 transition-colors hover:bg-muted"
+        onClick={() => setEditing(true)}
+        aria-label="Edit name"
+      >
+        <h1 className="text-title-l font-semibold">{name || value}</h1>
+        <PencilIcon className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />
+      </button>
+    );
+  }
+
+  return (
+    <form
+      className="flex items-center gap-2"
+      onSubmit={(e) => { e.preventDefault(); setEditing(false); }}
+    >
+      <Input
+        ref={inputRef}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        className="text-title-l font-semibold text-center"
+        onBlur={() => setEditing(false)}
+        aria-label="Full name"
+      />
+    </form>
   );
 }
