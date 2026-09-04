@@ -370,7 +370,7 @@ function PeopleSection({
               >
                 <span className="flex min-w-0 items-center gap-3">
                   <Avatar className="size-10 shrink-0">
-                    <AvatarFallback className="text-caption font-medium">{initials(p.name)}</AvatarFallback>
+                    <AvatarFallback className="text-caption font-medium">{p.name.startsWith("+") ? "#" : initials(p.name)}</AvatarFallback>
                   </Avatar>
                   <span className="flex min-w-0 flex-col gap-0.5">
                     <span className="truncate text-body-compact font-medium">{displayName(p.name)}</span>

@@ -257,7 +257,7 @@ export function GroupPanel({
                 return (
                   <li key={p.id} className="flex items-center gap-3 py-2.5">
                     <Avatar className="size-8 shrink-0">
-                      <AvatarFallback className="text-caption font-medium">{initials(p.name)}</AvatarFallback>
+                      <AvatarFallback className="text-caption font-medium">{p.name.startsWith("+") ? "#" : initials(p.name)}</AvatarFallback>
                     </Avatar>
                     <button
                       type="button"

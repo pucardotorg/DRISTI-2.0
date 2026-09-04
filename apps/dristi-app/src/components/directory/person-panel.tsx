@@ -156,7 +156,7 @@ export function PersonPanel({
       <div className="relative flex items-start gap-3 border-b border-hairline p-4">
         <Avatar className="size-11 shrink-0">
           <AvatarFallback className="bg-brand-muted text-body-compact font-medium text-brand-muted-foreground">
-            {initials(person.name)}
+            {person.name.startsWith("+") ? "#" : initials(person.name)}
           </AvatarFallback>
         </Avatar>
         <div className="flex min-w-0 flex-1 flex-col gap-1 pr-10">

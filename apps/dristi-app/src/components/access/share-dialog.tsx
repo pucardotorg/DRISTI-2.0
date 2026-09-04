@@ -21,7 +21,8 @@ import { RemoveAdvocateDialog } from "@/components/cases/remove-advocate-dialog"
 import { directoryCopy } from "@/components/directory/copy";
 import { RemoveAccessDialog } from "@/components/directory/remove-access-dialog";
 import { useSignLater } from "@/components/directory/sign-later";
-import { displayName, effectiveGrants, formatPhone as formatDigits } from "@/lib/directory/derive";
+import { KNOWN_ACCOUNTS } from "@/lib/directory/cases";
+import { displayName, displayToday, effectiveGrants, formatPhone as formatDigits } from "@/lib/directory/derive";
 import { resolveCase } from "@/lib/directory/lookup";
 import { useDirectory, type AssignResult } from "@/lib/directory/store";
 import type { Group, Person } from "@/lib/directory/types";
@@ -80,7 +81,7 @@ export function ShareDialog({
    */
   extraPeople?: AccessPerson[];
 }) {
-  const { invite, removeGrant, personsOnCase } = useAccess();
+  const { removeGrant, personsOnCase } = useAccess();
   /* The firm directory (bulk-people concept): groups can be shared onto a
      case too, and their members show in "Who has access" with the group
      named as the source. */
@@ -232,7 +233,53 @@ export function ShareDialog({
       setTouched(true);
       return;
     }
-    setResult(invite(batch.map((c) => c.phone), cases.map((c) => c.id)));
+    /* Phone shares are DIRECT office grants in the firm directory (owner,
+       Sept 4), so the case's list and the People page tell one story. A
+       number the office already holds links to that person; a new one lands
+       as invited, known by number until they register. Cases the viewer
+       holds by office access alone route to the holder to sign. */
+    const today = displayToday();
+    const caseIds = cases.map((c) => c.id);
+    const names: string[] = [];
+    const casesTouched = new Set<string>();
+    const fresh: Person[] = [];
+    const targets: Person[] = [];
+    for (const chip of batch) {
+      const digits = chip.phone.replace(/\D/g, "");
+      const existing = directory.people.find((p) => p.phone === digits);
+      const known = KNOWN_ACCOUNTS[digits];
+      const registry = PHONE_DIRECTORY[digits];
+      const person: Person =
+        existing ??
+        {
+          id: `p-${digits}`,
+          name: chip.name ?? known?.name ?? registry?.name ?? `+91 ${formatDigits(digits)}`,
+          phone: digits,
+          barId: known?.barId,
+          status: known || registry ? "registered" : "invited",
+          addedOn: today,
+        };
+      if (!existing) fresh.push(person);
+      targets.push(person);
+      names.push(displayName(person.name));
+      const has = existing
+        ? new Set(effectiveGrants(existing, directory).map((g) => g.caseId))
+        : new Set<string>();
+      for (const id of caseIds) if (!has.has(id)) casesTouched.add(id);
+    }
+    if (fresh.length) directory.addPeople(fresh);
+    for (const person of targets) {
+      const outcome = directory.grantDirect(person.id, caseIds);
+      for (const { kase, holder } of outcome.sentToSign) {
+        signLater({ kind: "grant-person", personName: person.name, kase, holder });
+      }
+    }
+    setResult({
+      added: casesTouched.size,
+      skipped: caseIds.length - casesTouched.size,
+      total: caseIds.length,
+      names,
+    });
     setChips([]);
   }
 
@@ -542,10 +589,19 @@ export function ShareDialog({
                       ? undefined
                       : (personId) => {
                           if (personId.startsWith("dir-")) {
-                            // A group or direct grant from the firm directory: removal
-                            // acts on the source, through the two-choice modal.
+                            // From the firm directory: a lone direct grant is a plain
+                            // Remove; anything group-sourced goes through the two-choice
+                            // modal, because removal acts on the source.
                             const person = directory.people.find((p) => `dir-${p.id}` === personId);
-                            if (person) setRemoveGroupPerson(person);
+                            if (!person) return;
+                            const sources =
+                              effectiveGrants(person, directory).find((g) => g.caseId === single.id)?.sources ?? [];
+                            const office = sources.filter((x) => x.kind !== "vakalatnama");
+                            if (office.length === 1 && office[0].kind === "direct" && sources.length === 1) {
+                              directory.removeDirect(person.id, single.id);
+                            } else {
+                              setRemoveGroupPerson(person);
+                            }
                             return;
                           }
                           removeGrant(personId, single.id);
