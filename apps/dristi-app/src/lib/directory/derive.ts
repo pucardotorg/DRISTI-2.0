@@ -16,6 +16,12 @@ import type {
   GrantSource,
   Person,
 } from "./types";
+import { resolveCase } from "./lookup";
+
+/** The directory's own cases first, then anything on the platform's register. */
+export function findCase(world: Pick<DirectoryWorld, "cases">, caseId: string): DirectoryCase | undefined {
+  return world.cases.find((c) => c.id === caseId) ?? resolveCase(caseId);
+}
 
 /** "Adv. Ramesh Pillai" and "Ramesh Pillai" are the same person. */
 export function normalizeName(name: string): string {
@@ -100,7 +106,7 @@ export function assignPreview(
   const grantable: string[] = [];
   const needsSignature: string[] = [];
   for (const caseId of caseIds) {
-    const kase = world.cases.find((c) => c.id === caseId);
+    const kase = findCase(world, caseId);
     if (!kase) continue;
     if (viewerHoldsVakalatnama(kase)) grantable.push(caseId);
     else needsSignature.push(caseId);
@@ -137,7 +143,7 @@ export function removalPreview(
   const grants = effectiveGrants(person, world);
   const otherCases = group.caseIds
     .filter((id) => id !== caseId)
-    .map((id) => world.cases.find((c) => c.id === id))
+    .map((id) => findCase(world, id))
     .filter((c): c is DirectoryCase => Boolean(c));
   const keptThroughOtherSource = otherCases
     .filter((c) => {

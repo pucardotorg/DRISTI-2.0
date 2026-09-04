@@ -14,7 +14,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { directoryCopy as copy } from "@/components/directory/copy";
-import { displayName, effectiveGrants } from "@/lib/directory/derive";
+import { displayName, effectiveGrants, findCase } from "@/lib/directory/derive";
 import { useDirectory } from "@/lib/directory/store";
 import type { DirectoryCase, Group, GrantSource, Person } from "@/lib/directory/types";
 import { cn } from "@/lib/utils";
@@ -77,7 +77,7 @@ export function RemoveAccessDialog({
   /* The blast radius, by case: every other case any of these groups grants. */
   const otherCases = [...new Set(viaGroups.flatMap((g) => g.caseIds))]
     .filter((id) => id !== kase.id)
-    .map((id) => directory.cases.find((c) => c.id === id))
+    .map((id) => findCase(directory, id))
     .filter((c): c is DirectoryCase => Boolean(c));
   const membersAffected = new Set(viaGroups.flatMap((g) => g.memberIds)).size;
 

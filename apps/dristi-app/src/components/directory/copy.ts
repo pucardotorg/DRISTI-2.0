@@ -98,6 +98,17 @@ export const directoryCopy = {
   removedDirect: (name: string, kase: string) => `${name} no longer has office access to ${kase}.`,
   grantBackHint: "Want them to keep some of those cases? Add them back one at a time from their page.",
 
+  /* share dialog: groups */
+  shareGroupHeading: "Or share with a group",
+  shareGroupBody: "Everyone in the group gets office access. New members get it too, automatically.",
+  shareGroupButton: "Share",
+  shareGroupHas: "Already has access",
+  shareGroupDone: (group: string, people: number, added: number, total: number) =>
+    `${group} (${people === 1 ? "1 person" : `${people} people`}) now has office access to ${
+      total === 1 ? "this case" : added === total ? `all ${total} cases` : `${added} of ${total} cases`
+    }.`,
+  addedByGroup: (groups: string) => `your group ${groups}`,
+
   /* case picker */
   pickCasesTitle: (subject: string) => `Add cases for ${subject}`,
   pickCasesBody: "Everyone in the group gets office access to the cases you pick. Instantly, and only office access.",

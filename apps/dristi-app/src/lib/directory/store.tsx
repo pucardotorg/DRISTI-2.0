@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { DIRECTORY_CASES } from "./cases";
 import { assignPreview, displayToday } from "./derive";
+import { resolveCase } from "./lookup";
 import type {
   DirectGrant,
   DirectoryCase,
@@ -223,7 +224,7 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
       });
       const today = displayToday();
       const sentToSign = preview.needsSignature
-        .map((id) => cases.find((c) => c.id === id))
+        .map((id) => resolveCase(id))
         .filter((c): c is DirectoryCase => Boolean(c) && c!.viewer.kind === "office")
         .filter((c) => !pending.some((r) => r.kind === "assign-group" && r.groupId === groupId && r.caseId === c.id))
         .map((kase) => ({
@@ -252,7 +253,7 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
       return {
         people: group.memberIds.length,
         granted: preview.grantable
-          .map((id) => cases.find((c) => c.id === id))
+          .map((id) => resolveCase(id))
           .filter((c): c is DirectoryCase => Boolean(c)),
         sentToSign,
       };
@@ -274,7 +275,7 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
       const granted: DirectoryCase[] = [];
       const sentToSign: Array<{ kase: DirectoryCase; holder: string }> = [];
       for (const id of caseIds) {
-        const kase = cases.find((c) => c.id === id);
+        const kase = resolveCase(id);
         if (!kase) continue;
         if (kase.viewer.kind === "office") {
           if (!pending.some((r) => r.kind === "grant-person" && r.personId === personId && r.caseId === id)) {
@@ -302,7 +303,7 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
       }
       return { granted, sentToSign };
     },
-    [cases, pending],
+    [pending],
   );
 
   const removeDirect = React.useCallback((personId: string, caseId: string) => {
@@ -313,7 +314,7 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
 
   const requestRemoval = React.useCallback(
     (personId: string, caseId: string, note?: string): PendingRequest => {
-      const kase = cases.find((c) => c.id === caseId);
+      const kase = resolveCase(caseId);
       const holder = kase?.viewer.kind === "office" ? kase.viewer.via : "the vakalatnama holder";
       const request: PendingRequest = {
         id: nextId("req"),
@@ -327,7 +328,7 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
       setPending((current) => [...current, request]);
       return request;
     },
-    [cases],
+    [],
   );
 
   const reset = React.useCallback(() => {

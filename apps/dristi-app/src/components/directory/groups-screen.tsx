@@ -51,6 +51,7 @@ import { directoryCopy as copy } from "@/components/directory/copy";
 import { PeoplePickerDialog } from "@/components/directory/people-picker-dialog";
 import { useSignLater } from "@/components/directory/sign-later";
 import { displayName, formatPhone, vakalatnamaCaseIds } from "@/lib/directory/derive";
+import { resolveCase } from "@/lib/directory/lookup";
 import { useDirectory } from "@/lib/directory/store";
 import type { Group } from "@/lib/directory/types";
 import { cn } from "@/lib/utils";
@@ -162,12 +163,12 @@ export function GroupPanel({
     .filter((p): p is NonNullable<typeof p> => Boolean(p))
     .sort((a, b) => displayName(a.name).localeCompare(displayName(b.name)));
   const groupCases = group.caseIds
-    .map((id) => cases.find((c) => c.id === id))
+    .map((id) => resolveCase(id))
     .filter((c): c is NonNullable<typeof c> => Boolean(c));
   const awaiting = pending.filter((r) => r.kind === "assign-group" && r.groupId === group.id);
 
   const confirmPerson = confirm?.kind === "member" ? people.find((p) => p.id === confirm.personId) : null;
-  const confirmCase = confirm?.kind === "case" ? cases.find((c) => c.id === confirm.caseId) : null;
+  const confirmCase = confirm?.kind === "case" ? resolveCase(confirm.caseId) : null;
 
   return (
     <aside
@@ -318,7 +319,7 @@ export function GroupPanel({
                 </li>
               ))}
               {awaiting.map((r) => {
-                const c = cases.find((x) => x.id === r.caseId);
+                const c = resolveCase(r.caseId);
                 if (!c) return null;
                 return (
                   <li key={r.id} className="flex flex-col gap-0.5 py-3">

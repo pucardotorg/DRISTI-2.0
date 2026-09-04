@@ -20,6 +20,7 @@ import {
   groupsOf,
   sourceLabel,
 } from "@/lib/directory/derive";
+import { resolveCase } from "@/lib/directory/lookup";
 import { useDirectory } from "@/lib/directory/store";
 import type { DirectoryCase, EffectiveGrant, Person } from "@/lib/directory/types";
 import { cn } from "@/lib/utils";
@@ -52,7 +53,7 @@ export function PersonPanel({
   onOpenGroup: (groupId: string) => void;
 }) {
   const directory = useDirectory();
-  const { cases, groups, pending, grantDirect, requestRemoval } = directory;
+  const { groups, pending, grantDirect, requestRemoval } = directory;
   const signLater = useSignLater();
   const [note, setNote] = React.useState<string | null>(null);
   const [removeCaseId, setRemoveCaseId] = React.useState<string | null>(null);
@@ -65,7 +66,7 @@ export function PersonPanel({
   const name = displayName(person.name);
   const memberOf = groupsOf(person.id, groups);
   const entries: Entry[] = effectiveGrants(person, directory)
-    .map((g) => ({ grant: g, kase: cases.find((c) => c.id === g.caseId) }))
+    .map((g) => ({ grant: g, kase: resolveCase(g.caseId) }))
     .filter((e): e is Entry => Boolean(e.kase))
     .sort((a, b) => a.kase.title.localeCompare(b.kase.title));
   const officeEntries = entries.filter((e) => e.grant.sources.some((s) => s.kind !== "vakalatnama"));
@@ -75,8 +76,8 @@ export function PersonPanel({
   );
   const [lane, setLane] = React.useState<Lane>(vakalatEntries.length ? "vakalatnama" : "office");
 
-  const removeCase = removeCaseId ? cases.find((c) => c.id === removeCaseId) : null;
-  const courtCase = courtCaseId ? cases.find((c) => c.id === courtCaseId) : null;
+  const removeCase = removeCaseId ? resolveCase(removeCaseId) : null;
+  const courtCase = courtCaseId ? resolveCase(courtCaseId) : null;
 
   function pendingRemoval(caseId: string) {
     return pending.find((r) => r.kind === "remove-person" && r.personId === person.id && r.caseId === caseId);
@@ -253,7 +254,7 @@ export function PersonPanel({
               <ul className="flex flex-col divide-y divide-hairline">
                 {officeEntries.map((entry) => renderRow(entry, "office"))}
                 {requestedGrants.map((r) => {
-                  const kase = cases.find((c) => c.id === r.caseId);
+                  const kase = resolveCase(r.caseId);
                   if (!kase) return null;
                   return (
                     <li key={r.id} className="flex flex-col gap-0.5 py-3">
