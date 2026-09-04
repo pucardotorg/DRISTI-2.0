@@ -30,11 +30,18 @@ export type RailPlate = {
 };
 
 /**
- * Inks that do not vary by plate: the selected row is always the light card.
+ * Inks that do not vary by plate: the selected row is always the light card, and the
+ * person at the foot of the rail is always marked in the brand.
  *
  * Selection inverts rather than tinting, because an inversion is the one mark a rail can
  * make that no hover can imitate — which is what keeps "where am I" and "what is under
  * the pointer" from looking like the same thing.
+ *
+ * The identity disc is pinned here for the reason every other value in this module is:
+ * `bg-primary` resolves to the app's teal, which is a *different* teal after dark, and a
+ * rail that stays charcoal at night should not carry one mark in it that does not. The
+ * disc belongs to the brand rather than to the plate, so it takes one value for all of
+ * them.
  */
 const CARD = {
   "--rail-card": "#ffffff", //                          brand-canvas-foreground
@@ -43,6 +50,13 @@ const CARD = {
   "--rail-card-muted": "#6a6661", //                    neutral-11 (light) — 5.7:1 on white
   "--rail-badge": "#c1232a", //                         destructive (light) — white numeral 5.9:1
   "--rail-badge-ink": "#ffffff",
+  /* The initials are what carries the meaning, and they are the pair that is measured:
+     4.9:1 on the disc, in both modes, on every plate. The disc's own edge lands at 2.67:1
+     against charcoal (4.9:1 against a white plate) — a decorative boundary behind text,
+     which is exactly what the DS's rule 9 holds out of the 3:1 mark floor. Nothing has to
+     be identified by it; the name is spelled out beside it. */
+  "--rail-avatar": "#007e7e", //                        brand-solid — its initials 4.9:1
+  "--rail-avatar-ink": "#ffffff",
 };
 
 const DARK_SEAM = "color-mix(in srgb, #ffffff 14%, transparent)";
@@ -54,8 +68,10 @@ const DARK_SEAM = "color-mix(in srgb, #ffffff 14%, transparent)";
  * per-browser preference on it is a setting nobody asked for and everybody would have to
  * support. `/employee` therefore renders this constant directly and never reads a store.
  *
- * Kept identical to the `charcoal` entry the advocate's picker offers, so the two rails
- * are the same object once that picker moves into this module.
+ * Its plate values are the `charcoal` entry the advocate's picker offers, unchanged, so
+ * the two rails become the same object once that picker moves into this module. `CARD`
+ * above has since grown the identity disc the court rail's footer needs; that is an
+ * addition the advocate's copy has yet to make, not a divergence in the ground itself.
  */
 export const CHARCOAL_PLATE: RailPlate = {
   id: "charcoal",
@@ -65,7 +81,7 @@ export const CHARCOAL_PLATE: RailPlate = {
   vars: {
     ...CARD,
     "--sidebar": "#2e3135", //                          neutral-5 (dark ramp)
-    "--sidebar-foreground": "#edeef0", //               neutral-12 (dark) — 13.4:1
+    "--sidebar-foreground": "#edeef0", //               neutral-12 (dark) — 11.3:1
     "--rail-muted": "#b0b4ba", //                       neutral-11 (dark) — 6.3:1
     "--sidebar-accent": "#43484e", //                   neutral-7 (dark)
     "--sidebar-accent-foreground": "#edeef0",

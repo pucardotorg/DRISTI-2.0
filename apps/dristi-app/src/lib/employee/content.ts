@@ -15,6 +15,20 @@
 export type CourtRole = "magistrate" | "bench-clerk" | "scrutiny-officer";
 
 /**
+ * How a role is written where it is shown to the person holding it.
+ *
+ * The domain model's own role names, in sentence case per the DS Laws, and nothing more:
+ * no honorific, no designation, no rank. What a particular establishment calls the person
+ * on this bench arrives with the directory that replaces `CURRENT_STAFF` — inventing it
+ * here would put a title on a screen that no document, order or record backs up.
+ */
+export const COURT_ROLE_LABEL: Record<CourtRole, string> = {
+  magistrate: "Magistrate",
+  "bench-clerk": "Bench clerk",
+  "scrutiny-officer": "Scrutiny officer",
+};
+
+/**
  * The identity the court side runs as.
  *
  * There is no sign-in on this branch, so the area is one fixed staff member: the JMFC
