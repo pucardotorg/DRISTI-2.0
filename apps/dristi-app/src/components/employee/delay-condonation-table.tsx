@@ -37,20 +37,20 @@ const cellClass =
  * Stage is plain text rather than a chip for the reason the craft rules
  * ration colour — seven tinted stages down a column is decoration.
  *
- * And there is no actions column. The day's cause list keeps its row menu
- * because the acts it holds are things a bench does to a listed matter. Here
- * there is nothing to put in one: this build performs no condonation act, and
- * the screenshot of the overlay that would open a row was not supplied. Better
- * to leave the column out until reviewing is real than to draw furniture
- * around a hole.
+ * And there is still no actions column. The review overlay the cause title
+ * opens is where the bench answers, so a row does not also need buttons: the
+ * underlined name is the one target, the way the rescheduling queue and seven
+ * other court queues already work.
  *
  * The panel shell (border, fill, shadow) lives on the screen around this, so
  * the table is one panel rather than a box inside a box.
  */
 export function DelayCondonationTable({
   rows,
+  onOpen,
 }: {
   rows: DelayCondonationCase[];
+  onOpen: (matter: DelayCondonationCase) => void;
 }) {
   return (
     <Table className="w-full border-separate border-spacing-0 text-body-compact">
@@ -88,19 +88,27 @@ export function DelayCondonationTable({
           <td colSpan={4} className="h-2 p-0" />
         </tr>
         {rows.map((matter) => (
-          <TableRow key={matter.id} className="bg-card">
-            {/* The row's one emphasised cell. Not a link: the reference
-                underlines it because it opens a review, and this build has no
-                such overlay and no court-side case file to fall back on. Plain
-                text is the honest render — an underline that goes nowhere
-                would promise the clerk a screen that is not there. */}
+          <TableRow key={matter.id} className="bg-card hover:bg-card">
+            {/* The row's one emphasised cell, and its opener. The name keeps
+                the court's quiet dress — no teal — and earns its underline on
+                hover and focus, where a pointer or a keyboard has actually
+                asked. The teal link colour is the citizen side's, for an
+                action inline in prose; a court queue is thirty rows of data
+                and rations it. */}
             <TableCell
               className={cn(
                 cellClass,
                 "min-w-64 font-medium whitespace-normal",
               )}
             >
-              {causeTitle(matter)}
+              <button
+                type="button"
+                onClick={() => onOpen(matter)}
+                className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
+              >
+                <span className="sr-only">Review </span>
+                {causeTitle(matter)}
+              </button>
             </TableCell>
             <TableCell
               className={cn(cellClass, "tabular-nums whitespace-nowrap")}

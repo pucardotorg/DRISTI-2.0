@@ -21,6 +21,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { isPendingFilterChange } from "@/lib/employee/filter-state";
 import {
   causeTitle,
   formatListingDate,
@@ -80,6 +81,8 @@ export function ReschedulingRequestScreen() {
   const pageRows = rows.slice(start, start + pageSize);
   const isFiltered = applied.query !== "";
 
+  const canSearch = isPendingFilterChange(draft, applied);
+
   function applyFilters() {
     setApplied(draft);
     setPage(1);
@@ -120,6 +123,7 @@ export function ReschedulingRequestScreen() {
           onDraftChange={setDraft}
           onApply={applyFilters}
           onClear={clearFilters}
+          canSearch={canSearch}
         />
 
         {pageRows.length === 0 ? (
@@ -173,12 +177,14 @@ function ReschedulingFiltersRow({
   onDraftChange,
   onApply,
   onClear,
+  canSearch,
 }: {
   draft: ReschedulingFilters;
   searchRef: React.RefObject<HTMLInputElement | null>;
   onDraftChange: (filters: ReschedulingFilters) => void;
   onApply: () => void;
   onClear: () => void;
+  canSearch: boolean;
 }) {
   return (
     <form
@@ -208,7 +214,9 @@ function ReschedulingFiltersRow({
       </Field>
 
       <div className="flex items-center gap-2">
-        <Button type="submit">Search</Button>
+        <Button type="submit" disabled={!canSearch}>
+          Search
+        </Button>
         <Button type="button" variant="ghost" onClick={onClear}>
           Clear
         </Button>
@@ -275,7 +283,7 @@ function ReschedulingRequestItemList({
         <li key={request.id}>
           <button
             type="button"
-            className="flex w-full min-h-10 flex-col gap-2 rounded-lg bg-surface-sunken p-4 text-left transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="flex w-full min-h-10 flex-col gap-2 rounded-lg bg-surface-sunken p-4 text-left transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:outline-none"
             aria-label={`Review ${causeTitle(request)}`}
             onClick={() => onOpen(request)}
           >

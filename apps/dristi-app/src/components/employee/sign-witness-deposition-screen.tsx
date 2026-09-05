@@ -34,6 +34,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { isPendingFilterChange } from "@/lib/employee/filter-state";
 import {
   causeTitle,
   counselFor,
@@ -126,6 +127,8 @@ export function SignWitnessDepositionScreen() {
   const visibleIds = new Set(rows.map((deposition) => deposition.id));
   const selectedIds = new Set([...picked].filter((id) => visibleIds.has(id)));
 
+  const canSearch = isPendingFilterChange(draft, applied);
+
   function applyFilters() {
     setApplied(draft);
     setPage(1);
@@ -212,6 +215,7 @@ export function SignWitnessDepositionScreen() {
           onDraftChange={setDraft}
           onApply={applyFilters}
           onClear={clearFilters}
+          canSearch={canSearch}
         />
 
         {pageRows.length === 0 ? (
@@ -307,12 +311,14 @@ function DepositionFiltersForm({
   onDraftChange,
   onApply,
   onClear,
+  canSearch,
 }: {
   draft: WitnessDepositionFilters;
   searchRef: React.RefObject<HTMLInputElement | null>;
   onDraftChange: (filters: WitnessDepositionFilters) => void;
   onApply: () => void;
   onClear: () => void;
+  canSearch: boolean;
 }) {
   return (
     <form
@@ -349,7 +355,7 @@ function DepositionFiltersForm({
       </Field>
 
       <div className="flex items-center gap-2">
-        <Button type="submit" variant="secondary">
+        <Button type="submit" disabled={!canSearch}>
           Search
         </Button>
         <Button type="button" variant="ghost" onClick={onClear}>

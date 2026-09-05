@@ -5,6 +5,7 @@ import { FolderCheckIcon, SearchIcon, SearchXIcon } from "lucide-react";
 
 import { CounselCell } from "@/components/employee/counsel-cell";
 import { ListFooter } from "@/components/employee/list-footer";
+import { OtherApplicationDialog } from "@/components/employee/other-application-dialog";
 import { OtherApplicationsTable } from "@/components/employee/other-applications-table";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { isPendingFilterChange } from "@/lib/employee/filter-state";
 import {
   causeTitle,
   counselFor,
@@ -41,6 +43,7 @@ import {
   OTHER_APPLICATION_STAGES,
   OTHER_APPLICATION_TYPES,
   filterOtherApplications,
+  formatOtherApplicationLongDate,
   otherApplicationStageLabel,
   otherApplicationTypeLabel,
   type OtherApplication,
@@ -61,8 +64,12 @@ import {
  * What differs is one control and one column: the application type. It is the whole
  * reason this queue is wider than its two siblings, so it is the filter added on the end
  * of the row and the column added on the end of the table — everything else stays where a
- * clerk already knows to look for it. There is no click: the reference is the list, and
- * this build has no review overlay to open.
+ * clerk already knows to look for it.
+ *
+ * The cause title opens the review overlay — the same one the rescheduling and
+ * delay-condonation queues open, because fourteen heads of application are still one job:
+ * somebody asked this court for something and the bench has to answer. Approve and Reject
+ * only drop the row from this demo queue; they decide nothing and write no order.
  */
 export function OtherApplicationsScreen() {
   /* The reference filters on a button rather than as you type, so the clerk composes a
@@ -76,8 +83,18 @@ export function OtherApplicationsScreen() {
   );
   const [pageSize, setPageSize] = React.useState<HearingsPageSize>(PAGE_SIZE);
   const [page, setPage] = React.useState(1);
+  const [decidedIds, setDecidedIds] = React.useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const [open, setOpen] = React.useState<OtherApplication | null>(null);
+  const searchRef = React.useRef<HTMLInputElement>(null);
 
-  const rows = filterOtherApplications(OTHER_APPLICATIONS_QUEUE, applied);
+  /* Answered rows leave the queue, so the list, the count above it and the pagination all
+     shrink together. Nothing is written — see the dialog. */
+  const remaining = OTHER_APPLICATIONS_QUEUE.filter(
+    (application) => !decidedIds.has(application.id),
+  );
+  const rows = filterOtherApplications(remaining, applied);
 
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
   const currentPage = Math.min(page, pageCount);
@@ -85,6 +102,8 @@ export function OtherApplicationsScreen() {
   const pageRows = rows.slice(start, start + pageSize);
   const isFiltered =
     applied.stage !== "all" || applied.query !== "" || applied.type !== "all";
+
+  const canSearch = isPendingFilterChange(draft, applied);
 
   function applyFilters() {
     setApplied(draft);
@@ -97,6 +116,17 @@ export function OtherApplicationsScreen() {
     setPage(1);
   }
 
+  function decide(application: OtherApplication) {
+    setDecidedIds((current) => new Set(current).add(application.id));
+    setOpen(null);
+  }
+
+  /* The row that opened the overlay is gone by the time it closes, so focus goes to the
+     search box rather than to a button that no longer exists. */
+  function returnFocus() {
+    searchRef.current?.focus();
+  }
+
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-8 p-6 md:p-8">
       <header className="flex flex-col gap-2">
@@ -107,9 +137,9 @@ export function OtherApplicationsScreen() {
             rather than restating the title. Singular is spelled out because "1
             applications" is the kind of thing a court notices. */}
         <p className="text-body text-muted-foreground">
-          {OTHER_APPLICATIONS_QUEUE.length === 1
+          {remaining.length === 1
             ? "1 application is waiting for review."
-            : `${OTHER_APPLICATIONS_QUEUE.length} applications are waiting for review.`}
+            : `${remaining.length} applications are waiting for review.`}
         </p>
       </header>
 
@@ -119,9 +149,11 @@ export function OtherApplicationsScreen() {
       <section className="flex min-w-0 flex-col gap-6 rounded-xl border border-hairline bg-card shadow-raised p-6">
         <OtherApplicationFiltersForm
           draft={draft}
+          searchRef={searchRef}
           onDraftChange={setDraft}
           onApply={applyFilters}
           onClear={clearFilters}
+          canSearch={canSearch}
         />
 
         {pageRows.length === 0 ? (
@@ -137,10 +169,10 @@ export function OtherApplicationsScreen() {
               {/* Five columns do not survive a phone. Below `md` the same rows stack as
                   items — the answer the rest of the court side already gives. */}
               <div className="hidden md:block">
-                <OtherApplicationsTable rows={pageRows} />
+                <OtherApplicationsTable rows={pageRows} onOpen={setOpen} />
               </div>
               <div className="md:hidden">
-                <OtherApplicationsItemList rows={pageRows} />
+                <OtherApplicationsItemList rows={pageRows} onOpen={setOpen} />
               </div>
             </div>
 
@@ -161,6 +193,14 @@ export function OtherApplicationsScreen() {
           </div>
         )}
       </section>
+
+      <OtherApplicationDialog
+        application={open}
+        onOpenChange={setOpen}
+        onApprove={decide}
+        onReject={decide}
+        onReturnFocus={returnFocus}
+      />
     </div>
   );
 }
@@ -180,14 +220,18 @@ export function OtherApplicationsScreen() {
  */
 function OtherApplicationFiltersForm({
   draft,
+  searchRef,
   onDraftChange,
   onApply,
   onClear,
+  canSearch,
 }: {
   draft: OtherApplicationFilters;
+  searchRef: React.RefObject<HTMLInputElement | null>;
   onDraftChange: (filters: OtherApplicationFilters) => void;
   onApply: () => void;
   onClear: () => void;
+  canSearch: boolean;
 }) {
   return (
     <form
@@ -238,6 +282,7 @@ function OtherApplicationFiltersForm({
             <SearchIcon aria-hidden />
           </InputGroupAddon>
           <InputGroupInput
+            ref={searchRef}
             type="search"
             autoComplete="off"
             value={draft.query}
@@ -282,7 +327,9 @@ function OtherApplicationFiltersForm({
       </div>
 
       <div className="flex items-center gap-2">
-        <Button type="submit">Search</Button>
+        <Button type="submit" disabled={!canSearch}>
+          Search
+        </Button>
         <Button type="button" variant="ghost" onClick={onClear}>
           Clear
         </Button>
@@ -339,13 +386,22 @@ function OtherApplicationsEmpty({
 /**
  * The same rows below `md`, stacked.
  *
- * A queue read on a phone is still the cause, what is being asked for, and where the case
- * has reached — the advocates drop to their own line rather than forcing a five-column
- * table through a 375px screen. The application type sits directly under the cause title
- * rather than in the metadata line: it is the substance of the row here, not a detail
- * about it, and both of the long heads need the full width to wrap into.
+ * A queue read on a phone is still the cause, its number and where the case
+ * has reached — the advocates drop to their own line rather than forcing a
+ * five-column table through a 375px screen.
+ *
+ * The cause title is the opener, not the whole card: the advocates line owns a
+ * `+N` popover trigger of its own, and a button inside a button is neither
+ * valid nor operable. So the name carries the same treatment it has in the
+ * table, at a 40px height here.
  */
-function OtherApplicationsItemList({ rows }: { rows: OtherApplication[] }) {
+function OtherApplicationsItemList({
+  rows,
+  onOpen,
+}: {
+  rows: OtherApplication[];
+  onOpen: (application: OtherApplication) => void;
+}) {
   return (
     <ul className="flex flex-col gap-3">
       {rows.map((application) => (
@@ -353,9 +409,14 @@ function OtherApplicationsItemList({ rows }: { rows: OtherApplication[] }) {
           key={application.id}
           className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-4"
         >
-          <p className="min-w-0 text-body-compact font-medium">
-            {causeTitle(application)}
-          </p>
+            <button
+              type="button"
+              onClick={() => onOpen(application)}
+              className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
+            >
+              <span className="sr-only">Review </span>
+              {causeTitle(application)}
+            </button>
           <p className="min-w-0 text-body-compact">
             {otherApplicationTypeLabel(application.type)}
           </p>
@@ -363,6 +424,10 @@ function OtherApplicationsItemList({ rows }: { rows: OtherApplication[] }) {
             <span className="tabular-nums">{application.caseNumber}</span>
             {" · "}
             {otherApplicationStageLabel(application.stage)}
+            {" · Applied "}
+            <span className="tabular-nums">
+              {formatOtherApplicationLongDate(application.appliedOn)}
+            </span>
           </p>
           <CounselCell
             complainant={counselFor(application, "complainant").map(

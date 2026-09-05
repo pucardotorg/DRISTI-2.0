@@ -21,6 +21,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { isPendingFilterChange } from "@/lib/employee/filter-state";
 import {
   causeTitle,
   counselFor,
@@ -71,6 +72,8 @@ export function RegisterCasesScreen() {
   const pageRows = rows.slice(start, start + pageSize);
   const isFiltered = applied.query !== "";
 
+  const canSearch = isPendingFilterChange(draft, applied);
+
   function applyFilters() {
     setApplied(draft);
     setPage(1);
@@ -107,6 +110,7 @@ export function RegisterCasesScreen() {
           onDraftChange={setDraft}
           onApply={applyFilters}
           onClear={clearFilters}
+          canSearch={canSearch}
         />
 
         {pageRows.length === 0 ? (
@@ -166,11 +170,13 @@ function RegisterCasesFilters({
   onDraftChange,
   onApply,
   onClear,
+  canSearch,
 }: {
   draft: RegisterFilters;
   onDraftChange: (filters: RegisterFilters) => void;
   onApply: () => void;
   onClear: () => void;
+  canSearch: boolean;
 }) {
   return (
     <form
@@ -206,7 +212,9 @@ function RegisterCasesFilters({
       </Field>
 
       <div className="flex items-center gap-2">
-        <Button type="submit">Search</Button>
+        <Button type="submit" disabled={!canSearch}>
+          Search
+        </Button>
         <Button type="button" variant="ghost" onClick={onClear}>
           Clear
         </Button>

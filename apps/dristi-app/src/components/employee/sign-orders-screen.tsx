@@ -43,6 +43,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { isPendingFilterChange } from "@/lib/employee/filter-state";
 import {
   causeTitle,
   isoDay,
@@ -136,6 +137,8 @@ export function SignOrdersScreen() {
     (order) => order.status === "pending-signature",
   ).length;
 
+  const canSearch = isPendingFilterChange(draft, applied);
+
   function applyFilters() {
     setApplied(draft);
     setPage(1);
@@ -221,6 +224,7 @@ export function SignOrdersScreen() {
           onDraftChange={setDraft}
           onApply={applyFilters}
           onClear={clearFilters}
+          canSearch={canSearch}
         />
 
         {pageRows.length === 0 ? (
@@ -310,12 +314,14 @@ function SignOrderFiltersForm({
   onDraftChange,
   onApply,
   onClear,
+  canSearch,
 }: {
   draft: SignOrderFilters;
   searchRef: React.RefObject<HTMLInputElement | null>;
   onDraftChange: (filters: SignOrderFilters) => void;
   onApply: () => void;
   onClear: () => void;
+  canSearch: boolean;
 }) {
   return (
     <form
@@ -405,7 +411,7 @@ function SignOrderFiltersForm({
       </Field>
 
       <div className="flex items-center gap-2">
-        <Button type="submit" variant="secondary">
+        <Button type="submit" disabled={!canSearch}>
           Search
         </Button>
         {/* "Clear" rather than the reference's "Clear search": it returns the status and

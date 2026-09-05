@@ -23,6 +23,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { isPendingFilterChange } from "@/lib/employee/filter-state";
 import {
   causeTitle,
   PAGE_SIZE,
@@ -115,6 +116,8 @@ export function SignEvidenceScreen() {
   const visibleIds = new Set(visible.map((row) => row.id));
   const selectedIds = new Set([...picked].filter((id) => visibleIds.has(id)));
 
+  const canSearch = isPendingFilterChange(draft, applied);
+
   function applyFilters() {
     setApplied(draft);
     setPage(1);
@@ -206,6 +209,7 @@ export function SignEvidenceScreen() {
             onDraftChange={setDraft}
             onApply={applyFilters}
             onClear={clearFilters}
+            canSearch={canSearch}
           />
 
           {pageRows.length === 0 ? (
@@ -361,12 +365,14 @@ function SignEvidenceFilters({
   onDraftChange,
   onApply,
   onClear,
+  canSearch,
 }: {
   draft: SignEvidenceFilters;
   searchRef: React.Ref<HTMLInputElement>;
   onDraftChange: (filters: SignEvidenceFilters) => void;
   onApply: () => void;
   onClear: () => void;
+  canSearch: boolean;
 }) {
   return (
     <form
@@ -403,7 +409,7 @@ function SignEvidenceFilters({
       </Field>
 
       <div className="flex items-center gap-2">
-        <Button type="submit" variant="outline">
+        <Button type="submit" disabled={!canSearch}>
           Search
         </Button>
         <Button type="button" variant="ghost" onClick={onClear}>

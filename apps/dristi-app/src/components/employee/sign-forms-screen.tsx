@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { isPendingFilterChange } from "@/lib/employee/filter-state";
 import {
   causeTitle,
   isoDay,
@@ -116,6 +117,8 @@ export function SignFormsScreen() {
    */
   const selectedForms = rows.filter((form) => picked.has(form.id));
   const selectedIds = new Set(selectedForms.map((form) => form.id));
+
+  const canSearch = isPendingFilterChange(draft, applied);
 
   function applyFilters() {
     setApplied(draft);
@@ -213,6 +216,7 @@ export function SignFormsScreen() {
             onDraftChange={setDraft}
             onApply={applyFilters}
             onClear={clearFilters}
+            canSearch={canSearch}
           />
 
           {pageRows.length === 0 ? (
@@ -350,6 +354,7 @@ function SignFormsFilters({
   onDraftChange,
   onApply,
   onClear,
+  canSearch,
 }: {
   draft: SignFormFilters;
   /** Bumped by Clear to remount the date picker — see below. */
@@ -358,6 +363,7 @@ function SignFormsFilters({
   onDraftChange: (filters: SignFormFilters) => void;
   onApply: () => void;
   onClear: () => void;
+  canSearch: boolean;
 }) {
   return (
     <form
@@ -451,7 +457,7 @@ function SignFormsFilters({
       </Field>
 
       <div className="flex items-center gap-2">
-        <Button type="submit" variant="outline">
+        <Button type="submit" disabled={!canSearch}>
           Search
         </Button>
         <Button type="button" variant="ghost" onClick={onClear}>
@@ -542,7 +548,7 @@ function SignFormsItemList({
             <button
               type="button"
               onClick={() => onOpen(form)}
-              className="w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
+              className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
             >
               <span className="sr-only">Read and sign </span>
               {causeTitle(form)}

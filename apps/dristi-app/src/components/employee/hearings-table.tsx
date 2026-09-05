@@ -34,8 +34,6 @@ import {
 } from "@/lib/employee/hearings";
 import { cn } from "@/lib/utils";
 
-import { HearingPeekTrigger, HEARING_PEEK_ID, useHearingPeek } from "./use-hearing-peek";
-
 /* The advocate's cases table is the reference for surface and row state, and this is the
  * same table: header separated by fill rather than a second stroke, rows by hairline, and
  * the panel edge as the only full-strength border on the screen (ui-craft §1.1). The
@@ -48,8 +46,10 @@ const cellClass =
   "border-b border-hairline px-4 py-3 align-middle text-left text-body-compact";
 
 /**
- * Start hearing and End hearing live in the Action column, as a labelled outline
- * button — not teal (Join VC is the screen's one primary).
+ * Start hearing and End hearing live in the Action column, as one labelled outline
+ * control — not teal (Join VC is the screen's one primary). Start is a link to the
+ * matter's case overview that marks the listing on its way out; End stays a button,
+ * because ending a sitting goes nowhere.
  *
  * It is the only bordered action on a callable row (ui-craft §2). Scheduled listings
  * start; the same slot ends the one that is ongoing. Completed listings have nothing
@@ -63,34 +63,84 @@ const cellClass =
  * Pass over is the other sitting outcome, not a second session verb: it lives
  * in a row overflow beside this control, on scheduled and ongoing rows only.
  *
- * `min-w-40` is the width of "Start hearing" at the control metric, so Start and
- * End share one column and the table does not jump when the label changes.
+ * `min-w-32` is a floor, not a fit: "Start hearing" measures 83px of ink and "End
+ * hearing" less, so 128px holds either label with room and neither the control nor
+ * the column jumps when the word changes. It was `min-w-40`, which spent 45px per row
+ * on nothing and pushed the table past the width of its own panel — see below.
  */
-const SESSION_SLOT_CLASS = "min-w-40";
+const SESSION_SLOT_CLASS = "min-w-32";
 /**
- * The two right-hand columns are one pinned group, not one sticky column beside a
- * loose one.
+ * The two right-hand columns are ordinary columns. They used to be pinned, and the pin
+ * is what the bench read as a rendering fault.
  *
- * Action alone was `sticky right-0` with a bare Orders cell to its left. This cause
- * list clears the panel by only a few dozen pixels at an ordinary desktop width, so
- * the sticky cell was pulled left by exactly that overflow and its opaque fill landed
- * on Orders — the narrowest column on the table, an icon button and its `px-4` and
- * nothing else. The column was in the DOM and reachable by scrolling right, and
- * invisible at the scroll position every reader lands on. It came and went with the
- * window width, the sidebar state and how long a case name ran, which is what made it
- * read as intermittent rather than broken.
+ * `sticky right-0` does not mean "hold still until scrolled past". It clamps the cell's
+ * right edge to the scrollport's, so the moment the table is wider than the port the
+ * cell is pulled *left*, over its neighbours, at scroll position zero — before anyone
+ * has scrolled anything. Action covered Orders. Pinning Orders as well moved the same
+ * collision one column left onto Status, where an opaque cell sliced the status chip
+ * mid-word; pinning Status would have moved it onto Purpose. The pin was the bug, and
+ * no pinning order was going to fix it.
  *
- * So Orders pins too, one Action-width in from the edge. `w-60` fixes that width
- * instead of leaving it a floor, because it is now an offset another column is
- * measured from: `right-60` has to equal Action's width or the two overlap again.
- * Below the overflow threshold neither cell moves — a sticky right offset only
- * displaces a cell that would otherwise sit closer to the scrollport edge than the
- * offset allows, and at rest Orders sits exactly `w-60` in.
+ * Measured on the render, and the numbers are the point. The panel is the viewport less
+ * 385px with the rail open and less 193px folded. The table wanted 1182px, against
+ * 1127px of panel at a 1512 viewport and 1055px at 1440 — past the threshold at every
+ * laptop width this court has, which is why a chip that was in fact always clipped read
+ * as an intermittent fault. Trimming the session control to its label (above) and the
+ * action cell to its contents brings the table to 1086px, which fits outright from
+ * about a 1471 viewport with the rail open, and from 1280 with it folded. Narrower than
+ * that it scrolls, and the last column is cut at the port's own edge — which reads as
+ * more to the right, where the same content covered mid-table read as broken. No cell
+ * overlaps another at any width now, so the class of bug is gone rather than moved.
+ *
+ * `w-52` is the action group at the control metric — the session control's `min-w-32`,
+ * the overflow trigger's `size-10`, one `gap-2` between them, and the cell's `px-4`.
+ * `w-18` is the orders icon button plus that same padding.
  */
-const ACTION_COLUMN_CLASS = "sticky right-0 z-20 w-60 min-w-60";
-/** `w-18` is the `size-10` icon button plus the cell's `px-4`. The fill is the row's,
- *  so the columns it now travels over do not show through it. */
-const ORDERS_COLUMN_CLASS = "sticky right-60 z-10 w-18";
+const ACTION_COLUMN_CLASS = "w-52 min-w-52";
+const ORDERS_COLUMN_CLASS = "w-18";
+
+/**
+ * The cause title, as the way into that matter's case overview.
+ *
+ * It used to open a floating peek over the list. The peek is retired: it showed
+ * exactly what the overview page now shows, and two surfaces holding the same facts
+ * is how they start disagreeing. So the row's one emphasised cell is what it always
+ * read as — a link to the case — and it goes to the same page Start hearing opens.
+ *
+ * Reading the case and calling it are still two different acts. This one only reads:
+ * it does not mark the listing ongoing. Start hearing, on the same row, is the call.
+ *
+ * It wears the same quiet-name dress as the queues' dialog openers, but stays an
+ * anchor: this one navigates, and a destination has to be middle-clickable
+ * (`ACCESSIBILITY.md` §2 — prefer the semantic element for the act).
+ *
+ * The caller supplies the box because the two call sites need different ones: in the
+ * table it fills the cell as a 40×40 target, and in the phone list it sits inline
+ * after the item number. Only the box is theirs — the dress is fixed here.
+ */
+export function HearingCaseLink({
+  hearing,
+  className,
+}: {
+  hearing: CourtHearing;
+  className?: string;
+}) {
+  return (
+    <Link
+      href={`/employee/hearings/${hearing.id}`}
+      className={cn(
+        "rounded-sm text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline",
+        className
+      )}
+    >
+      {/* The cause title alone is the whole of what a sighted reader needs under a
+          column headed "Case name"; out of that column it is a link named after two
+          parties and nothing else. */}
+      <span className="sr-only">Case overview for </span>
+      {causeTitle(hearing)}
+    </Link>
+  );
+}
 
 export function HearingSessionButton({
   hearing,
@@ -103,23 +153,25 @@ export function HearingSessionButton({
   onEndHearing: (hearing: CourtHearing) => void;
   className?: string;
 }) {
-  const { open, close, hearing: openHearing } = useHearingPeek();
-  const expanded = openHearing?.id === hearing.id;
-
   if (canStartHearing(hearing.status)) {
     return (
+      /* A link, not a button that navigates: calling the matter takes the bench to
+         that case's overview, and a destination the court can middle-click, open in
+         a second tab, or land on from the browser's own history has to be an anchor.
+         The mark rides along on the click — `markHearingOngoing` is in a module that
+         outlives this screen, so it is still made when the list unmounts a moment
+         later (`lib/employee/hearing-session.ts`). */
       <Button
-        type="button"
+        asChild
         variant="outline"
         className={cn(SESSION_SLOT_CLASS, className)}
-        aria-expanded={expanded}
-        aria-controls={expanded ? HEARING_PEEK_ID : undefined}
-        onClick={() => {
-          onStartHearing(hearing);
-          open(hearing);
-        }}
       >
-        Start hearing
+        <Link
+          href={`/employee/hearings/${hearing.id}`}
+          onClick={() => onStartHearing(hearing)}
+        >
+          Start hearing
+        </Link>
       </Button>
     );
   }
@@ -129,10 +181,7 @@ export function HearingSessionButton({
         type="button"
         variant="outline"
         className={cn(SESSION_SLOT_CLASS, className)}
-        onClick={() => {
-          onEndHearing(hearing);
-          if (expanded) close();
-        }}
+        onClick={() => onEndHearing(hearing)}
       >
         End hearing
       </Button>
@@ -169,9 +218,6 @@ export function HearingPassOverMenu({
   hearing: CourtHearing;
   onPassOver: (hearing: CourtHearing) => void;
 }) {
-  const { close, hearing: openHearing } = useHearingPeek();
-  const expanded = openHearing?.id === hearing.id;
-
   if (!canPassOver(hearing.status)) return null;
 
   return (
@@ -188,12 +234,7 @@ export function HearingPassOverMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-auto min-w-40">
-        <DropdownMenuItem
-          onSelect={() => {
-            onPassOver(hearing);
-            if (expanded) close();
-          }}
-        >
+        <DropdownMenuItem onSelect={() => onPassOver(hearing)}>
           Pass over
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -314,7 +355,7 @@ export function HearingsTable({
           <TableHead className={cn(headClass, "w-16 whitespace-nowrap")}>
             S. no.
           </TableHead>
-          <TableHead className={cn(headClass, "min-w-48 whitespace-normal")}>
+          <TableHead className={cn(headClass, "min-w-40 whitespace-normal")}>
             Case name
           </TableHead>
           <TableHead className={cn(headClass, "whitespace-nowrap")}>
@@ -323,7 +364,7 @@ export function HearingsTable({
           <TableHead className={cn(headClass, "min-w-48 whitespace-nowrap")}>
             Advocates
           </TableHead>
-          <TableHead className={cn(headClass, "min-w-40 whitespace-normal")}>
+          <TableHead className={cn(headClass, "min-w-32 whitespace-normal")}>
             Purpose
           </TableHead>
           <TableHead className={cn(headClass, "min-w-32 whitespace-nowrap")}>
@@ -335,11 +376,7 @@ export function HearingsTable({
             Orders
           </TableHead>
           <TableHead
-            className={cn(
-              headClass,
-              ACTION_COLUMN_CLASS,
-              "bg-surface-sunken whitespace-nowrap",
-            )}
+            className={cn(headClass, ACTION_COLUMN_CLASS, "whitespace-nowrap")}
           >
             Action
           </TableHead>
@@ -364,14 +401,19 @@ export function HearingsTable({
             >
               {hearing.item}
             </TableCell>
-            {/* The row's one emphasised cell. Opens the case peek — the same
-                glance Start hearing opens — rather than a case file: there is
-                no court-side file yet, and the citizen side's is not the bench's
-                to point at. */}
+            {/* The row's one emphasised cell. Opens this matter's case overview —
+                the same page Start hearing opens, without calling the matter. */}
             <TableCell
-              className={cn(cellClass, "min-w-48 font-medium whitespace-normal")}
+              className={cn(cellClass, "min-w-40 font-medium whitespace-normal")}
             >
-              <HearingPeekTrigger hearing={hearing} />
+              {/* Fills the cell so the target is the row's height, not the 20px
+                  line box the text happens to occupy (`ACCESSIBILITY.md` §8).
+                  `flex`, not `inline-flex`: an inline box would shrink-wrap and
+                  fight the cell's `whitespace-normal` wrapping. */}
+              <HearingCaseLink
+                hearing={hearing}
+                className="flex min-h-10 w-full items-center"
+              />
             </TableCell>
             <TableCell className={cn(cellClass, "tabular-nums whitespace-nowrap")}>
               {hearing.caseNumber}
@@ -387,7 +429,7 @@ export function HearingsTable({
                 dense
               />
             </TableCell>
-            <TableCell className={cn(cellClass, "min-w-40 whitespace-normal")}>
+            <TableCell className={cn(cellClass, "min-w-32 whitespace-normal")}>
               {courtHearingPurposeLabel(hearing.purpose)}
             </TableCell>
             <TableCell className={cn(cellClass, "min-w-32 whitespace-nowrap")}>
@@ -399,22 +441,14 @@ export function HearingsTable({
               </Badge>
             </TableCell>
             <TableCell
-              className={cn(
-                cellClass,
-                ORDERS_COLUMN_CLASS,
-                "bg-inherit whitespace-nowrap",
-              )}
+              className={cn(cellClass, ORDERS_COLUMN_CLASS, "whitespace-nowrap")}
             >
               <div className="flex justify-center">
                 <HearingOrdersButton hearing={hearing} />
               </div>
             </TableCell>
             <TableCell
-              className={cn(
-                cellClass,
-                ACTION_COLUMN_CLASS,
-                "bg-inherit whitespace-nowrap",
-              )}
+              className={cn(cellClass, ACTION_COLUMN_CLASS, "whitespace-nowrap")}
             >
               <div className="flex items-center gap-2">
                 <HearingSessionButton

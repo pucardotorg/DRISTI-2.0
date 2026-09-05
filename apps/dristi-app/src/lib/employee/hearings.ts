@@ -18,12 +18,16 @@
  *
  * **Starting, ending, and passing over are screen actions, not a court record.** The
  * listing stands as scheduled until the bench presses Start hearing; only then does
- * the chip read ongoing, and the case peek opens on that matter — the same glance the
- * advocate list already ships. End hearing, on the same control, marks that listing
- * completed and dismisses the peek. Pass over, from the row overflow, marks it passed
- * over — to be heard on a later date — without completing it. Nothing is filed,
- * notified, or written back. Choosing that later date is Bulk reschedule / Schedule,
- * not this mark.
+ * the chip read ongoing, and that matter's case overview opens — the glance the
+ * advocate list already ships, on a page of its own. End hearing, on the same
+ * control, marks that listing completed. Pass over, from the row overflow, marks it
+ * passed over — to be heard on a later date — without completing it. Nothing is
+ * filed, notified, or written back. Choosing that later date is Bulk reschedule /
+ * Schedule, not this mark.
+ *
+ * The three marks themselves live in `hearing-session.ts`, because Start hearing
+ * navigates and the screen that used to hold them does not survive the trip. Where
+ * they are kept changed; what they claim did not.
  */
 
 export type CourtHearingStatus =
@@ -312,6 +316,34 @@ export function counselFor(
   side: CounselSide,
 ): CourtCounsel[] {
   return matter.counsel.filter((entry) => entry.side === side);
+}
+
+/** How a court-side row names a side in prose: "the complainant" / "the accused". */
+export function partySideLabel(side: CounselSide): string {
+  return side === "complainant" ? "complainant" : "accused";
+}
+
+/**
+ * Who actually put an application in — counsel on record for that side, or the
+ * party themselves when the side has no vakalat.
+ *
+ * Derived rather than stored, so a row cannot claim an advocate it does not
+ * have on record. It is the "Application filer" line every court-side review
+ * overlay shows, and it lives here so the four of them cannot word it four
+ * ways.
+ */
+export function applicationFiler(
+  matter: {
+    parties: { complainant: string; accused: string };
+    counsel: CourtCounsel[];
+  },
+  side: CounselSide,
+): string {
+  const onRecord = counselFor(matter, side)[0];
+  const label = partySideLabel(side);
+  return onRecord
+    ? `${onRecord.name}, counsel for the ${label}`
+    : `${matter.parties[side]}, ${label}, appearing without counsel`;
 }
 
 /**

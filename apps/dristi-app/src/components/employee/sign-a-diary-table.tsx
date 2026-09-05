@@ -114,7 +114,7 @@ export function SignADiaryTable({
               <button
                 type="button"
                 onClick={() => onOpen(entry)}
-                className="w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
+                className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
               >
                 <span className="sr-only">
                   Read and sign the entry in {entry.caseNumber}.{" "}

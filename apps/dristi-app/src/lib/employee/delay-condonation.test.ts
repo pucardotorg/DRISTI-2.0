@@ -5,7 +5,10 @@ import {
   DELAY_CONDONATION_QUEUE,
   DELAY_CONDONATION_STAGES,
   EMPTY_DELAY_CONDONATION_FILTERS,
+  buildDelayCondonationDocument,
+  delayCondonationFiler,
   delayCondonationStageLabel,
+  delayLine,
   filterDelayCondonationCases,
 } from "./delay-condonation";
 
@@ -86,5 +89,110 @@ describe("filterDelayCondonationCases", () => {
 describe("delayCondonationStageLabel", () => {
   it("names Registration in the screenshot's word", () => {
     assert.equal(delayCondonationStageLabel("registration"), "Registration");
+  });
+});
+
+describe("the particulars the review overlay reads", () => {
+  it("is on every row, so no application opens half-blank", () => {
+    for (const row of DELAY_CONDONATION_QUEUE) {
+      assert.match(row.appliedOn, /^\d{4}-\d{2}-\d{2}$/, row.id);
+      assert.ok(row.delayDays > 0, `${row.id} claims no delay`);
+      assert.ok(row.delayIn.length > 0, `${row.id} says nothing was late`);
+      assert.ok(row.reason.length > 0, `${row.id} pleads no cause`);
+    }
+  });
+
+  it("states the delay as a sentence, and counts a single day as one", () => {
+    const row = DELAY_CONDONATION_QUEUE.find((entry) => entry.id === "dc-1213")!;
+    assert.equal(delayLine(row), "27 days in filing the complaint");
+    assert.equal(
+      delayLine({ ...row, delayDays: 1 }),
+      "1 day in filing the complaint",
+    );
+  });
+});
+
+describe("who filed the application", () => {
+  it("names counsel on record for the applying side", () => {
+    const row = DELAY_CONDONATION_QUEUE.find((entry) => entry.id === "dc-1213")!;
+    assert.equal(
+      delayCondonationFiler(row),
+      "Adv. Suresh Menon, counsel for the complainant",
+    );
+  });
+
+  it("names the applying side's own counsel, never the other side's", () => {
+    for (const row of DELAY_CONDONATION_QUEUE) {
+      const onRecord = row.counsel.filter(
+        (counsel) => counsel.side === row.filedFor,
+      );
+      const filer = delayCondonationFiler(row);
+      if (onRecord.length) {
+        assert.equal(
+          filer,
+          `${onRecord[0]!.name}, counsel for the ${row.filedFor}`,
+          row.id,
+        );
+      } else {
+        assert.equal(
+          filer,
+          `${row.parties[row.filedFor]}, ${row.filedFor}, appearing without counsel`,
+          row.id,
+        );
+      }
+    }
+  });
+
+  it("reads an accused-filed application off the accused's own vakalat", () => {
+    const row = DELAY_CONDONATION_QUEUE.find((entry) => entry.id === "dc-403")!;
+    assert.equal(row.filedFor, "accused");
+    assert.equal(
+      delayCondonationFiler(row),
+      "Adv. Saurabh Verma, counsel for the accused",
+    );
+  });
+
+  it("says so plainly when there is no vakalat at all", () => {
+    const row = DELAY_CONDONATION_QUEUE.find((entry) => entry.id === "dc-1235")!;
+    assert.equal(row.counsel.length, 0);
+    assert.equal(
+      delayCondonationFiler(row),
+      `${row.parties.complainant}, complainant, appearing without counsel`,
+    );
+  });
+});
+
+describe("buildDelayCondonationDocument", () => {
+  it("composes the application every row can produce", () => {
+    for (const row of DELAY_CONDONATION_QUEUE) {
+      const document = buildDelayCondonationDocument(row);
+      assert.equal(document.title, "Application for condonation of delay");
+      assert.equal(document.caseNumber, row.caseNumber);
+      assert.ok(document.facts.length >= 5, row.id);
+      assert.ok(document.paragraphs.length > 0, row.id);
+      assert.ok(document.prayer.includes(delayLine(row)), row.id);
+    }
+  });
+
+  it("recites the cause pleaded and the delay it explains", () => {
+    const row = DELAY_CONDONATION_QUEUE.find((entry) => entry.id === "dc-1213")!;
+    const document = buildDelayCondonationDocument(row);
+    assert.ok(document.paragraphs.some((line) => line.includes(row.reason)));
+    assert.ok(
+      document.facts.some(
+        (fact) =>
+          fact.term === "Delay to be condoned" && fact.value === delayLine(row),
+      ),
+    );
+    assert.equal(document.dated, "8 October 2025");
+  });
+
+  it("names only the counsel a row actually has on record", () => {
+    const row = DELAY_CONDONATION_QUEUE.find((entry) => entry.id === "dc-1235")!;
+    const terms = buildDelayCondonationDocument(row).facts.map(
+      (fact) => fact.term,
+    );
+    assert.ok(!terms.includes("Complainant counsel"));
+    assert.ok(!terms.includes("Accused counsel"));
   });
 });

@@ -4,6 +4,7 @@ import * as React from "react";
 import { FolderCheckIcon, SearchIcon, SearchXIcon } from "lucide-react";
 
 import { CounselCell } from "@/components/employee/counsel-cell";
+import { DelayCondonationDialog } from "@/components/employee/delay-condonation-dialog";
 import { DelayCondonationTable } from "@/components/employee/delay-condonation-table";
 import { ListFooter } from "@/components/employee/list-footer";
 import { Button } from "@/components/ui/button";
@@ -29,12 +30,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { isPendingFilterChange } from "@/lib/employee/filter-state";
 import {
   DELAY_CONDONATION_QUEUE,
   DELAY_CONDONATION_STAGES,
   EMPTY_DELAY_CONDONATION_FILTERS,
   delayCondonationStageLabel,
   filterDelayCondonationCases,
+  formatDelayCondonationLongDate,
   type DelayCondonationCase,
   type DelayCondonationFilters,
 } from "@/lib/employee/delay-condonation";
@@ -59,8 +62,12 @@ import {
  * What differs is only what the list actually is. Stage stays — the
  * reference had it, and unlike Register cases this queue is not one state.
  * The search reaches counsel as well as the cause and the number, because
- * that is the question the reference labelled. There is no click: the
- * screenshot is the list, and this build has no review overlay to open.
+ * that is the question the reference labelled.
+ *
+ * The cause title opens the review overlay — the same one the rescheduling
+ * queue opens, because it is the same job: an application in front of a bench
+ * that has to say yes or no. Approve and Reject only drop the row from this
+ * demo queue; they condone nothing and write no order.
  */
 export function DelayCondonationScreen() {
   /* The reference filters on a button rather than as you type, so the clerk
@@ -74,14 +81,26 @@ export function DelayCondonationScreen() {
   );
   const [pageSize, setPageSize] = React.useState<HearingsPageSize>(PAGE_SIZE);
   const [page, setPage] = React.useState(1);
+  const [decidedIds, setDecidedIds] = React.useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const [open, setOpen] = React.useState<DelayCondonationCase | null>(null);
+  const searchRef = React.useRef<HTMLInputElement>(null);
 
-  const rows = filterDelayCondonationCases(DELAY_CONDONATION_QUEUE, applied);
+  /* Answered rows leave the queue, so the list, the count above it and the
+     pagination all shrink together. Nothing is written — see the dialog. */
+  const remaining = DELAY_CONDONATION_QUEUE.filter(
+    (matter) => !decidedIds.has(matter.id),
+  );
+  const rows = filterDelayCondonationCases(remaining, applied);
 
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
   const currentPage = Math.min(page, pageCount);
   const start = (currentPage - 1) * pageSize;
   const pageRows = rows.slice(start, start + pageSize);
   const isFiltered = applied.stage !== "all" || applied.query !== "";
+
+  const canSearch = isPendingFilterChange(draft, applied);
 
   function applyFilters() {
     setApplied(draft);
@@ -94,6 +113,17 @@ export function DelayCondonationScreen() {
     setPage(1);
   }
 
+  function decide(matter: DelayCondonationCase) {
+    setDecidedIds((current) => new Set(current).add(matter.id));
+    setOpen(null);
+  }
+
+  /* The row that opened the overlay is gone by the time it closes, so focus
+     goes to the search box rather than to a button that no longer exists. */
+  function returnFocus() {
+    searchRef.current?.focus();
+  }
+
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-8 p-6 md:p-8">
       <header className="flex flex-col gap-2">
@@ -104,9 +134,9 @@ export function DelayCondonationScreen() {
             carries it rather than restating the title. Singular is spelled
             out because "1 applications" is the kind of thing a court notices. */}
         <p className="text-body text-muted-foreground">
-          {DELAY_CONDONATION_QUEUE.length === 1
+          {remaining.length === 1
             ? "1 application is waiting for review."
-            : `${DELAY_CONDONATION_QUEUE.length} applications are waiting for review.`}
+            : `${remaining.length} applications are waiting for review.`}
         </p>
       </header>
 
@@ -116,9 +146,11 @@ export function DelayCondonationScreen() {
       <section className="flex min-w-0 flex-col gap-6 rounded-xl border border-hairline bg-card shadow-raised p-6">
         <DelayCondonationFilters
           draft={draft}
+          searchRef={searchRef}
           onDraftChange={setDraft}
           onApply={applyFilters}
           onClear={clearFilters}
+          canSearch={canSearch}
         />
 
         {pageRows.length === 0 ? (
@@ -135,10 +167,10 @@ export function DelayCondonationScreen() {
               {/* Four columns do not survive a phone. Below `md` the same
                   rows stack as items — the scheduling queue's own answer. */}
               <div className="hidden md:block">
-                <DelayCondonationTable rows={pageRows} />
+                <DelayCondonationTable rows={pageRows} onOpen={setOpen} />
               </div>
               <div className="md:hidden">
-                <DelayCondonationItemList rows={pageRows} />
+                <DelayCondonationItemList rows={pageRows} onOpen={setOpen} />
               </div>
             </div>
 
@@ -159,6 +191,14 @@ export function DelayCondonationScreen() {
           </div>
         )}
       </section>
+
+      <DelayCondonationDialog
+        matter={open}
+        onOpenChange={setOpen}
+        onApprove={decide}
+        onReject={decide}
+        onReturnFocus={returnFocus}
+      />
     </div>
   );
 }
@@ -179,14 +219,18 @@ export function DelayCondonationScreen() {
  */
 function DelayCondonationFilters({
   draft,
+  searchRef,
   onDraftChange,
   onApply,
   onClear,
+  canSearch,
 }: {
   draft: DelayCondonationFilters;
+  searchRef: React.RefObject<HTMLInputElement | null>;
   onDraftChange: (filters: DelayCondonationFilters) => void;
   onApply: () => void;
   onClear: () => void;
+  canSearch: boolean;
 }) {
   return (
     <form
@@ -240,6 +284,7 @@ function DelayCondonationFilters({
             <SearchIcon aria-hidden />
           </InputGroupAddon>
           <InputGroupInput
+            ref={searchRef}
             type="search"
             autoComplete="off"
             value={draft.query}
@@ -252,7 +297,9 @@ function DelayCondonationFilters({
       </Field>
 
       <div className="flex items-center gap-2">
-        <Button type="submit">Search</Button>
+        <Button type="submit" disabled={!canSearch}>
+          Search
+        </Button>
         <Button type="button" variant="ghost" onClick={onClear}>
           Clear
         </Button>
@@ -312,11 +359,18 @@ function DelayCondonationEmpty({
  * A queue read on a phone is still the cause, its number and where the case
  * has reached — the advocates drop to their own line rather than forcing a
  * four-column table through a 375px screen.
+ *
+ * The cause title is the opener, not the whole card: the advocates line owns a
+ * `+N` popover trigger of its own, and a button inside a button is neither
+ * valid nor operable. So the name carries the same treatment it has in the
+ * table, at a 40px height here.
  */
 function DelayCondonationItemList({
   rows,
+  onOpen,
 }: {
   rows: DelayCondonationCase[];
+  onOpen: (matter: DelayCondonationCase) => void;
 }) {
   return (
     <ul className="flex flex-col gap-3">
@@ -325,13 +379,22 @@ function DelayCondonationItemList({
           key={matter.id}
           className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-4"
         >
-          <p className="min-w-0 text-body-compact font-medium">
-            {causeTitle(matter)}
-          </p>
+            <button
+              type="button"
+              onClick={() => onOpen(matter)}
+              className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
+            >
+              <span className="sr-only">Review </span>
+              {causeTitle(matter)}
+            </button>
           <p className="text-caption text-muted-foreground">
             <span className="tabular-nums">{matter.caseNumber}</span>
             {" · "}
             {delayCondonationStageLabel(matter.stage)}
+            {" · Applied "}
+            <span className="tabular-nums">
+              {formatDelayCondonationLongDate(matter.appliedOn)}
+            </span>
           </p>
           <CounselCell
             complainant={counselFor(matter, "complainant").map(

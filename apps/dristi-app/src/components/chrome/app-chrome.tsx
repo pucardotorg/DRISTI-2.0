@@ -38,8 +38,33 @@ import {
  * three regions it fills itself.
  */
 
-/** Height of the top bar, and of the rail header that has to line up with it. */
+/**
+ * Height of the top bar, and of the rail header that has to line up with it.
+ *
+ * Twice, because two things need it in two forms and a pair of numbers that must agree
+ * should be readable together: the bar and the rail's brand row take the utility, and
+ * `--chrome-sticky-top` below is arithmetic on the length.
+ */
 const BAR = "h-14";
+const BAR_HEIGHT = "3.5rem";
+
+/**
+ * Where a screen's own top-`sticky` element comes to rest, published to the page column
+ * as `--chrome-sticky-top` and used as `top-(--chrome-sticky-top)`.
+ *
+ * The bar is `sticky top-0`, so anything a screen sticks at a small offset slides
+ * underneath it — a preview panel pinned 2rem from the viewport top loses its top 1.5rem
+ * to the bar's fill. The offset a screen actually wants is "clear of the bar, then the
+ * air I would have left anyway", and only the frame knows the first half of that. The
+ * second half is 2rem, the page padding every court screen already uses at `md`.
+ *
+ * A custom property rather than an exported class string because Tailwind builds from the
+ * literal text in the source: a screen writing `lg:${SOMETHING}` produces a class no
+ * stylesheet contains. `lg:top-(--chrome-sticky-top)` is literal at the point of use and
+ * the value stays here. It rides the page column, which is an ancestor of every screen —
+ * unlike `useChromePageDialog`'s problem, nothing that reads this is portalled away.
+ */
+const STICKY_TOP = `calc(${BAR_HEIGHT} + 2rem)`;
 
 /**
  * The rail's two widths, and the page column's left edge at each of them.
@@ -52,9 +77,16 @@ const BAR = "h-14";
  * `PAGE_LEFT_*` are the rail plus a 1rem gutter, expressed as Tailwind steps because they
  * are consumed as utilities: 68 = 17rem = 16 + 1, and 20 = 5rem = 4 + 1. Change a width
  * here and its offset is the line underneath it.
+ *
+ * `RAIL_WIDTH_SHEET` is the third width: the off-canvas rail below `md`. It is the DS's
+ * own `SIDEBAR_WIDTH_MOBILE` restated, because this frame draws that sheet itself (see
+ * `ChromeRailSheet`) and inherits none of the primitive's numbers with it. Wider than the
+ * docked rail on purpose — a phone has no second column to lose the width to, and the
+ * court's footer names a court in full without truncating.
  */
 const RAIL_WIDTH = "16rem";
 const RAIL_WIDTH_ICON = "4rem";
+const RAIL_WIDTH_SHEET = "18rem";
 const PAGE_LEFT_OPEN = "md:left-68";
 const PAGE_LEFT_FOLDED = "md:left-20";
 
@@ -266,6 +298,87 @@ export function useRailCollapsed(): boolean {
 }
 
 /**
+ * Marks a control that folds the rail.
+ *
+ * There are two of them and the frame guarantees exactly one is on screen: the rail's own,
+ * in its header, while the rail is open; the bar's, while the rail is a strip or has left
+ * the layout below `md`. Which of the two that is gets settled in CSS rather than in a
+ * render — see `ChromePageColumn` — so nothing in React can be asked the question, and the
+ * attribute is what lets `focusChromeFoldTrigger` ask the DOM instead.
+ *
+ * Spread onto both. Nothing else reads it, and nothing styles off it.
+ */
+export const CHROME_FOLD_TRIGGER = { "data-chrome-fold-trigger": "" } as const;
+
+/**
+ * Put the keyboard on the fold control that can take it.
+ *
+ * A fold swaps one of the two controls for the other, and the one going off screen is very
+ * often the one holding focus: a keyboard user pressed Enter on it. Hidden, it drops focus
+ * onto `<body>` and the next Tab starts again from the top of the document.
+ * (`ACCESSIBILITY.md` §4.)
+ *
+ * It asks the DOM the only question that has an answer here — *did you take it?* Focusing
+ * a hidden element is a silent no-op, so trying the wrong candidate costs nothing and the
+ * right one identifies itself. Visibility heuristics would be guessing at the same fact
+ * with more ways to be wrong, and React cannot be asked at all: the rule that decides
+ * between the two is half media query.
+ */
+export function focusChromeFoldTrigger(): void {
+  for (const control of document.querySelectorAll<HTMLElement>(
+    "[data-chrome-fold-trigger]",
+  )) {
+    control.focus();
+    if (document.activeElement === control) return;
+  }
+}
+
+/**
+ * Keep the keyboard when the fold takes the focused element off screen.
+ *
+ * Folding costs controls in both directions: the strip closes over a section's rows,
+ * opening it takes the section mark away, the settings control leaves with the labels, and
+ * each fold control gives way to the other. Whether the control was unmounted or hidden
+ * with `display` makes no difference to the keyboard — either way focus lands on `<body>`,
+ * so a magistrate who folds with ⌘B while reading a queue ends up nowhere.
+ * (`ACCESSIBILITY.md` §4, §5.)
+ *
+ * Each region that can lose the focused element says where the keyboard should land
+ * instead, and two guards keep it from claiming focus that was never its own. It only acts
+ * if it *held* focus: `onBlur` drops the claim when focus moves to another real element,
+ * and deliberately keeps it when there is no `relatedTarget` — which is exactly what an
+ * element leaving the screen reports. And it only acts if focus actually landed on
+ * `<body>`; anything else means focus survived and is not ours to take.
+ *
+ * `focus` is called after the fold has been committed, so a handler that resolves its own
+ * target then — `focusChromeFoldTrigger` — sees the state the fold arrived at. Pass a
+ * stable function: the effect re-runs on a new identity and bails, but only silently.
+ */
+export function useFoldFocusHandoff(collapsed: boolean, focus: () => void) {
+  const held = React.useRef(false);
+  const previous = React.useRef(collapsed);
+
+  React.useEffect(() => {
+    if (previous.current === collapsed) return;
+    previous.current = collapsed;
+    if (!held.current) return;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    held.current = false;
+    focus();
+  }, [collapsed, focus]);
+
+  return {
+    onFocus: () => {
+      held.current = true;
+    },
+    onBlur: (event: React.FocusEvent) => {
+      if (event.relatedTarget) held.current = false;
+    },
+  };
+}
+
+/**
  * The chrome frame: a rail on the left, and a column holding the bar and the screen.
  *
  * One `SidebarProvider` for the whole area — the primitive binds ⌘B and the
@@ -311,15 +424,58 @@ export function ChromeShell({
         }
       >
         {rail}
-        {/* Not `SidebarInset`: that primitive is itself a `<main>`, and the screens below
-            already own that landmark. `min-w-0` on this column is what lets a wide table
-            scroll inside the page instead of stretching the shell past the viewport. */}
-        <div className="flex min-h-svh min-w-0 flex-1 flex-col bg-background">
-          {topBar}
-          <div className="flex min-h-0 min-w-0 flex-1">{children}</div>
-        </div>
+        <ChromePageColumn topBar={topBar}>{children}</ChromePageColumn>
       </SidebarProvider>
     </ChromeRailFoldContext.Provider>
+  );
+}
+
+/**
+ * The page beside the rail — and the fold, republished where the bar can read it.
+ *
+ * Not `SidebarInset`: that primitive is itself a `<main>`, and the screens below already
+ * own that landmark. `min-w-0` on this column is what lets a wide table scroll inside the
+ * page instead of stretching the shell past the viewport.
+ *
+ * **Why the fold is on this element.** The bar carries the control that reopens the rail
+ * whenever the rail cannot hold one itself — folded to a strip, or gone below `md` — and
+ * that has to be decided in CSS. `useIsMobile` reports `false` until an effect runs, so a
+ * JS gate would hand a phone server HTML with no way into the navigation at all and only
+ * repair it at hydration; a media query is right at first paint. But only half the rule is
+ * a media query. The other half is whether the rail is folded, which is React state, and
+ * the bar is not a descendant of the rail, so no `group-*` variant of the rail's own
+ * `data-collapsible` can reach it. This column is the nearest element that *is* an
+ * ancestor of the bar, so the state is published here for the bar to read as
+ * `md:group-data-[rail-folded=true]/chrome-page:…`.
+ *
+ * The group is **named**. An unnamed `group` here would be an ancestor of every screen in
+ * the app, and `group-*` matches any ancestor rather than the nearest — so every unnamed
+ * `group-hover:` and `group-data-*:` a screen writes against a card or a row of its own
+ * would start firing on this column too.
+ *
+ * The formula is `ChromeRail`'s to the letter, so the two can never disagree about one
+ * fold. `isMobile` is deliberately not in it: `useIsMobile`'s query and the `md`
+ * breakpoint are exact complements, so the width half of the question is answered once, in
+ * CSS, instead of twice in two languages.
+ */
+function ChromePageColumn({
+  topBar,
+  children,
+}: {
+  topBar: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const folds = React.useContext(ChromeRailFoldContext);
+  const { state } = useSidebar();
+  return (
+    <div
+      className="group/chrome-page flex min-h-svh min-w-0 flex-1 flex-col bg-background"
+      data-rail-folded={folds && state === "collapsed"}
+      style={{ "--chrome-sticky-top": STICKY_TOP } as React.CSSProperties}
+    >
+      {topBar}
+      <div className="flex min-h-0 min-w-0 flex-1">{children}</div>
+    </div>
   );
 }
 
@@ -468,14 +624,30 @@ function ChromeRailSheet({
     <Sheet open={openMobile} onOpenChange={setOpenMobile}>
       <SheetContent
         side="left"
-        style={vars}
         /* The plate lands here rather than on an ancestor: the sheet portals to the body,
-           so nothing set on the rail's own column reaches it. `[&>button]` is the DS's own
-           idiom for the close control it appends after the children. */
+           so nothing set on the rail's own column reaches it — and neither does the
+           provider's `--sidebar-width`, which is why the off-canvas width is redeclared
+           rather than inherited. */
+        style={
+          /* Width after the plate, not before it as the DS writes the same line: a plate
+             is a colour contract and has no business setting the frame's geometry. */
+          { ...vars, "--sidebar-width": RAIL_WIDTH_SHEET } as React.CSSProperties
+        }
         className={[
           "gap-0 bg-sidebar p-0 text-(--sidebar-foreground)",
-          // The appended close control is an app-scoped ghost Button, so its hover fill
-          // is a near-white app token that would flash on a dark plate. Re-ground it.
+          // Left to itself `SheetContent` is `w-3/4` — 240px on a 320px phone, for a rail
+          // whose footer sets a court's full name over three lines and deliberately does
+          // not truncate it. The DS's own off-canvas rail is 18rem, so that is the number.
+          //
+          // Carrying the side modifier is not decoration: `SheetContent` writes its width
+          // as `data-[side=left]:w-3/4`, and a plain `w-…` beside it survives the class
+          // merge (different modifier) only to lose the cascade to it (0,2,0 against
+          // 0,1,0). Matching the modifier is what makes tailwind-merge drop the original
+          // instead of stacking a loser on top of it. Measured in the served stylesheet.
+          "data-[side=left]:w-(--sidebar-width)",
+          // `[&>button]` is the DS's own idiom for the close control it appends after the
+          // children. It is an app-scoped ghost Button, so its hover fill is a near-white
+          // app token that would flash on a dark plate. Re-ground it.
           "[&>button]:text-(--rail-muted)",
           "[&>button]:hover:bg-(--sidebar-accent) [&>button]:hover:text-(--sidebar-foreground)",
           // The DS appends it at `size-icon-sm` — 32px, with no `after:` hit area to make
@@ -507,8 +679,29 @@ function ChromeRailSheet({
  * fixed edge rather than a card that happens to sit at the top. `sticky` is positioned, so
  * an area can hang a second row under it at full width.
  *
- * Three regions and no opinion about what goes in them. The advocate fills all three; the
- * bench fills none on desktop and only the rail trigger below `md`.
+ * Three regions and no opinion about what goes in them. The advocate fills all three. The
+ * bench fills `leading` with the control that reopens the rail — shown whenever the rail
+ * is not carrying one itself, which is below `md` and while it is folded to a strip — and
+ * `children` at every width. `ChromePageColumn` publishes the fold for that rule to read.
+ *
+ * **The breadcrumb convention, for whoever moves the next area onto this frame.** Three
+ * bars in this app draw a trail and two of them open by calling themselves the only one,
+ * so the rule is written here, where the next author is already reading:
+ *
+ * 1. **Derive the trail from the navigation data the rail already renders**, not from a
+ *    provider a screen pushes to. A section renamed in one place is then renamed in both,
+ *    and no screen can quietly teach the bar a name for a section that the rail disagrees
+ *    with. Reach for a provider only for a crumb the route genuinely cannot supply — the
+ *    name of the specific thing on an editor screen, say — and let it supply that crumb
+ *    alone rather than the whole trail.
+ * 2. **The page is not a step.** Screens open with their own heading, so a last crumb
+ *    repeating it puts the same words on screen twice, quietest directly above loudest.
+ *    Carry the steps *above* the page — the ones that are somewhere to go back to.
+ * 3. **Pin the root, shrink the tail.** The root is usually the only route back to an
+ *    area's origin; the tail can be clipped without being unlinked.
+ *
+ * None of this is a fact about any one area, which is why it sits with the frame and not
+ * with an area's bar.
  */
 export function ChromeTopBar({
   leading,

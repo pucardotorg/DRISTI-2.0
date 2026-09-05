@@ -25,6 +25,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { isPendingFilterChange } from "@/lib/employee/filter-state";
 import {
   causeTitle,
   PAGE_SIZE,
@@ -121,6 +122,8 @@ export function SignBailBondsScreen() {
   const selectedIds = new Set([...picked].filter((id) => visibleIds.has(id)));
   /* In list order, so the signature step's note reads the way the table does. */
   const selectedBonds = rows.filter((bond) => selectedIds.has(bond.id));
+
+  const canSearch = isPendingFilterChange(draft, applied);
 
   function applySearch() {
     setApplied(draft);
@@ -220,6 +223,7 @@ export function SignBailBondsScreen() {
             onDraftChange={setDraft}
             onApply={applySearch}
             onClear={clearSearch}
+            canSearch={canSearch}
           />
 
           {pageRows.length === 0 ? (
@@ -362,12 +366,14 @@ function SignBailBondSearch({
   onDraftChange,
   onApply,
   onClear,
+  canSearch,
 }: {
   draft: SignBailBondFilters;
   searchRef: React.RefObject<HTMLInputElement | null>;
   onDraftChange: (filters: SignBailBondFilters) => void;
   onApply: () => void;
   onClear: () => void;
+  canSearch: boolean;
 }) {
   return (
     <form
@@ -404,7 +410,7 @@ function SignBailBondSearch({
       </Field>
 
       <div className="flex items-center gap-2">
-        <Button type="submit" variant="secondary">
+        <Button type="submit" disabled={!canSearch}>
           Search
         </Button>
         {/* "Clear search" rather than the sibling queues' "Clear": the search is the only

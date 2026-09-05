@@ -4,16 +4,14 @@ import * as React from "react";
 import { CalendarX2Icon, SearchIcon, SearchXIcon, VideoIcon } from "lucide-react";
 
 import { CounselCell } from "@/components/employee/counsel-cell";
-import { HearingPeekSurface } from "@/components/employee/hearing-case-peek";
 import {
+  HearingCaseLink,
   HearingRowActions,
   HearingsTable,
 } from "@/components/employee/hearings-table";
 import { ListFooter } from "@/components/employee/list-footer";
-import {
-  HearingPeekProvider,
-  HearingPeekTrigger,
-} from "@/components/employee/use-hearing-peek";
+import { useCourtToday } from "@/components/employee/use-court-today";
+import { useHearingSession } from "@/components/employee/use-hearing-session";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -45,6 +43,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { isPendingFilterChange } from "@/lib/employee/filter-state";
+import {
+  markHearingEnded,
+  markHearingOngoing,
+  markHearingPassedOver,
+} from "@/lib/employee/hearing-session";
 import {
   causeTitle,
   counselFor,
@@ -67,16 +71,6 @@ import {
 } from "@/lib/employee/hearings";
 
 /**
- * The day the bench is sitting on is the reader's, not the server's — a court in Kollam
- * should not be shown yesterday's list because the process serving it woke up somewhere
- * else. The server renders its own guess and the browser replaces it on hydration, so
- * there is no mismatch to suppress and no blank first paint. It does not re-subscribe; a
- * screen left open across midnight is settled by the next navigation.
- */
-const NEVER_CHANGES = () => () => {};
-const readToday = () => isoDay(new Date());
-
-/**
  * Today's hearings — the court's cause list for the day it is sitting.
  *
  * Composed the way the advocate's cases list is composed (`CasesListScreen`), because it
@@ -87,11 +81,7 @@ const readToday = () => isoDay(new Date());
  * below them would be the box-in-box the layering model rules out (ui-craft §4).
  */
 export function HearingsScreen() {
-  const today = React.useSyncExternalStore(
-    NEVER_CHANGES,
-    readToday,
-    readToday,
-  );
+  const today = useCourtToday();
 
   /* `null` means "the day the court is sitting" — resolved against the reader's clock
      rather than frozen at first render, so the screen is right whenever it is opened. */
@@ -105,48 +95,34 @@ export function HearingsScreen() {
   const [applied, setApplied] = React.useState<HearingFilters>(EMPTY_FILTERS);
   const [pageSize, setPageSize] = React.useState<HearingsPageSize>(PAGE_SIZE);
   const [page, setPage] = React.useState(1);
-  /* Which listing the bench has called, which it has ended, and which it has
-     passed over. Local to this screen: Start hearing names the ongoing id; End
-     hearing moves that id onto the ended set; Pass over moves it onto the
-     passed-over set. None of them writes a court record. */
-  const [ongoingId, setOngoingId] = React.useState<string | null>(null);
-  const [endedIds, setEndedIds] = React.useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
-  const [passedOverIds, setPassedOverIds] = React.useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
+  /* Which listing the bench has called, which it has ended, and which it has passed
+     over. Held outside this component, because Start hearing now opens that matter's
+     case overview and this screen unmounts on the way — see
+     `lib/employee/hearing-session.ts`. None of the three writes a court record; that
+     part of the bargain is unchanged. */
+  const session = useHearingSession();
   const [liveMessage, setLiveMessage] = React.useState<string | null>(null);
 
-  const listed = withHearingSession(hearingsForDay(activeDay, today), {
-    ongoingId,
-    endedIds,
-    passedOverIds,
-  });
+  const listed = withHearingSession(hearingsForDay(activeDay, today), session);
   const rows = filterHearings(listed, applied);
 
+  /* The announcement stays with the list because End hearing and Pass over both
+     leave the bench standing on it. Start hearing does not: the page it opens is
+     what tells the court the matter is now live, and this line is overtaken by the
+     navigation. It is still made — a slow route change should not swallow the only
+     confirmation there is. */
   function startHearing(hearing: CourtHearing) {
-    setOngoingId(hearing.id);
+    markHearingOngoing(hearing.id);
     setLiveMessage(`Hearing started for ${causeTitle(hearing)}`);
   }
 
   function endHearing(hearing: CourtHearing) {
-    setEndedIds((prev) => {
-      const next = new Set(prev);
-      next.add(hearing.id);
-      return next;
-    });
-    setOngoingId((current) => (current === hearing.id ? null : current));
+    markHearingEnded(hearing.id);
     setLiveMessage(`Hearing ended for ${causeTitle(hearing)}`);
   }
 
   function passOverHearing(hearing: CourtHearing) {
-    setPassedOverIds((prev) => {
-      const next = new Set(prev);
-      next.add(hearing.id);
-      return next;
-    });
-    setOngoingId((current) => (current === hearing.id ? null : current));
+    markHearingPassedOver(hearing.id);
     setLiveMessage(`Hearing passed over for ${causeTitle(hearing)}`);
   }
 
@@ -158,6 +134,8 @@ export function HearingsScreen() {
     applied.status !== "all" ||
     applied.purpose !== "all" ||
     applied.query !== "";
+
+  const canSearch = isPendingFilterChange(draft, applied);
 
   function applyFilters() {
     setApplied(draft);
@@ -172,24 +150,23 @@ export function HearingsScreen() {
   }
 
   return (
-    <HearingPeekProvider today={today}>
-      <div className="flex min-w-0 flex-1 flex-col gap-8 p-6 md:p-8">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 flex-col gap-2">
-            <h1 className="text-title text-balance font-semibold sm:text-title-l">
-              Today&rsquo;s hearings
-            </h1>
-            <p className="text-body text-muted-foreground">
-              {formatCourtDay(activeDay)}
-            </p>
-          </div>
-          <JoinVideoCourt />
-        </header>
+    <div className="flex min-w-0 flex-1 flex-col gap-8 p-6 md:p-8">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 flex-col gap-2">
+          <h1 className="text-title text-balance font-semibold sm:text-title-l">
+            Today&rsquo;s hearings
+          </h1>
+          <p className="text-body text-muted-foreground">
+            {formatCourtDay(activeDay)}
+          </p>
+        </div>
+        <JoinVideoCourt />
+      </header>
 
-        {/* One panel: filters, list and footer are one unit of work, so they share one
-            lifted sheet — the same recipe and the same `gap-6` / `p-6` the cases panel
-            uses. Nothing inside draws a second frame. */}
-        <HearingPeekSurface className="flex min-w-0 flex-col gap-6 rounded-xl border border-hairline bg-card shadow-raised p-6">
+      {/* One panel: filters, list and footer are one unit of work, so they share one
+          lifted sheet — the same recipe and the same `gap-6` / `p-6` the cases panel
+          uses. Nothing inside draws a second frame. */}
+      <div className="flex min-w-0 flex-col gap-6 rounded-xl border border-hairline bg-card p-6 shadow-raised">
         <HearingsFilters
           draft={draft}
           onDraftChange={setDraft}
@@ -200,6 +177,7 @@ export function HearingsScreen() {
           }}
           onApply={applyFilters}
           onClear={clearFilters}
+          canSearch={canSearch}
         />
 
         {pageRows.length === 0 ? (
@@ -256,9 +234,8 @@ export function HearingsScreen() {
             />
           </div>
         )}
-        </HearingPeekSurface>
       </div>
-    </HearingPeekProvider>
+    </div>
   );
 }
 
@@ -287,6 +264,7 @@ function HearingsFilters({
   onDayChange,
   onApply,
   onClear,
+  canSearch,
 }: {
   draft: HearingFilters;
   onDraftChange: (filters: HearingFilters) => void;
@@ -294,6 +272,7 @@ function HearingsFilters({
   onDayChange: (day: string) => void;
   onApply: () => void;
   onClear: () => void;
+  canSearch: boolean;
 }) {
   return (
     <form
@@ -401,7 +380,7 @@ function HearingsFilters({
       </Field>
 
       <div className="flex items-center gap-2">
-        <Button type="submit" variant="secondary">
+        <Button type="submit" disabled={!canSearch}>
           Search
         </Button>
         <Button type="button" variant="ghost" onClick={onClear}>
@@ -519,7 +498,9 @@ function HearingsItemList({
               <span className="text-muted-foreground tabular-nums">
                 {hearing.item}.
               </span>{" "}
-              <HearingPeekTrigger hearing={hearing} />
+              {/* Stays inline: the serial and the cause are one reading here, and a
+                  block box would orphan the number on its own line. */}
+              <HearingCaseLink hearing={hearing} className="w-fit" />
             </p>
             <Badge
               variant={courtHearingStatusVariant(hearing.status)}

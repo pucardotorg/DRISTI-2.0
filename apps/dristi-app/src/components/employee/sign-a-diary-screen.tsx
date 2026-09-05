@@ -16,6 +16,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { isPendingFilterChange } from "@/lib/employee/filter-state";
 import {
   causeTitle,
   formatCourtDay,
@@ -113,6 +114,11 @@ export function SignADiaryScreen() {
   const start = (currentPage - 1) * pageSize;
   const pageRows = rows.slice(start, start + pageSize);
 
+  const canSearch = isPendingFilterChange(
+    { dated: resolveADiaryDay(draft, today) },
+    { dated: appliedDay },
+  );
+
   function applyFilters() {
     setApplied(draft);
     setPage(1);
@@ -193,6 +199,7 @@ export function SignADiaryScreen() {
           onDraftChange={setDraft}
           onApply={applyFilters}
           onClear={showToday}
+          canSearch={canSearch}
         />
 
         {pageRows.length === 0 ? (
@@ -275,12 +282,14 @@ function SignADiaryFilters({
   onDraftChange,
   onApply,
   onClear,
+  canSearch,
 }: {
   draft: ADiaryFilters;
   today: string;
   onDraftChange: (filters: ADiaryFilters) => void;
   onApply: () => void;
   onClear: () => void;
+  canSearch: boolean;
 }) {
   const day = resolveADiaryDay(draft, today);
 
@@ -320,7 +329,9 @@ function SignADiaryFilters({
       </div>
 
       <div className="flex items-center gap-2">
-        <Button type="submit">Search</Button>
+        <Button type="submit" disabled={!canSearch}>
+          Search
+        </Button>
         <Button type="button" variant="ghost" onClick={onClear}>
           Clear
         </Button>
@@ -423,7 +434,7 @@ function SignADiaryItemList({
           <button
             type="button"
             onClick={() => onOpen(entry)}
-            className="w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
+            className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
           >
             <span className="sr-only">
               Read and sign the entry in {entry.caseNumber}.{" "}

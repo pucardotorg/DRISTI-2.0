@@ -1,0 +1,197 @@
+"use client";
+
+import type { ReactNode } from "react";
+
+import { DocumentPreview } from "@/components/cases/document-preview";
+import { ReviewRow } from "@/components/cases/filing-form-shared";
+import { useChromePageDialog } from "@/components/chrome/app-chrome";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { DescriptionList } from "@/components/ui/description-list";
+import {
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+
+/**
+ * One application, as paper.
+ *
+ * Every court-side review queue holds the same object — a party asking this court
+ * for something — so they compose the same document: a court heading, the recited
+ * particulars, numbered operative paragraphs, a prayer, and who filed it when.
+ * `ReschedulingDocument`, `DelayCondonationDocument` and `OtherApplicationDocument`
+ * are all this shape, which is why the bench reads one kind of paper across three
+ * queues instead of three.
+ */
+export type CourtApplicationDocument = {
+  court: string;
+  caseNumber: string;
+  matter: string;
+  title: string;
+  filedFor: string;
+  facts: { term: string; value: string }[];
+  paragraphs: string[];
+  prayer: string;
+  dated: string;
+};
+
+/**
+ * The overlay a bench reviews one application in, and answers.
+ *
+ * Document-first, in one column: the particulars a bench checks first sit in a
+ * compact sunken well, and the application itself takes the rest of the height as
+ * a preview filling the grid's `1fr` row. Download is not repeated in the footer —
+ * the preview owns a sticky header with Download and Full view in it — so the
+ * footer carries only the two decisions the overlay exists to take.
+ *
+ * The shell is shared rather than copied per queue. Three queues asking the same
+ * question of the same kind of paper should not drift into three overlays; what
+ * each one supplies is its own header line, its own facts, and what happens when
+ * the bench answers.
+ *
+ * **Approving and rejecting here perform no judicial act.** Every caller drops the
+ * row from its demo queue and closes. No order is drawn, no listing moves, nothing
+ * is written and nobody is told.
+ */
+export function ApplicationReviewOverlay({
+  title,
+  description,
+  facts,
+  document,
+  onDownload,
+  approveLabel = "Approve",
+  onApprove,
+  onReject,
+  onReturnFocus,
+}: {
+  /** What the application is — the head it was filed under. */
+  title: string;
+  /** The line under it: which case this is, or who sent it. */
+  description: ReactNode;
+  /** The queue's own `ReviewRow`s, for the facts well. */
+  facts: ReactNode;
+  document: CourtApplicationDocument;
+  onDownload: () => void;
+  /** "Accept" where a queue's own vocabulary says so. */
+  approveLabel?: string;
+  onApprove: () => void;
+  onReject: () => void;
+  onReturnFocus: () => void;
+}) {
+  const pageDialog = useChromePageDialog();
+
+  return (
+    <DialogContent
+      className={`flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl md:h-[85dvh] ${pageDialog}`}
+      onCloseAutoFocus={(event) => {
+        event.preventDefault();
+        onReturnFocus();
+      }}
+    >
+      <DialogHeader className="shrink-0 gap-2 p-6 pr-16">
+        <div className="flex flex-wrap items-center gap-2">
+          <DialogTitle className="text-title-s font-semibold">
+            {title}
+          </DialogTitle>
+          {/* The application's own state — waiting on this bench — stated once,
+              here. The queue behind it is entirely pending, so a column of chips
+              would say the same thing thirty times. */}
+          <Badge variant="warning">Pending review</Badge>
+        </div>
+        <DialogDescription className="text-body-compact text-muted-foreground">
+          {description}
+        </DialogDescription>
+      </DialogHeader>
+      <Separator />
+      <div className="grid min-h-0 flex-1 grid-rows-[auto_auto] gap-6 overflow-y-auto p-6 md:grid-rows-[auto_minmax(0,1fr)] md:overflow-hidden">
+        <div className="rounded-lg bg-surface-sunken p-4">
+          <DescriptionList>{facts}</DescriptionList>
+        </div>
+        <DocumentPreview
+          className="min-h-96 md:min-h-0"
+          height="fill"
+          title={document.title}
+          source={{
+            kind: "composed",
+            content: <ApplicationFacsimile document={document} />,
+          }}
+          download={{
+            onDownload,
+            label: `Download ${document.title}`,
+          }}
+        />
+      </div>
+      <DialogFooter className="mx-0 mb-0 shrink-0">
+        <Button type="button" variant="destructive" onClick={onReject}>
+          Reject
+        </Button>
+        <Button type="button" onClick={onApprove}>
+          {approveLabel}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+/**
+ * The application itself, set as the court form it is.
+ *
+ * Paper tokens rather than the app's own surfaces — this is a document inside the
+ * product, not another panel of it.
+ */
+export function ApplicationFacsimile({
+  document,
+}: {
+  document: CourtApplicationDocument;
+}) {
+  return (
+    <article className="flex flex-col gap-6 rounded-md bg-paper p-6 text-paper-foreground [&_[data-slot=description-details]]:text-paper-foreground [&_[data-slot=description-term]]:text-paper-muted-foreground">
+      <header className="flex flex-col gap-2 text-center">
+        <p className="text-body font-semibold">{document.court}</p>
+        <p className="text-body font-semibold">
+          Case no. {document.caseNumber}
+        </p>
+        <p className="text-body font-semibold">{document.matter}</p>
+        <p className="text-body-compact text-paper-muted-foreground">
+          Date: {document.dated}
+        </p>
+      </header>
+
+      <DescriptionList className="rounded-md border border-paper-border px-4">
+        {document.facts.map((fact) => (
+          <ReviewRow key={fact.term} term={fact.term}>
+            {fact.value}
+          </ReviewRow>
+        ))}
+      </DescriptionList>
+
+      <h3 className="text-center text-body font-semibold">{document.title}</h3>
+
+      <ol className="flex list-decimal flex-col gap-3 ps-6">
+        {document.paragraphs.map((paragraph, index) => (
+          <li key={index} className="text-body whitespace-pre-wrap">
+            {paragraph}
+          </li>
+        ))}
+      </ol>
+
+      <section className="flex flex-col gap-2">
+        <h4 className="text-body font-semibold">Prayer</h4>
+        <p className="text-body whitespace-pre-wrap">{document.prayer}</p>
+      </section>
+
+      <footer className="flex flex-col items-end gap-2">
+        <p className="text-body-compact text-paper-muted-foreground">
+          Filed for {document.filedFor}
+        </p>
+        <p className="text-body-compact text-paper-muted-foreground">
+          Dated this {document.dated}
+        </p>
+      </footer>
+    </article>
+  );
+}

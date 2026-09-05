@@ -136,7 +136,7 @@ export function BulkRescheduleTable({
               : null;
 
           return (
-            <TableRow key={row.id} className="bg-card">
+            <TableRow key={row.id} className="bg-card hover:bg-card">
               <TableCell className={cn(cellClass, "w-12")}>
                 <Checkbox
                   checked={isSelected}

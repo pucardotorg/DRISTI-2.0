@@ -3,7 +3,6 @@
 import * as React from "react";
 import Link from "next/link";
 import {
-  ArrowLeftIcon,
   CalendarX2Icon,
   ChevronDownIcon,
   FilePlusIcon,
@@ -248,23 +247,37 @@ function OrderReady({ hearing }: { hearing: CourtHearing }) {
         </div>
       </div>
 
+      {/* The bar holds the work and nothing else.
+
+          Back used to lead it, and it was the third live link to the cause list on
+          one page: the rail's current row and the trail's last crumb are the other
+          two, and "Back" was the only one of the three that did not say where it
+          went — `navigation.ts` already forbids one destination carrying two names.
+          Save draft and Preview are pinned because they have to stay in reach while
+          the bench types; leaving is not work, and it did not become work by sharing
+          a container with things that are. Below `sm` the band stacks, and Back was
+          the first thing in it, directly above a soft keyboard. */}
       <footer className="sticky bottom-0 z-30 mt-8 border-t border-hairline bg-card px-6 py-3 md:px-8 md:py-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-          <Button
-            asChild
-            variant="ghost"
-            className="w-full justify-start sm:w-fit"
-          >
-            <Link href="/employee/hearings">
-              <ArrowLeftIcon data-icon="inline-start" aria-hidden />
-              Back
-            </Link>
-          </Button>
+          {/* What Save draft actually did, in its own words.
+
+              The draft is `React.useState` in this component and nothing else — no
+              storage, no server, and `lib/employee/order-draft.ts` persists nothing.
+              "Saved on this device" is what a browser says when something really is
+              in storage, so it was the one sentence on this screen a magistrate
+              could have relied on and the build could not keep: every route off the
+              page discards the draft, unguarded. This says the true thing instead.
+
+              It is a caution now rather than a confirmation, so it takes the DS's
+              status-text role on a neutral surface (colors foundation: `*-ink` is
+              status text, never a fill) instead of the quiet grey a confirmation
+              would wear. The words carry the meaning on their own; the colour only
+              makes them findable in a bar the reader has just looked away from. */}
           <p
-            className="text-body-compact text-muted-foreground sm:mr-auto"
+            className="text-body-compact text-warning-ink"
             aria-live="polite"
           >
-            {saved ? "Draft saved on this device." : null}
+            {saved ? "Draft held for this sitting — leaving loses it." : null}
           </p>
           <div className="flex flex-col gap-3 sm:ml-auto sm:flex-row">
             <Button
@@ -694,7 +707,10 @@ function DirectionWell({
 function DocumentPanel({ order }: { order: AssembledOrder }) {
   return (
     <section
-      className={`${PANEL} lg:sticky lg:top-8 lg:col-span-2`}
+      /* The offset is the frame's, not a number chosen here: the bar is `sticky top-0`,
+         so `lg:top-8` would pin this panel a third of the way underneath it. See
+         `--chrome-sticky-top` in `app-chrome.tsx`. */
+      className={`${PANEL} lg:sticky lg:top-(--chrome-sticky-top) lg:col-span-2`}
       aria-label="Order as it will read"
     >
       <OrderProse order={order} />

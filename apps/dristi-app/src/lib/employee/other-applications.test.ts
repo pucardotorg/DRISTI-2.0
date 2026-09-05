@@ -7,7 +7,10 @@ import {
   OTHER_APPLICATIONS_QUEUE_COUNT,
   OTHER_APPLICATION_STAGES,
   OTHER_APPLICATION_TYPES,
+  buildOtherApplicationDocument,
   filterOtherApplications,
+  otherApplicationAsk,
+  otherApplicationFiler,
   otherApplicationStageLabel,
   otherApplicationTypeLabel,
 } from "./other-applications";
@@ -178,5 +181,96 @@ describe("the vocabulary this screen names", () => {
 
   it("offers all fourteen types", () => {
     assert.equal(OTHER_APPLICATION_TYPES.length, 14);
+  });
+});
+
+describe("the particulars the review overlay reads", () => {
+  it("is on every row, so no application opens half-blank", () => {
+    for (const row of OTHER_APPLICATIONS_QUEUE) {
+      assert.match(row.appliedOn, /^\d{4}-\d{2}-\d{2}$/, row.id);
+      assert.ok(row.reason.length > 0, `${row.id} gives no reason`);
+    }
+  });
+});
+
+describe("who filed the application", () => {
+  it("names the applying side's own counsel, never the other side's", () => {
+    for (const row of OTHER_APPLICATIONS_QUEUE) {
+      const onRecord = row.counsel.filter(
+        (counsel) => counsel.side === row.filedFor,
+      );
+      const filer = otherApplicationFiler(row);
+      if (onRecord.length) {
+        assert.equal(
+          filer,
+          `${onRecord[0]!.name}, counsel for the ${row.filedFor}`,
+          row.id,
+        );
+      } else {
+        assert.equal(
+          filer,
+          `${row.parties[row.filedFor]}, ${row.filedFor}, appearing without counsel`,
+          row.id,
+        );
+      }
+    }
+  });
+
+  it("says so plainly when the accused applies without a vakalat", () => {
+    /* Counsel on record for the complainant only, and it is the accused applying. */
+    const row = OTHER_APPLICATIONS_QUEUE.find((entry) => entry.id === "oa-517")!;
+    assert.equal(row.filedFor, "accused");
+    assert.equal(
+      otherApplicationFiler(row),
+      `${row.parties.accused}, accused, appearing without counsel`,
+    );
+  });
+});
+
+describe("buildOtherApplicationDocument", () => {
+  it("gives every head of application its own ask and prayer", () => {
+    const asks = new Set<string>();
+    const prayers = new Set<string>();
+    for (const type of OTHER_APPLICATION_TYPES) {
+      const row = OTHER_APPLICATIONS_QUEUE.find(
+        (entry) => entry.type === type.id,
+      )!;
+      const document = buildOtherApplicationDocument(row);
+      assert.equal(document.title, type.label);
+      assert.ok(document.prayer.length > 0, type.id);
+      assert.ok(
+        document.paragraphs.some((line) =>
+          line.includes(otherApplicationAsk(row)),
+        ),
+        `${type.id} never says what it asks for`,
+      );
+      asks.add(otherApplicationAsk(row));
+      prayers.add(document.prayer);
+    }
+    /* Fourteen heads, fourteen distinct asks — no type quietly inherits another's. */
+    assert.equal(asks.size, OTHER_APPLICATION_TYPES.length);
+    assert.equal(prayers.size, OTHER_APPLICATION_TYPES.length);
+  });
+
+  it("composes the application every row can produce", () => {
+    for (const row of OTHER_APPLICATIONS_QUEUE) {
+      const document = buildOtherApplicationDocument(row);
+      assert.equal(document.caseNumber, row.caseNumber);
+      assert.ok(document.facts.length >= 5, row.id);
+      assert.ok(
+        document.paragraphs.some((line) => line.includes(row.reason)),
+        row.id,
+      );
+    }
+  });
+
+  it("names only the counsel a row actually has on record", () => {
+    const row = OTHER_APPLICATIONS_QUEUE.find((entry) => entry.id === "oa-2109")!;
+    assert.equal(row.counsel.length, 0);
+    const terms = buildOtherApplicationDocument(row).facts.map(
+      (fact) => fact.term,
+    );
+    assert.ok(!terms.includes("Complainant counsel"));
+    assert.ok(!terms.includes("Accused counsel"));
   });
 });

@@ -83,7 +83,7 @@ export function ScheduleTable({ rows }: { rows: SchedulingCase[] }) {
           <td colSpan={4} className="h-2 p-0" />
         </tr>
         {rows.map((matter) => (
-          <TableRow key={matter.id} className="bg-card">
+          <TableRow key={matter.id} className="bg-card hover:bg-card">
             {/* The row's one emphasised cell. Not a link: the reference underlines it
                 because it opens the scheduling flow, and this build has no such flow and
                 no court-side case file to fall back on. Plain text is the honest render —

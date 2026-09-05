@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { HearingsScreen } from "@/components/employee/hearings-screen";
 
-export const metadata: Metadata = { title: "Today's hearings" };
+export const metadata: Metadata = { title: "Today’s hearings" };
 
 /**
  * The court's cause list for the day it is sitting — the first real screen on the

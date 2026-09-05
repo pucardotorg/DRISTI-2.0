@@ -313,3 +313,107 @@ hover affordance.
 
 **Request:** document the pattern (and ideally ship the mapping helper) before a third
 caller appears. It does not need to be a component; it needs to be a decision.
+
+---
+
+## 16. `BreadcrumbLink` ships no focus indicator
+
+`src/components/ui/breadcrumb.tsx` gives its link `transition-colors
+hover:text-foreground` and nothing for focus — no `focus-visible:` rule of any kind. It is
+the only interactive primitive in the system without one.
+
+Nothing was stripped, so no gate catches it, and it is invisible with a mouse. What a
+keyboard user gets is whatever the browser draws by default, recoloured by the blanket
+`* { … outline-ring/50 }` in the app's `globals.css`: a colour, with no `outline-style`
+and no `outline-width` behind it. At 50% over `card` that colour is roughly **2.1:1**,
+under the 3:1 that `ACCESSIBILITY.md` §6 and WCAG 2.1 **1.4.11** ask of a focus
+indicator — and the width and style are the browser's opinion rather than the system's,
+so it differs per engine.
+
+Every other control settles both: `Badge` uses `focus-visible:border-ring
+focus-visible:ring-3 focus-visible:ring-focus-ring`, `TabsTrigger` adds
+`focus-visible:outline-1 focus-visible:outline-ring` for the same reason a crumb needs
+it — there is no border of its own to tint.
+
+Dristi hits this in the court's top bar, where the trail is the only route back to the
+area's origin, on fifteen screens (`components/employee/employee-top-bar.tsx`,
+`CRUMB_LINK`). The composition there is the two DS recipes above put together, applied
+through `className` rather than into the primitive — a synced file loses local edits at
+the next `sync:ui` and fails `check:ui-sync` in the meantime.
+
+**Request:** put the focus recipe on `BreadcrumbLink` itself —
+`focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:outline-1
+focus-visible:outline-ring`, with a corner for the ring to follow. It is one line in one
+primitive, and it is currently owed by every caller that renders a crumb. Worth checking
+the same question of the other text-only links in the registry while the file is open.
+
+---
+
+## 17. `Sidebar`'s mobile branch drops `className` and `style` — and its own width
+
+`Sidebar` renders three ways. Two of them apply what the caller passed; the mobile one
+applies neither, and it fails by three routes that have to be fixed together.
+
+**`className` is dropped by the signature, not by a spread.** It is destructured at
+`sidebar.tsx:155` and the `isMobile` branch (`181–205`) never mentions it again. Nothing
+forwards it and nothing warns.
+
+**`style` is spread onto a component that renders no DOM.** `{...props}` — which is where
+`style` ends up — goes to `<Sheet>` at `sidebar.tsx:183`. `Sheet` is
+`SheetPrimitive.Root` (`sheet.tsx:10`), which is Radix `Dialog.Root`: a context provider
+with no host element. It forwards nothing. React says nothing either, because an unknown
+prop on a *component* is a legal prop; the warning it would give on a host element never
+fires. The desktop branch puts both on `sidebar-container` (`231–239`) and works, so the
+two paths disagree silently.
+
+**There is no second chance, because `SheetContent` is handed literals.** `className` at
+`sidebar.tsx:189` and `style` at `190–194` are written inline, so even a caller who found
+another way in would be overwritten.
+
+**And the width it does set never applies.** `SheetContent` writes its own width as
+`data-[side=left]:w-3/4` with a `sm:max-w-sm` cap. The mobile branch's
+`w-(--sidebar-width)` carries no modifier, so tailwind-merge keeps both — different
+modifier, different key — and the cascade then settles it the other way: `.class[attr]`
+is (0,2,0) against a bare `.class` at (0,1,0). Measured in Dristi's served stylesheet.
+So `SIDEBAR_WIDTH_MOBILE` is declared, is correct, and does nothing: the DS's off-canvas
+rail is 75% of the viewport capped at 24rem, which on a 320px phone is 240px. This one is
+independent of the two above — fixing the forwarding alone will not surface it.
+
+**What it costs a consumer.** Dristi paints its rails on a plate — a set of custom
+properties for the ground, seam, ink, hover and ring, held constant under the app's dark
+mode. The plate is exactly `className` plus `style`, so below `md` the whole thing lands
+on nothing: the charcoal rail comes back in the app's default light ink, seams and all.
+That is not a themeable rail failing to theme; it is a rail that looks broken on a phone.
+
+So `components/chrome/app-chrome.tsx` never lets the DS choose the mobile branch. It
+renders `collapsible="none"` at every width, hand-builds the desktop fold that mode does
+not provide (`group` + `data-collapsible` on the container, a width the variant
+overrides), and owns a private `ChromeRailSheet` for phones — including a second copy of
+the 18rem the DS already named, applied with the side modifier so it survives the same
+cascade the DS loses.
+
+That composition is legal — a public mode used to its documented contract, no DS source
+copied — but **the workaround has no exit.** Fix this upstream and every Dristi gate stays
+green, the screens keep working, and nothing tells the next author that
+`ChromeRailSheet` has become a private fork that no longer receives sheet improvements
+and no longer needs to exist. This file's own preamble says nothing may be worked around
+locally; that rule is currently owed on this entry, which is why it is filed rather than
+left as a comment in the frame. Request 10 raises four `Sidebar` problems and none of them
+is this one.
+
+**Request:** in the `isMobile` branch —
+
+- move `{...props}` off `Sheet` and onto `SheetContent`, where a host element receives it;
+- merge rather than replace: `className={cn("bg-sidebar p-0 text-sidebar-foreground
+  [&>button]:hidden", className)}` and `style={{ "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
+  ...style }}`;
+- give the width a modifier that can win — `data-[side=left]:w-(--sidebar-width)` and its
+  right-hand twin — or stop `SheetContent` scoping width by side at all, which would fix
+  it for every sheet in the system rather than for this caller.
+
+The pay-off is larger than the diff. With it, both Dristi areas drop to a plain
+`collapsible="icon"` `Sidebar` and most of `ChromeRail`'s fold machinery — the hand-set
+`data-collapsible`, the width override, the private sheet — is deleted rather than
+maintained. Worth checking the same question of any other primitive that branches on
+`isMobile` and re-enters through a portal: the failure is invisible in React, in the class
+list, and in every gate.

@@ -1,37 +1,40 @@
 /**
- * Sidecar for the court-side case peek — the glance that opens when the bench
+ * The facts behind one listing's case overview — the page the bench opens when it
  * starts a hearing.
  *
- * Restated here rather than imported from `lib/cases/peek.ts` because the
- * employee area does not read the citizen side (see `content.ts`). The *shape*
- * of the glance is the same one: parties, stage, the last sitting, a short
- * history. Advocate-only facts — "you appear", pending tasks, a link into the
- * advocate case file — are not restated. There is no court-side case file yet,
- * and that file is not the bench's to point at.
+ * Restated here rather than imported from `lib/cases/peek.ts` because the employee
+ * area does not read the citizen side (see `content.ts`). The *shape* of the glance
+ * is the same one: parties, stage, the last sitting, a short history.
+ * Advocate-only facts — "you appear", pending tasks, a link into the advocate case
+ * file — are not restated. There is no court-side case file yet, which is also why
+ * the overview page's View case action is not wired to one.
  *
- * **There is no backend.** Extras are demo rows keyed to `CAUSE_LIST`, enough
- * for the peek to survive a first listing (no last sitting) and a part-heard
- * evidence matter (an order of the day). A hearing with no extras still
- * renders: the listing itself is the case.
+ * **There is no backend.** Extras are demo rows keyed to `CAUSE_LIST`, enough for
+ * the page to survive a first listing (no last sitting) and a part-heard evidence
+ * matter (an order of the day). A hearing with no extras still renders: the listing
+ * itself is the case.
  */
 
 import {
-  causeTitle,
-  courtCaseStageLabel,
   courtHearingPurposeLabel,
   parseIsoDay,
   type CourtHearing,
 } from "./hearings";
-import { CURRENT_STAFF } from "./content";
 
-export type PeekHistoryItem = {
+export type CaseHistoryItem = {
   on: string;
   title: string;
+  /**
+   * What came out of that sitting. Carried because it is a fact about the step,
+   * not because every reader shows it: the overview page prints the last
+   * sitting's order in full in its own section, and a timeline that repeated the
+   * same paragraph a few centimetres away would be saying it twice.
+   */
   note?: string;
   status: "past" | "current" | "future";
 };
 
-export type HearingPeekExtras = {
+export type HearingCaseExtras = {
   filedOn?: string;
   chequeAmount?: number;
   lastHearing?: {
@@ -42,9 +45,7 @@ export type HearingPeekExtras = {
   };
 };
 
-export const HEARING_PEEK_ID = "hearing-case-peek";
-
-export function formatPeekDate(day: string): string {
+export function formatCaseDate(day: string): string {
   return new Intl.DateTimeFormat("en-IN", {
     day: "numeric",
     month: "long",
@@ -52,7 +53,7 @@ export function formatPeekDate(day: string): string {
   }).format(parseIsoDay(day));
 }
 
-export function formatPeekWeekday(day: string): string {
+export function formatCaseWeekday(day: string): string {
   return new Intl.DateTimeFormat("en-IN", {
     weekday: "long",
     day: "numeric",
@@ -77,25 +78,21 @@ export function formatCounselList(names: string[]): string {
   }).format(names);
 }
 
-export function peekCourt(): string {
-  return CURRENT_STAFF.court;
-}
-
-export function peekExtras(id: string): HearingPeekExtras {
-  return HEARING_PEEK_EXTRAS[id] ?? {};
+export function hearingCaseExtras(id: string): HearingCaseExtras {
+  return HEARING_CASE_EXTRAS[id] ?? {};
 }
 
 /**
  * Oldest to newest. This sitting is current; dates after today are future.
- * Built from the listing plus extras so a hearing with no sidecar still has
- * a history tab — today's listing is a fact the cause list already named.
+ * Built from the listing plus extras so a hearing with no sidecar still has a
+ * history — today's listing is a fact the cause list already named.
  */
-export function peekHistory(
+export function caseHistory(
   hearing: CourtHearing,
-  extras: HearingPeekExtras,
+  extras: HearingCaseExtras,
   today: string,
-): PeekHistoryItem[] {
-  const items: Omit<PeekHistoryItem, "status">[] = [];
+): CaseHistoryItem[] {
+  const items: Omit<CaseHistoryItem, "status">[] = [];
 
   if (extras.filedOn) {
     items.push({ on: extras.filedOn, title: "Complaint filed" });
@@ -118,21 +115,13 @@ export function peekHistory(
     .slice()
     .sort((a, b) => a.on.localeCompare(b.on))
     .map((item) => {
-      const status: PeekHistoryItem["status"] =
+      const status: CaseHistoryItem["status"] =
         item.on > today ? "future" : item.on === today ? "current" : "past";
       return { ...item, status };
     });
 }
 
-export function peekTitle(hearing: CourtHearing): string {
-  return causeTitle(hearing);
-}
-
-export function peekStage(hearing: CourtHearing): string {
-  return courtCaseStageLabel(hearing.stage);
-}
-
-const HEARING_PEEK_EXTRAS: Partial<Record<string, HearingPeekExtras>> = {
+const HEARING_CASE_EXTRAS: Partial<Record<string, HearingCaseExtras>> = {
   "h-241": {
     filedOn: "2026-03-12",
     chequeAmount: 450000,

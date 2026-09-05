@@ -29,8 +29,18 @@
  * rescheduling queue or the delay-condonation queue.
  */
 
+import { CURRENT_STAFF } from "./content";
 import { DELAY_CONDONATION_STAGES, type DelayCondonationStage } from "./delay-condonation";
-import { type CourtCounsel } from "./hearings";
+import {
+  applicationFiler,
+  causeTitle,
+  counselFor,
+  formatListingDate,
+  parseIsoDay,
+  partySideLabel,
+  type CounselSide,
+  type CourtCounsel,
+} from "./hearings";
 
 /**
  * Where a case has reached, across the whole §138 journey — the widest stage list on the
@@ -169,6 +179,12 @@ export type OtherApplication = {
   counsel: CourtCounsel[];
   stage: OtherApplicationStage;
   type: OtherApplicationType;
+  /** ISO day the application reached the court. */
+  appliedOn: string;
+  /** The side that filed it — either may apply, whatever the case is about. */
+  filedFor: CounselSide;
+  /** Why the application is made, in the filer's words. */
+  reason: string;
 };
 
 /**
@@ -191,6 +207,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [{ name: "Adv. Suresh Menon", side: "complainant" }],
     stage: "filing",
     type: "extension-of-submission-deadline",
+    appliedOn: "2025-11-04",
+    filedFor: "complainant",
+    reason:
+      "The complainant asks for a further fortnight to file the bank certificate the registry called for.",
   },
   {
     id: "oa-2104",
@@ -205,6 +225,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     ],
     stage: "filing",
     type: "change-power-of-attorney",
+    appliedOn: "2025-11-07",
+    filedFor: "complainant",
+    reason:
+      "The power of attorney holder who signed the complaint has left the company's service.",
   },
   {
     id: "oa-2109",
@@ -213,6 +237,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [],
     stage: "filing",
     type: "document",
+    appliedOn: "2025-11-11",
+    filedFor: "complainant",
+    reason:
+      "The complainant, appearing without counsel, seeks a copy of the returned papers to make good the objections.",
   },
   {
     id: "oa-2113",
@@ -224,6 +252,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [{ name: "Adv. Latha Krishnan", side: "complainant" }],
     stage: "filing",
     type: "profile-correction",
+    appliedOn: "2025-11-14",
+    filedFor: "complainant",
+    reason:
+      "The complainant's name is spelt differently in the complaint and in the bank records, and the two must agree.",
   },
   {
     id: "oa-2117",
@@ -232,6 +264,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [{ name: "Adv. Rekha Pillai", side: "complainant" }],
     stage: "scrutiny",
     type: "extension-of-submission-deadline",
+    appliedOn: "2025-11-18",
+    filedFor: "complainant",
+    reason:
+      "The objections raised on scrutiny need documents from the drawee bank, which has asked for two weeks.",
   },
   {
     id: "oa-2122",
@@ -240,6 +276,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [],
     stage: "scrutiny",
     type: "document",
+    appliedOn: "2025-11-21",
+    filedFor: "complainant",
+    reason:
+      "The complainant, appearing without counsel, asks for the scrutiny objections in writing before answering them.",
   },
   {
     id: "oa-2126",
@@ -248,6 +288,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [{ name: "Adv. Feroz Hameed", side: "complainant" }],
     stage: "scrutiny",
     type: "profile-correction",
+    appliedOn: "2025-11-25",
+    filedFor: "complainant",
+    reason:
+      "The address recorded at filing is of the complainant's former place of business.",
   },
   {
     id: "oa-2131",
@@ -256,6 +300,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [{ name: "Adv. Saurabh Verma", side: "complainant" }],
     stage: "scrutiny",
     type: "others",
+    appliedOn: "2025-11-28",
+    filedFor: "complainant",
+    reason:
+      "The complainant asks that the two complaints against the same drawer be scrutinised together.",
   },
   {
     id: "oa-2136",
@@ -264,6 +312,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [{ name: "Adv. Suresh Menon", side: "complainant" }],
     stage: "registration",
     type: "case-transfer",
+    appliedOn: "2025-12-02",
+    filedFor: "complainant",
+    reason:
+      "The complainant asks that this case be heard along with the connected matter pending in another court at Kollam.",
   },
   {
     id: "oa-2141",
@@ -272,6 +324,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [{ name: "Adv. Anitha George", side: "complainant" }],
     stage: "registration",
     type: "change-power-of-attorney",
+    appliedOn: "2025-12-05",
+    filedFor: "complainant",
+    reason:
+      "The firm has replaced the partner authorised to conduct this case.",
   },
   {
     id: "oa-2147",
@@ -286,6 +342,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     ],
     stage: "registration",
     type: "document",
+    appliedOn: "2025-12-09",
+    filedFor: "complainant",
+    reason:
+      "The complainant seeks a copy of the registration entry to produce before the bank.",
   },
   {
     id: "oa-2153",
@@ -294,6 +354,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [],
     stage: "registration",
     type: "case-withdrawal",
+    appliedOn: "2025-12-12",
+    filedFor: "complainant",
+    reason:
+      "The drawer has paid the cheque amount in full and the complainant, appearing without counsel, asks to withdraw the complaint.",
   },
   {
     id: "oa-951",
@@ -302,6 +366,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [{ name: "Adv. Rekha Pillai", side: "complainant" }],
     stage: "cognizance",
     type: "adding-witnesses",
+    appliedOn: "2026-02-03",
+    filedFor: "complainant",
+    reason:
+      "Two officials of the drawee bank were identified only after the complaint was taken on file.",
   },
   {
     id: "oa-955",
@@ -310,6 +378,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [{ name: "Adv. Feroz Hameed", side: "complainant" }],
     stage: "cognizance",
     type: "reschedule-adjournment",
+    appliedOn: "2026-02-06",
+    filedFor: "complainant",
+    reason:
+      "Counsel for the complainant is before another bench on the date fixed for cognizance.",
   },
   {
     id: "oa-958",
@@ -318,6 +390,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [{ name: "Adv. Saurabh Verma", side: "complainant" }],
     stage: "cognizance",
     type: "checkout-request",
+    appliedOn: "2026-02-10",
+    filedFor: "complainant",
+    reason:
+      "Counsel asks to check the file out to prepare the complainant for the sworn statement.",
   },
   {
     id: "oa-962",
@@ -329,6 +405,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     ],
     stage: "cognizance",
     type: "others",
+    appliedOn: "2026-02-13",
+    filedFor: "complainant",
+    reason:
+      "The complainant is outside the country and asks that the sworn statement be recorded by video conference.",
   },
   {
     id: "oa-511",
@@ -343,6 +423,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     ],
     stage: "appearance",
     type: "reschedule-adjournment",
+    appliedOn: "2026-04-06",
+    filedFor: "accused",
+    reason:
+      "Counsel for the accused was engaged before the sessions court on the date fixed for appearance.",
   },
   {
     id: "oa-514",
@@ -354,6 +438,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     ],
     stage: "appearance",
     type: "bail",
+    appliedOn: "2026-04-09",
+    filedFor: "accused",
+    reason:
+      "The accused appears on the warrant issued by this court and asks to be enlarged on bail.",
   },
   {
     id: "oa-517",
@@ -362,6 +450,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [{ name: "Adv. Suresh Menon", side: "complainant" }],
     stage: "appearance",
     type: "submit-bail-documents",
+    appliedOn: "2026-04-13",
+    filedFor: "accused",
+    reason:
+      "The accused, appearing without counsel, files the surety's title deed as directed when bail was granted.",
   },
   {
     id: "oa-520",
@@ -373,6 +465,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     ],
     stage: "appearance",
     type: "profile-correction",
+    appliedOn: "2026-04-16",
+    filedFor: "accused",
+    reason:
+      "The address of the accused in the summons is of a branch office that has since closed.",
   },
   {
     id: "oa-523",
@@ -384,6 +480,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     ],
     stage: "plea",
     type: "bail",
+    appliedOn: "2026-04-27",
+    filedFor: "accused",
+    reason:
+      "The accused has surrendered before this court and applies for bail before the plea is taken.",
   },
   {
     id: "oa-527",
@@ -392,6 +492,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [{ name: "Adv. Feroz Hameed", side: "complainant" }],
     stage: "plea",
     type: "adding-witnesses",
+    appliedOn: "2026-04-30",
+    filedFor: "complainant",
+    reason:
+      "The complainant seeks to add the bank manager who issued the dishonour memo to the list of witnesses.",
   },
   {
     id: "oa-530",
@@ -403,6 +507,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     ],
     stage: "plea",
     type: "submit-bail-documents",
+    appliedOn: "2026-05-04",
+    filedFor: "accused",
+    reason:
+      "The salary certificate of the second surety was issued only this week and is filed now.",
   },
   {
     id: "oa-534",
@@ -411,6 +519,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [],
     stage: "plea",
     type: "case-transfer",
+    appliedOn: "2026-05-07",
+    filedFor: "accused",
+    reason:
+      "The accused, appearing without counsel, asks that this case be heard with the connected matter at the other court.",
   },
   {
     id: "oa-538",
@@ -422,6 +534,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     ],
     stage: "evidence",
     type: "production-of-documents",
+    appliedOn: "2026-05-18",
+    filedFor: "accused",
+    reason:
+      "The accused asks for production of the complainant's ledger for the period in which the cheque was issued.",
   },
   {
     id: "oa-541",
@@ -434,6 +550,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     ],
     stage: "evidence",
     type: "adding-witnesses",
+    appliedOn: "2026-05-21",
+    filedFor: "accused",
+    reason:
+      "The accused seeks to examine the person said to have taken delivery of the goods against the cheque.",
   },
   {
     id: "oa-545",
@@ -442,6 +562,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [{ name: "Adv. Anitha George", side: "complainant" }],
     stage: "evidence",
     type: "extension-of-submission-deadline",
+    appliedOn: "2026-05-25",
+    filedFor: "complainant",
+    reason:
+      "The complainant asks for further time to file the affidavit of the bank witness.",
   },
   {
     id: "oa-548",
@@ -456,6 +580,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     ],
     stage: "evidence",
     type: "production-of-documents",
+    appliedOn: "2026-05-28",
+    filedFor: "complainant",
+    reason:
+      "The complainant asks the court to call for the statement of the drawer's current account.",
   },
   {
     id: "oa-552",
@@ -464,6 +592,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [{ name: "Adv. Saurabh Verma", side: "complainant" }],
     stage: "evidence",
     type: "reschedule-adjournment",
+    appliedOn: "2026-06-01",
+    filedFor: "complainant",
+    reason:
+      "The complainant's witness is outside the district on the date fixed for evidence.",
   },
   {
     id: "oa-556",
@@ -475,6 +607,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     ],
     stage: "arguments",
     type: "settlement",
+    appliedOn: "2026-06-15",
+    filedFor: "complainant",
+    reason:
+      "The parties have settled the matter and ask that the terms be recorded before arguments are heard.",
   },
   {
     id: "oa-559",
@@ -483,6 +619,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [{ name: "Adv. Latha Krishnan", side: "complainant" }],
     stage: "arguments",
     type: "case-withdrawal",
+    appliedOn: "2026-06-18",
+    filedFor: "complainant",
+    reason:
+      "The cheque amount and costs have been paid and the complainant asks to withdraw the complaint.",
   },
   {
     id: "oa-563",
@@ -494,6 +634,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     ],
     stage: "arguments",
     type: "document",
+    appliedOn: "2026-06-22",
+    filedFor: "accused",
+    reason:
+      "The accused seeks a copy of the written arguments already filed by the complainant.",
   },
   {
     id: "oa-566",
@@ -502,6 +646,9 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [{ name: "Adv. Rekha Pillai", side: "complainant" }],
     stage: "arguments",
     type: "checkout-request",
+    appliedOn: "2026-06-25",
+    filedFor: "complainant",
+    reason: "Counsel asks to check the file out to prepare written arguments.",
   },
   {
     id: "oa-570",
@@ -513,6 +660,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     ],
     stage: "judgement",
     type: "settlement",
+    appliedOn: "2026-07-06",
+    filedFor: "complainant",
+    reason:
+      "The parties have settled after arguments were heard and ask that the settlement be recorded before judgement.",
   },
   {
     id: "oa-573",
@@ -521,6 +672,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [{ name: "Adv. Feroz Hameed", side: "complainant" }],
     stage: "judgement",
     type: "case-withdrawal",
+    appliedOn: "2026-07-09",
+    filedFor: "complainant",
+    reason:
+      "The complainant has been paid in full and asks to withdraw the complaint before judgement is delivered.",
   },
   {
     id: "oa-577",
@@ -535,6 +690,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     ],
     stage: "judgement",
     type: "others",
+    appliedOn: "2026-07-13",
+    filedFor: "accused",
+    reason:
+      "The accused asks that evidence be re-opened to mark a receipt said to evidence payment of the cheque amount.",
   },
   {
     id: "oa-580",
@@ -543,6 +702,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [{ name: "Adv. Suresh Menon", side: "complainant" }],
     stage: "post-judgement",
     type: "checkout-request",
+    appliedOn: "2026-07-20",
+    filedFor: "complainant",
+    reason:
+      "The complainant asks to check the file out to prepare a petition for recovery of the compensation ordered.",
   },
   {
     id: "oa-584",
@@ -554,6 +717,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     ],
     stage: "post-judgement",
     type: "document",
+    appliedOn: "2026-07-23",
+    filedFor: "accused",
+    reason:
+      "The accused seeks a copy of the complainant's deposition for the appeal.",
   },
   /* The long pending register: filed long ago, and still moving. The older year on these
      numbers is the whole of what the register means — none of them is dormant. */
@@ -567,6 +734,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     ],
     stage: "long-pending-register",
     type: "reschedule-adjournment",
+    appliedOn: "2026-08-03",
+    filedFor: "accused",
+    reason:
+      "The accused has been transferred out of the district and asks that the hearing be put off by a month.",
   },
   {
     id: "oa-126",
@@ -578,6 +749,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     counsel: [{ name: "Adv. Anitha George", side: "complainant" }],
     stage: "long-pending-register",
     type: "settlement",
+    appliedOn: "2026-08-06",
+    filedFor: "complainant",
+    reason:
+      "The parties have agreed to settle this matter of 2023 and ask that the terms be recorded.",
   },
   {
     id: "oa-134",
@@ -590,6 +765,10 @@ export const OTHER_APPLICATIONS_QUEUE: OtherApplication[] = [
     ],
     stage: "long-pending-register",
     type: "others",
+    appliedOn: "2026-08-10",
+    filedFor: "accused",
+    reason:
+      "The accused asks that the case be taken up out of turn, the cheque amount having been deposited in court.",
   },
 ];
 
@@ -638,4 +817,235 @@ export function filterOtherApplications(
       .toLowerCase();
     return haystack.includes(query);
   });
+}
+
+/** Compact column date — the same register the rest of the court side uses. */
+export function formatOtherApplicationDate(day: string): string {
+  return formatListingDate(day);
+}
+
+const LONG_DAY = new Intl.DateTimeFormat("en-IN", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+/** "5 March 2026" — a date named in the review facts, not in a column. */
+export function formatOtherApplicationLongDate(day: string): string {
+  return LONG_DAY.format(parseIsoDay(day));
+}
+
+/** Who put the application in — counsel on record, or the party without one. */
+export function otherApplicationFiler(application: OtherApplication): string {
+  return applicationFiler(application, application.filedFor);
+}
+
+/**
+ * What each head of application actually asks the court for, and the prayer it
+ * ends on.
+ *
+ * Keyed by type rather than written per row, because the ask is the type: two
+ * applications for production of documents differ in *why* — which is the row's
+ * own `reason` — not in what they want the court to do. Fourteen heads, fourteen
+ * entries, so a new type cannot be added without saying what it asks for.
+ *
+ * The wording stays in the vocabulary the reference and `docs/product/` already
+ * use, and claims nothing about the order that would follow: this is the party's
+ * paper, not the court's.
+ */
+const ASKS: Record<OtherApplicationType, { sought: string; prayer: string }> = {
+  "adding-witnesses": {
+    sought: "leave to add witnesses to the list already on record",
+    prayer:
+      "It is therefore prayed that this court may permit the applicant to add the witnesses named in this application to the list of witnesses.",
+  },
+  "case-transfer": {
+    sought: "the transfer of this case to another court",
+    prayer:
+      "It is therefore prayed that this court may pass such orders as are necessary for the transfer of this case as prayed for.",
+  },
+  "case-withdrawal": {
+    sought: "permission to withdraw the complaint",
+    prayer:
+      "It is therefore prayed that this court may permit the complainant to withdraw this complaint.",
+  },
+  "checkout-request": {
+    sought: "permission to check the case file out for inspection",
+    prayer:
+      "It is therefore prayed that this court may permit the applicant to check the case file out for inspection.",
+  },
+  document: {
+    sought: "a document from the record of this case",
+    prayer:
+      "It is therefore prayed that this court may direct that the document sought be furnished to the applicant.",
+  },
+  "extension-of-submission-deadline": {
+    sought: "further time to make a submission this court has called for",
+    prayer:
+      "It is therefore prayed that this court may extend the time granted to the applicant to make the submission.",
+  },
+  "production-of-documents": {
+    sought: "a direction for the production of documents",
+    prayer:
+      "It is therefore prayed that this court may direct the production of the documents named in this application.",
+  },
+  "profile-correction": {
+    sought: "correction of the particulars recorded for the applicant",
+    prayer:
+      "It is therefore prayed that this court may permit the correction of the particulars set out in this application.",
+  },
+  settlement: {
+    sought: "that the settlement arrived at between the parties be recorded",
+    prayer:
+      "It is therefore prayed that this court may record the settlement arrived at between the parties.",
+  },
+  "change-power-of-attorney": {
+    sought: "a change in the power of attorney holder on record",
+    prayer:
+      "It is therefore prayed that this court may permit the change of the power of attorney holder as prayed for.",
+  },
+  "reschedule-adjournment": {
+    sought: "an adjournment of the hearing",
+    prayer:
+      "It is therefore prayed that this court may adjourn the hearing to a date convenient to this court.",
+  },
+  bail: {
+    sought: "bail",
+    prayer:
+      "It is therefore prayed that this court may enlarge the accused on bail on such terms as this court thinks fit.",
+  },
+  others: {
+    sought: "an order on the matter set out in this application",
+    prayer:
+      "It is therefore prayed that this court may pass such order on this application as it thinks fit.",
+  },
+  "submit-bail-documents": {
+    sought: "that the documents filed in support of bail be taken on record",
+    prayer:
+      "It is therefore prayed that this court may take the documents filed with this application on record.",
+  },
+};
+
+/** What this application asks the court for — the sentence, not the head. */
+export function otherApplicationAsk(application: OtherApplication): string {
+  return ASKS[application.type].sought;
+}
+
+export type OtherApplicationDocument = {
+  court: string;
+  caseNumber: string;
+  matter: string;
+  title: string;
+  filedFor: string;
+  facts: { term: string; value: string }[];
+  paragraphs: string[];
+  prayer: string;
+  dated: string;
+};
+
+/**
+ * The application as a court-form document, composed from this row.
+ *
+ * The same shape as `ReschedulingDocument`, `CopyApplicationDocument` and
+ * `DelayCondonationDocument` — court heading, recited particulars, numbered
+ * operative paragraphs, a prayer. Fourteen heads of application, one kind of
+ * paper: what changes between them is the ask and the prayer (`ASKS`), not the
+ * form the bench reads.
+ */
+export function buildOtherApplicationDocument(
+  application: OtherApplication,
+): OtherApplicationDocument {
+  const side = partySideLabel(application.filedFor);
+  const ask = ASKS[application.type];
+  const facts: { term: string; value: string }[] = [
+    { term: "Complainant", value: application.parties.complainant },
+    { term: "Accused", value: application.parties.accused },
+  ];
+  const complainantCounsel = counselFor(application, "complainant").map(
+    (counsel) => counsel.name,
+  );
+  if (complainantCounsel.length) {
+    facts.push({
+      term: "Complainant counsel",
+      value: complainantCounsel.join(", "),
+    });
+  }
+  const accusedCounsel = counselFor(application, "accused").map(
+    (counsel) => counsel.name,
+  );
+  if (accusedCounsel.length) {
+    facts.push({ term: "Accused counsel", value: accusedCounsel.join(", ") });
+  }
+  facts.push(
+    { term: "Stage", value: otherApplicationStageLabel(application.stage) },
+    {
+      term: "Application type",
+      value: otherApplicationTypeLabel(application.type),
+    },
+    {
+      term: "Offence",
+      value: "S. 138 of the Negotiable Instruments Act, 1881",
+    },
+  );
+
+  return {
+    court: `Before the ${CURRENT_STAFF.court}`,
+    caseNumber: application.caseNumber,
+    matter: causeTitle(application),
+    title: otherApplicationTypeLabel(application.type),
+    filedFor: `the ${side}`,
+    facts,
+    paragraphs: [
+      `This matter is before this court at the stage of ${otherApplicationStageLabel(
+        application.stage,
+      ).toLowerCase()}.`,
+      `By this application the ${side} seeks ${ask.sought}.`,
+      `The application is made for the following reason: ${application.reason}`,
+    ],
+    prayer: ask.prayer,
+    dated: formatOtherApplicationLongDate(application.appliedOn),
+  };
+}
+
+export function otherApplicationDocumentText(
+  document: OtherApplicationDocument,
+): string {
+  return [
+    document.court,
+    `Case no. ${document.caseNumber}`,
+    document.matter,
+    "",
+    document.title,
+    "",
+    ...document.facts.map((fact) => `${fact.term}: ${fact.value}`),
+    "",
+    ...document.paragraphs.map(
+      (paragraph, index) => `${index + 1}. ${paragraph}`,
+    ),
+    "",
+    `Prayer: ${document.prayer}`,
+    "",
+    `Filed for ${document.filedFor}`,
+    `Dated ${document.dated}`,
+  ].join("\n");
+}
+
+export function otherApplicationDocumentFilename(
+  application: OtherApplication,
+): string {
+  return `${application.caseNumber.replace(/\//g, "-")}-${application.type}.txt`;
+}
+
+export function downloadOtherApplicationDocument(
+  application: OtherApplication,
+): void {
+  const document = buildOtherApplicationDocument(application);
+  const url = URL.createObjectURL(
+    new Blob([otherApplicationDocumentText(document)], { type: "text/plain" }),
+  );
+  const anchor = window.document.createElement("a");
+  anchor.href = url;
+  anchor.download = otherApplicationDocumentFilename(application);
+  anchor.click();
+  URL.revokeObjectURL(url);
 }

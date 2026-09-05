@@ -35,9 +35,8 @@ const cellClass =
  *
  * Delay condonation's four columns plus the one this screen exists for. Every absence is
  * the same absence as there. There is no serial — a serial is a position on a day's list
- * and these applications have no day. There is no actions column: this build performs no
- * act on an application, and drawing furniture around a hole is worse than leaving it out
- * until reviewing is real.
+ * and these applications have no day. There is no actions column either: the cause title
+ * opens the review overlay where the bench answers, so a row does not also need buttons.
  *
  * Application type is plain text, like stage beside it. Fourteen tinted heads down a
  * column is exactly the decoration the craft rules ration colour to prevent — and unlike
@@ -48,7 +47,13 @@ const cellClass =
  * The panel shell (border, fill, shadow) lives on the screen around this, so the table is
  * one panel rather than a box inside a box.
  */
-export function OtherApplicationsTable({ rows }: { rows: OtherApplication[] }) {
+export function OtherApplicationsTable({
+  rows,
+  onOpen,
+}: {
+  rows: OtherApplication[];
+  onOpen: (application: OtherApplication) => void;
+}) {
   return (
     <Table className="w-full border-separate border-spacing-0 text-body-compact">
       <TableHeader>
@@ -88,16 +93,23 @@ export function OtherApplicationsTable({ rows }: { rows: OtherApplication[] }) {
           <td colSpan={5} className="h-2 p-0" />
         </tr>
         {rows.map((application) => (
-          <TableRow key={application.id} className="bg-card">
-            {/* The row's one emphasised cell. Not a link: the reference underlines it
-                because it opens a review, and this build has no such overlay and no
-                court-side case file to fall back on. Plain text is the honest render — an
-                underline that goes nowhere would promise the bench a screen that is not
-                there. */}
+          <TableRow key={application.id} className="bg-card hover:bg-card">
+            {/* The row's one emphasised cell, and its opener. The name keeps the
+                court's quiet dress — no teal — and earns its underline on hover and
+                focus, where a pointer or a keyboard has actually asked. The teal link
+                colour is the citizen side's, for an action inline in prose; a court queue
+                is thirty rows of data and rations it. */}
             <TableCell
               className={cn(cellClass, "min-w-64 font-medium whitespace-normal")}
             >
-              {causeTitle(application)}
+              <button
+                type="button"
+                onClick={() => onOpen(application)}
+                className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
+              >
+                <span className="sr-only">Review </span>
+                {causeTitle(application)}
+              </button>
             </TableCell>
             <TableCell
               className={cn(cellClass, "tabular-nums whitespace-nowrap")}

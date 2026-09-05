@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { isPendingFilterChange } from "@/lib/employee/filter-state";
 import {
   causeTitle,
   counselFor,
@@ -82,6 +83,8 @@ export function ScheduleScreen() {
   const pageRows = rows.slice(start, start + pageSize);
   const isFiltered = applied.stage !== "all" || applied.query !== "";
 
+  const canSearch = isPendingFilterChange(draft, applied);
+
   function applyFilters() {
     setApplied(draft);
     setPage(1);
@@ -118,6 +121,7 @@ export function ScheduleScreen() {
           onDraftChange={setDraft}
           onApply={applyFilters}
           onClear={clearFilters}
+          canSearch={canSearch}
         />
 
         {pageRows.length === 0 ? (
@@ -177,11 +181,13 @@ function ScheduleFiltersRow({
   onDraftChange,
   onApply,
   onClear,
+  canSearch,
 }: {
   draft: ScheduleFilters;
   onDraftChange: (filters: ScheduleFilters) => void;
   onApply: () => void;
   onClear: () => void;
+  canSearch: boolean;
 }) {
   return (
     <form
@@ -243,7 +249,9 @@ function ScheduleFiltersRow({
       </Field>
 
       <div className="flex items-center gap-2">
-        <Button type="submit">Search</Button>
+        <Button type="submit" disabled={!canSearch}>
+          Search
+        </Button>
         <Button type="button" variant="ghost" onClick={onClear}>
           Clear
         </Button>

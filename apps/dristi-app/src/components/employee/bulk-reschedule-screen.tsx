@@ -37,6 +37,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { isPendingFilterChange } from "@/lib/employee/filter-state";
 import {
   filterReschedulable,
   newDateProblem,
@@ -69,6 +70,20 @@ const EMPTY_DRAFT: RangeDraft = { from: null, to: null, query: "" };
 
 function resolveRange(draft: RangeDraft, today: string) {
   return { from: draft.from ?? today, to: draft.to ?? today, query: draft.query };
+}
+
+/**
+ * Whether these controls are asking for something the table is not already showing.
+ *
+ * Resolved before it is compared, which is the whole reason this screen has a wrapper
+ * rather than calling the shared check directly: an untouched end of the range is `null`
+ * and a deliberately picked today is a date string, and those are the same request.
+ */
+function isPendingSearch(draft: RangeDraft, applied: RangeDraft, today: string) {
+  return isPendingFilterChange(
+    resolveRange(draft, today),
+    resolveRange(applied, today),
+  );
 }
 
 function plural(count: number, one: string, many: string): string {
@@ -145,6 +160,7 @@ export function BulkRescheduleScreen() {
   const ready = selectedRows.length > 0 && missing === 0 && stuck === 0;
 
   const isSearched = applied.query.trim() !== "";
+  const canSearch = isPendingSearch(draft, applied, today);
 
   function applyFilters() {
     setApplied(draft);
@@ -191,6 +207,11 @@ export function BulkRescheduleScreen() {
    * A date already gone is refused here rather than left to show up as nineteen bad rows:
    * the DS `DatePicker` cannot be told which days to offer (see the build report), so the
    * screen is the only place that guard can live.
+   *
+   * The missing-date branch is now unreachable from the button, which is disabled until a
+   * date is held. It stays because the state is what makes it unreachable, and states get
+   * edited: whoever loosens the button should find the refusal still standing rather than
+   * an apply that silently writes nothing.
    */
   function applyBulkDate() {
     if (!bulkDate) {
@@ -234,6 +255,7 @@ export function BulkRescheduleScreen() {
           onRangeChange={changeRange}
           onApply={applyFilters}
           onClear={clearFilters}
+          canSearch={canSearch}
         />
 
         {rows.length === 0 ? (
@@ -306,9 +328,17 @@ export function BulkRescheduleScreen() {
  * the accessibility floor treats a placeholder as a hint rather than a label
  * (ACCESSIBILITY §12).
  *
- * "Search" is `secondary`, not teal. The reference paints it as a filled primary
- * alongside the reschedule button; the Ration Teal Law allows one strong action per view,
- * and the act this screen exists for is the one that earns it.
+ * "Search" carries the primary fill, at the court's request. The Ration Teal Law rations
+ * per *visual region*, and the filter row is a region the bench works in before it ever
+ * reaches the commit bar — but three teal buttons on one screen is still more than this
+ * screen used to spend, so the button earns its weight by being **off** unless it has
+ * work to do: it enables only when these controls hold a request the table is not already
+ * answering. At rest it is a filled shape that plainly cannot be pressed, not a standing
+ * invitation competing with the act at the bottom of the page.
+ *
+ * Disabled rather than aria-disabled, matching the other two buttons on this screen. The
+ * browser then also declines to submit on Enter, so the keyboard path and the pointer
+ * path agree about when there is nothing to ask for.
  */
 function RangeFilters({
   draft,
@@ -317,6 +347,7 @@ function RangeFilters({
   onRangeChange,
   onApply,
   onClear,
+  canSearch,
 }: {
   draft: RangeDraft;
   today: string;
@@ -324,6 +355,7 @@ function RangeFilters({
   onRangeChange: (end: "from" | "to", day: string) => void;
   onApply: () => void;
   onClear: () => void;
+  canSearch: boolean;
 }) {
   const range = resolveRange(draft, today);
 
@@ -372,7 +404,7 @@ function RangeFilters({
       </Field>
 
       <div className="flex items-center gap-2">
-        <Button type="submit" variant="secondary">
+        <Button type="submit" disabled={!canSearch}>
           Search
         </Button>
         <Button type="button" variant="ghost" onClick={onClear}>
@@ -434,6 +466,13 @@ function RangeEnd({
  * stack as one block on the left; the date and apply sit on the same midline, as a
  * toolbar, not a stacked field beside a paragraph. Same recipe as the pending-tasks
  * selection bar, with the hairline the Law adds when the well holds a control.
+ *
+ * "Apply to selected" carries the primary fill, at the court's request — this well is its
+ * own region and this is the only act inside it. It is off until it would do something:
+ * the picker beside it has to hold a date and the table has to hold a selection, because
+ * an apply missing either writes nothing and would only be a button that shrugs. The hint
+ * below the count names whichever of the two is still missing, so the disabled fill is
+ * never a dead end the bench has to reason about.
  */
 function SelectionBar({
   selected,
@@ -472,8 +511,11 @@ function SelectionBar({
             id="reschedule-new-hint"
             className="text-caption text-muted-foreground"
           >
-            Uncheck rows to send some matters to a different date, then apply
-            again.
+            {selected === 0
+              ? "Check the matters to move, then choose the date they move to."
+              : date
+                ? "Uncheck rows to send some matters to a different date, then apply again."
+                : "Choose a new date, then apply it to everything checked."}
           </p>
         )}
       </div>
@@ -502,9 +544,8 @@ function SelectionBar({
         </div>
         <Button
           type="button"
-          variant="secondary"
           onClick={onApply}
-          disabled={selected === 0}
+          disabled={selected === 0 || !date}
           className="w-full sm:w-fit"
         >
           Apply to selected

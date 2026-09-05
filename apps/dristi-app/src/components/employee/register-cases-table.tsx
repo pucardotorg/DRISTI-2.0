@@ -84,8 +84,18 @@ export function RegisterCasesTable({ rows }: { rows: RegisterCase[] }) {
         <tr aria-hidden="true">
           <td colSpan={4} className="h-2 p-0" />
         </tr>
+        {/* `hover:bg-card`, not `hover:bg-transparent`, and not nothing. The DS
+            TableRow ships `hover:bg-accent`, and `accent` is the transient-hover
+            role — a fill that says something under the pointer is live. Nothing
+            here is: this queue deliberately has no opener, so the row must not
+            light up. `bg-card` on the row does not cancel it (a different merge
+            group), so the hover needs answering in its own group. Transparent
+            would work today only because the body cells paint nothing and the
+            fill sits on the row; state the real colour so this stays a true
+            no-op if the panel fill ever changes. Header rows are the opposite
+            case — their cells paint their own fill, so they use transparent. */}
         {rows.map((matter) => (
-          <TableRow key={matter.id} className="bg-card">
+          <TableRow key={matter.id} className="bg-card hover:bg-card">
             {/* The row's one emphasised cell. Not a link: the reference underlines it
                 because it opens the registration flow, and this build has no such
                 flow and no court-side case file to fall back on. Plain text is the

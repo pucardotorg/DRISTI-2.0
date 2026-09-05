@@ -37,11 +37,17 @@ const cellClass =
  * state, pending review. There is no advocates column: the reference did not
  * have one, and search still reaches counsel.
  *
- * The row is the opener — this queue has no other act. The cause title stays
- * the named control (quiet `text-foreground`, no underline, no teal) so
- * keyboard and voice still have a label; pointer hits anywhere on the row.
- * A link-styled name would be a second product inside the same table
- * container.
+ * The cause title is the opener; the row is not. The row used to take the
+ * click, on the reasoning that this queue has no other act — but eight of the
+ * nine court queues open from the name, because a row that owns a checkbox or
+ * its own buttons cannot also be one big target. That makes the underlined
+ * name the shared product here and the row-click the second one, so this table
+ * converges rather than keeping the exception.
+ *
+ * The name keeps the court's quiet dress — `text-foreground`, no teal — and
+ * earns its underline on hover and focus, where a pointer or a keyboard has
+ * actually asked. The teal link colour is the citizen side's, for an action
+ * inline in prose; a court queue is thirty rows of data and rations it.
  *
  * The panel shell (border, fill, shadow) lives on the screen around this, so
  * the table is one panel rather than a box inside a box.
@@ -76,17 +82,14 @@ export function ReschedulingRequestTable({
           <td colSpan={4} className="h-2 p-0" />
         </tr>
         {rows.map((request) => (
-          <TableRow
-            key={request.id}
-            className="cursor-pointer bg-card"
-            onClick={() => onOpen(request)}
-          >
+          <TableRow key={request.id} className="bg-card">
             <TableCell
               className={cn(cellClass, "min-w-64 font-medium whitespace-normal")}
             >
               <button
                 type="button"
-                className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground outline-none focus-visible:ring-3 focus-visible:ring-focus-ring"
+                onClick={() => onOpen(request)}
+                className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
               >
                 <span className="sr-only">Review </span>
                 {causeTitle(request)}
