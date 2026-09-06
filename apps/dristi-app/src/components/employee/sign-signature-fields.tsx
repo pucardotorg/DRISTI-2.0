@@ -59,11 +59,10 @@ type SignatureMethod = "e-sign" | "upload";
 /**
  * The Add signature step, shared by both ways into it.
  *
- * One form or forty, the question is identical — e-sign or upload a signed copy — so
- * the fields live here rather than once per path. The single-form dialog reaches this
- * after the bench has read the document; the bulk dialog reaches it after the bench has
- * confirmed the count. Only the sentence above the choice differs, and that is the
- * `subject` prop.
+ * The question is identical wherever one paper is being signed — e-sign or upload a
+ * signed copy — so the fields live here rather than once per queue. The single-document
+ * path reaches this after the bench has read the paper, as its own overlay. Only the
+ * sentence above the choice differs, and that is the `subject` prop.
  */
 export type SignatureChoice = ReturnType<typeof useSignatureChoice>;
 
@@ -103,6 +102,13 @@ export function useSignatureChoice(noun = "form") {
     setFileError(undefined);
   }
 
+  const reset = React.useCallback(() => {
+    setMethod("");
+    setFile(null);
+    setFileError(undefined);
+    setOtp("");
+  }, []);
+
   /* An upload with no file is not a signature, and neither is an e-sign with no code —
      picking the method is choosing a route, not completing it. An enabled Submit that
      then does nothing is worse than a disabled one whose reason is on screen above it. */
@@ -120,6 +126,7 @@ export function useSignatureChoice(noun = "form") {
     otp,
     setOtp,
     canSubmit,
+    reset,
   };
 }
 

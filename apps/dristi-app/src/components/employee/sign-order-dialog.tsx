@@ -2,13 +2,18 @@
 
 import * as React from "react";
 
-import { useChromePageDialog } from "@/components/chrome/app-chrome";
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
 import { DocumentPreview } from "@/components/cases/document-preview";
+import { SignMethodDialog } from "@/components/employee/sign-method-dialog";
+import { useSignatureChoice } from "@/components/employee/sign-signature-fields";
+import {
+  useHeld,
+  useSignStepHandoff,
+} from "@/components/employee/use-sign-step-handoff";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -26,26 +31,45 @@ import {
   type SignOrderDocument,
 } from "@/lib/employee/sign-orders";
 
+/** What the paper is called in the signature overlay's copy. */
+const NOUN = "order";
+
+/**
+ * What the bench is about to sign, in one sentence.
+ *
+ * Named rather than counted, the way `signatureSubject` does it for forms — and here the
+ * name is the title, because a case can carry four orders and "the order in ST/606/2026"
+ * would not tell the bench which of them. Only the single-order path reaches this.
+ */
+function orderSubject(order: SignOrder): string {
+  return `You are adding your signature to the ${signOrderTypeLabel(order.type)} order in ${order.caseNumber}.`;
+}
+
 /**
  * One order, read and then signed — the single-order path off the signing queue.
  *
- * The document *is* the task, so the dialog is the document: a `height="fill"`
- * `DocumentPreview` in a tall overlay, the same layout `SignFormDialog` and
- * `ReschedulingRequestDialog` already use to read a court paper before acting on it.
+ * Two overlays, and each gets its own size for the reason `SignFormDialog` gives. Reading
+ * is the wide step: the document *is* the task, so it is a `height="fill"`
+ * `DocumentPreview` in a tall overlay. Signing is the narrow step: a note saying what is
+ * about to be signed, the choice of how (e-sign or upload), and Submit.
  *
- * One step rather than the two the forms queue needs. A form is signed by a *party*, so
- * that dialog has to ask how — e-sign, or upload the paper they signed. An order is
- * signed by the bench that is already logged in, and the reference asks nothing: it
- * confirms and publishes. So the act is one button under the document it acts on.
+ * **The signature overlay is owner-requested (2026-09-06).** The original build took Sign
+ * and publish as the act itself, because an order is signed by the bench already logged
+ * in and the 1.0 reference asked nothing about how. The owner now wants the same choice
+ * the forms and bail-bond queues ask, reached from that same button — so the first
+ * overlay still says Sign and publish, and the second is where the signature is chosen.
+ *
+ * They are two Dialogs, sequenced, rather than two steps inside one. Swapping the
+ * content of an already-open overlay skips the DS enter animation and jumps the box
+ * from the document size to the method size in one frame — which is how Add signature
+ * used to come up. `useSignStepHandoff` closes the document first, then opens the
+ * method dialog after that close has finished, so one focus scope is kept at a time
+ * and the second overlay fades and zooms in.
  *
  * A signed order opens here too, read-only. It is the only way to see what was signed
  * without leaving the screen, and offering it costs nothing but the button.
  *
- * Download is not repeated in the footer. `DocumentPreview` owns a sticky header with
- * Download and Full view in it, and the same control twice in one dialog is one too
- * many.
- *
- * **Signing signs nothing.** It marks the row signed in the demo queue and closes — see
+ * **Submit signs nothing.** It marks the row signed in the demo queue and closes — see
  * `lib/employee/sign-orders.ts`. Nothing is written, published, sent or filed, and no
  * e-sign provider is called.
  */
@@ -60,47 +84,74 @@ export function SignOrderDialog({
   onSign: (order: SignOrder) => void;
   onReturnFocus: () => void;
 }) {
+  const held = useHeld(order);
+  const handoff = useSignStepHandoff(order !== null);
+  const choice = useSignatureChoice(NOUN);
+
+  React.useEffect(() => {
+    if (!order) return;
+    choice.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset on identity, not on every choice render
+  }, [order?.id]);
+
+  if (!held) return null;
+
+  function dismiss() {
+    onOpenChange(null);
+  }
+
   return (
-    <Dialog
-      open={order !== null}
-      onOpenChange={(next) => {
-        if (!next) onOpenChange(null);
-      }}
-    >
-      {order ? (
-        /* Keyed on the order so opening a second one renders that document from the top
-           rather than inheriting the last one's scroll. */
-        <SignOrderBody
-          key={order.id}
-          order={order}
-          onSign={onSign}
-          onReturnFocus={onReturnFocus}
+    <>
+      <Dialog
+        open={handoff.readOpen}
+        onOpenChange={(open) => handoff.onReadOpenChange(open, dismiss)}
+      >
+        <SignOrderReadBody
+          order={held}
+          onProceed={handoff.goToSign}
+          onCloseAutoFocus={(event) =>
+            handoff.onReadCloseAutoFocus(event, onReturnFocus)
+          }
         />
-      ) : null}
-    </Dialog>
+      </Dialog>
+
+      <SignMethodDialog
+        open={handoff.signOpen}
+        onOpenChange={(open) => handoff.onSignOpenChange(open, dismiss)}
+        onCloseAutoFocus={(event) =>
+          handoff.onSignCloseAutoFocus(event, onReturnFocus)
+        }
+        noun={NOUN}
+        subject={orderSubject(held)}
+        warning="Signing publishes this order and cannot be reversed. Not part of this build — nothing is signed, published or sent."
+        download={{
+          prompt: "Want to read the order again?",
+          onDownload: () => downloadSignOrderDocument(held),
+        }}
+        choice={choice}
+        onBack={handoff.goToRead}
+        onSubmit={() => onSign(held)}
+      />
+    </>
   );
 }
 
-function SignOrderBody({
+function SignOrderReadBody({
   order,
-  onSign,
-  onReturnFocus,
+  onProceed,
+  onCloseAutoFocus,
 }: {
   order: SignOrder;
-  onSign: (order: SignOrder) => void;
-  onReturnFocus: () => void;
+  onProceed: () => void;
+  onCloseAutoFocus: (event: Event) => void;
 }) {
   const document = React.useMemo(() => buildSignOrderDocument(order), [order]);
   const pending = order.status === "pending-signature";
-  const pageDialog = useChromePageDialog();
 
   return (
-    <DialogContent
-      className={`flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl md:h-[85dvh] ${pageDialog}`}
-      onCloseAutoFocus={(event) => {
-        event.preventDefault();
-        onReturnFocus();
-      }}
+    <ChromeDialogContent
+      className="flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl md:h-[85dvh]"
+      onCloseAutoFocus={onCloseAutoFocus}
     >
       {/* `pr-16` keeps the title clear of the close button the DS places top-right. */}
       <DialogHeader className="shrink-0 gap-2 p-6 pr-16">
@@ -137,19 +188,13 @@ function SignOrderBody({
       </div>
 
       {pending ? (
-        <DialogFooter className="mx-0 mb-0 shrink-0 sm:items-center">
-          {/* What the act means, and what this build does not do — said at the moment of
-              the act rather than left for the bench to discover. */}
-          <p className="text-caption text-muted-foreground sm:mr-auto sm:text-left">
-            Signing publishes this order and cannot be reversed. Not part of this
-            build — nothing is signed, published or sent.
-          </p>
-          <Button type="button" onClick={() => onSign(order)}>
+        <DialogFooter className="mx-0 mb-0 shrink-0">
+          <Button type="button" onClick={onProceed}>
             Sign and publish
           </Button>
         </DialogFooter>
       ) : null}
-    </DialogContent>
+    </ChromeDialogContent>
   );
 }
 

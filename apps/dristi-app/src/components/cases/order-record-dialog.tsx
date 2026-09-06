@@ -1,10 +1,10 @@
 "use client";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
 import { DocumentPreview } from "@/components/cases/document-preview";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -45,7 +45,7 @@ function OrderBody({ order }: { order: OrderRecord }) {
   const heading = order.title;
 
   return (
-    <DialogContent className="flex max-h-[90svh] flex-col gap-6 overflow-hidden sm:max-w-4xl">
+    <ChromeDialogContent className="flex max-h-[90svh] flex-col gap-6 overflow-hidden sm:max-w-4xl">
       <DialogHeader className="shrink-0 pr-12">
         <DialogDescription className="text-caption font-medium text-muted-foreground">
           {orderClassLabel(order.classId)}
@@ -89,6 +89,6 @@ function OrderBody({ order }: { order: OrderRecord }) {
           )}
         </div>
       </div>
-    </DialogContent>
+    </ChromeDialogContent>
   );
 }

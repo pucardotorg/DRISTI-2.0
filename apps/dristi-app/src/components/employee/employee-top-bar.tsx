@@ -227,9 +227,10 @@ function CourtTrail({ crumbs }: { crumbs: CourtCrumb[] }) {
                     <Link href={crumb.href}>{crumb.label}</Link>
                   </BreadcrumbLink>
                 ) : (
-                  /* A section is a disclosure in the rail, not a route — there is no page
-                     called "Sign". It reads as context because that is what it is, and it
-                     is not dressed as a link it cannot be. */
+                  /* A section with no href is still a disclosure in the rail, not a
+                     route — there is no page called "Sign". Nested hearing routes give
+                     the section the queue's href in `courtTrail`, so the same label is
+                     a link there. It is not dressed as a link it cannot be. */
                   <span className="truncate">{crumb.label}</span>
                 )}
               </BreadcrumbItem>

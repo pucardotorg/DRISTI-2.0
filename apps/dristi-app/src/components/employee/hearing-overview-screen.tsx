@@ -76,9 +76,22 @@ const PANEL =
  * trail in the top bar ends in Today's hearings, a live link to the list this page
  * was opened from, sticky at every width and cut to its two ends on a phone so the
  * way home survives (`lib/employee/navigation.ts` sets that doctrine out — the trail
- * is the path back, and the page is never a step in it). A band across the foot of a
- * page that is only read, holding one ghost button, reads as pinned chrome whether or
- * not it is pinned — and it would be a second door to a room with one.
+ * is the path back, and the page is never a step in it).
+ *
+ * **View case lives in a pinned band at the foot of the page, right-aligned.** The
+ * brief for this screen (`docs/design/proposals/hearing-overview.md`) recommended
+ * against a band here and argued for the header slot; the owner read that
+ * recommendation in full and decided for the band on 2026-09-06. The call is logged
+ * in that file's decision log, and it is why this screen is composed the way it is.
+ * The action moved rather than multiplied — the header keeps the caption, the cause
+ * title and the status chip, and the page still spends its one teal exactly once.
+ * Placement inside the band matches the house sticky-bar recipe used one route
+ * along (`order-screen.tsx` `sm:ml-auto`, `sign-orders-screen.tsx` `justify-end`):
+ * the primary sits on the trailing edge.
+ *
+ * The band is the recipe the order composer uses one route along
+ * (`order-screen.tsx`): hairline top rule, card fill, no shadow of its own. The page
+ * carries pinned chrome at both ends now, and neither end is louder than the other.
  */
 export function HearingOverviewScreen({ hearingId }: { hearingId: string }) {
   const session = useHearingSession();
@@ -129,14 +142,22 @@ function HearingOverview({ hearing }: { hearing: CourtHearing }) {
   const today = useCourtToday();
   const extras = hearingCaseExtras(hearing.id);
 
+  /* Two parts: the page, which scrolls, and the band, which does not. The padding
+     moves off the outer column and onto the reading column so the band can reach
+     both edges — the composer's arrangement next door, and the reason the band's
+     own `px` repeats the page step instead of inheriting it. */
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-8 p-6 md:p-8">
-      {/* The order composer's header, one page along: the caption says which listing
-          this is, the cause title is the page, and the chip says where the sitting
-          stands. The action sits opposite it the way Join VC sits opposite the cause
-          list's title — page scope, page chrome (ui-craft §0). */}
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex min-w-0 flex-col gap-2">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col gap-8 p-6 pb-0 md:p-8 md:pb-0">
+        {/* The order composer's header, one page along: the caption says which
+            listing this is, the cause title is the page, and the chip says where
+            the sitting stands.
+
+            Nothing sits opposite the title now that View case has moved to the
+            band, so the row split and its `justify-between` went with it. Kept,
+            they would have held open a right half with nothing in it. One column,
+            at every width. */}
+        <header className="flex min-w-0 flex-col gap-2">
           <p className="text-caption font-medium text-muted-foreground">
             Item <span className="tabular-nums">{hearing.item}</span>
             {" · "}
@@ -157,48 +178,67 @@ function HearingOverview({ hearing }: { hearing: CourtHearing }) {
               {courtHearingStatusLabel(hearing.status)}
             </Badge>
           </div>
-        </div>
-        <ViewCaseAction />
-      </header>
+        </header>
 
-      {/* Case details and Last hearing pair across the top; the history runs the
-          full width beneath them.
+        {/* Case details and Last hearing pair across the top; the history runs the
+            full width beneath them.
 
-          The facts are six term/detail pairs and want the smaller share — at
-          three-fifths the list spread "Evidence" across 500px of nothing and read
-          as stretched. The order of the day is a paragraph and wants measure, so
-          it takes the larger. History is last because it is the part that grows:
-          three steps today, but a matter that has run two years is a long column,
-          and the width is there for entries that carry more than a date.
+            The facts are six term/detail pairs and want the smaller share — at
+            three-fifths the list spread "Evidence" across 500px of nothing and read
+            as stretched. The order of the day is a paragraph and wants measure, so
+            it takes the larger. History is last because it is the part that grows:
+            three steps today, but a matter that has run two years is a long column,
+            and the width is there for entries that carry more than a date.
 
-          The two top panels stretch to a common height rather than sitting at
-          their own — `items-start` is what left the shorter one dangling beside
-          the taller. Slack inside a lifted panel reads as padding; the same slack
-          beside it reads as a hole. */}
-      <div className="grid min-w-0 gap-8 lg:grid-cols-5">
-        <CaseFactsPanel
-          hearing={hearing}
-          extras={extras}
-          className="lg:col-span-2"
-        />
-        {extras.lastHearing ? (
-          <LastHearingPanel
-            on={extras.lastHearing.on}
-            purpose={extras.lastHearing.purpose}
-            order={extras.lastHearing.order}
-            directed={extras.lastHearing.directed}
-            className="lg:col-span-3"
+            The two top panels stretch to a common height rather than sitting at
+            their own — `items-start` is what left the shorter one dangling beside
+            the taller. Slack inside a lifted panel reads as padding; the same slack
+            beside it reads as a hole. */}
+        <div className="grid min-w-0 gap-8 lg:grid-cols-5">
+          <CaseFactsPanel
+            hearing={hearing}
+            extras={extras}
+            className="lg:col-span-2"
           />
-        ) : (
-          <NoLastHearingPanel className="lg:col-span-3" />
-        )}
-        <CaseHistoryPanel
-          hearing={hearing}
-          extras={extras}
-          today={today}
-          className="lg:col-span-5"
-        />
+          {extras.lastHearing ? (
+            <LastHearingPanel
+              on={extras.lastHearing.on}
+              purpose={extras.lastHearing.purpose}
+              order={extras.lastHearing.order}
+              directed={extras.lastHearing.directed}
+              className="lg:col-span-3"
+            />
+          ) : (
+            <NoLastHearingPanel className="lg:col-span-3" />
+          )}
+          <CaseHistoryPanel
+            hearing={hearing}
+            extras={extras}
+            today={today}
+            className="lg:col-span-5"
+          />
+        </div>
       </div>
+
+      {/* The band. One action, pinned, on the trailing edge — the house sticky-bar
+          placement (`justify-end`), taken over the brief's header recommendation
+          and recorded above.
+
+          The container is the composer's band to the class, because the two screens
+          are one route apart and a second recipe for the same shape is how a
+          pattern stops meaning anything. It takes the trail's `z-30` rather than
+          outranking it: the two are at opposite ends and never meet, while the
+          rail's mobile sheet sits above both and must stay there. No shadow — the
+          hairline is the seam, the same way the top bar is edged, and lift on
+          chrome would be depth used as decoration (DS elevation foundation).
+
+          The tooltip is portalled to the body, so nothing in here — the stacking
+          context, the fill — can clip it, and it opens upward over the page. */}
+      <footer className="sticky bottom-0 z-30 mt-8 border-t border-hairline bg-card px-6 py-3 md:px-8 md:py-4">
+        <div className="flex flex-col items-end gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+          <ViewCaseAction />
+        </div>
+      </footer>
     </div>
   );
 }
@@ -217,17 +257,42 @@ function HearingOverview({ hearing }: { hearing: CourtHearing }) {
  * — `aria-disabled` rather than `disabled`, so it keeps focus and the tooltip is
  * reachable by keyboard. The same bargain Join VC makes on the cause list. No icon:
  * the label is the whole of it.
+ *
+ * `aria-disabled` is a promise to assistive tech and nothing else: the DS Button
+ * hangs its dimming off `:disabled` (`button.tsx`), which this control does not
+ * set, so left alone it ships full-strength teal with a live hover and the press
+ * translate — it lit up, went down under the finger, and did nothing. Tolerable
+ * beside a title; not in a band that means "the act on this page lives here" on a
+ * dozen other screens. The three `aria-disabled:` utilities restore the DS's own
+ * disabled look (`opacity-50`) and cancel the two states that were lying.
+ * Deliberately **not** `pointer-events-none` — the DS pairs that with `:disabled`,
+ * and here it would kill the hover that opens the tooltip, which is the one thing
+ * explaining why the button is dead.
+ *
+ * It stays `w-fit` at every width rather than filling the band on a phone. A
+ * button stretched edge to edge is not at the right of anything — it is a teal
+ * bar pinned under the reading, permanently, on the one control here that goes
+ * nowhere. The band still stacks if a second action ever joins it.
  */
 function ViewCaseAction() {
   return (
     <TooltipProvider delayDuration={300}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button aria-disabled className="w-full shrink-0 sm:w-fit">
+          <Button
+            aria-disabled
+            className="w-fit shrink-0 aria-disabled:opacity-50 aria-disabled:hover:bg-primary aria-disabled:active:translate-y-0"
+          >
             View case
           </Button>
         </TooltipTrigger>
-        <TooltipContent>The case file is not connected yet</TooltipContent>
+        {/* Anchored to the button's trailing edge, not centred on it. From the
+            band's right gutter the centred default overruns the page edge on a
+            desktop and sits flush against the glass on a phone. `align` is the
+            primitive's own prop — the court nav passes `side` the same way. */}
+        <TooltipContent align="end">
+          The case file is not connected yet
+        </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
@@ -398,8 +463,14 @@ function LastHearingPanel({
         Last hearing
       </h2>
       <div className="flex items-start gap-4">
-        {/* The date as a mark, not a sentence — the full date is spelled out beside
-            it, so this tile is decoration and stays out of the reading order. */}
+        {/* The tile is the date as a mark, and it is `aria-hidden` — decoration,
+            not information. So the line beside it states the date in full, year
+            and all. Trimming it to the weekday to avoid echoing the tile's own
+            "19 Aug" left the one non-decorative date on this panel reading
+            "Wednesday, 2026", and even done properly it would have left a matter
+            that last sat two years ago with no visible year at all. The echo is
+            the cheaper of the two costs. `<time>` carries the machine-readable
+            day, so the date is stated once in each register. */}
         <div
           className="flex size-12 shrink-0 flex-col items-center justify-center rounded-lg bg-brand-muted"
           aria-hidden
@@ -412,7 +483,9 @@ function LastHearingPanel({
           </span>
         </div>
         <div className="flex min-w-0 flex-col gap-1">
-          <p className="text-body font-medium">{formatCaseWeekday(on)}</p>
+          <time dateTime={on} className="text-body font-medium tabular-nums">
+            {formatCaseWeekday(on)}
+          </time>
           <p className="text-body-compact text-muted-foreground">{purpose}</p>
         </div>
       </div>

@@ -2,11 +2,12 @@
 
 import * as React from "react";
 
+import { ChromeAlertDialogContent } from "@/components/chrome/app-chrome";
+
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -36,7 +37,7 @@ export function ConfirmDialog({
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <ChromeAlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           {description ? (
@@ -54,7 +55,7 @@ export function ConfirmDialog({
             {confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
-      </AlertDialogContent>
+      </ChromeAlertDialogContent>
     </AlertDialog>
   );
 }

@@ -78,7 +78,14 @@ describe("assembleOrder", () => {
     const order = assembleOrder(hearing, {
       ...EMPTY_ORDER_DRAFT,
       directions: [
-        { id: "d-1", typeId: "notice", body: "Notice to the accused." },
+        {
+          id: "d-1",
+          typeId: "notice",
+          body: {
+            html: "Notice to the accused.",
+            text: "Notice to the accused.",
+          },
+        },
       ],
     });
     assert.deepEqual(

@@ -3,6 +3,8 @@
 import * as React from "react";
 import { FileCheck2Icon, SearchIcon, SearchXIcon } from "lucide-react";
 
+import { ChromeAlertDialogContent } from "@/components/chrome/app-chrome";
+
 import { ApproveCopyApplicationDialog } from "@/components/employee/approve-copy-application-dialog";
 import { ApproveCopyApplicationTable } from "@/components/employee/approve-copy-application-table";
 import { ListFooter } from "@/components/employee/list-footer";
@@ -10,7 +12,6 @@ import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -317,7 +318,7 @@ export function ApproveCopyApplicationScreen() {
                   Accept applications
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent
+              <ChromeAlertDialogContent
                 onCloseAutoFocus={(event) => {
                   if (!acceptedFromBar.current) return;
                   acceptedFromBar.current = false;
@@ -351,7 +352,7 @@ export function ApproveCopyApplicationScreen() {
                     Accept
                   </AlertDialogAction>
                 </AlertDialogFooter>
-              </AlertDialogContent>
+              </ChromeAlertDialogContent>
             </AlertDialog>
           </div>
         </div>

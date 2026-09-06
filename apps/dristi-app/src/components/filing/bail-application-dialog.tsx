@@ -14,6 +14,8 @@ import {
   Trash2Icon,
 } from "lucide-react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +26,6 @@ import {
 } from "@/components/ui/description-list";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -476,7 +477,7 @@ export function BailApplicationDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
+      <ChromeDialogContent
         lang={locale}
         className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
         onInteractOutside={(event) => event.preventDefault()}
@@ -969,7 +970,7 @@ export function BailApplicationDialog({
                 />
 
                 <Dialog open={reviewFullscreen} onOpenChange={setReviewFullscreen}>
-                  <DialogContent
+                  <ChromeDialogContent
                     lang={locale}
                     className="inset-0 flex h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none p-0 sm:max-w-none"
                     onInteractOutside={(event) => event.preventDefault()}
@@ -988,7 +989,7 @@ export function BailApplicationDialog({
                       locale={locale}
                       expanded
                     />
-                  </DialogContent>
+                  </ChromeDialogContent>
                 </Dialog>
               </div>
             )
@@ -1304,7 +1305,7 @@ export function BailApplicationDialog({
             </>
           ) : null}
         </footer>
-      </DialogContent>
+      </ChromeDialogContent>
     </Dialog>
   );
 }

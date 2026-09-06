@@ -9,11 +9,12 @@ import {
   SearchXIcon,
 } from "lucide-react";
 
+import { ChromeAlertDialogContent } from "@/components/chrome/app-chrome";
+
 import { BulkRescheduleTable } from "@/components/employee/bulk-reschedule-table";
 import {
   AlertDialog,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -753,7 +754,7 @@ function CommitBar({
                 : "Reschedule hearings"}
             </Button>
           </AlertDialogTrigger>
-          <AlertDialogContent>
+          <ChromeAlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>
                 {targets.length === 1
@@ -777,7 +778,7 @@ function CommitBar({
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <Button disabled>Reschedule hearings</Button>
             </AlertDialogFooter>
-          </AlertDialogContent>
+          </ChromeAlertDialogContent>
         </AlertDialog>
       </div>
     </div>

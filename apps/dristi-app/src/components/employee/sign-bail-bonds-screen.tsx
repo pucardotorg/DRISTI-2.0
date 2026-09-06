@@ -4,10 +4,8 @@ import * as React from "react";
 import { FileSignatureIcon, SearchIcon, SearchXIcon } from "lucide-react";
 
 import { ListFooter } from "@/components/employee/list-footer";
-import {
-  SignBailBondDialog,
-  SignBailBondsBulkDialog,
-} from "@/components/employee/sign-bail-bond-dialog";
+import { SignBailBondDialog } from "@/components/employee/sign-bail-bond-dialog";
+import { SignBulkConfirmDialog } from "@/components/employee/sign-bulk-confirm-dialog";
 import { SignBailBondsTable } from "@/components/employee/sign-bail-bonds-table";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -103,6 +101,8 @@ export function SignBailBondsScreen() {
   const [bulkOpen, setBulkOpen] = React.useState(false);
   const [announcement, setAnnouncement] = React.useState("");
   const searchRef = React.useRef<HTMLInputElement>(null);
+  /* The bulk confirmation hands focus back here on the way out — see its `triggerRef`. */
+  const signRef = React.useRef<HTMLButtonElement>(null);
 
   const pending = filterSignBailBonds(bonds, EMPTY_SIGN_BAIL_BOND_FILTERS);
   const rows = filterSignBailBonds(bonds, applied);
@@ -303,13 +303,19 @@ export function SignBailBondsScreen() {
                 Clear selection
               </Button>
             ) : null}
+            {/* The count rides the label once there is one, the way every signing
+                queue's bar does — the button the bench presses says the same number the
+                confirmation is about to ask them to confirm. */}
             <Button
+              ref={signRef}
               type="button"
               className="w-full sm:w-fit"
               disabled={selectedIds.size === 0}
               onClick={() => setBulkOpen(true)}
             >
-              Sign selected bail bonds
+              {selectedIds.size > 0
+                ? `Sign ${selectedIds.size} ${plural(selectedIds.size, "bail bond", "bail bonds")}`
+                : "Sign selected bail bonds"}
             </Button>
           </div>
         </div>
@@ -321,16 +327,19 @@ export function SignBailBondsScreen() {
         {announcement}
       </p>
 
-      {/* Confirm the count, then say how it gets signed — the same two beats the
-          single-bond path runs, minus the reading. */}
-      <SignBailBondsBulkDialog
-        bonds={selectedBonds}
+      {/* Confirm the count, then say what became of it — the shared bulk confirmation
+          every signing queue runs. One bond sees the confirmation like any other count:
+          the signature method is not asked for on this path, so there is no longer a
+          step for a single selection to skip ahead to. */}
+      <SignBulkConfirmDialog
+        noun="bail bond"
+        count={selectedBonds.length}
+        selection={{ cases: selectedBonds.map((bond) => bond.caseNumber) }}
         open={bulkOpen}
         onOpenChange={setBulkOpen}
-        onSign={() => {
-          setBulkOpen(false);
-          sign(selectedIds);
-        }}
+        onConfirm={() => sign(selectedIds)}
+        triggerRef={signRef}
+        onReturnFocus={returnFocus}
       />
 
       <SignBailBondDialog

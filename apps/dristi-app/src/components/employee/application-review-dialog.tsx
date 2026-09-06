@@ -4,12 +4,11 @@ import type { ReactNode } from "react";
 
 import { DocumentPreview } from "@/components/cases/document-preview";
 import { ReviewRow } from "@/components/cases/filing-form-shared";
-import { useChromePageDialog } from "@/components/chrome/app-chrome";
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DescriptionList } from "@/components/ui/description-list";
 import {
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -82,11 +81,9 @@ export function ApplicationReviewOverlay({
   onReject: () => void;
   onReturnFocus: () => void;
 }) {
-  const pageDialog = useChromePageDialog();
-
   return (
-    <DialogContent
-      className={`flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl md:h-[85dvh] ${pageDialog}`}
+    <ChromeDialogContent
+      className="flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl md:h-[85dvh]"
       onCloseAutoFocus={(event) => {
         event.preventDefault();
         onReturnFocus();
@@ -133,7 +130,7 @@ export function ApplicationReviewOverlay({
           {approveLabel}
         </Button>
       </DialogFooter>
-    </DialogContent>
+    </ChromeDialogContent>
   );
 }
 

@@ -4,19 +4,9 @@ import * as React from "react";
 import { FileSignatureIcon, SearchIcon, SearchXIcon } from "lucide-react";
 
 import { ListFooter } from "@/components/employee/list-footer";
+import { SignBulkConfirmDialog } from "@/components/employee/sign-bulk-confirm-dialog";
 import { SignOrderDialog } from "@/components/employee/sign-order-dialog";
 import { SignOrdersTable } from "@/components/employee/sign-orders-table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -83,8 +73,10 @@ function plural(count: number, one: string, many: string): string {
  * What this screen adds is the act. Signing is the one court-side job the reference does
  * in bulk, so selection lives in the table and the commit lives in a sticky bar — the
  * shape `BulkRescheduleScreen` already established for an act committed once over a list
- * longer than a screen. The title of each row opens the order first, because a bench
- * that cannot read what it is signing should not be offered a signature.
+ * longer than a screen. Clicking a row (the case name, or anywhere but the checkbox)
+ * opens the order first, the way Sign forms does, because a bench that cannot read what
+ * it is signing should not be offered a signature. Sign and publish then asks how — e-sign
+ * or upload — the same second step the forms queue already runs.
  *
  * The status filter opens on Pending signature, as the reference draws it: the bench
  * comes here to clear work. Signed orders stay reachable through the same filter rather
@@ -113,8 +105,11 @@ export function SignOrdersScreen() {
     () => new Set(),
   );
   const [open, setOpen] = React.useState<SignOrder | null>(null);
+  const [bulkOpen, setBulkOpen] = React.useState(false);
   const [notice, setNotice] = React.useState("");
   const searchRef = React.useRef<HTMLInputElement>(null);
+  /* The bulk confirmation hands focus back here on the way out — see its `triggerRef`. */
+  const signRef = React.useRef<HTMLButtonElement>(null);
 
   const pending = orders.filter(
     (order) => order.status === "pending-signature",
@@ -278,9 +273,27 @@ export function SignOrdersScreen() {
         <SignBar
           count={selected.length}
           notice={notice}
-          onSign={() => sign(selectedIds)}
+          onRequestSign={() => setBulkOpen(true)}
+          signRef={signRef}
         />
       ) : null}
+
+      {/* Confirm the count, then say what became of it — the shared bulk confirmation
+          every signing queue runs. It hangs off the screen rather than off the bar,
+          because signing the last signable row in view takes the bar away with it. */}
+      <SignBulkConfirmDialog
+        noun="order"
+        count={selected.length}
+        selection={{
+          cases: selected.map((order) => order.caseNumber),
+          kinds: selected.map((order) => signOrderTypeLabel(order.type)),
+        }}
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        triggerRef={signRef}
+        onConfirm={() => sign(selectedIds)}
+        onReturnFocus={returnFocus}
+      />
 
       <SignOrderDialog
         order={open}
@@ -441,11 +454,15 @@ function SignOrderFiltersForm({
 function SignBar({
   count,
   notice,
-  onSign,
+  onRequestSign,
+  signRef,
 }: {
   count: number;
   notice: string;
-  onSign: () => void;
+  /** Opens the shared confirmation. The act itself lives on the screen. */
+  onRequestSign: () => void;
+  /** Handed down so the confirmation can give the keyboard back to this button. */
+  signRef: React.Ref<HTMLButtonElement>;
 }) {
   const summary =
     notice ||
@@ -463,43 +480,17 @@ function SignBar({
           {summary}
         </p>
 
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button disabled={count === 0} className="w-full sm:w-fit">
-              {count > 0
-                ? `Sign ${count} ${plural(count, "order", "orders")}`
-                : "Sign selected orders"}
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                {count === 1
-                  ? "Sign this order and publish it?"
-                  : `Sign ${count} orders and publish them?`}
-              </AlertDialogTitle>
-              <AlertDialogDescription className="text-body">
-                {count === 1
-                  ? "Your signature goes on the order and it is published to the case. This cannot be reversed."
-                  : "Your signature goes on every order selected and each one is published to its case. This cannot be reversed."}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-
-            {/* The court has not built the act, so the screen does not mime it. Said
-                here, at the moment of the act, rather than left for the bench to
-                discover. */}
-            <p className="text-caption text-muted-foreground">
-              Not part of this build — nothing is signed, published or sent.
-            </p>
-
-            <AlertDialogFooter>
-              <AlertDialogCancel>Back</AlertDialogCancel>
-              <AlertDialogAction onClick={onSign}>
-                Sign and publish
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <Button
+          ref={signRef}
+          type="button"
+          disabled={count === 0}
+          className="w-full sm:w-fit"
+          onClick={onRequestSign}
+        >
+          {count > 0
+            ? `Sign ${count} ${plural(count, "order", "orders")}`
+            : "Sign selected orders"}
+        </Button>
       </div>
     </div>
   );
@@ -555,9 +546,9 @@ function SignOrdersEmpty({
  *
  * The checkbox and the opener stay separate controls here too, for the same reason they
  * do in the table: one tap cannot mean both. The checkbox takes the leading column at
- * its full 40px target, and the title beside it is the button that opens the order —
- * with the cause, its number and the date under it, spelled out because there is no
- * column header to name them.
+ * its full 40px target, and a tap anywhere else on the card opens the order — the case
+ * name is the keyboard button, matching Sign forms, with the title, number and date
+ * under it spelled out because there is no column header to name them.
  */
 function SignOrdersItemList({
   rows,
@@ -574,10 +565,16 @@ function SignOrdersItemList({
     <ul className="flex flex-col gap-3">
       {rows.map((order) => {
         const pending = order.status === "pending-signature";
+        const title = signOrderTypeLabel(order.type);
         return (
           <li
             key={order.id}
-            className="flex gap-3 rounded-lg bg-surface-sunken p-4"
+            className="flex cursor-pointer gap-3 rounded-lg bg-surface-sunken p-4"
+            onClick={(event) => {
+              const target = event.target as HTMLElement;
+              if (target.closest("button, a, [role=checkbox], label")) return;
+              onOpen(order);
+            }}
           >
             {/* The DS box expands its own hit area to 40×40; the name it carries is the
                 order and its case, not the column, because a row read aloud has no
@@ -587,7 +584,7 @@ function SignOrdersItemList({
                 <Checkbox
                   checked={selectedIds.has(order.id)}
                   onCheckedChange={() => onToggle(order)}
-                  aria-label={`Select ${signOrderTypeLabel(order.type)} in ${order.caseNumber}`}
+                  aria-label={`Select ${title} in ${order.caseNumber}`}
                 />
               </span>
             ) : (
@@ -603,10 +600,11 @@ function SignOrdersItemList({
               >
                 <span className="sr-only">
                   {pending ? "Read and sign " : "Read "}
+                  {title} in{" "}
                 </span>
-                {signOrderTypeLabel(order.type)}
+                {causeTitle(order)}
               </button>
-              <p className="min-w-0 text-body-compact">{causeTitle(order)}</p>
+              <p className="min-w-0 text-body-compact">{title}</p>
               <p className="text-caption text-muted-foreground">
                 <span className="tabular-nums">{order.caseNumber}</span>
                 {" · Added "}

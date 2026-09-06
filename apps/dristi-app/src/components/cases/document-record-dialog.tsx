@@ -3,6 +3,8 @@
 import { useState, type ReactNode } from "react";
 import { MessageSquareIcon, PaperclipIcon } from "lucide-react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import { DocumentPreview } from "@/components/cases/document-preview";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +18,6 @@ import {
 } from "@/components/ui/description-list";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -73,7 +74,7 @@ export function DocumentRecordFrame({
   children: ReactNode;
 }) {
   return (
-    <DialogContent
+    <ChromeDialogContent
       className={cn(
         "flex max-h-[90svh] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl",
         className,
@@ -100,7 +101,7 @@ export function DocumentRecordFrame({
         <Separator orientation="vertical" className="hidden md:block" />
         <CommentsPane fieldId={commentId} />
       </div>
-    </DialogContent>
+    </ChromeDialogContent>
   );
 }
 

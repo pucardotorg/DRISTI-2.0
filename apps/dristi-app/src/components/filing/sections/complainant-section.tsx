@@ -11,6 +11,8 @@
 import * as React from "react";
 import { CheckIcon } from "lucide-react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import { blankComplainant } from "@/lib/filing/blank";
 import { ENTITY_TYPES } from "@/lib/filing/options";
 import { fetchOnCourtRecord } from "@/lib/filing/registry";
@@ -28,7 +30,6 @@ import type {
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -712,7 +713,7 @@ export function ComplainantSection() {
           if (!open) setOtp("");
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <ChromeDialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Verify &amp; fetch details</DialogTitle>
             <DialogDescription>
@@ -757,7 +758,7 @@ export function ComplainantSection() {
           >
             Verify &amp; fetch details
           </Button>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       <ConfirmDialog

@@ -4,7 +4,7 @@ import * as React from "react";
 import { FolderCheckIcon, SearchIcon, SearchXIcon } from "lucide-react";
 
 import { ListFooter } from "@/components/employee/list-footer";
-import { SignBulkDialog } from "@/components/employee/sign-bulk-dialog";
+import { SignBulkConfirmDialog } from "@/components/employee/sign-bulk-confirm-dialog";
 import { SignFormDialog } from "@/components/employee/sign-form-dialog";
 import { SignFormsTable } from "@/components/employee/sign-forms-table";
 import { Button } from "@/components/ui/button";
@@ -95,6 +95,8 @@ export function SignFormsScreen() {
   const [dateKey, setDateKey] = React.useState(0);
   const [announcement, setAnnouncement] = React.useState("");
   const searchRef = React.useRef<HTMLInputElement>(null);
+  /* The bulk confirmation hands focus back here on the way out — see its `triggerRef`. */
+  const signRef = React.useRef<HTMLButtonElement>(null);
 
   const remaining = SIGN_FORM_QUEUE.filter((form) => !signedIds.has(form.id));
   const rows = filterSignForms(remaining, applied);
@@ -170,7 +172,6 @@ export function SignFormsScreen() {
 
   function signSelected() {
     const ids = selectedForms.map((form) => form.id);
-    setConfirmOpen(false);
     removeFromQueue(
       ids,
       ids.length === 1
@@ -296,13 +297,19 @@ export function SignFormsScreen() {
                 Clear selection
               </Button>
             ) : null}
+            {/* The count rides the label once there is one, the way every signing
+                queue's bar does — the button the bench presses says the same number the
+                confirmation is about to ask them to confirm. */}
             <Button
+              ref={signRef}
               type="button"
               className="w-full sm:w-fit"
               disabled={selectedIds.size === 0}
               onClick={() => setConfirmOpen(true)}
             >
-              Sign selected forms
+              {selectedIds.size > 0
+                ? `Sign ${selectedIds.size} ${selectedIds.size === 1 ? "form" : "forms"}`
+                : "Sign selected forms"}
             </Button>
           </div>
         </div>
@@ -314,13 +321,21 @@ export function SignFormsScreen() {
         {announcement}
       </p>
 
-      {/* Confirm the count, then say how it gets signed — the same two beats the
-          single-document path runs, minus the reading. */}
-      <SignBulkDialog
-        forms={selectedForms}
+      {/* Confirm the count, then say what became of it — the shared bulk confirmation
+          every signing queue runs. The signature method is not asked for here: this
+          path opened no document, and only the single-form path still asks. */}
+      <SignBulkConfirmDialog
+        noun="form"
+        count={selectedForms.length}
+        selection={{
+          cases: selectedForms.map((form) => form.caseNumber),
+          kinds: selectedForms.map((form) => signFormProcessLabel(form.process)),
+        }}
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        onSign={signSelected}
+        onConfirm={signSelected}
+        triggerRef={signRef}
+        onReturnFocus={returnFocus}
       />
 
       <SignFormDialog

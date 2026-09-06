@@ -417,3 +417,41 @@ The pay-off is larger than the diff. With it, both Dristi areas drop to a plain
 maintained. Worth checking the same question of any other primitive that branches on
 `isMobile` and re-enters through a portal: the failure is invisible in React, in the class
 list, and in every gate.
+
+---
+
+## 18. `Button` gives `aria-disabled` no treatment at all
+
+`buttonVariants` hangs its unavailable look off the DOM property — `disabled:pointer-events-none
+disabled:opacity-50` (`button.tsx`). Nothing keys off `[aria-disabled]`.
+
+That leaves no way to render the state the product actually has. A control that is
+*present but not yet connected* has to stay focusable and hoverable, because the only
+thing explaining why it is inert is a `Tooltip` — and `ACCESSIBILITY.md` §7 forbids
+putting the sole explanation behind hover, so keyboard users must reach it too. Real
+`disabled` removes the button from the tab order and, with `pointer-events-none`, kills
+the hover that opens the tooltip. So `aria-disabled` is the correct attribute, and the DS
+dresses it as a fully live button: full-strength `bg-primary`, a working
+`hover:bg-primary-hover`, and the `active:not-aria-[haspopup]:translate-y-px` press. It
+lights up, goes down under the finger, and does nothing.
+
+Two court-side screens are on it today, both deliberately unwired pending a court-side
+case file: **View case** (`employee/hearing-overview-screen.tsx`) and **Join VC**
+(`employee/hearings-screen.tsx`). It got worse when View case moved into a pinned action
+band, where the surrounding pattern means *the act on this page lives here* — a
+full-strength primary that depresses and does nothing is a promise the control cannot
+keep.
+
+Dristi patches it at one call site with three utilities —
+`aria-disabled:opacity-50 aria-disabled:hover:bg-primary aria-disabled:active:translate-y-0`
+— which is a per-screen override of a state the system should own, and it has to be
+rewritten per variant, since the hover fill to cancel differs for every one of the ten.
+
+**Request:** put an `aria-disabled` treatment in the `buttonVariants` base and per-variant
+hover, mirroring the `:disabled` look (`opacity-50`) and cancelling the hover fill and the
+press translate. Explicitly **not** `pointer-events-none` on this branch — the tooltip is
+the entire reason the control is `aria-disabled` rather than `disabled`, so the pointer
+must keep reaching it. A documented name for the state would help as much as the CSS: the
+distinction between "you may not" (`disabled`) and "this is not connected yet"
+(`aria-disabled` + explanation) is a real one, and right now every consumer meets it by
+discovering that nothing happened.

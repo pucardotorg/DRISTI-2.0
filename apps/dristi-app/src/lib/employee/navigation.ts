@@ -20,6 +20,7 @@ import { SIGN_BAIL_BOND_QUEUE_COUNT } from "./sign-bail-bonds";
 import { SIGN_EVIDENCE_QUEUE_COUNT } from "./sign-evidence";
 import { SIGN_FORM_QUEUE_COUNT } from "./sign-forms";
 import { SIGN_ORDER_PENDING_COUNT } from "./sign-orders";
+import { PROCESS_QUEUE_COUNT } from "./sign-process";
 import { WITNESS_DEPOSITION_QUEUE_COUNT } from "./sign-witness-deposition";
 
 /**
@@ -32,12 +33,12 @@ import { WITNESS_DEPOSITION_QUEUE_COUNT } from "./sign-witness-deposition";
  *
  * **Most of it is not wired yet.** The three Hearings rows, both Actions rows —
  * Register cases and Approve copy application — all three Review applications rows —
- * Rescheduling request, Delay condonation and Others — and six of the Sign rows — Sign
- * forms, Sign orders, Sign bail bonds, Sign witness deposition, Sign evidence and Sign
- * A-Diary — have an `href`, and they point at the court-side routes that exist. Every
- * other row is a real, focusable control that says plainly it goes nowhere — no stub
- * routes, no hrefs that 404. Giving a row its destination later is the one `href` line
- * below.
+ * Rescheduling request, Delay condonation and Others — and all seven of the Sign rows —
+ * Sign forms, Sign orders, Sign process, Sign bail bonds, Sign witness deposition, Sign
+ * evidence and Sign A-Diary — have an `href`, and they point at the court-side routes
+ * that exist. Every other row is a real, focusable control that says plainly it goes
+ * nowhere — no stub routes, no hrefs that 404. Giving a row its destination later is the
+ * one `href` line below.
  *
  * **The counts are demo data, with a few exceptions.** They are the reference's numbers,
  * kept so the rail can be judged at the widths it will really see (`1312` is the one that
@@ -48,12 +49,13 @@ import { WITNESS_DEPOSITION_QUEUE_COUNT } from "./sign-witness-deposition";
  * `lib/employee/rescheduling-request.ts`,
  * `lib/employee/delay-condonation.ts`, `lib/employee/other-applications.ts`,
  * `lib/employee/sign-forms.ts`, `lib/employee/sign-orders.ts`,
- * `lib/employee/sign-bail-bonds.ts`,
+ * `lib/employee/sign-process.ts`, `lib/employee/sign-bail-bonds.ts`,
  * `lib/employee/sign-witness-deposition.ts`, `lib/employee/sign-evidence.ts`,
  * `lib/employee/sign-a-diary.ts`) — still demo data
  * underneath, but a real count of it, so the rail cannot claim a different number from
  * the screen it opens. Sign orders counts only what is still pending, because that
- * screen also holds the orders this bench has signed.
+ * screen also holds the orders this bench has signed; Sign process counts only the three
+ * stages of its line that still need an act, for the same reason.
  *
  * The vocabulary is the court's, taken from the reference — a copy application, a delay
  * condonation, the A-Diary. `docs/product/` does not yet define these for §138, so this
@@ -208,7 +210,15 @@ export const COURT_NAV_GROUPS: CourtNavGroup[] = [
            the magistrate to less work than the number promised. */
         count: SIGN_ORDER_PENDING_COUNT,
       },
-      { id: "sign-process", label: "Sign process", count: 1312 },
+      {
+        id: "sign-process",
+        label: "Sign process",
+        href: "/employee/sign-process",
+        /* The three stages of the line that still need an act, not its whole length:
+           that screen also holds what has been sent and what has come back, and a badge
+           counting those would send the bench to less work than the number promised. */
+        count: PROCESS_QUEUE_COUNT,
+      },
       {
         id: "sign-bail-bonds",
         label: "Sign bail bonds",
@@ -287,8 +297,11 @@ export function isCourtNavActive(pathname: string, href: string): boolean {
 export type CourtCrumb = {
   label: string;
   /**
-   * Where the crumb goes. Absent on a section, which is a disclosure in the rail and not
-   * a route — there is no page called "Sign".
+   * Where the crumb goes. Absent on a section when this page *is* one of its queues —
+   * a section is a disclosure in the rail, and there is no page called "Sign". Present
+   * on that same section when the page is nested under a queue: the section then borrows
+   * the queue's href, because that is the way back and a trail step that cannot be taken
+   * is a crumb that does not work.
    */
   href?: string;
 };
@@ -315,9 +328,11 @@ export type CourtCrumb = {
  *   and carries no trail, which is what chrome looks like at the origin.
  * - `/employee/sign-orders` — root, then `Sign`. The heading says which queue.
  * - `/employee/hearings/<id>` and `/employee/hearings/<id>/order` — root, `Hearings`,
- *   then `Today's hearings` as a link back to the day's list. Here the heading names a
- *   case rather than a queue, so the queue is genuinely above the page and genuinely
- *   somewhere to return to.
+ *   then `Today's hearings`. Both of the last two are links back to the day's list.
+ *   Here the heading names a case rather than a queue, so the queue is genuinely above
+ *   the page and genuinely somewhere to return to. The section has no page of its own,
+ *   so it borrows the queue's href rather than sitting in the trail as text a click
+ *   cannot follow.
  *
  * A route this file does not know gets the root as a link and stops. That is the whole of
  * what can be said honestly about it, and it is still the way home. The two standalone
@@ -332,10 +347,16 @@ export function courtTrail(pathname: string): CourtCrumb[] {
   for (const group of COURT_NAV_GROUPS) {
     for (const item of group.items) {
       if (!item.href || !isCourtNavActive(pathname, item.href)) continue;
-      const trail: CourtCrumb[] = [home, { label: group.label }];
+      const nested = pathname !== item.href;
+      const trail: CourtCrumb[] = [
+        home,
+        nested
+          ? { label: group.label, href: item.href }
+          : { label: group.label },
+      ];
       // The row earns a step only when it is above this page rather than being it —
       // which is exactly when the path is not the row's own href.
-      if (pathname !== item.href) {
+      if (nested) {
         trail.push({ label: item.label, href: item.href });
       }
       return trail;

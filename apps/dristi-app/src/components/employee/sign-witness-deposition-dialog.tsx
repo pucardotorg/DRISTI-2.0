@@ -2,13 +2,12 @@
 
 import * as React from "react";
 
-import { useChromePageDialog } from "@/components/chrome/app-chrome";
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
 import { DocumentPreview } from "@/components/cases/document-preview";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -94,11 +93,10 @@ function SignWitnessDepositionBody({
     [deposition],
   );
   const title = depositionTitle(deposition);
-  const pageDialog = useChromePageDialog();
 
   return (
-    <DialogContent
-      className={`flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl md:h-[85dvh] ${pageDialog}`}
+    <ChromeDialogContent
+      className="flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl md:h-[85dvh]"
       onCloseAutoFocus={(event) => {
         event.preventDefault();
         onReturnFocus();
@@ -150,7 +148,7 @@ function SignWitnessDepositionBody({
           Sign and publish
         </Button>
       </DialogFooter>
-    </DialogContent>
+    </ChromeDialogContent>
   );
 }
 

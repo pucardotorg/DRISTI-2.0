@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import {
   ChoicePillGroup,
   FileField,
@@ -12,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -137,7 +138,7 @@ function BatchBody({
   }
 
   return (
-    <DialogContent className="flex max-h-[90svh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
+    <ChromeDialogContent className="flex max-h-[90svh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
       <DialogHeader className="shrink-0 gap-2 p-6 pr-16">
         <div className="flex flex-wrap items-center gap-2">
           <DialogTitle
@@ -331,6 +332,6 @@ function BatchBody({
           ) : null}
         </DialogFooter>
       </div>
-    </DialogContent>
+    </ChromeDialogContent>
   );
 }

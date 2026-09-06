@@ -2,24 +2,24 @@
 
 import * as React from "react";
 import Link from "next/link";
-import {
-  CalendarX2Icon,
-  ChevronDownIcon,
-  FilePlusIcon,
-  PlusIcon,
-} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CalendarX2Icon, PlusIcon } from "lucide-react";
 
-import { useChromePageDialog } from "@/components/chrome/app-chrome";
-import { Button } from "@/components/ui/button";
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+import { DocumentPreview } from "@/components/cases/document-preview";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+  EMPTY_RICH_TEXT,
+  RichTextField,
+  RichTextValueView,
+  type RichTextValue,
+} from "@/components/cases/rich-text-field";
+import { useCourtToday } from "@/components/employee/use-court-today";
+import { useHearingSession } from "@/components/employee/use-hearing-session";
+import { useOrderDraft } from "@/components/employee/use-order-draft";
+import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -50,7 +50,10 @@ import {
   SegmentedControl,
   SegmentedControlItem,
 } from "@/components/ui/segmented-control";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  markHearingEnded,
+  markHearingOngoing,
+} from "@/lib/employee/hearing-session";
 import {
   causeTitle,
   COURT_HEARING_PURPOSES,
@@ -63,27 +66,26 @@ import {
 } from "@/lib/employee/hearings";
 import {
   appearancesFor,
-  assembleOrder,
-  EMPTY_ORDER_DRAFT,
-  HEARING_DIRECTION_TYPES,
+  assembleAttendance,
+  assembleNextListing,
+  buildOrderDocument,
   hearingDirectionLabel,
+  HEARING_DIRECTION_TYPES,
+  nextUnhandledListing,
   type Appearance,
+  type AttendanceEntry,
   type AttendanceMark,
   type DirectionDraft,
   type HearingDirectionTypeId,
   type NextListingChoice,
+  type OrderDocument,
   type OrderDraft,
-  type AssembledOrder,
 } from "@/lib/employee/order-draft";
 
 /**
  * How a panel sits on the court-side page — the same recipe as today's cause list
  * (`HearingsScreen`) and bulk reschedule. One lifted sheet, hairline edge, no nested
  * second frame inside it.
- *
- * The surface only. Each of the page's three panels (the listing band, Directions,
- * the document) adds its own inner layout, because the band is a grid at `lg` where
- * the other two are stacks.
  */
 const PANEL =
   "min-w-0 rounded-xl border border-hairline bg-card p-6 shadow-raised";
@@ -91,18 +93,31 @@ const PANEL =
 /**
  * Compose the order of one listing.
  *
- * Entered from the cause-list orders icon. The work is on the left (who appeared,
- * the directions, whether it is listed next); the document on the right is the same
- * facts assembled as one order, read-only. Preview opens that text in a dialog.
+ * Entered from the cause-list orders icon. Two panels: the **facts of this listing**
+ * on the left — who appeared, whether it is listed next — and **the order itself** on
+ * the right, which is where the bench types.
  *
- * **This build issues nothing.** Save draft is a session flag announced on a live
- * region. Preview is a look. Neither files, notifies, nor signs — the same bargain
- * Start / End hearing already makes on the list this screen is opened from.
+ * The order used to be a third panel that re-printed, in prose, what the controls
+ * beside it already said: four segmented controls became four sentences, each textarea
+ * became a paragraph. It cost the widest half of the page to show a copy, and it
+ * pushed the one region that takes typing below the fold — three successive
+ * rearrangements bought a few dozen pixels each and gave them back. So the copy is
+ * gone and the document is the editor: directions are typed as the numbered paragraphs
+ * they will be. The first place to type sits near the top of its own column and stays
+ * there however many parties the matter has.
+ *
+ * **This build issues nothing.** The draft is held for this sitting and dies on a
+ * reload. Preview is a look at the paper. Next item ends this listing and calls the
+ * next one on the board — the same screen marks the cause list already makes. Nothing
+ * files, notifies, or signs.
  */
 export function OrderScreen({ hearingId }: { hearingId: string }) {
   const hearing = hearingById(hearingId);
   if (!hearing) return <OrderMissing />;
-  return <OrderReady hearing={hearing} />;
+  /* Keyed on the listing so advancing to the next item opens a composer at the top of
+     itself rather than inheriting this one's transient state. The draft is not in that
+     state — it lives in `order-drafts.ts`, keyed by listing there. */
+  return <OrderReady key={hearing.id} hearing={hearing} />;
 }
 
 function OrderMissing() {
@@ -132,64 +147,51 @@ function OrderMissing() {
 }
 
 function OrderReady({ hearing }: { hearing: CourtHearing }) {
-  const appearances = React.useMemo(
-    () => appearancesFor(hearing),
-    [hearing],
-  );
-  const [draft, setDraft] = React.useState<OrderDraft>(EMPTY_ORDER_DRAFT);
+  const router = useRouter();
+  const session = useHearingSession();
+  const today = useCourtToday();
+  const [draft, setDraft] = useOrderDraft(hearing.id);
   const [previewOpen, setPreviewOpen] = React.useState(false);
-  const [saved, setSaved] = React.useState(false);
-  const [rollOpen, setRollOpen] = React.useState(true);
-  const nextId = React.useRef(1);
-  const autoFolded = React.useRef(false);
+  const [announcement, setAnnouncement] = React.useState("");
 
-  const assembled = assembleOrder(hearing, draft);
+  const appearances = React.useMemo(() => appearancesFor(hearing), [hearing]);
+  const attendance = assembleAttendance(appearances, draft.marks);
+  const nextListing = assembleNextListing(draft);
+  const upNext = nextUnhandledListing(hearing, session);
 
-  /**
-   * Marking the last appearance folds the roll: the roll call is done, so the
-   * section gives its height back to the directions below it.
-   *
-   * Folded on the *transition* into "all marked", never on every change —
-   * otherwise reopening the section would slam it shut again on the next click.
-   * Unmarking someone re-arms the fold but does not reopen the section; whether
-   * to look at the roll again is the bench's call, not the screen's. Done here
-   * rather than in an effect so nothing sets state during render.
-   */
   function setMark(id: string, mark: AttendanceMark | undefined) {
-    const marks = { ...draft.marks, [id]: mark };
     setDraft((current) => ({
       ...current,
       marks: { ...current.marks, [id]: mark },
     }));
-    const allMarked = appearances.every(
-      (appearance) => marks[appearance.id] !== undefined,
-    );
-    if (!allMarked) {
-      autoFolded.current = false;
-    } else if (!autoFolded.current) {
-      autoFolded.current = true;
-      setRollOpen(false);
-    }
   }
 
   function setNext(next: NextListingChoice) {
     setDraft((current) => ({
       ...current,
       next,
-      ...(next === "none" ? { nextPurpose: "", nextDate: null } : {}),
+      ...(next === "none" ? { nextPurpose: "" as const, nextDate: null } : {}),
     }));
   }
 
   function addDirection(typeId: HearingDirectionTypeId) {
-    const id = `direction-${nextId.current}`;
-    nextId.current += 1;
     setDraft((current) => ({
       ...current,
-      directions: [...current.directions, { id, typeId, body: "" }],
+      directions: [
+        ...current.directions,
+        {
+          id: nextDirectionId(current.directions),
+          typeId,
+          body: EMPTY_RICH_TEXT,
+        },
+      ],
     }));
+    setAnnouncement(
+      `${hearingDirectionLabel(typeId)} added as direction ${draft.directions.length + 1}.`,
+    );
   }
 
-  function updateDirection(id: string, body: string) {
+  function updateDirection(id: string, body: RichTextValue) {
     setDraft((current) => ({
       ...current,
       directions: current.directions.map((direction) =>
@@ -203,6 +205,27 @@ function OrderReady({ hearing }: { hearing: CourtHearing }) {
       ...current,
       directions: current.directions.filter((direction) => direction.id !== id),
     }));
+    setAnnouncement("Direction removed. The rest are renumbered.");
+  }
+
+  /**
+   * End this listing and call the next one on the board.
+   *
+   * Both marks already exist on the cause list, and the sitting holds a single ongoing
+   * listing — so navigating without ending would land on a composer the sitting has
+   * locked, and calling the next matter without ending this one would silently return
+   * this one to scheduled. The pair is the act a bench actually performs.
+   *
+   * Neither mark files, signs or notifies anything (`hearing-session.ts`).
+   */
+  function advance() {
+    markHearingEnded(hearing.id);
+    if (!upNext) {
+      router.push("/employee/hearings");
+      return;
+    }
+    markHearingOngoing(upNext.id);
+    router.push(`/employee/hearings/${upNext.id}/order`);
   }
 
   return (
@@ -210,8 +233,7 @@ function OrderReady({ hearing }: { hearing: CourtHearing }) {
       <div className="flex min-w-0 flex-1 flex-col gap-8 p-6 pb-0 md:p-8 md:pb-0">
         <header className="flex min-w-0 flex-col gap-2">
           <p className="text-caption font-medium text-muted-foreground">
-            Order · item{" "}
-            <span className="tabular-nums">{hearing.item}</span>
+            Order · item <span className="tabular-nums">{hearing.item}</span>
             {" · "}
             <span className="tabular-nums">{hearing.caseNumber}</span>
             {" · "}
@@ -225,12 +247,13 @@ function OrderReady({ hearing }: { hearing: CourtHearing }) {
           </p>
         </header>
 
+        {/* Two panels, `items-start` so the shorter facts column is not stretched to
+            the order's height. Nothing is sticky: a column holding a growing list of
+            textareas cannot be pinned to a viewport it outgrows. */}
         <div className="grid min-w-0 items-start gap-8 lg:grid-cols-5">
-          <WorkPanel
+          <ListingFacts
             appearances={appearances}
             draft={draft}
-            rollOpen={rollOpen}
-            onRollOpenChange={setRollOpen}
             onMark={setMark}
             onNext={setNext}
             onPurpose={(nextPurpose) =>
@@ -239,68 +262,83 @@ function OrderReady({ hearing }: { hearing: CourtHearing }) {
             onDate={(nextDate) =>
               setDraft((current) => ({ ...current, nextDate }))
             }
+          />
+          <OrderPanel
+            hearing={hearing}
+            attendanceBody={attendance.body}
+            attendancePending={attendance.pending}
+            roll={attendance.appearances}
+            directions={draft.directions}
+            nextBody={nextListing.body}
+            nextPending={nextListing.pending}
             onAdd={addDirection}
             onUpdate={updateDirection}
             onRemove={removeDirection}
           />
-          <DocumentPanel order={assembled} />
         </div>
       </div>
 
-      {/* The bar holds the work and nothing else.
-
-          Back used to lead it, and it was the third live link to the cause list on
-          one page: the rail's current row and the trail's last crumb are the other
-          two, and "Back" was the only one of the three that did not say where it
-          went — `navigation.ts` already forbids one destination carrying two names.
-          Save draft and Preview are pinned because they have to stay in reach while
-          the bench types; leaving is not work, and it did not become work by sharing
-          a container with things that are. Below `sm` the band stacks, and Back was
-          the first thing in it, directly above a soft keyboard. */}
       <footer className="sticky bottom-0 z-30 mt-8 border-t border-hairline bg-card px-6 py-3 md:px-8 md:py-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-          {/* What Save draft actually did, in its own words.
+          {/* What the screen is doing with the words, standing — not a confirmation
+              that fires after an act.
 
-              The draft is `React.useState` in this component and nothing else — no
-              storage, no server, and `lib/employee/order-draft.ts` persists nothing.
-              "Saved on this device" is what a browser says when something really is
-              in storage, so it was the one sentence on this screen a magistrate
-              could have relied on and the build could not keep: every route off the
-              page discards the draft, unguarded. This says the true thing instead.
+              There is no Save draft any more. The draft is written to
+              `order-drafts.ts` on every keystroke, because Next item unmounts this
+              composer and a draft in component state would not survive the trip. A
+              button that performs what the screen already does continuously is a
+              button that teaches the bench to distrust the screen the first time they
+              forget to press it.
 
-              It is a caution now rather than a confirmation, so it takes the DS's
-              status-text role on a neutral surface (colors foundation: `*-ink` is
-              status text, never a fill) instead of the quiet grey a confirmation
-              would wear. The words carry the meaning on their own; the colour only
-              makes them findable in a bar the reader has just looked away from. */}
-          <p
-            className="text-body-compact text-warning-ink"
-            aria-live="polite"
-          >
-            {saved ? "Draft held for this sitting — leaving loses it." : null}
-          </p>
-          <div className="flex flex-col gap-3 sm:ml-auto sm:flex-row">
+              Muted rather than caution ink: this is standing state, present from first
+              paint on every visit, and a coloured line that never changes is the alarm
+              fatigue the craft rules warn about. Status ink is for status. */}
+          <div className="flex min-w-0 flex-col gap-1 text-body-compact text-muted-foreground sm:mr-auto">
+            <p>Held for this sitting — a reload loses it.</p>
+            <p>
+              {upNext ? (
+                <>
+                  Ends this hearing and calls item{" "}
+                  <span className="tabular-nums">{upNext.item}</span>.
+                </>
+              ) : (
+                "Ends this hearing. Nothing else is waiting on the board."
+              )}
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
             <Button
               type="button"
               variant="outline"
-              className="w-full sm:w-fit"
-              onClick={() => setSaved(true)}
-            >
-              Save draft
-            </Button>
-            <Button
-              type="button"
               className="w-full sm:w-fit"
               onClick={() => setPreviewOpen(true)}
             >
               Preview
             </Button>
+            {/* The view's one primary. Preview is a look; this is what a bench does
+                twenty-three times before lunch, so the look yields the teal.
+
+                "Next item", never "Next hearing" — the next hearing is the section in
+                the column beside it, the one that posts *this case* to a date. One
+                phrase cannot carry both meanings on one screen.
+
+                No confirmation dialog. Ending a listing is not reversible in this
+                build, which is the argument for one — and a modal on each of
+                twenty-three items is a modal people dismiss without reading, which
+                protects nothing. The caption beside it carries the consequence. */}
+            <Button type="button" className="w-full sm:w-fit" onClick={advance}>
+              {upNext ? "Next item" : "End item"}
+            </Button>
           </div>
         </div>
       </footer>
 
+      <p aria-live="polite" className="sr-only">
+        {announcement}
+      </p>
+
       <PreviewDialog
-        order={assembled}
+        document={buildOrderDocument(hearing, draft, today)}
         open={previewOpen}
         onOpenChange={setPreviewOpen}
       />
@@ -309,49 +347,45 @@ function OrderReady({ hearing }: { hearing: CourtHearing }) {
 }
 
 /**
- * The composer: the roll, the next listing, the directions — one container, in the
- * order a sitting runs.
- *
- * Attendance is the only section here that is expensive in height and short-lived
- * in relevance: it is marked once, at the top of the matter, and then it is history
- * the document already carries. So it folds when the roll is complete and hands its
- * height to the directions below, which is where the typing happens. That is the
- * fix for the composer's scroll problem — the layout no longer has to buy the space
- * by rearranging everything around it.
+ * Ids come from the list rather than a mount-scoped counter: the draft outlives this
+ * component now, so a counter restarting at 1 on every visit would hand a second
+ * direction the id of the first.
  */
-function WorkPanel({
+function nextDirectionId(directions: DirectionDraft[]): string {
+  const used = directions
+    .map((direction) => Number(direction.id.replace("direction-", "")))
+    .filter((value) => Number.isFinite(value));
+  return `direction-${(used.length ? Math.max(...used) : 0) + 1}`;
+}
+
+/**
+ * The facts of this listing: who appeared, and whether it is posted to a date.
+ *
+ * Both are bounded — the roll grows only with the party count, the next listing is two
+ * fields — so this column can grow without moving anything the bench types. That is
+ * the whole reason it is a column of its own.
+ */
+function ListingFacts({
   appearances,
   draft,
-  rollOpen,
-  onRollOpenChange,
   onMark,
   onNext,
   onPurpose,
   onDate,
-  onAdd,
-  onUpdate,
-  onRemove,
 }: {
   appearances: Appearance[];
   draft: OrderDraft;
-  rollOpen: boolean;
-  onRollOpenChange: (open: boolean) => void;
   onMark: (id: string, mark: AttendanceMark | undefined) => void;
   onNext: (next: NextListingChoice) => void;
   onPurpose: (purpose: CourtHearingPurposeId | "") => void;
   onDate: (day: string | null) => void;
-  onAdd: (typeId: HearingDirectionTypeId) => void;
-  onUpdate: (id: string, body: string) => void;
-  onRemove: (id: string) => void;
 }) {
   return (
-    <div className={`${PANEL} flex flex-col gap-8 lg:col-span-3`}>
+    <div className={`${PANEL} flex flex-col gap-8 lg:col-span-2`}>
       <AttendanceSection
         appearances={appearances}
         marks={draft.marks}
         onMark={onMark}
-        open={rollOpen}
-        onOpenChange={onRollOpenChange}
       />
       <div role="separator" className="h-px w-full bg-hairline" />
       <NextListingSection
@@ -362,75 +396,32 @@ function WorkPanel({
         onPurpose={onPurpose}
         onDate={onDate}
       />
-      <div role="separator" className="h-px w-full bg-hairline" />
-      <DirectionsSection
-        directions={draft.directions}
-        onAdd={onAdd}
-        onUpdate={onUpdate}
-        onRemove={onRemove}
-      />
     </div>
   );
-}
-
-/**
- * What the folded roll says, so collapsing hides the rows and not the fact.
- * Words, not colour — the document is where an absence is inked.
- */
-function rollSummary(
-  appearances: Appearance[],
-  marks: OrderDraft["marks"],
-): string {
-  const present = appearances.filter(
-    (appearance) => marks[appearance.id] === "present",
-  ).length;
-  const absent = appearances.filter(
-    (appearance) => marks[appearance.id] === "absent",
-  ).length;
-  const marked = present + absent;
-  if (marked === 0) return "Not marked";
-  if (marked < appearances.length) {
-    return `${marked} of ${appearances.length} marked`;
-  }
-  if (absent === 0) return `All ${present} present`;
-  if (present === 0) return `All ${absent} absent`;
-  return `${present} present · ${absent} absent`;
 }
 
 function AttendanceSection({
   appearances,
   marks,
   onMark,
-  open,
-  onOpenChange,
 }: {
   appearances: Appearance[];
   marks: OrderDraft["marks"];
   onMark: (id: string, mark: AttendanceMark | undefined) => void;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
 }) {
   return (
-    <section className="flex min-w-0 flex-col" aria-labelledby="order-attendance">
-      {/* The heading owns the button, not the other way round. `Accordion`'s own
-          header is a fixed `h3`, which would put the roll a level below the two
-          sections beside it and skip a level under the page `h1`; `Collapsible`
-          leaves the markup to us, so the three sections stay siblings. */}
-      <Collapsible open={open} onOpenChange={onOpenChange}>
-        <h2 id="order-attendance" className="text-body font-semibold">
-          <CollapsibleTrigger className="group flex w-full items-center justify-between gap-4 rounded-lg py-2 text-left hover:underline focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none">
-            Attendance
-            <span className="flex shrink-0 items-center gap-2 text-caption font-medium tabular-nums text-muted-foreground">
-              {open ? null : rollSummary(appearances, marks)}
-              <ChevronDownIcon
-                className="size-4 transition-transform group-data-[state=open]:rotate-180"
-                aria-hidden
-              />
-            </span>
-          </CollapsibleTrigger>
-        </h2>
-        <CollapsibleContent>
-          <ul className="flex flex-col pt-2">
+    <section
+      className="flex min-w-0 flex-col gap-2"
+      aria-labelledby="order-attendance"
+    >
+      {/* No fold. The roll folded once it was complete, which is after the work the
+          fold was meant to make room for — the composer opens unmarked, so on arrival
+          it gave nothing back. With the roll in its own narrow column beside the
+          typing, its height costs the order nothing and there is nothing to buy. */}
+      <h2 id="order-attendance" className="text-body font-semibold">
+        Attendance
+      </h2>
+      <ul className="flex flex-col">
         {appearances.map((appearance, index) => (
           <li
             key={appearance.id}
@@ -444,12 +435,10 @@ function AttendanceSection({
               appearance={appearance}
               mark={marks[appearance.id]}
               onMark={(mark) => onMark(appearance.id, mark)}
-              />
-            </li>
-          ))}
-          </ul>
-        </CollapsibleContent>
-      </Collapsible>
+            />
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -524,8 +513,12 @@ function NextListingSection({
         <SegmentedControlItem value="none">No next date</SegmentedControlItem>
       </SegmentedControl>
       {choice === "list" ? (
-        <div className="flex flex-col gap-4 md:flex-row md:items-start">
-          <Field className="min-w-0 flex-1">
+        /* Stacked, not side by side. This column is roughly 438px, so a pair would get
+           ~200px each and "For reports (to be received from forensics, ADR, etc)" —
+           which already wraps in the cause list — would truncate in a trigger that
+           narrow. The column is allowed to be tall; nothing waits below it. */
+        <div className="flex flex-col gap-4">
+          <Field className="min-w-0">
             <FieldLabel className="text-body font-medium">Purpose</FieldLabel>
             <Select
               value={purpose || undefined}
@@ -546,10 +539,13 @@ function NextListingSection({
             </Select>
           </Field>
           {/* `DatePicker` owns its trigger and takes no `id`, so the visible label
-              names a group around it rather than pointing `htmlFor` at a control
-              that does not exist. Same pattern as today's hearings filter. */}
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <span id="order-next-date-label" className="w-fit text-body font-medium">
+              names a group around it rather than pointing `htmlFor` at a control that
+              does not exist. Same pattern as today's hearings filter. */}
+          <div className="flex min-w-0 flex-col gap-2">
+            <span
+              id="order-next-date-label"
+              className="w-fit text-body font-medium"
+            >
               Next date
             </span>
             <div role="group" aria-labelledby="order-next-date-label">
@@ -569,7 +565,154 @@ function NextListingSection({
   );
 }
 
-function DirectionsSection({
+/**
+ * The order — and the place the bench writes it.
+ *
+ * It reads in the sequence an order reads: the cause at the head, the roll as it will
+ * be recorded, the numbered directions, then where the matter is posted to. The
+ * generated lines stay generated; only the direction bodies take typing, and they take
+ * it inside the paragraph they will become.
+ *
+ * Nothing here is a second copy of a control in the column beside it, which is the
+ * whole point: the panel that used to sit here said the same sentences twice.
+ */
+function OrderPanel({
+  hearing,
+  attendanceBody,
+  attendancePending,
+  roll,
+  directions,
+  nextBody,
+  nextPending,
+  onAdd,
+  onUpdate,
+  onRemove,
+}: {
+  hearing: CourtHearing;
+  attendanceBody: string;
+  attendancePending: boolean;
+  roll: AttendanceEntry[] | undefined;
+  directions: DirectionDraft[];
+  nextBody: string;
+  nextPending: boolean;
+  onAdd: (typeId: HearingDirectionTypeId) => void;
+  onUpdate: (id: string, body: RichTextValue) => void;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <section
+      className={`${PANEL} flex flex-col gap-8 lg:col-span-3`}
+      aria-labelledby="order-document"
+    >
+      <header className="flex min-w-0 flex-col gap-2">
+        <p className="text-caption font-medium text-muted-foreground">Order</p>
+        <h2 id="order-document" className="text-body font-semibold text-balance">
+          {causeTitle(hearing)}
+        </h2>
+        <p className="text-caption text-muted-foreground">
+          <span className="tabular-nums">{hearing.caseNumber}</span>
+          {" · item "}
+          <span className="tabular-nums">{hearing.item}</span>
+          {" · "}
+          {courtHearingPurposeLabel(hearing.purpose)}
+        </p>
+      </header>
+
+      <OrderBlock heading="Attendance">
+        {roll && roll.length > 0 ? (
+          <AttendanceRoll roll={roll} pending={attendancePending} />
+        ) : (
+          <p className="text-body text-muted-foreground">{attendanceBody}</p>
+        )}
+      </OrderBlock>
+
+      <DirectionsBlock
+        directions={directions}
+        onAdd={onAdd}
+        onUpdate={onUpdate}
+        onRemove={onRemove}
+      />
+
+      <OrderBlock heading="Next listing">
+        <p
+          className={nextPending ? "text-body text-muted-foreground" : "text-body"}
+        >
+          {nextBody}
+        </p>
+      </OrderBlock>
+    </section>
+  );
+}
+
+function OrderBlock({
+  heading,
+  children,
+}: {
+  heading: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="flex min-w-0 flex-col gap-2">
+      <h3 className="text-caption font-medium text-muted-foreground">
+        {heading}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+/**
+ * Who appeared, as the order names them — one sentence per person, not a run-on
+ * paragraph. The name carries the line; the office recedes. Present stays in the
+ * body's colour; absent takes status ink so a miss scans without a chip, and the words
+ * still carry the fact.
+ */
+function AttendanceRoll({
+  roll,
+  pending,
+}: {
+  roll: AttendanceEntry[];
+  pending: boolean;
+}) {
+  return (
+    <ul className="flex flex-col gap-3">
+      {roll.map((entry) => (
+        <li
+          key={entry.id}
+          className={pending ? "text-body text-muted-foreground" : "text-body"}
+        >
+          <span className="font-medium">{entry.name}</span>
+          <span className="text-muted-foreground">, {entry.office}, </span>
+          {entry.mark === "present" ? (
+            "is present"
+          ) : (
+            <span className="text-destructive-ink">is absent</span>
+          )}
+          .
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * The directions, as the numbered paragraphs they are in the order.
+ *
+ * The composer used to print them as unnumbered prose while the signing queue printed
+ * the same artefact as an ordered list — two screens in one court-side flow disagreeing
+ * about the shape of one document. The number was already in the model as list
+ * position; it simply was not on screen.
+ *
+ * Each direction takes formatted text, on the owner's call. Sub-items — (a), (b), (c)
+ * inside one direction — are what plain text genuinely could not carry, and §138
+ * directions do carry them: produce three documents, comply on three conditions. The
+ * editor's own list controls now express that inside a paragraph, where the previous
+ * answer was to split it into a second numbered direction it was not.
+ *
+ * The markup is the editor's own and nothing else's: it blocks pasted HTML, so the
+ * order can only ever hold what this toolbar produced.
+ */
+function DirectionsBlock({
   directions,
   onAdd,
   onUpdate,
@@ -577,52 +720,40 @@ function DirectionsSection({
 }: {
   directions: DirectionDraft[];
   onAdd: (typeId: HearingDirectionTypeId) => void;
-  onUpdate: (id: string, body: string) => void;
+  onUpdate: (id: string, body: RichTextValue) => void;
   onRemove: (id: string) => void;
 }) {
   return (
-    <section
-      className="flex min-w-0 flex-col gap-4"
-      aria-labelledby="order-directions"
-    >
-      <h2 id="order-directions" className="text-body font-semibold">
+    <section className="flex min-w-0 flex-col gap-2">
+      <h3 className="text-caption font-medium text-muted-foreground">
         Directions
-      </h2>
+      </h3>
       {directions.length === 0 ? (
-        <Empty className="border-0 p-0">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <FilePlusIcon aria-hidden />
-            </EmptyMedia>
-            <EmptyTitle className="text-body font-semibold tracking-normal">
-              No directions yet
-            </EmptyTitle>
-            <EmptyDescription className="text-body-compact">
-              Add one or more — a notice, a summons, or whatever this sitting
-              needs.
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            <AddDirectionControl onAdd={onAdd} label="Add direction" />
-          </EmptyContent>
-        </Empty>
+        /* The document's own pending voice — the same muted line "Next date has not
+           been set." uses one block down — rather than an illustrated empty state. An
+           icon in a dashed box halfway through a court order reads as a rendering
+           fault, and the add control is the invitation. */
+        <div className="flex flex-col items-start gap-4">
+          <p className="text-body text-muted-foreground">
+            No directions have been written.
+          </p>
+          <AddDirectionControl onAdd={onAdd} label="Add direction" />
+        </div>
       ) : (
-        <div className="flex flex-col gap-4">
-          <ul className="flex flex-col gap-4">
-            {directions.map((direction) => (
+        <div className="flex flex-col items-start gap-4">
+          <ol className="flex w-full flex-col gap-4">
+            {directions.map((direction, index) => (
               <li key={direction.id}>
-                <DirectionWell
+                <DirectionParagraph
                   direction={direction}
+                  number={index + 1}
                   onUpdate={(body) => onUpdate(direction.id, body)}
                   onRemove={() => onRemove(direction.id)}
                 />
               </li>
             ))}
-          </ul>
-          <AddDirectionControl
-            onAdd={onAdd}
-            label="Add another direction"
-          />
+          </ol>
+          <AddDirectionControl onAdd={onAdd} label="Add another direction" />
         </div>
       )}
     </section>
@@ -630,11 +761,9 @@ function DirectionsSection({
 }
 
 /**
- * Adding a direction is an action, not a field. A Select with placeholder
- * "Add direction" read as picking the one type for this section; the list
- * only revealed itself after the first choice. An outline button opens a
- * menu of types — the same "Add another" pattern as sureties. Preview stays
- * the page's one teal.
+ * Adding a direction is an action, not a field. A select with the placeholder "Add
+ * direction" read as picking the one type for this sitting; the list only revealed
+ * itself after the first choice. A menu says there can be more than one.
  */
 function AddDirectionControl({
   onAdd,
@@ -653,10 +782,7 @@ function AddDirectionControl({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-auto min-w-56">
         {HEARING_DIRECTION_TYPES.map((entry) => (
-          <DropdownMenuItem
-            key={entry.id}
-            onSelect={() => onAdd(entry.id)}
-          >
+          <DropdownMenuItem key={entry.id} onSelect={() => onAdd(entry.id)}>
             {entry.label}
           </DropdownMenuItem>
         ))}
@@ -665,13 +791,15 @@ function AddDirectionControl({
   );
 }
 
-function DirectionWell({
+function DirectionParagraph({
   direction,
+  number,
   onUpdate,
   onRemove,
 }: {
   direction: DirectionDraft;
-  onUpdate: (body: string) => void;
+  number: number;
+  onUpdate: (body: RichTextValue) => void;
   onRemove: () => void;
 }) {
   const headingId = React.useId();
@@ -679,148 +807,127 @@ function DirectionWell({
   return (
     <div className="flex flex-col gap-4 rounded-lg bg-surface-sunken p-4">
       <div className="flex items-start justify-between gap-3">
-        <h3 id={headingId} className="text-body font-semibold">
-          {label}
-        </h3>
+        <h4 id={headingId} className="text-body font-semibold">
+          <span className="tabular-nums">{number}.</span> {label}
+        </h4>
+        {/* Visible, not hover-only: a keyboard has no hover, and a destructive action
+            that appears on approach is one a bench cannot find on purpose. */}
         <Button type="button" variant="ghost" onClick={onRemove}>
           Remove
         </Button>
       </div>
-      <Field>
-        <FieldLabel className="sr-only">{label}</FieldLabel>
-        <Textarea
-          aria-labelledby={headingId}
-          value={direction.body}
-          onChange={(event) => onUpdate(event.target.value)}
-          placeholder="Write the direction in the court's words."
-          className="min-h-24 bg-card"
-        />
-      </Field>
+      {/* The app's one editor, not a second one. `RichTextField` is what the
+          applications forms already use: DS chrome (an `InputGroup` for the bordered
+          well and focus ring, `ToggleGroup` in a toolbar strip) around the one part
+          the design system cannot supply. Nothing under `components/ui` is forked,
+          and the court side does not get an editor of its own to drift from that one.
+
+          Shorter than its default here — a direction is a paragraph, not an affidavit —
+          set through the DS's own `data-slot` hook rather than by editing the shared
+          component a teammate also builds on.
+
+          `labelId` is the heading: a contentEditable region cannot be labelled by a
+          `<label>`, so the numbered heading beside it is what names the field. */}
+      <RichTextField
+        value={direction.body}
+        onChange={onUpdate}
+        labelId={headingId}
+        className="[&_[data-slot=input-group-control]]:min-h-24"
+      />
     </div>
   );
 }
 
 /**
- * The order as it will read, beside the work and sticky, so the words land in a
- * document while they are being written.
+ * The order as paper — the one place it appears with no controls in it.
+ *
+ * The same facsimile treatment the signing queue uses on the same artefact, so the
+ * order a bench reads back here is the order it will see when it comes to sign. Paper
+ * is fixed in both themes by design and is never app chrome, which is why it lives in
+ * this dialog and not under the textareas.
+ *
+ * No download. There is no court record to download — the order has not been issued,
+ * and offering a file would claim one.
  */
-function DocumentPanel({ order }: { order: AssembledOrder }) {
-  return (
-    <section
-      /* The offset is the frame's, not a number chosen here: the bar is `sticky top-0`,
-         so `lg:top-8` would pin this panel a third of the way underneath it. See
-         `--chrome-sticky-top` in `app-chrome.tsx`. */
-      className={`${PANEL} lg:sticky lg:top-(--chrome-sticky-top) lg:col-span-2`}
-      aria-label="Order as it will read"
-    >
-      <OrderProse order={order} />
-    </section>
-  );
-}
-
-function OrderProse({ order }: { order: AssembledOrder }) {
-  return (
-    <article className="flex flex-col gap-8">
-      <header className="flex flex-col gap-2">
-        <p className="text-caption font-medium text-muted-foreground">Order</p>
-        <h2 className="text-body font-semibold text-balance">{order.cause}</h2>
-        <p className="text-caption text-muted-foreground">
-          <span className="tabular-nums">{order.caseNumber}</span>
-          {" · item "}
-          <span className="tabular-nums">{order.item}</span>
-          {" · "}
-          {order.purpose}
-        </p>
-      </header>
-      {order.blocks.map((block) => (
-        <section key={block.id} className="flex flex-col gap-2">
-          <h3 className="text-caption font-medium text-muted-foreground">
-            {block.heading}
-          </h3>
-          {block.appearances && block.appearances.length > 0 ? (
-            <AttendanceRoll
-              appearances={block.appearances}
-              pending={block.pending}
-            />
-          ) : (
-            <p
-              className={
-                block.pending
-                  ? "text-body text-muted-foreground"
-                  : "text-body"
-              }
-            >
-              {block.body}
-            </p>
-          )}
-        </section>
-      ))}
-    </article>
-  );
-}
-
-/**
- * Who appeared, as the order names them — one sentence per person, not a
- * run-on paragraph. The name carries the line; the office recedes. Present
- * stays in the body's colour. Absent uses `text-destructive-ink` (status
- * text on a neutral surface — colors foundation) so the miss is visible
- * without a chip, and the words still carry the fact (never colour alone).
- */
-function AttendanceRoll({
-  appearances,
-  pending,
-}: {
-  appearances: NonNullable<AssembledOrder["blocks"][number]["appearances"]>;
-  pending: boolean;
-}) {
-  return (
-    <ul className="flex flex-col gap-3">
-      {appearances.map((entry) => (
-        <li
-          key={entry.id}
-          className={
-            pending ? "text-body text-muted-foreground" : "text-body"
-          }
-        >
-          <span className="font-medium">{entry.name}</span>
-          <span className="text-muted-foreground">, {entry.office}, </span>
-          {entry.mark === "present" ? (
-            "is present"
-          ) : (
-            <span className="text-destructive-ink">is absent</span>
-          )}
-          .
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function PreviewDialog({
-  order,
+  document,
   open,
   onOpenChange,
 }: {
-  order: AssembledOrder;
+  document: OrderDocument;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const pageDialog = useChromePageDialog();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className={`flex max-h-[90svh] flex-col gap-6 overflow-hidden sm:max-w-2xl ${pageDialog}`}
+      <ChromeDialogContent
+        className="flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl md:h-[85dvh]"
       >
-        <DialogHeader className="shrink-0 pr-12">
-          <DialogTitle className="text-title font-semibold">Preview</DialogTitle>
-          <DialogDescription className="text-body">
-            This is the order as it will read. It has not been issued.
+        <DialogHeader className="shrink-0 gap-2 p-6 pr-16">
+          <DialogTitle className="text-title-s font-semibold">
+            Preview
+          </DialogTitle>
+          <DialogDescription className="text-body-compact text-muted-foreground">
+            {document.matter} · {document.caseNumber} — the order as it will read.
+            It has not been issued.
           </DialogDescription>
         </DialogHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]">
-          <OrderProse order={order} />
+        <div className="flex min-h-0 flex-1 flex-col px-6 pb-6">
+          <DocumentPreview
+            className="min-h-96 md:min-h-0"
+            height="fill"
+            title={document.title}
+            source={{
+              kind: "composed",
+              content: <OrderFacsimile document={document} />,
+            }}
+          />
         </div>
-      </DialogContent>
+      </ChromeDialogContent>
     </Dialog>
+  );
+}
+
+function OrderFacsimile({ document }: { document: OrderDocument }) {
+  return (
+    <article className="flex flex-col gap-6 rounded-md bg-paper p-6 text-paper-foreground">
+      <header className="flex flex-col gap-2 text-center">
+        <p className="text-body font-semibold">{document.court}</p>
+        <p className="text-body font-semibold">Case no. {document.caseNumber}</p>
+        <p className="text-body font-semibold">{document.matter}</p>
+      </header>
+
+      <h3 className="text-center text-body font-semibold">{document.title}</h3>
+
+      <p className="text-body">{document.opening}</p>
+
+      {document.directions.length > 0 ? (
+        <ol className="flex list-decimal flex-col gap-3 ps-6">
+          {document.directions.map((direction) => (
+            <li key={direction.id} className="text-body">
+              {direction.pending ? (
+                /* Unwritten: the paper says so in the muted voice the rest of the
+                   document uses, rather than printing an empty paragraph. */
+                <span className="text-paper-muted-foreground">
+                  {direction.body}
+                </span>
+              ) : (
+                <RichTextValueView
+                  value={{ html: direction.html, text: direction.body }}
+                />
+              )}
+            </li>
+          ))}
+        </ol>
+      ) : null}
+
+      <p className="text-body">{document.closing}</p>
+
+      <p className="text-body">Dated {document.dated}.</p>
+
+      <p className="text-body text-paper-muted-foreground">
+        {document.signature}
+      </p>
+    </article>
   );
 }

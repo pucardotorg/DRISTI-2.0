@@ -2,12 +2,13 @@
 
 import * as React from "react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import { EMPTY_PROFILE, useProfile } from "@/lib/filing/profile";
 import type { UserProfile } from "@/lib/filing/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -30,10 +31,10 @@ export function ProfileDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <ChromeDialogContent className="sm:max-w-md">
         {/* Mounted per open, so the form always starts from the stored profile. */}
         {open ? <ProfileForm onClose={() => onOpenChange(false)} /> : null}
-      </DialogContent>
+      </ChromeDialogContent>
     </Dialog>
   );
 }

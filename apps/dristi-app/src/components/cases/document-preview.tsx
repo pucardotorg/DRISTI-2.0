@@ -3,6 +3,8 @@
 import { type ReactNode } from "react";
 import { DownloadIcon, FileTextIcon, Maximize2Icon } from "lucide-react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import {
   FilePreviewImage,
   formatFileSize,
@@ -11,7 +13,6 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -283,7 +284,7 @@ function FullViewDialog({
           <Maximize2Icon data-icon="inline-end" aria-hidden />
         </Button>
       </DialogTrigger>
-      <DialogContent className="flex h-[92svh] flex-col gap-4 overflow-hidden sm:max-w-[calc(100%-4rem)]">
+      <ChromeDialogContent className="flex h-[92svh] flex-col gap-4 overflow-hidden sm:max-w-[calc(100%-4rem)]">
         {/*
           Same rule as the inline header: title left, actions right. Download
           is repeated rather than duplicated — the row that carries it is
@@ -308,7 +309,7 @@ function FullViewDialog({
           source={source}
           className="min-h-0 flex-1"
         />
-      </DialogContent>
+      </ChromeDialogContent>
     </Dialog>
   );
 }

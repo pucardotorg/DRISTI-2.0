@@ -35,6 +35,8 @@ import {
   UploadIcon,
 } from "lucide-react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import { getRepository, storeUpload } from "@/lib/filing/data";
 import { forgetFile, formatBytes } from "@/lib/filing/files";
 import { addressToString, rupees, toLongDate } from "@/lib/filing/format";
@@ -56,7 +58,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -743,7 +744,7 @@ export function SignSection() {
         it reaches before either one is clickable, not after (owner, 2026-08-19).
       */}
       <Dialog open={modal === "choose"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className="sm:max-w-lg">
+        <ChromeDialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>How will this complaint be signed?</DialogTitle>
             <DialogDescription>
@@ -825,7 +826,7 @@ export function SignSection() {
               Print or save as PDF
             </Button>
           </p>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       {/*
@@ -835,7 +836,7 @@ export function SignSection() {
         corner, and everything around it is a caption.
       */}
       <Dialog open={modal === "esign"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className="sm:max-w-sm">
+        <ChromeDialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Enter the OTP</DialogTitle>
             <DialogDescription>
@@ -905,7 +906,7 @@ export function SignSection() {
           <p className="text-center text-caption text-muted-foreground">
             Sandbox — any six digits work.
           </p>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       {/* ── Upload signed complaint ── */}
@@ -918,7 +919,7 @@ export function SignSection() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-xl">
+        <ChromeDialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Upload signed complaint</DialogTitle>
             <DialogDescription>
@@ -997,7 +998,7 @@ export function SignSection() {
               Submit as fully signed
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       {/* ── Pay court fees ── */}
@@ -1010,7 +1011,7 @@ export function SignSection() {
         total nobody can account for is a total nobody should be asked to pay.
       */}
       <Dialog open={modal === "payment"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className="sm:max-w-xl">
+        <ChromeDialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Pay court fees</DialogTitle>
             <DialogDescription>
@@ -1095,12 +1096,12 @@ export function SignSection() {
               Go back
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       {/* ── Select process & address ── */}
       <Dialog open={modal === "procaddr"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className="sm:max-w-2xl">
+        <ChromeDialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Select process &amp; address</DialogTitle>
             <DialogDescription>
@@ -1210,12 +1211,12 @@ export function SignSection() {
               Save &amp; next
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       {/* ── Processing ── */}
       <Dialog open={modal === "processing"}>
-        <DialogContent
+        <ChromeDialogContent
           className="sm:max-w-sm"
           showCloseButton={false}
           onEscapeKeyDown={(e) => e.preventDefault()}
@@ -1233,12 +1234,12 @@ export function SignSection() {
               Sandbox payment — no money moves.
             </p>
           </div>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       {/* ── Payment successful ── */}
       <Dialog open={modal === "success"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent
+        <ChromeDialogContent
           showCloseButton={false}
           className="gap-0 overflow-hidden p-0 sm:max-w-lg"
         >
@@ -1298,7 +1299,7 @@ export function SignSection() {
               </Button>
             </div>
           </div>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       {/* ── Leaving with signatures on the sheet ── */}

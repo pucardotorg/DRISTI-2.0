@@ -11,25 +11,34 @@ import {
   ListOrderedIcon,
 } from "lucide-react";
 
+import { cn } from "@/lib/utils";
 import { useFieldControlProps } from "@/components/ui/field";
-import { InputGroup, InputGroupAddon } from "@/components/ui/input-group";
+import { InputGroup } from "@/components/ui/input-group";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 /**
  * Formatted long-form input, composed at screen level.
  *
- * The design system has no rich text editor (see the escalation note in the
- * build report), so this borrows DS chrome rather than inventing any: an
- * InputGroup supplies the bordered well, focus ring and invalid state that
- * Textarea would have given, a block-start addon carries the toolbar, and the
- * toolbar controls are DS ToggleGroups. Nothing under components/ui is edited
- * or forked.
+ * The design system has no rich text editor (ds-requests #7), so this borrows
+ * DS chrome rather than inventing any: an InputGroup supplies the bordered
+ * well, focus ring and invalid state that Textarea would have given, and the
+ * marks are DS ToggleGroups in a `role="toolbar"` strip. Nothing under
+ * `components/ui` is edited or forked.
+ *
+ * InputGroupAddon is not the toolbar. That slot is prefix chrome (a dialling
+ * code, a search icon) — `cursor-text`, muted label colour, click-to-focus an
+ * `<input>`. Putting ToggleGroups there made the strip read as a second field
+ * row. The layout hook InputGroup already exposes (`h-auto flex-col`) is
+ * enough to stack a toolbar above the control.
  *
  * The editing surface itself is the piece the DS cannot supply — a
  * contentEditable region driven by document.execCommand. That API is
  * deprecated but still the only dependency-free way to get bold, italic,
  * lists and alignment out of one surface.
  */
+
+const LIST_CLASSES =
+  "[&_ol]:list-decimal [&_ol]:ps-6 [&_ul]:list-disc [&_ul]:ps-6";
 
 /** Both shapes are kept: html renders the formatting, text drives validation. */
 export type RichTextValue = {
@@ -134,20 +143,25 @@ export function RichTextField({
   }, [syncToolbar]);
 
   function run(commands: string[]) {
-    editorRef.current?.focus();
+    const editor = editorRef.current;
+    if (!editor) return;
+    if (document.activeElement !== editor) editor.focus();
     for (const command of commands) document.execCommand(command);
     emitChange();
     syncToolbar();
   }
 
   return (
-    <InputGroup className={className}>
-      <InputGroupAddon
-        align="block-start"
-        className="flex-wrap gap-2 border-b border-border"
-        onClick={(event) => {
-          if ((event.target as HTMLElement).closest("button")) return;
-          editorRef.current?.focus();
+    <InputGroup className={cn("h-auto flex-col items-stretch", className)}>
+      <div
+        role="toolbar"
+        aria-label="Formatting"
+        className="flex w-full flex-wrap items-center gap-2 border-b border-hairline px-2 py-1"
+        onMouseDownCapture={(event) => {
+          // A button mousedown would steal focus and collapse the range
+          // before execCommand runs. Cancel the default; the click still
+          // fires and the selection stays in the textbox.
+          event.preventDefault();
         }}
       >
         <ToggleGroup
@@ -219,7 +233,7 @@ export function RichTextField({
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
-      </InputGroupAddon>
+      </div>
 
       <div
         {...fieldProps}
@@ -230,7 +244,10 @@ export function RichTextField({
         aria-labelledby={labelId}
         contentEditable
         suppressContentEditableWarning
-        className="w-full min-h-64 px-2.5 py-2 text-body outline-none [&_ol]:list-decimal [&_ol]:ps-6 [&_ul]:list-disc [&_ul]:ps-6"
+        className={cn(
+          "w-full min-h-64 px-2.5 py-2 text-body outline-none",
+          LIST_CLASSES
+        )}
         onInput={emitChange}
         onFocus={syncToolbar}
         onPaste={(event) => {
@@ -262,7 +279,7 @@ export function RichTextValueView({
 }) {
   return (
     <div
-      className={className}
+      className={cn(LIST_CLASSES, className)}
       dangerouslySetInnerHTML={{ __html: value.html }}
     />
   );

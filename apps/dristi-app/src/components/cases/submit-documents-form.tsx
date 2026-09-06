@@ -3,6 +3,8 @@
 import { useId, useMemo, useRef, useState } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import { DocumentPreview } from "@/components/cases/document-preview";
 import {
   ChoicePillGroup,
@@ -23,7 +25,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -248,7 +249,7 @@ function DocumentPreviewDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
+      <ChromeDialogContent
         className="grid-rows-[auto_1fr_auto] max-h-[85dvh] sm:max-w-2xl"
         // Radix's own restore lands on document.body here, so put focus back
         // on the button that opened the dialog explicitly.
@@ -274,7 +275,7 @@ function DocumentPreviewDialog({
             Submit
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </ChromeDialogContent>
     </Dialog>
   );
 }

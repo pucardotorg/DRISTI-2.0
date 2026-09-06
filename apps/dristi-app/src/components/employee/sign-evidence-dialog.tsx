@@ -2,13 +2,14 @@
 
 import * as React from "react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import { ReviewRow } from "@/components/cases/filing-form-shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DescriptionList } from "@/components/ui/description-list";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -145,7 +146,7 @@ function SignEvidenceBody({
   }, [step]);
 
   return (
-    <DialogContent
+    <ChromeDialogContent
       className="max-h-[85dvh] overflow-y-auto sm:max-w-lg"
       onCloseAutoFocus={(event) => {
         event.preventDefault();
@@ -172,7 +173,7 @@ function SignEvidenceBody({
           }}
         />
       )}
-    </DialogContent>
+    </ChromeDialogContent>
   );
 }
 

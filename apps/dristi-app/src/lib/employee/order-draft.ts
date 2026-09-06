@@ -12,11 +12,16 @@
  * Start / End hearing and bulk reschedule already make.
  */
 
+import type { RichTextValue } from "@/components/cases/rich-text-field";
+
+import { CURRENT_STAFF } from "./content";
 import {
+  CAUSE_LIST,
   causeTitle,
   counselFor,
   courtHearingPurposeLabel,
   formatCourtDay,
+  withHearingSession,
   type CourtHearing,
   type CourtHearingPurposeId,
 } from "./hearings";
@@ -99,7 +104,13 @@ export function hearingDirectionLabel(id: HearingDirectionTypeId): string {
 export type DirectionDraft = {
   id: string;
   typeId: HearingDirectionTypeId;
-  body: string;
+  /**
+   * Both shapes, the convention `rich-text-field.tsx` sets and the applications draft
+   * already follows: `html` is what the order renders, `text` is what decides whether
+   * the direction has been written at all. Imported as a type only — this module is
+   * read by a node test, and a value import would drag a client component into it.
+   */
+  body: RichTextValue;
 };
 
 export type NextListingChoice = "list" | "none";
@@ -124,7 +135,10 @@ export const EMPTY_ORDER_DRAFT: OrderDraft = {
 export type OrderBlock = {
   id: string;
   heading: string;
+  /** The plain sentence — what a reader hears, and what "written" is measured on. */
   body: string;
+  /** Directions only: the same words with the composer's formatting kept. */
+  html?: string;
   pending: boolean;
   /**
    * Attendance only. When present, the document renders a roll of names rather
@@ -232,7 +246,9 @@ export function assembleNextListing(
 
 export function assembleDirection(direction: DirectionDraft): OrderBlock {
   const heading = hearingDirectionLabel(direction.typeId);
-  const body = direction.body.trim();
+  /* On the text, not the markup: an empty editor still holds a `<br>`, and a direction
+     that is only formatting is a direction nobody wrote. */
+  const body = direction.body.text.trim();
   if (!body) {
     return {
       id: direction.id,
@@ -241,7 +257,13 @@ export function assembleDirection(direction: DirectionDraft): OrderBlock {
       pending: true,
     };
   }
-  return { id: direction.id, heading, body, pending: false };
+  return {
+    id: direction.id,
+    heading,
+    body,
+    html: direction.body.html,
+    pending: false,
+  };
 }
 
 export function assembleOrder(
@@ -259,5 +281,95 @@ export function assembleOrder(
       ...draft.directions.map(assembleDirection),
       assembleNextListing(draft),
     ],
+  };
+}
+
+/**
+ * The next matter the bench has not yet taken up — what Next item calls.
+ *
+ * The board is the board: this reads today's cause list with the sitting's own marks
+ * applied, and ignores whatever filter or page the list was left on. A filtered view
+ * is how one person is looking at the day, not what the day contains.
+ *
+ * Only a `scheduled` listing is unhandled. Completed matters have been heard, and a
+ * passed-over one was deliberately skipped — recalling it is a decision the bench makes
+ * from the list, not a default the composer takes on its behalf (`canPassOver`). Item
+ * order, forward only, so "next" means what it says; the caller names the item number
+ * it found, so a gap in the sequence is disclosed rather than silent.
+ */
+export function nextUnhandledListing(
+  hearing: CourtHearing,
+  session: {
+    ongoingId: string | null;
+    endedIds: ReadonlySet<string>;
+    passedOverIds: ReadonlySet<string>;
+  },
+): CourtHearing | undefined {
+  return withHearingSession(CAUSE_LIST, session)
+    .filter((row) => row.status === "scheduled" && row.item > hearing.item)
+    .sort((a, b) => a.item - b.item)[0];
+}
+
+/**
+ * The order as paper — what Preview shows.
+ *
+ * Shaped as the facsimile the signing queue already prints (`sign-order-dialog.tsx`):
+ * court and cause at the head, the directions as an ordered list, the date, then the
+ * signature block. The composer and the signing queue print the same artefact, so they
+ * must not disagree about what it looks like.
+ *
+ * Attendance opens the order and the next listing closes it, both as plain sentences.
+ * Only the directions are numbered, and they carry the same numbers the composer shows,
+ * so a direction can be named by number in either place.
+ *
+ * **Nothing here is issued.** The signature block says the order is unsigned, because
+ * it is, and this build has no act that would change that.
+ */
+export type OrderDocument = {
+  court: string;
+  caseNumber: string;
+  matter: string;
+  title: string;
+  /** Attendance, as it opens the order. */
+  opening: string;
+  directions: {
+    id: string;
+    heading: string;
+    body: string;
+    /** Empty while the direction is unwritten — the paper then prints the plain line. */
+    html: string;
+    pending: boolean;
+  }[];
+  /** The next listing, as it closes the order. */
+  closing: string;
+  dated: string;
+  signature: string;
+};
+
+export function buildOrderDocument(
+  hearing: CourtHearing,
+  draft: OrderDraft,
+  day: string,
+): OrderDocument {
+  const appearances = appearancesFor(hearing);
+  return {
+    court: `Before the ${CURRENT_STAFF.court}`,
+    caseNumber: hearing.caseNumber,
+    matter: causeTitle(hearing),
+    title: "Order",
+    opening: assembleAttendance(appearances, draft.marks).body,
+    directions: draft.directions.map((direction) => {
+      const block = assembleDirection(direction);
+      return {
+        id: block.id,
+        heading: block.heading,
+        body: block.body,
+        html: block.html ?? "",
+        pending: block.pending,
+      };
+    }),
+    closing: assembleNextListing(draft).body,
+    dated: formatCourtDay(day),
+    signature: "Pending the signature of the magistrate.",
   };
 }

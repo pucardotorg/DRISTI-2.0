@@ -1,7 +1,11 @@
 "use client";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
 import { cn } from "@/lib/utils";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { SourceRegion } from "@/components/filing/source-panel";
 
 /** Full-size view of an uploaded image (cheque, Aadhaar, notice…). */
@@ -31,7 +35,7 @@ export function Lightbox({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn("max-w-[calc(100%-2rem)] p-0 sm:max-w-4xl", region && "gap-0")}>
+      <ChromeDialogContent className={cn("max-w-[calc(100%-2rem)] p-0 sm:max-w-4xl", region && "gap-0")}>
         <DialogTitle className="sr-only">{alt || "Document"}</DialogTitle>
         {src ? (
           <div className="relative overflow-hidden rounded-xl">
@@ -53,7 +57,7 @@ export function Lightbox({
         {caption ? (
           <p className="px-4 pb-4 text-caption text-muted-foreground">{caption}</p>
         ) : null}
-      </DialogContent>
+      </ChromeDialogContent>
     </Dialog>
   );
 }

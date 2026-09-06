@@ -13,6 +13,8 @@
 import * as React from "react";
 import { SendIcon } from "lucide-react";
 
+import { ChromeAlertDialogContent } from "@/components/chrome/app-chrome";
+
 import { dueCueOf } from "@/lib/tasks/format";
 import { TERMINAL } from "@/lib/tasks/permissions";
 import { file, saveDraft } from "@/lib/tasks/transitions";
@@ -21,7 +23,6 @@ import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -128,7 +129,7 @@ function FileCard({ ctx, files, complete }: { ctx: ActContext; files: StoredFile
       </div>
       <p className="text-caption text-muted-foreground">Sandbox — nothing reaches the registry.</p>
       <AlertDialog open={confirm} onOpenChange={setConfirm}>
-        <AlertDialogContent>
+        <ChromeAlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>File with the court?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -148,7 +149,7 @@ function FileCard({ ctx, files, complete }: { ctx: ActContext; files: StoredFile
               File
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
+        </ChromeAlertDialogContent>
       </AlertDialog>
     </RailCard>
   );

@@ -11,11 +11,12 @@ import {
   Trash2Icon,
 } from "lucide-react";
 
+import { ChromeDialogContent, ChromeAlertDialogContent } from "@/components/chrome/app-chrome";
+
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -24,7 +25,6 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -1366,7 +1366,7 @@ export function AddWitnessDialog() {
           else requestExit();
         }}
       >
-      <DialogContent className="flex max-h-[90svh] flex-col gap-6 overflow-hidden sm:max-w-4xl">
+      <ChromeDialogContent className="flex max-h-[90svh] flex-col gap-6 overflow-hidden sm:max-w-4xl">
         <div className="flex shrink-0 flex-col gap-6">
           <nav aria-label="Add witness progress">
             <Stepper className="mx-auto w-full max-w-xl">
@@ -1471,14 +1471,14 @@ export function AddWitnessDialog() {
             />
           </DialogFooter>
         </form>
-      </DialogContent>
+      </ChromeDialogContent>
     </Dialog>
 
       <AlertDialog
         open={exitConfirmationOpen}
         onOpenChange={setExitConfirmationOpen}
       >
-        <AlertDialogContent>
+        <ChromeAlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard witness draft?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -1495,7 +1495,7 @@ export function AddWitnessDialog() {
               Discard draft
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
+        </ChromeAlertDialogContent>
       </AlertDialog>
 
       <AlertDialog
@@ -1504,7 +1504,7 @@ export function AddWitnessDialog() {
           if (!next) setAddressPendingRemoval(null);
         }}
       >
-        <AlertDialogContent>
+        <ChromeAlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remove this address?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -1525,7 +1525,7 @@ export function AddWitnessDialog() {
               Remove address
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
+        </ChromeAlertDialogContent>
       </AlertDialog>
     </>
   );

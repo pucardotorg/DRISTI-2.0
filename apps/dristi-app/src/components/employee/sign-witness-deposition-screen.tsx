@@ -5,19 +5,9 @@ import { SearchIcon, SearchXIcon, UserCheckIcon } from "lucide-react";
 
 import { CounselCell } from "@/components/employee/counsel-cell";
 import { ListFooter } from "@/components/employee/list-footer";
+import { SignBulkConfirmDialog } from "@/components/employee/sign-bulk-confirm-dialog";
 import { SignWitnessDepositionDialog } from "@/components/employee/sign-witness-deposition-dialog";
 import { SignWitnessDepositionTable } from "@/components/employee/sign-witness-deposition-table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -101,8 +91,11 @@ export function SignWitnessDepositionScreen() {
     () => new Set(),
   );
   const [open, setOpen] = React.useState<WitnessDeposition | null>(null);
+  const [bulkOpen, setBulkOpen] = React.useState(false);
   const [notice, setNotice] = React.useState("");
   const searchRef = React.useRef<HTMLInputElement>(null);
+  /* The bulk confirmation hands focus back here on the way out — see its `triggerRef`. */
+  const signRef = React.useRef<HTMLButtonElement>(null);
 
   const remaining = WITNESS_DEPOSITION_QUEUE.filter(
     (deposition) => !signedIds.has(deposition.id),
@@ -126,6 +119,10 @@ export function SignWitnessDepositionScreen() {
    */
   const visibleIds = new Set(rows.map((deposition) => deposition.id));
   const selectedIds = new Set([...picked].filter((id) => visibleIds.has(id)));
+  /* In list order, so the confirmation's summary reads the way the table does. */
+  const selectedDepositions = rows.filter((deposition) =>
+    selectedIds.has(deposition.id),
+  );
 
   const canSearch = isPendingFilterChange(draft, applied);
 
@@ -270,9 +267,26 @@ export function SignWitnessDepositionScreen() {
           count={selectedIds.size}
           notice={notice}
           onClearSelection={() => setPicked(new Set())}
-          onSign={() => sign([...selectedIds])}
+          onRequestSign={() => setBulkOpen(true)}
+          signRef={signRef}
         />
       ) : null}
+
+      {/* Confirm the count, then say what became of it — the shared bulk confirmation
+          every signing queue runs. It hangs off the screen rather than off the bar,
+          because signing the last rows in view takes the bar away with it. */}
+      <SignBulkConfirmDialog
+        noun="deposition"
+        count={selectedIds.size}
+        selection={{
+          cases: selectedDepositions.map((deposition) => deposition.caseNumber),
+        }}
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        triggerRef={signRef}
+        onConfirm={() => sign([...selectedIds])}
+        onReturnFocus={returnFocus}
+      />
 
       <SignWitnessDepositionDialog
         deposition={open}
@@ -384,12 +398,16 @@ function SignBar({
   count,
   notice,
   onClearSelection,
-  onSign,
+  onRequestSign,
+  signRef,
 }: {
   count: number;
   notice: string;
   onClearSelection: () => void;
-  onSign: () => void;
+  /** Opens the shared confirmation. The act itself lives on the screen. */
+  onRequestSign: () => void;
+  /** Handed down so the confirmation can give the keyboard back to this button. */
+  signRef: React.Ref<HTMLButtonElement>;
 }) {
   const summary =
     notice ||
@@ -413,43 +431,17 @@ function SignBar({
           </Button>
         ) : null}
 
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button disabled={count === 0} className="w-full sm:w-fit">
-              {count > 0
-                ? `Sign ${count} ${plural(count, "deposition", "depositions")}`
-                : "Sign selected depositions"}
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                {count === 1
-                  ? "Sign this deposition and publish it?"
-                  : `Sign ${count} depositions and publish them?`}
-              </AlertDialogTitle>
-              <AlertDialogDescription className="text-body">
-                {count === 1
-                  ? "Your signature goes on the deposition and it is published to the case. This cannot be reversed."
-                  : "Your signature goes on every deposition selected and each one is published to its case. This cannot be reversed."}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-
-            {/* The court has not built the act, so the screen does not mime it. Said
-                here, at the moment of the act, rather than left for the bench to
-                discover. */}
-            <p className="text-caption text-muted-foreground">
-              Not part of this build — nothing is signed, published or sent.
-            </p>
-
-            <AlertDialogFooter>
-              <AlertDialogCancel>Back</AlertDialogCancel>
-              <AlertDialogAction onClick={onSign}>
-                Sign and publish
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <Button
+          ref={signRef}
+          type="button"
+          disabled={count === 0}
+          className="w-full sm:w-fit"
+          onClick={onRequestSign}
+        >
+          {count > 0
+            ? `Sign ${count} ${plural(count, "deposition", "depositions")}`
+            : "Sign selected depositions"}
+        </Button>
       </div>
     </div>
   );

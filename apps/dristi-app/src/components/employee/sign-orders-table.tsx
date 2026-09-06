@@ -41,27 +41,27 @@ const cellClass =
  * checking them, not by opening eighteen dialogs. `SignFormsTable` beside it works the
  * same way for the same reason.
  *
- * **The title is the row's emphasised cell, not the cause.** Every other court-side
- * queue leads with the cause title, because one row there is one case. Here it is not:
- * four rows of this queue are the same case, and the only thing that tells them apart is
- * which decision each one carries. So the title carries the weight and the click, and
- * the cause and its number sit beside it as the plain facts of where the order belongs —
- * the reference's own division, and the reason it underlines that column and no other.
+ * **The cause name opens the row, matching Sign forms.** The title is still the fact
+ * that tells four rows of one case apart, so it stays in its own column as plain text.
+ * The click lives on the cause, and the accessible name of that button carries the
+ * title as well, so four links are not read as the same case four times
+ * (ACCESSIBILITY §2, §9).
  *
  * **The case name and its number stay two columns.** The reference joins them into one
  * ("AdvocateTest and 1 Other vs Automate Company , ST/198/2026"); every court-side queue
  * we have splits them, and a bench scanning a column of numbers should not have to read
  * past a party name to find one (owner instruction, 2026-09-03).
  *
- * **The row is not the click target.** Its sibling review queues open a dialog from
- * anywhere on the row; this one cannot, because the row already owns a checkbox. A row
- * that both selects and opens on the same click has to guess which the bench meant. So
- * the checkbox selects, the title opens, and nothing else in the row is clickable.
+ * **A pointer on the rest of the row opens it too.** The checkbox still selects, and
+ * keyboard still lands on the case name — a row that was itself a button would steal
+ * the checkbox's target and add a second tab stop. Mouse and touch do not have that
+ * problem, so a click anywhere else on the row opens the order, matching Sign forms
+ * from the first column the bench reaches (owner, 2026-09-06).
  *
  * There is no row menu. The reference draws a kebab in a trailing Actions column, but
  * every act it could hold is already here — signing is the checkbox and the dialog, and
- * Download lives inside the preview the title opens — so it would be furniture around
- * a hole (deviation logged in the build report).
+ * Download lives inside the preview the case name opens — so it would be furniture
+ * around a hole (deviation logged in the build report).
  *
  * The panel shell (border, fill, shadow) lives on the screen around this, so the table
  * is one panel rather than a box inside a box.
@@ -150,11 +150,17 @@ export function SignOrdersTable({
         {rows.map((order) => {
           const pending = order.status === "pending-signature";
           const selected = selectedIds.has(order.id);
+          const title = signOrderTypeLabel(order.type);
           return (
             <TableRow
               key={order.id}
               data-state={selected ? "selected" : undefined}
-              className="bg-card"
+              className="cursor-pointer bg-card"
+              onClick={(event) => {
+                const target = event.target as HTMLElement;
+                if (target.closest("button, a, [role=checkbox], label")) return;
+                onOpen(order);
+              }}
             >
               <TableCell className={cn(cellClass, "w-12")}>
                 {/* A signed order has nothing to select. The cell stays for the column,
@@ -163,25 +169,18 @@ export function SignOrdersTable({
                   <Checkbox
                     checked={selected}
                     onCheckedChange={() => onToggle(order)}
-                    aria-label={`Select ${signOrderTypeLabel(order.type)} in ${order.caseNumber}`}
+                    aria-label={`Select ${title} in ${order.caseNumber}`}
                   />
                 ) : null}
               </TableCell>
-              <TableCell className={cn(cellClass, "min-w-56 whitespace-normal")}>
-                {causeTitle(order)}
-              </TableCell>
+              {/* The row's opener, matching Sign forms. Quiet `text-foreground` rather
+                  than a teal underline: the teal is rationed for the one strong action
+                  on the screen, and eighteen underlined teal names down a column is the
+                  colour ui-craft §4 spends it on instead. The underline arrives on hover
+                  and focus, where it is an affordance rather than decoration. */}
               <TableCell
-                className={cn(cellClass, "tabular-nums whitespace-nowrap")}
+                className={cn(cellClass, "min-w-56 font-medium whitespace-normal")}
               >
-                {order.caseNumber}
-              </TableCell>
-              {/* The row's one emphasised cell, and its only opener. Quiet
-                  `text-foreground` rather than the reference's teal underline: the teal
-                  is rationed for the one strong action on the screen, and eighteen
-                  underlined teal titles down a column is the colour ui-craft §4 spends
-                  it on instead. The underline arrives on hover and focus, where it is an
-                  affordance rather than decoration. */}
-              <TableCell className={cn(cellClass, "min-w-56 whitespace-normal")}>
                 <button
                   type="button"
                   onClick={() => onOpen(order)}
@@ -189,9 +188,21 @@ export function SignOrdersTable({
                 >
                   <span className="sr-only">
                     {pending ? "Read and sign " : "Read "}
+                    {title} in{" "}
                   </span>
-                  {signOrderTypeLabel(order.type)}
+                  {causeTitle(order)}
                 </button>
+              </TableCell>
+              <TableCell
+                className={cn(cellClass, "tabular-nums whitespace-nowrap")}
+              >
+                {order.caseNumber}
+              </TableCell>
+              {/* Which decision this is — the fact that tells four rows of one case
+                  apart. Plain text, like process type on Sign forms: the opener already
+                  carries the row's weight. */}
+              <TableCell className={cn(cellClass, "min-w-56 whitespace-normal")}>
+                {title}
               </TableCell>
               {/* Status is the one tinted mark in the row, and it carries its own word —
                   never colour alone (ACCESSIBILITY §3). `warning` is the variant the

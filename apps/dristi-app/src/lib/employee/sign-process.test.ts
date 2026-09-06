@@ -1,0 +1,355 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+import {
+  advanceProcesses,
+  buildProcessDocument,
+  COURT_PROCESS_TYPES,
+  countAdvancing,
+  defaultProcessFilters,
+  filterProcesses,
+  PROCESS_LINE,
+  PROCESS_QUEUE_COUNT,
+  PROCESS_STAGES,
+  processDocumentText,
+  processStage,
+  processesAt,
+  type CourtProcess,
+  type ProcessStageId,
+} from "./sign-process";
+
+/** The stages a row can be standing in, in the order it travels through them. */
+const ORDER: ProcessStageId[] = PROCESS_STAGES.map((stage) => stage.id);
+
+/** Every day a row carries, in the order the line stamps them. */
+function stampedDays(process: CourtProcess): string[] {
+  return [
+    process.paidOn,
+    process.issuedOn,
+    process.signedOn,
+    process.sentOn,
+    process.completedOn,
+  ].filter((day): day is string => day !== undefined);
+}
+
+describe("PROCESS_LINE", () => {
+  it("stamps every day a row's stage says it has passed, and none it has not", () => {
+    /* One field per stage reached, and nothing from a stage still ahead: a signed date
+       on a row waiting to be signed is the line claiming work that has not happened. */
+    const stamped: [ProcessStageId, keyof CourtProcess][] = [
+      ["pending-sign", "issuedOn"],
+      ["signed", "signedOn"],
+      ["sent", "sentOn"],
+      ["completed", "completedOn"],
+    ];
+    for (const process of PROCESS_LINE) {
+      const reached = ORDER.indexOf(process.stage);
+      assert.ok(process.paidOn, `${process.id} has no fee payment`);
+      for (const [stage, field] of stamped) {
+        assert.equal(
+          process[field] !== undefined,
+          reached >= ORDER.indexOf(stage),
+          `${process.id} at ${process.stage}: ${String(field)} is ${String(process[field] ?? "missing")}`,
+        );
+      }
+    }
+  });
+
+  it("gives every row the day its own tab's fourth column prints", () => {
+    /* Two stages share a field — the reference heads both Pending sign and Signed with
+       "Issued date" — so this is a separate question from which fields are stamped: can
+       the column the bench is looking at actually render? */
+    for (const stage of PROCESS_STAGES) {
+      for (const process of processesAt(PROCESS_LINE, stage.id)) {
+        assert.ok(
+          stage.dateOf(process),
+          `${process.id} has no ${stage.dateColumn.toLowerCase()}`,
+        );
+      }
+    }
+  });
+
+  it("runs its days forward — a process cannot be signed before it was issued", () => {
+    for (const process of PROCESS_LINE) {
+      const days = stampedDays(process);
+      assert.deepEqual(days, [...days].sort(), `${process.id} runs backwards`);
+    }
+  });
+
+  it("makes every process returnable for a listing still ahead of it", () => {
+    for (const process of PROCESS_LINE) {
+      const last = stampedDays(process).at(-1) ?? process.paidOn;
+      assert.ok(
+        process.hearingDate > last,
+        `${process.id} comes back on ${process.hearingDate}, which is not after ${last}`,
+      );
+    }
+  });
+
+  it("holds only registered post at the stage that waits on a cover", () => {
+    /* The reason the first tab's channel filter is fixed rather than live: police and
+       bailiff rounds have no cover to collect and start at Pending sign. */
+    const stage = processStage("pending-rpad-collection");
+    for (const process of processesAt(PROCESS_LINE, "pending-rpad-collection")) {
+      assert.equal(process.channel, stage.onlyChannel, process.id);
+    }
+  });
+
+  it("gives every stage enough rows to be worth a tab", () => {
+    for (const stage of PROCESS_STAGES) {
+      assert.ok(
+        processesAt(PROCESS_LINE, stage.id).length > 0,
+        `${stage.id} is empty`,
+      );
+    }
+  });
+
+  it("counts only the stages that still need an act for the rail's badge", () => {
+    const working = PROCESS_STAGES.filter((stage) => stage.act !== undefined);
+    const expected = working.reduce(
+      (total, stage) => total + processesAt(PROCESS_LINE, stage.id).length,
+      0,
+    );
+    assert.equal(PROCESS_QUEUE_COUNT, expected);
+    assert.ok(PROCESS_QUEUE_COUNT < PROCESS_LINE.length);
+  });
+
+  it("mints one id per row", () => {
+    const ids = new Set(PROCESS_LINE.map((process) => process.id));
+    assert.equal(ids.size, PROCESS_LINE.length);
+  });
+});
+
+describe("COURT_PROCESS_TYPES", () => {
+  it("keeps an abbreviation's capitals in the name a screen reader gets", () => {
+    /* `label.toLowerCase()` is what this replaced: it turned "DCA notice" into a word
+       rather than four letters in every row opener and every checkbox on the screen. */
+    const byId = new Map(COURT_PROCESS_TYPES.map((type) => [type.id, type]));
+    assert.equal(byId.get("dca-notice")?.inline, "DCA notice");
+    assert.equal(byId.get("section-223-notice")?.inline, "Section 223 notice");
+    assert.equal(byId.get("summons")?.inline, "summons");
+    for (const type of COURT_PROCESS_TYPES) {
+      assert.equal(
+        type.inline.toLowerCase(),
+        type.label.toLowerCase(),
+        `${type.id} names two different instruments`,
+      );
+    }
+  });
+});
+
+describe("PROCESS_STAGES", () => {
+  it("chains its acts into one line, ending where nothing acts", () => {
+    for (const [index, stage] of PROCESS_STAGES.entries()) {
+      if (!stage.act) continue;
+      assert.equal(
+        stage.act.advancesTo,
+        PROCESS_STAGES[index + 1]?.id,
+        `${stage.id} does not advance to the stage after it`,
+      );
+    }
+    /* Nothing on this screen closes a round off — that is the delivery channel
+       reporting back. Sent and Completed are records. */
+    assert.equal(processStage("sent").act, undefined);
+    assert.equal(processStage("completed").act, undefined);
+  });
+
+  it("offers the hearing-date filter everywhere the reference does", () => {
+    assert.equal(processStage("pending-rpad-collection").hearingDateFilter, false);
+    for (const stage of PROCESS_STAGES.slice(1)) {
+      assert.equal(stage.hearingDateFilter, true, stage.id);
+    }
+  });
+
+  it("opens a stage on everything it holds, bar the channel it is defined by", () => {
+    for (const stage of PROCESS_STAGES) {
+      const filters = defaultProcessFilters(stage);
+      assert.equal(filters.type, "all");
+      assert.equal(filters.hearingDate, "");
+      assert.equal(filters.query, "");
+      assert.equal(filters.channel, stage.onlyChannel ?? "all");
+      assert.equal(
+        filterProcesses(processesAt(PROCESS_LINE, stage.id), filters).length,
+        processesAt(PROCESS_LINE, stage.id).length,
+        `${stage.id} hides work behind a filter nobody touched`,
+      );
+    }
+  });
+});
+
+describe("filterProcesses", () => {
+  const rows = processesAt(PROCESS_LINE, "pending-sign");
+
+  it("cuts on the instrument", () => {
+    const cut = filterProcesses(rows, {
+      type: "warrant",
+      channel: "all",
+      hearingDate: "",
+      query: "",
+    });
+    assert.ok(cut.length > 0 && cut.length < rows.length);
+    assert.ok(cut.every((process) => process.type === "warrant"));
+  });
+
+  it("cuts on the channel", () => {
+    const cut = filterProcesses(rows, {
+      type: "all",
+      channel: "police",
+      hearingDate: "",
+      query: "",
+    });
+    assert.ok(cut.length > 0 && cut.length < rows.length);
+    assert.ok(cut.every((process) => process.channel === "police"));
+  });
+
+  it("searches the cause and the number, ignoring case and stray space", () => {
+    const first = rows[0];
+    const byNumber = filterProcesses(rows, {
+      type: "all",
+      channel: "all",
+      hearingDate: "",
+      query: `  ${first.caseNumber.toLowerCase()} `,
+    });
+    assert.deepEqual(
+      byNumber.map((process) => process.id),
+      rows
+        .filter((process) => process.caseNumber === first.caseNumber)
+        .map((process) => process.id),
+    );
+
+    const byParty = filterProcesses(rows, {
+      type: "all",
+      channel: "all",
+      hearingDate: "",
+      query: first.parties.accused.toUpperCase(),
+    });
+    assert.ok(byParty.some((process) => process.id === first.id));
+  });
+});
+
+describe("advanceProcesses", () => {
+  const pending = processesAt(PROCESS_LINE, "pending-sign");
+  const chosen = new Set(pending.slice(0, 2).map((process) => process.id));
+  const ON = "2026-09-06";
+
+  it("moves the chosen rows one stage along and stamps that stage's day", () => {
+    const next = advanceProcesses(PROCESS_LINE, chosen, "pending-sign", ON);
+    for (const id of chosen) {
+      const moved = next.find((process) => process.id === id);
+      assert.equal(moved?.stage, "signed");
+      assert.equal(moved?.signedOn, ON);
+    }
+    assert.equal(
+      processesAt(next, "pending-sign").length,
+      pending.length - chosen.size,
+    );
+    assert.equal(
+      processesAt(next, "signed").length,
+      processesAt(PROCESS_LINE, "signed").length + chosen.size,
+    );
+  });
+
+  it("leaves the line it was given alone", () => {
+    const before = PROCESS_LINE.map((process) => process.stage);
+    advanceProcesses(PROCESS_LINE, chosen, "pending-sign", ON);
+    assert.deepEqual(
+      PROCESS_LINE.map((process) => process.stage),
+      before,
+    );
+  });
+
+  it("ignores an id that names a row standing somewhere else, or no row at all", () => {
+    const stale = new Set([
+      ...processesAt(PROCESS_LINE, "sent").map((process) => process.id),
+      "pr-does-not-exist",
+    ]);
+    const next = advanceProcesses(PROCESS_LINE, stale, "pending-sign", ON);
+    assert.deepEqual(
+      next.map((process) => process.stage),
+      PROCESS_LINE.map((process) => process.stage),
+    );
+    assert.equal(countAdvancing(PROCESS_LINE, stale, "pending-sign"), 0);
+  });
+
+  it("moves nothing out of a stage with no act", () => {
+    const sent = new Set(
+      processesAt(PROCESS_LINE, "sent").map((process) => process.id),
+    );
+    const next = advanceProcesses(PROCESS_LINE, sent, "sent", ON);
+    assert.deepEqual(
+      next.map((process) => process.stage),
+      PROCESS_LINE.map((process) => process.stage),
+    );
+  });
+
+  it("counts what an act would actually move", () => {
+    assert.equal(countAdvancing(PROCESS_LINE, chosen, "pending-sign"), 2);
+  });
+
+  it("walks a row the whole length of the line", () => {
+    const start = processesAt(PROCESS_LINE, "pending-rpad-collection")[0];
+    const only = new Set([start.id]);
+    let line = PROCESS_LINE;
+    for (const stage of PROCESS_STAGES) {
+      if (!stage.act) break;
+      line = advanceProcesses(line, only, stage.id, ON);
+    }
+    const walked = line.find((process) => process.id === start.id);
+    assert.equal(walked?.stage, "sent");
+    assert.equal(walked?.issuedOn, ON);
+    assert.equal(walked?.signedOn, ON);
+    assert.equal(walked?.sentOn, ON);
+  });
+});
+
+describe("buildProcessDocument", () => {
+  it("writes a template for every instrument, and addresses it", () => {
+    const seen = new Set<string>();
+    for (const process of PROCESS_LINE) {
+      const document = buildProcessDocument(process);
+      seen.add(process.type);
+      assert.equal(document.paragraphs.length, 2, process.id);
+      assert.ok(document.addressee.startsWith("To "), process.id);
+      assert.ok(document.title.length > 0, process.id);
+    }
+    assert.equal(seen.size, 5);
+  });
+
+  it("addresses a warrant to the officer who must execute it, not to the accused", () => {
+    const warrant = PROCESS_LINE.find((process) => process.type === "warrant");
+    assert.ok(warrant);
+    const document = buildProcessDocument(warrant);
+    assert.match(document.addressee, /officer in charge/);
+    assert.ok(!document.addressee.includes(warrant.parties.accused));
+  });
+
+  it("says plainly whether the signature is on it", () => {
+    const unsigned = PROCESS_LINE.find(
+      (process) => process.stage === "pending-sign",
+    );
+    const signed = PROCESS_LINE.find((process) => process.stage === "signed");
+    assert.ok(unsigned && signed);
+    assert.match(buildProcessDocument(unsigned).signature, /^Pending the signature/);
+    assert.match(buildProcessDocument(signed).signature, /^Signed by the magistrate/);
+  });
+
+  it("names the listing it is returnable for inside its own prose", () => {
+    for (const process of PROCESS_LINE) {
+      const document = buildProcessDocument(process);
+      const text = processDocumentText(document);
+      assert.ok(
+        text.includes(document.dated) && text.includes(document.channel),
+        `${process.id} loses its date or its channel in the written form`,
+      );
+    }
+  });
+
+  it("recites no sum, address or process fee it does not hold", () => {
+    /* The rows carry none of these, and an invented particular in a facsimile is the
+       kind of detail that gets screenshot and quoted back. */
+    for (const process of PROCESS_LINE) {
+      const text = processDocumentText(buildProcessDocument(process));
+      assert.ok(!/₹|Rs\.?\s*\d/.test(text), `${process.id} names a sum`);
+    }
+  });
+});

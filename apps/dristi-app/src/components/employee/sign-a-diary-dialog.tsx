@@ -2,11 +2,12 @@
 
 import * as React from "react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import { DocumentPreview } from "@/components/cases/document-preview";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -125,7 +126,7 @@ function SignADiaryBody({
   }
 
   return (
-    <DialogContent
+    <ChromeDialogContent
       /* Below `md` the whole column scrolls, because a phone cannot hold a document, an
          editor and a footer at once and clipping the act is worse than a scroll. From
          `md` the dialog takes a fixed height and only the document scrolls, inside its
@@ -235,7 +236,7 @@ function SignADiaryBody({
           Sign the entry
         </Button>
       </DialogFooter>
-    </DialogContent>
+    </ChromeDialogContent>
   );
 }
 

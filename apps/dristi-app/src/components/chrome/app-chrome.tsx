@@ -4,6 +4,8 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 import type { RailPlate } from "@/components/chrome/rail-plate";
+import { AlertDialogContent } from "@/components/ui/alert-dialog";
+import { DialogContent } from "@/components/ui/dialog";
 import {
   Sheet,
   SheetContent,
@@ -257,11 +259,67 @@ export const RAIL_BRAND_ROW = `${BAR} flex flex-row items-center justify-between
  */
 export function useChromePageDialog(): string {
   const folds = React.useContext(ChromeRailFoldContext);
-  const { state } = useSidebar();
+  const state = useSidebarStateOrNull();
+  if (!state) return "";
   const left = folds && state === "collapsed" ? PAGE_LEFT_FOLDED : PAGE_LEFT_OPEN;
   // `transition-[left]` because ⌘B is bound at the window and fires with a dialog open:
   // without it the box jumps 192px while the rail behind it takes 200ms to get there.
   return `${left} md:right-4 md:mx-auto md:w-auto md:translate-x-0 md:transition-[left] md:duration-200 md:ease-linear`;
+}
+
+/**
+ * `useSidebar` always calls `useContext`; the throw is after that, when there is no
+ * provider. Catching it lets a dialog render on a page without chrome (the ds-audit
+ * sandbox, a test) and keep the DS's viewport centre, instead of crashing the overlay.
+ */
+function useSidebarStateOrNull(): "expanded" | "collapsed" | null {
+  try {
+    return useSidebar().state;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Dialog / alert sheets that sit in the page column, not in the window.
+ *
+ * Product screens use these instead of the DS primitives so a new overlay cannot
+ * quietly re-introduce viewport centring next to a rail. The primitive still draws
+ * the sheet; this only applies `useChromePageDialog`. Last in `cn` so a call site
+ * cannot override the left edge back to `left-1/2` by accident.
+ *
+ * Command's own dialog is a synced primitive and stays viewport-centred on purpose —
+ * it is a palette, not a sheet over a page.
+ */
+export function ChromeDialogContent({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogContent>) {
+  const pageDialog = useChromePageDialog();
+  return <DialogContent className={cn(className, pageDialog)} {...props} />;
+}
+
+export function ChromeAlertDialogContent({
+  className,
+  ...props
+}: React.ComponentProps<typeof AlertDialogContent>) {
+  const pageDialog = useChromePageDialog();
+  return <AlertDialogContent className={cn(className, pageDialog)} {...props} />;
+}
+
+/**
+ * Mark this frame's rail as one that actually folds.
+ *
+ * `ChromeShell` sets this from `railCollapsible`. The advocate `AppShell` folds too
+ * (list vs flow, plus ⌘B) but is not that shell yet, so it wraps itself with this
+ * or page-column overlays would keep a 17rem left edge against a 4rem strip.
+ */
+export function ChromeRailFolds({ children }: { children: React.ReactNode }) {
+  return (
+    <ChromeRailFoldContext.Provider value={true}>
+      {children}
+    </ChromeRailFoldContext.Provider>
+  );
 }
 
 /**
