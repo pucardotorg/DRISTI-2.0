@@ -3,9 +3,6 @@
 import * as React from "react";
 import {
   CheckIcon,
-  FileUpIcon,
-  FlagIcon,
-  Link2Icon,
   MicIcon,
   TriangleAlertIcon,
 } from "lucide-react";
@@ -19,7 +16,6 @@ import type {
   FlagMap,
   FlatField,
 } from "@/lib/employee/scrutiny/types";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -32,6 +28,11 @@ import {
 } from "@/components/ui/dialog";
 import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldLabel } from "@/components/ui/field";
+import {
+  RecordLink,
+  RecordList,
+  RecordRow,
+} from "@/components/employee/scrutiny/record-rows";
 
 export type Decision = "send-back" | "register";
 
@@ -195,23 +196,33 @@ export function ReviewDialog({
             <div className="min-h-0 flex-1 overflow-y-auto p-6">
               {total ? (
                 GROUP_ORDER.filter((g) => groups[g].length).map((g) => (
-                  <div key={g} className="pt-6 first:pt-0">
-                    {/* A heading, set as one: caption size but foreground ink at 600,
-                        so it does not read as one more line of item metadata. */}
-                    <h3 className="pb-2 text-caption font-semibold text-foreground">
-                      {g.split(" — ")[0]} ({groups[g].length})
+                  <section key={g} className="pt-6 first:pt-0">
+                    {/*
+                     * A heading, set as one: caption size but foreground ink at 600, so
+                     * it does not read as one more line of item metadata — and sticky,
+                     * because on a send-back with twenty items the kind of grant you are
+                     * reading is the thing that scrolls away first. It needs the body's
+                     * own fill behind it, or items would show through as it passes.
+                     */}
+                    <h3 className="sticky top-0 z-10 -mx-6 bg-card px-6 pb-2 text-caption font-semibold text-foreground">
+                      {g.split(" — ")[0]}{" "}
+                      <span className="text-muted-foreground tabular-nums">
+                        ({groups[g].length})
+                      </span>
                     </h3>
-                    {groups[g].map((item) => (
-                      <SummaryItem
-                        key={item.field.id}
-                        item={item}
-                        onGoToItem={(fieldId) => {
-                          onOpenChange(false);
-                          onGoToItem(fieldId);
-                        }}
-                      />
-                    ))}
-                  </div>
+                    <ul>
+                      {groups[g].map((item) => (
+                        <SummaryItem
+                          key={item.field.id}
+                          item={item}
+                          onGoToItem={(fieldId) => {
+                            onOpenChange(false);
+                            onGoToItem(fieldId);
+                          }}
+                        />
+                      ))}
+                    </ul>
+                  </section>
                 ))
               ) : (
                 <Empty className="border-0 p-0">
@@ -267,33 +278,83 @@ function SummaryItem({
   onGoToItem: (fieldId: string) => void;
 }) {
   const { field, flag } = item;
+  const evidenceDoc = flag.evidence ? DOC_BY_ID[flag.evidence.doc] : undefined;
+  const reuploadApplies = !field.docrow && !!field.doc && !!DOC_ROW[field.doc];
+
+  /*
+   * The same label/value grammar the workbench record uses, so an item reads the same
+   * on both surfaces and a send-back of twenty scans down one left edge instead of
+   * twenty differently-shaped paragraphs. `@container` is declared here because this
+   * box is what constrains the rows inside a dialog.
+   */
   return (
-    <div className="flex flex-col gap-1 border-b border-hairline py-3 last:border-0">
-      <div className="text-caption text-muted-foreground">{item.where}</div>
-      {flag.correction ? (
-        /*
-         * Old → new on their own lines: an inline strikethrough of a five-line address
-         * is unreadable, and the eye can't tell where the old value stops.
-         */
-        <div className="grid grid-cols-[5rem_1fr] items-baseline gap-x-3 gap-y-1 rounded-md bg-surface-sunken px-3 py-2">
-          <span className="text-caption text-muted-foreground">Filed</span>
-          <span className="text-body-compact break-words text-muted-foreground line-through">
-            {field.value}
-          </span>
-          <span className="text-caption text-muted-foreground">Corrected</span>
-          <span className="text-body-compact font-medium break-words">
-            {flag.correction}
-          </span>
-        </div>
-      ) : null}
-      {flag.reason ? (
-        <div className="text-body-compact leading-snug font-semibold">
-          {flag.reason}
-        </div>
-      ) : null}
-      {flag.comment ? (
-        <div className="text-body-compact leading-snug">{flag.comment}</div>
-      ) : null}
+    <li className="@container flex flex-col gap-2 border-b border-hairline py-4 last:border-0">
+      <div className="flex flex-wrap items-baseline gap-x-2">
+        <h4 className="text-body-compact font-semibold">{field.label}</h4>
+        <span className="text-caption text-muted-foreground">{field.group}</span>
+      </div>
+
+      <RecordList>
+        {flag.correction ? (
+          <>
+            <RecordRow label="FSO’s value">
+              <span className="font-medium">{flag.correction}</span>
+            </RecordRow>
+            <RecordRow label="Filed value">
+              <span className="text-muted-foreground line-through">
+                {field.value}
+              </span>
+            </RecordRow>
+          </>
+        ) : null}
+
+        {field.docrow && flag.reason ? (
+          <RecordRow label="Reason">{flag.reason}</RecordRow>
+        ) : null}
+
+        {flag.comment ? (
+          <RecordRow label="FSO’s comment">
+            <span className="break-words">{flag.comment}</span>
+            {flag.voice ? (
+              <span className="ms-2 inline-flex items-center gap-1 text-caption text-muted-foreground">
+                <MicIcon className="size-3" aria-hidden="true" /> voice
+              </span>
+            ) : null}
+          </RecordRow>
+        ) : null}
+
+        {evidenceDoc ? (
+          <RecordRow label="Annotation">
+            <span className="tabular-nums">Doc {evidenceDoc.no}</span> ·{" "}
+            {docName(flag.evidence!.doc)}
+          </RecordRow>
+        ) : null}
+
+        {reuploadApplies ? (
+          <RecordRow label="Re-upload requested">
+            {item.linked ? (
+              <RecordLink onClick={() => onGoToItem(item.linked!.id)}>
+                Yes — {docName(item.linked.docrow ?? "")}
+              </RecordLink>
+            ) : (
+              <span className="text-muted-foreground">No</span>
+            )}
+          </RecordRow>
+        ) : null}
+
+        {field.docrow && item.linked ? (
+          <RecordRow label="Raised with">
+            <RecordLink onClick={() => onGoToItem(item.linked!.id)}>
+              {item.linked.label}
+            </RecordLink>
+          </RecordRow>
+        ) : null}
+
+        <RecordRow label="Unlocks">
+          <span className="text-muted-foreground">{item.unlocks}</span>
+        </RecordRow>
+      </RecordList>
+
       {/*
        * The last backstop. A mark on an uploaded document with no item on that
        * document's own row means the advocate gets the value unlocked and no re-upload
@@ -301,13 +362,11 @@ function SummaryItem({
        * discovered on resubmission. Icon + words + colour, never colour alone.
        */}
       {item.stranded ? (
-        <div className="flex flex-wrap items-center gap-2 text-caption text-warning-ink">
+        <p className="flex flex-wrap items-center gap-2 text-caption text-warning-ink">
           <span className="inline-flex items-center gap-1">
-            <TriangleAlertIcon className="size-3" />
+            <TriangleAlertIcon className="size-3" aria-hidden="true" />
             Marked on {docName(item.stranded)} — re-upload is not unlocked.
           </span>
-          {/* An inline link inside a sentence, so it keeps the sentence's density —
-              with the touch floor a tablet needs. */}
           <Button
             variant="link"
             size="xs"
@@ -316,49 +375,8 @@ function SummaryItem({
           >
             Open the item
           </Button>
-        </div>
+        </p>
       ) : null}
-      <div
-        className={cn(
-          "flex flex-wrap items-center gap-3 text-caption text-muted-foreground",
-          "[&_svg]:size-3",
-        )}
-      >
-        {flag.voice ? (
-          <span className="inline-flex items-center gap-1">
-            <MicIcon /> Voice note
-          </span>
-        ) : null}
-        {flag.evidence ? (
-          <span className="inline-flex items-center gap-1">
-            <FlagIcon /> Marked on doc{" "}
-            <span className="tabular-nums">
-              {DOC_BY_ID[flag.evidence.doc]?.no}
-            </span>
-          </span>
-        ) : null}
-        {/*
-         * Two grants genuinely exist when a pair was raised, so both are counted — but
-         * each says which other item it travelled with, which is what stops the "did I
-         * raise this twice?" read.
-         */}
-        {item.linked ? (
-          <span className="inline-flex items-center gap-1">
-            <Link2Icon />
-            {item.linked.docrow
-              ? `Linked to ${docName(item.linked.docrow)} — re-upload`
-              : `Linked to ${item.linked.label}`}
-          </span>
-        ) : null}
-        {/*
-         * The unlock rule, said on the item in the same sentence the composer and the
-         * item's own well print: a flag is a permission grant, and it grants only what
-         * it names.
-         */}
-        <span className="inline-flex items-center gap-1">
-          <FileUpIcon /> {item.unlocks}
-        </span>
-      </div>
-    </div>
+    </li>
   );
 }

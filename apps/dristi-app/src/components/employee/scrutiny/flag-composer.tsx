@@ -225,9 +225,15 @@ export function FlagComposer({
                     0:{String(recordingSeconds).padStart(2, "0")}
                   </span>
                 ) : null}
+                {/* The mic sits inside the note field, so it cannot be a 40px box —
+                    it would overflow the control it lives in. The hit area grows
+                    instead of the button: `after:-inset-1` takes a 36px control to
+                    44px, the repo's own idiom for a control nested in another
+                    (`tasks/act/shared.tsx`). Visually 36, reachable at 44. */}
                 <Button
                   variant={draft.recording ? "destructive" : "ghost"}
                   size="icon-sm"
+                  className="relative after:absolute after:-inset-1 after:content-['']"
                   onClick={(event) => {
                     event.stopPropagation();
                     controller.toggleRecording();

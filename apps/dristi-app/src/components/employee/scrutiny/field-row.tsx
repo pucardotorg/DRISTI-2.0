@@ -4,7 +4,6 @@ import * as React from "react";
 import { toast } from "sonner";
 import {
   ArrowUpRightIcon,
-  Link2Icon,
   CheckIcon,
   FileTextIcon,
   FlagIcon,
@@ -23,6 +22,11 @@ import type { ScrutinyController } from "@/lib/employee/scrutiny/use-scrutiny-st
 import { cn } from "@/lib/utils";
 import { FlagComposer } from "@/components/employee/scrutiny/flag-composer";
 import { MarkThumb } from "@/components/employee/scrutiny/mark-thumb";
+import {
+  RecordLink,
+  RecordList,
+  RecordRow,
+} from "@/components/employee/scrutiny/record-rows";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -398,9 +402,7 @@ function RaisedItem({
         </span>
       </div>
 
-      {/* Two columns when the record has room; labels stack above values when the
-          panel is dragged to its floor, instead of starving the values. */}
-      <dl className="grid grid-cols-1 gap-x-3 gap-y-2 @[22rem]:grid-cols-[minmax(6rem,8rem)_1fr]">
+      <RecordList>
         {flag.correction ? (
           <>
             <RecordRow label="FSO’s value">
@@ -477,51 +479,8 @@ function RaisedItem({
             </RecordLink>
           </RecordRow>
         ) : null}
-      </dl>
+      </RecordList>
     </div>
-  );
-}
-
-/** One row of the record: a quiet label, then the fact. */
-function RecordRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <>
-      <dt className="pt-px text-caption text-muted-foreground @[22rem]:pt-0.5">
-        {label}
-      </dt>
-      <dd className="-mt-1 min-w-0 text-body-compact leading-snug @[22rem]:mt-0">
-        {children}
-      </dd>
-    </>
-  );
-}
-
-/** A fact that is also a way to the related item. */
-function RecordLink({
-  onClick,
-  children,
-}: {
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      className="inline-flex items-center gap-1 text-start underline-offset-2 transition-colors hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-      onClick={(event) => {
-        event.stopPropagation();
-        onClick();
-      }}
-    >
-      {children}
-      <Link2Icon className="size-3 text-muted-foreground" aria-hidden="true" />
-    </button>
   );
 }
 

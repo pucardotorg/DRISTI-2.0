@@ -355,11 +355,16 @@ export function BundleView({
           className="bg-surface-sunken"
           aria-label="Bundle tool"
         >
-          <ToggleGroupItem value="select" aria-label="Select tool">
+          {/* The DS toggle tops out at `lg` (36px), so the height comes from the call
+              site: a segmented control sharing a bar with 40px buttons has to be 40px
+              too, and the 40px touch floor applies to it no less than to them. Recorded
+              as upstream DS feedback — the primitive wants a size that matches a
+              default control. */}
+          <ToggleGroupItem value="select" className="h-10" aria-label="Select tool">
             <MousePointer2Icon />
             Select
           </ToggleGroupItem>
-          <ToggleGroupItem value="rect" aria-label="Mark tool">
+          <ToggleGroupItem value="rect" className="h-10" aria-label="Mark tool">
             <SquareDashedIcon />
             Mark
           </ToggleGroupItem>
@@ -367,7 +372,16 @@ export function BundleView({
 
         {/* `bg-border` is the darkest non-text mark in the system, and a chrome bar is
             the last place it belongs — hairline is the seam role (ui-craft §1.1). */}
-        <Separator orientation="vertical" className="h-5 bg-hairline" />
+        {/* `self-center` is not optional: the DS separator ships
+            `data-vertical:self-stretch`, so an explicit height pins the rule to the top
+            of the flex line and it fuses with the bar's own seam. Both need `!`: the
+            primitive's are `data-vertical:` variants, and an attribute selector outranks
+            a plain utility. The court top bar carries the same override, for the same
+            reason. */}
+        <Separator
+          orientation="vertical"
+          className="h-5! self-center! bg-hairline"
+        />
 
         <Tooltip>
           <TooltipTrigger asChild>

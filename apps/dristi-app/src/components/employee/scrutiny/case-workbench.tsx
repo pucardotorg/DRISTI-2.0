@@ -173,7 +173,18 @@ export function CaseWorkbench({
      * tooltips brings its own. The bundle's zoom controls are the ones that need it.
      */
     <TooltipProvider>
-    <div className="flex min-h-0 flex-1 flex-col">
+    {/*
+     * A bounded height, not a floor. The court page is `min-h-svh` (app-chrome's
+     * `ChromePage`), which is right for a document that grows — but this screen is an
+     * app frame: the case bar and the decision bar are meant to stay put while the
+     * three panes scroll inside themselves. Under a floor, `flex-1` panes grow to their
+     * tallest content and the whole document scrolls instead (measured: 5,835px against
+     * a 900px viewport). Subtracting the chrome bar's `h-14` is a real coupling to
+     * `BAR` in `components/chrome/app-chrome.tsx`; if that bar's height changes, this
+     * follows. And no `flex-1` alongside it: in a flex column `flex: 1 1 0%` overrides
+     * an explicit height, which is why the first attempt still measured 5,780px.
+     */}
+    <div className="flex h-[calc(100svh-3.5rem)] min-h-0 flex-col overflow-hidden">
       {/* The page's own bar, on the page's own ladder: `py-2.5` is a micro step and
           micro steps belong inside controls, not under a screen's title. */}
       <div className="flex shrink-0 flex-wrap items-start gap-3 border-b border-hairline bg-card px-6 py-4 md:px-8">
