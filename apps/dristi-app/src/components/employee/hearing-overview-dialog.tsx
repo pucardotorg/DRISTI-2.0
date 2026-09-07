@@ -16,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 import {
   causeTitle,
   courtHearingStatusLabel,
@@ -97,8 +96,11 @@ function HearingOverviewBody({ hearing }: { hearing: CourtHearing }) {
           <HearingOverviewCaption hearing={hearing} />
         </DialogDescription>
       </DialogHeader>
-      <Separator />
-      <div className="min-h-0 flex-1 overflow-y-auto p-6">
+      {/* The sheet is the lifted surface; this column is the stage inside it, so
+          the sections can sit as white cards. The header keeps the sheet's fill so
+          the tint reads as the reading surface, not a grey dialog. Fill, not a
+          rule, separates the two — the header already sits on a different value. */}
+      <div className="min-h-0 flex-1 overflow-y-auto bg-surface-sunken p-6">
         <HearingOverviewSections hearing={hearing} surface="overlay" />
       </div>
       {/* The page's band, as a footer: the same one action, on the trailing edge.

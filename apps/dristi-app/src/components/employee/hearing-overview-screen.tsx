@@ -57,9 +57,10 @@ import {
  * `page` is the route: a section is a lifted sheet, the same recipe as today's cause
  * list (`HearingsScreen`) and the order composer — hairline edge, no nested second
  * frame inside it. `overlay` is the sheet Start hearing opens over the cause list,
- * which is *itself* the lifted surface, so the same sections drop to sunken wells
- * inside it. A `shadow-raised` panel inside a `shadow-modal` sheet is depth spent
- * twice, and the radius steps down with the nesting (ui-craft §4).
+ * which is *itself* the lifted surface: the sheet's body is the sunken stage, and
+ * the sections sit on it as white cards. A `shadow-raised` panel inside a
+ * `shadow-modal` sheet is depth spent twice, so the overlay cards stay flat, and
+ * the radius steps down with the nesting (ui-craft §4).
  *
  * One set of sections, two dresses — rather than a second composition of the same
  * facts, which is how two surfaces holding one case start disagreeing about it.
@@ -68,18 +69,11 @@ export type HearingOverviewSurface = "page" | "overlay";
 
 const PANEL: Record<HearingOverviewSurface, string> = {
   page: "min-w-0 rounded-xl border border-hairline bg-card p-6 shadow-raised",
-  overlay: "min-w-0 rounded-lg bg-surface-sunken p-4",
+  overlay: "min-w-0 rounded-lg bg-card p-4",
 };
 
-/**
- * The one inset inside Last hearing. On the page it is the panel's sunken well; in
- * the overlay the section around it is already sunken, so the order lifts back to
- * card fill instead — sunken on sunken is a well nobody can see.
- */
-const ORDER_WELL: Record<HearingOverviewSurface, string> = {
-  page: "bg-surface-sunken",
-  overlay: "bg-card",
-};
+/** The one inset inside Last hearing — a sunken well in a white card on both surfaces. */
+const ORDER_WELL = "bg-surface-sunken";
 
 /**
  * The corner anything nested inside a section takes — the date tile and the order
@@ -290,9 +284,9 @@ export function HearingOverviewSections({
   const extras = hearingCaseExtras(hearing.id);
 
   return (
-    /* `gap-8` is the page's section break. Inside the overlay the sections are wells
-       on one sheet rather than separate panels on a page, so they close to `gap-4` —
-       the step the sheet's own padding is set at. */
+    /* `gap-8` is the page's section break. Inside the overlay the sections are cards
+       on the sheet's sunken body rather than separate lifted panels, so they close
+       to `gap-4` — the step the sheet's own padding is set at. */
     <div
       className={`grid min-w-0 lg:grid-cols-5 ${
         surface === "page" ? "gap-8" : "gap-4"
@@ -581,7 +575,7 @@ function LastHearingPanel({
         </div>
       </div>
       <div
-        className={`flex min-w-0 flex-col gap-2 p-4 ${INSET_RADIUS[surface]} ${ORDER_WELL[surface]}`}
+        className={`flex min-w-0 flex-col gap-2 p-4 ${INSET_RADIUS[surface]} ${ORDER_WELL}`}
       >
         <p className="text-body font-medium">
           {directed ? "Order of the day" : "Latest update"}
