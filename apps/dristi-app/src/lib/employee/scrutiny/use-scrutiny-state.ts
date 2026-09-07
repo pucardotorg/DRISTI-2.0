@@ -258,7 +258,14 @@ export function useScrutinyState(aiOn: boolean) {
           evidenceTarget: null,
           pendingFocus: machineFilled ? "correction" : field.docrow ? "note" : "correction",
           draft: {
-            value: machineFilled ? field.docread! : "",
+            /*
+             * The box opens with what is already there — the machine's reading when it
+             * has one, otherwise the filed value — as real, editable text. A placeholder
+             * looked the same but could not be edited, so correcting one digit of a
+             * cheque number meant retyping the whole thing. It is rendered muted until
+             * it actually differs (see `flag-composer`), so it still reads as untouched.
+             */
+            value: machineFilled ? field.docread! : (field.value ?? ""),
             text: "",
             reason: null,
             voice: false,

@@ -344,12 +344,15 @@ function RaisedItem({
    * they apply. That is what makes it scannable at a glance and scalable as items grow
    * more kinds of fact — the owner's call, replacing the earlier stack of unlike lines.
    *
-   * A sunken well inside the card, borderless: depth is fill, not another stroke, and a
-   * white box on a white card was invisible. It works in every row state now that
-   * selection has moved off the fill and onto a leading bar.
+   * A sunken well inside the card, carrying a hairline. The stroke is what keeps it
+   * legible when the row behind it is hovered or selected: row hover is `accent` (243)
+   * and the well is `surface-sunken` (245), so on a ramp this tight the two fills all
+   * but merge and the record loses its edge exactly when the officer is pointing at it.
+   * DS Laws sanction the stroke here — a well holding interactive content (Edit /
+   * Remove) takes a hairline.
    */
   return (
-    <div className="col-span-full my-1 flex flex-col gap-3 rounded-lg bg-surface-sunken p-3 @container">
+    <div className="col-span-full my-1 flex flex-col gap-3 rounded-lg border border-hairline bg-surface-sunken p-3 @container">
       <div className="flex items-center gap-2">
         <Badge variant={flag.correction ? "info" : "destructive"}>
           {flag.correction

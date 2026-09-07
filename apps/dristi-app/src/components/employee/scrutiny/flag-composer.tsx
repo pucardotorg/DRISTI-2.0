@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   CameraIcon,
+  CheckIcon,
   FileUpIcon,
   MicIcon,
   SquareIcon,
@@ -78,6 +79,12 @@ export function FlagComposer({
   const isDocRow = !!field.docrow;
   const corrected = isCorrected(field, draft);
   const canSave = canSaveDraft(field, draft);
+  /*
+   * The seeded value is real text the officer can edit, but until it differs from what
+   * was filed it is not a correction — so it is set in the muted ink that says
+   * "already here, untouched" rather than the foreground ink of something authored.
+   */
+  const untouched = !draft.prefilled && draft.value === (field.value ?? "");
   const multiline =
     !isDocRow && ((field.value || "").length > 40 || !!field.long);
 
@@ -132,10 +139,9 @@ export function FlagComposer({
                 className={cn(
                   "max-h-56",
                   multiline ? "min-h-24" : "min-h-10",
+                  untouched && "text-muted-foreground",
                 )}
                 prefilled={draft.prefilled}
-                // The filed value is the placeholder: the box reads as untouched until
-                // the officer types, and "what is filed" is still right there.
                 placeholder={field.value || undefined}
                 value={draft.value}
                 onClick={(event) => event.stopPropagation()}
@@ -176,7 +182,10 @@ export function FlagComposer({
                     className="underline underline-offset-2 transition-colors hover:text-foreground"
                     onClick={(event) => {
                       event.stopPropagation();
-                      controller.updateDraft({ value: "", prefilled: false });
+                      controller.updateDraft({
+                        value: field.value ?? "",
+                        prefilled: false,
+                      });
                       correctionRef.current?.focus();
                     }}
                   >
@@ -385,18 +394,33 @@ function ReasonChips({
   onChange: (reason: string | null) => void;
 }) {
   return (
+    /*
+     * Selection is a mark, not a fill. The DS on-state for an outline toggle is
+     * `accent-strong` — 235 against the card's 255, a 20-unit step on a neutral ramp
+     * whose whole light half spans 255→229. Measured on the render it read as "slightly
+     * greyer", which is not a selected state. So the chip states differ three ways at
+     * once: a check appears, the fill goes to `secondary`, and the label takes 500.
+     * Unset chips drop their white fill and let the well show through — four white
+     * boxes on a grey well was most of why this region read as muddled.
+     */
     <ToggleGroup
       type="single"
-      variant="outline"
       value={value ?? ""}
-      /* Radix hands back "" when the chosen item is toggled off, which is this
-         composer's "no reason picked yet". */
       onValueChange={(next) => onChange(next || null)}
-      className="flex-wrap"
+      className="flex flex-wrap gap-1.5"
       aria-label="What is wrong with the document"
     >
       {DOC_REASONS.map((reason) => (
-        <ToggleGroupItem key={reason} value={reason}>
+        <ToggleGroupItem
+          key={reason}
+          value={reason}
+          variant="outline"
+          className="h-10 gap-1.5 bg-transparent data-[state=on]:bg-secondary data-[state=on]:font-medium"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {value === reason ? (
+            <CheckIcon className="size-3.5" aria-hidden="true" />
+          ) : null}
           {reason}
         </ToggleGroupItem>
       ))}
