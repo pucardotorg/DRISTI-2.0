@@ -22,7 +22,6 @@ import type { ScrutinyController } from "@/lib/employee/scrutiny/use-scrutiny-st
 import { cn } from "@/lib/utils";
 import { MarkThumb } from "@/components/employee/scrutiny/mark-thumb";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -32,6 +31,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 /**
  * The composer.
@@ -106,25 +106,20 @@ export function FlagComposer({
      * keep their own card fill, so the fields read as paper on the work surface.
      */
     <div
-      className="col-span-full my-1 flex flex-col gap-4 rounded-lg bg-surface-sunken p-3"
+      className="col-span-full my-1 flex flex-col gap-4 rounded-lg border border-hairline bg-surface-sunken p-3"
       onClick={(event) => event.stopPropagation()}
     >
       <FieldGroup className="gap-4">
         {isDocRow ? null : (
           <>
             <Field>
+              {/* No "AI" badge. The DS `Textarea` already draws the amber fill and the
+                  dashed edge for `prefilled` and announces it, so a third amber mark on
+                  the same control said the same thing twice — and it said *which*
+                  document only in a `title`, which touch and keyboard never reach. The
+                  fact moved into the description below, in words. */}
               <FieldLabel htmlFor={`corr-${field.id}`}>
                 FSO&rsquo;s correction
-                {draft.prefilled ? (
-                  <Badge
-                    variant="warning"
-                    title={`Read by AI from ${
-                      field.doc ? DOC_BY_ID[field.doc]?.name : "the document"
-                    }`}
-                  >
-                    AI
-                  </Badge>
-                ) : null}
               </FieldLabel>
               {/*
                * `prefilled` is a first-class prop on the DS Textarea: it draws the
@@ -165,6 +160,13 @@ export function FlagComposer({
                * information. The line appears the moment the officer changes something,
                * which is also the moment "Restore" means anything.
                */}
+              {draft.prefilled ? (
+                <FieldDescription>
+                  Read by AI from{" "}
+                  {field.doc ? DOC_BY_ID[field.doc]?.name : "the document"} —
+                  check it before saving.
+                </FieldDescription>
+              ) : null}
               {corrected ? (
                 <FieldDescription>
                   Filed as <span className="line-through">{field.value || "—"}</span>
@@ -277,9 +279,12 @@ export function FlagComposer({
               </span>{" "}
               · {docName(draft.evidence.doc)}
             </span>
+            {/* The composer's inline row keeps its density; a coarse pointer still gets
+                the 40px floor (DS Laws — the registry works on tablets). */}
             <Button
               variant="destructive-ghost"
               size="xs"
+              className="[@media(pointer:coarse)]:h-10"
               onClick={(event) => {
                 event.stopPropagation();
                 /*
@@ -305,6 +310,7 @@ export function FlagComposer({
           <Button
             variant="link"
             size="xs"
+            className="[@media(pointer:coarse)]:h-10"
             aria-pressed={controller.evidenceTarget === field.id}
             onClick={(event) => {
               event.stopPropagation();
@@ -331,16 +337,13 @@ export function FlagComposer({
         onGoToItem={onGoToItem}
       />
 
+      {/* The two controls that commit the officer's work: default size, like every act
+          on a court screen. */}
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => controller.closeComposer()}
-        >
+        <Button variant="ghost" onClick={() => controller.closeComposer()}>
           Cancel
         </Button>
         <Button
-          size="sm"
           disabled={!canSave}
           aria-label={
             draft.linked ? "Save the flag and the document issue" : undefined
@@ -361,7 +364,13 @@ export function FlagComposer({
   );
 }
 
-/** The three structured reasons a document itself can be wrong. */
+/**
+ * The three structured reasons a document itself can be wrong.
+ *
+ * A `ToggleGroup`, not three buttons wearing `aria-pressed`: exactly one reason can be
+ * chosen, and the primitive is what makes the set one tab stop with arrow keys inside it
+ * rather than three separate stops the officer has to walk past.
+ */
 function ReasonChips({
   value,
   onChange,
@@ -370,25 +379,22 @@ function ReasonChips({
   onChange: (reason: string | null) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {DOC_REASONS.map((reason) => {
-        const on = value === reason;
-        return (
-          <Button
-            key={reason}
-            variant={on ? "secondary" : "outline"}
-            size="xs"
-            aria-pressed={on}
-            onClick={(event) => {
-              event.stopPropagation();
-              onChange(on ? null : reason);
-            }}
-          >
-            {reason}
-          </Button>
-        );
-      })}
-    </div>
+    <ToggleGroup
+      type="single"
+      variant="outline"
+      value={value ?? ""}
+      /* Radix hands back "" when the chosen item is toggled off, which is this
+         composer's "no reason picked yet". */
+      onValueChange={(next) => onChange(next || null)}
+      className="flex-wrap"
+      aria-label="What is wrong with the document"
+    >
+      {DOC_REASONS.map((reason) => (
+        <ToggleGroupItem key={reason} value={reason}>
+          {reason}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
   );
 }
 
@@ -450,6 +456,7 @@ function ConsequenceStrip({
       <Button
         variant={raised ? "ghost" : "outline"}
         size="xs"
+        className="[@media(pointer:coarse)]:h-10"
         onClick={(event) => {
           event.stopPropagation();
           /*
@@ -507,7 +514,6 @@ function ReuploadQuestion({
       <div className="col-start-2 mt-2 flex flex-wrap gap-2">
         <Button
           variant="secondary"
-          size="sm"
           onClick={(event) => {
             event.stopPropagation();
             controller.answerReupload(true);
@@ -517,7 +523,6 @@ function ReuploadQuestion({
         </Button>
         <Button
           variant="ghost"
-          size="sm"
           onClick={(event) => {
             event.stopPropagation();
             controller.answerReupload(false);
@@ -561,6 +566,7 @@ function LinkedBlock({ controller }: { controller: ScrutinyController }) {
         <Button
           variant="ghost"
           size="xs"
+          className="[@media(pointer:coarse)]:h-10"
           onClick={(event) => {
             event.stopPropagation();
             controller.clearLinked();

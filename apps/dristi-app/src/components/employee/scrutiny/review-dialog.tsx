@@ -141,10 +141,15 @@ export function ReviewDialog({
 
   return (
     <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-170">
+      {/* The house long-list overlay: a header, a body that is the only thing that
+          scrolls, and a footer, each a region with a hairline seam between it and the
+          next — the shell `SignOrderDialog` and `ApplicationReviewOverlay` use. The
+          previous build clipped the list at a fixed `52vh` inside a padded box, which
+          on a laptop cut the decision the dialog exists to take. */}
+      <DialogContent className="flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
         {confirmed ? (
           <>
-            <div className="flex flex-col items-center gap-3 px-2 py-6 text-center">
+            <div className="flex flex-col items-center gap-3 p-6 text-center">
               <div className="flex size-14 items-center justify-center rounded-full bg-success-muted text-success-muted-foreground">
                 <CheckIcon className="size-7" strokeWidth={2.2} />
               </div>
@@ -167,7 +172,7 @@ export function ReviewDialog({
                     }. The next file in your queue is ready.`}
               </DialogDescription>
             </div>
-            <DialogFooter>
+            <DialogFooter className="mx-0 mb-0 shrink-0">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Stay here
               </Button>
@@ -176,18 +181,26 @@ export function ReviewDialog({
           </>
         ) : (
           <>
-            <DialogHeader>
-              <DialogTitle>{head.title}</DialogTitle>
-              <DialogDescription>{head.body}</DialogDescription>
+            {/* `pr-16` keeps the title clear of the close button the DS places
+                top-right. */}
+            <DialogHeader className="shrink-0 gap-2 border-b border-hairline p-6 pr-16">
+              <DialogTitle className="text-title-s font-semibold">
+                {head.title}
+              </DialogTitle>
+              <DialogDescription className="text-body-compact text-muted-foreground">
+                {head.body}
+              </DialogDescription>
             </DialogHeader>
 
-            <div className="max-h-[52vh] overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto p-6">
               {total ? (
                 GROUP_ORDER.filter((g) => groups[g].length).map((g) => (
-                  <div key={g}>
-                    <div className="pt-4 text-caption text-muted-foreground">
+                  <div key={g} className="pt-6 first:pt-0">
+                    {/* A heading, set as one: caption size but foreground ink at 600,
+                        so it does not read as one more line of item metadata. */}
+                    <h3 className="pb-2 text-caption font-semibold text-foreground">
                       {g.split(" — ")[0]} ({groups[g].length})
-                    </div>
+                    </h3>
                     {groups[g].map((item) => (
                       <SummaryItem
                         key={item.field.id}
@@ -201,28 +214,34 @@ export function ReviewDialog({
                   </div>
                 ))
               ) : (
-                <Empty>
+                <Empty className="border-0 p-0">
                   <EmptyHeader>
-                    <EmptyTitle>Nothing raised</EmptyTitle>
+                    <EmptyTitle className="text-title-s font-semibold">
+                      Nothing raised
+                    </EmptyTitle>
                   </EmptyHeader>
                 </Empty>
               )}
             </div>
 
+            {/* The gate on the primary, in its own region above the footer rather than
+                floating between two scrolling things. */}
             {needsAck ? (
-              <Field orientation="horizontal">
-                <Checkbox
-                  id="ack"
-                  checked={ack}
-                  onCheckedChange={(value) => setAck(value === true)}
-                />
-                <FieldLabel htmlFor="ack" className="font-normal">
-                  I have seen the open flags and choose to register.
-                </FieldLabel>
-              </Field>
+              <div className="shrink-0 border-t border-hairline px-6 py-4">
+                <Field orientation="horizontal">
+                  <Checkbox
+                    id="ack"
+                    checked={ack}
+                    onCheckedChange={(value) => setAck(value === true)}
+                  />
+                  <FieldLabel htmlFor="ack" className="font-normal">
+                    I have seen the open flags and choose to register.
+                  </FieldLabel>
+                </Field>
+              </div>
             ) : null}
 
-            <DialogFooter>
+            <DialogFooter className="mx-0 mb-0 shrink-0">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Keep reviewing
               </Button>
@@ -287,10 +306,12 @@ function SummaryItem({
             <TriangleAlertIcon className="size-3" />
             Marked on {docName(item.stranded)} — re-upload is not unlocked.
           </span>
+          {/* An inline link inside a sentence, so it keeps the sentence's density —
+              with the touch floor a tablet needs. */}
           <Button
             variant="link"
             size="xs"
-            className="h-auto p-0"
+            className="h-auto p-0 [@media(pointer:coarse)]:h-10"
             onClick={() => onGoToItem(field.id)}
           >
             Open the item

@@ -35,8 +35,12 @@ import {
  * One filed field = one `DescriptionRow`, made interactive.
  *
  * The row carries NO border radius: its own bottom border IS the divider between rows,
- * and rounding the box rounds the ends of that 1px rule. Selection is a fill, the way
- * the system's own table row does it — not a ring, not a border (the loudness ladder).
+ * and rounding the box rounds the ends of that 1px rule.
+ *
+ * The loudness ladder, spent once: hover is the accent fill, and selection is a leading
+ * inset bar. Selection used to take `accent-strong` as well, which left the record inside
+ * it with no fill of its own to sit on — beige on beige — and stacked two cues on the
+ * same row. One quiet persistent mark is the whole allowance.
  */
 export function FieldRow({
   field,
@@ -54,8 +58,6 @@ export function FieldRow({
   const flag = controller.flags[field.id];
   const selected = controller.selectedId === field.id;
   const composing = controller.composeField === field.id;
-  const attention =
-    aiOn && !flag && !composing && !!(field.docread || field.ocrfail || field.scannote);
   const flagTitle = flag
     ? "Edit this flag"
     : field.docrow
@@ -69,11 +71,12 @@ export function FieldRow({
         "group/frow relative -mx-2 cursor-pointer grid-cols-[minmax(5.5rem,9rem)_1fr] px-2 transition-colors",
         "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
         "hover:bg-accent",
-        // A machine observation the officer has not acted on yet tints the whole
-        // row — the warning has to catch the eye at the field, not only in a caption.
-        // Its own ink pair on its own fill; selection still wins while selected.
-        attention && !selected && "bg-warning-muted hover:bg-warning-muted",
-        selected && "bg-accent-strong",
+        // A machine observation carries no row fill. The `HintLine` under the value —
+        // icon, words, and the warning pair's own ink — is the complete signal, and
+        // washing the row as well made every unread field a tinted band. Status text on
+        // a neutral ground, never a fill.
+        selected &&
+          "before:absolute before:inset-y-0 before:start-0 before:w-0.5 before:bg-primary before:content-['']",
         // While composing, the composer's well is the surface; a row fill under it
         // would stack two greys and blur the well's edge.
         composing && "bg-transparent hover:bg-transparent",
@@ -117,18 +120,25 @@ export function FieldRow({
              * form, and hover-only affordances are unreachable by keyboard and touch.
              */}
             {field.doc && !field.thumb ? (
-              <span
-                className="inline-flex size-8 shrink-0 items-center justify-center text-muted-foreground"
-                title={`Doc ${DOC_BY_ID[field.doc]?.no} · ${DOC_BY_ID[field.doc]?.name}${
-                  field.srcnote ? ` — ${field.srcnote}` : ""
-                }`}
-              >
-                <FileTextIcon className="size-3" />
+              /* The glyph says "this value came from a document"; which document it was
+                 is text, not a `title` — a tooltip attribute is unreachable by touch and
+                 by keyboard, so it cannot be the only place a fact lives. */
+              <span className="inline-flex size-8 shrink-0 items-center justify-center text-muted-foreground">
+                <FileTextIcon className="size-3" aria-hidden="true" />
+                <span className="sr-only">
+                  {`Read from Doc ${DOC_BY_ID[field.doc]?.no}, ${DOC_BY_ID[field.doc]?.name}${
+                    field.srcnote ? ` — ${field.srcnote}` : ""
+                  }`}
+                </span>
               </span>
             ) : null}
             <Button
               variant="destructive-ghost"
               size="icon-sm"
+              /* Dense by design inside the record, but never below the touch floor:
+                 the registry works on tablets, so a coarse pointer gets the full 40px
+                 (DS Laws, ACCESSIBILITY §5). */
+              className="[@media(pointer:coarse)]:size-10"
               title={flagTitle}
               aria-label={`${flagTitle}: ${field.label}`}
               onClick={(event) => {
@@ -330,11 +340,12 @@ function RaisedItem({
    * they apply. That is what makes it scannable at a glance and scalable as items grow
    * more kinds of fact — the owner's call, replacing the earlier stack of unlike lines.
    *
-   * A white box with a hairline, not a sunken well: the well sat on the selected row's
-   * accent fill and read as beige on beige.
+   * A sunken well inside the card, borderless: depth is fill, not another stroke, and a
+   * white box on a white card was invisible. It works in every row state now that
+   * selection has moved off the fill and onto a leading bar.
    */
   return (
-    <div className="col-span-full my-1 flex flex-col gap-3 rounded-lg border border-hairline bg-card p-3 @container">
+    <div className="col-span-full my-1 flex flex-col gap-3 rounded-lg bg-surface-sunken p-3 @container">
       <div className="flex items-center gap-2">
         <Badge variant={flag.correction ? "info" : "destructive"}>
           {flag.correction
@@ -344,9 +355,12 @@ function RaisedItem({
               : "Flag"}
         </Badge>
         <span className="ms-auto -my-1 flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover/frow:opacity-100 group-focus-within/frow:opacity-100 group-aria-selected/frow:opacity-100 [@media(hover:none)]:opacity-100">
+          {/* `xs` is the record's own density — two words inside a well inside a row —
+              but a coarse pointer still gets the 40px floor. */}
           <Button
             variant="ghost"
             size="xs"
+            className="[@media(pointer:coarse)]:h-10"
             onClick={(event) => {
               event.stopPropagation();
               controller.openComposer(field.id);
@@ -357,6 +371,7 @@ function RaisedItem({
           <Button
             variant="destructive-ghost"
             size="xs"
+            className="[@media(pointer:coarse)]:h-10"
             onClick={(event) => {
               event.stopPropagation();
               const stranded = controller.removeFlag(field.id);

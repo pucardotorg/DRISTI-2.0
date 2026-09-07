@@ -63,7 +63,10 @@ export function HistorySheet({
                       <button
                         key={`${item.ref}-${item.what}`}
                         type="button"
-                        className="flex w-full items-start gap-3 rounded-md bg-surface-sunken px-2 py-1.5 text-start transition-colors hover:bg-accent"
+                        /* A well that holds something clickable gets its edge: the DS
+                           Law wants a hairline whenever the sunken fill is an
+                           interactive target rather than a passive inset. */
+                        className="flex w-full items-start gap-3 rounded-md border border-hairline bg-surface-sunken px-2 py-1.5 text-start transition-colors hover:bg-accent"
                         onClick={() => {
                           onOpenChange(false);
                           onGoToItem(item.ref);

@@ -1,21 +1,21 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
-import { FileSearchIcon, InboxIcon } from "lucide-react";
+import { FileSearchIcon, InboxIcon, SearchIcon } from "lucide-react";
 
+import { ListFooter } from "@/components/employee/list-footer";
+import {
+  ScrutinyQueueItemList,
+  ScrutinyQueueTable,
+} from "@/components/employee/scrutiny/queue-table";
 import { QUEUE, QUEUE_TABS } from "@/lib/employee/scrutiny/fixtures";
 import {
   countByBall,
   filterQueue,
-  stageVariant,
-  waitTone,
+  SCRUTINY_QUEUE_COUNT,
 } from "@/lib/employee/scrutiny/queue";
-import type { Ball, Filing, QueueOwner } from "@/lib/employee/scrutiny/types";
-import { cn } from "@/lib/utils";
-import { PANEL_CLASS } from "@/components/filing/form-card";
-import { Badge } from "@/components/ui/badge";
-import { Banner } from "@/components/ui/banner";
+import type { Ball, QueueOwner } from "@/lib/employee/scrutiny/types";
+import { PAGE_SIZE, type HearingsPageSize } from "@/lib/employee/hearings";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -25,7 +25,13 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
+import { Field, FieldLabel } from "@/components/ui/field";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -33,58 +39,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-const COLUMNS = [
-  "Filing no.",
-  "Parties",
-  "Type",
-  "Stage",
-  "Reason",
-  "Advocate",
-  "With",
-  "Waiting",
-];
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 /**
- * The ageing cell.
+ * The scrutiny queue — complaints waiting to be checked against the documents filed
+ * with them.
  *
- * One presentation for one datum: the wait is always plain `tabular-nums` text, and
- * escalation is carried by ink on that same text. A red chip on the 16-day row beside
- * plain text on the 1-day row would be two treatments of one column — and it is the
- * default sort key, so it is already the most-read number on the screen. The number
- * itself says the thing; the colour only says how loudly.
+ * Composed as the court-side queue it is, not as the standalone prototype it came from:
+ * the page title stands on the page, the tab strip is the line a filing travels along,
+ * and **one** lifted panel below it holds the filters, the table and the pagination
+ * footer together. Same panel recipe, same `gap-6` / `p-6`, same table treatment,
+ * literally the same footer component as Register cases and Sign process. An officer
+ * moving between the rail's rows should not have to re-learn the furniture in between.
+ *
+ * Three tabs, and what changes between them is only the list: who holds the ball is what
+ * the tab selects, so nothing inside the table needs to repeat it.
  */
-function WaitingCell({ filing }: { filing: Filing }) {
-  const tone = waitTone(filing);
-  return (
-    <span
-      className={cn(
-        "tabular-nums",
-        tone === "destructive" && "font-medium text-destructive-ink",
-        tone === "warning" && "font-medium text-warning-ink",
-        tone === "muted" && "text-muted-foreground",
-      )}
-    >
-      {filing.days} d
-    </span>
-  );
-}
-
 export function ScrutinyQueue() {
-  const router = useRouter();
   const [tab, setTab] = React.useState<Ball>("registry");
   const [owner, setOwner] = React.useState<QueueOwner>("anyone");
   const [text, setText] = React.useState("");
-  const [note, setNote] = React.useState<string | null>(null);
+  const [pageSize, setPageSize] = React.useState<HearingsPageSize>(PAGE_SIZE);
+  const [page, setPage] = React.useState(1);
 
   const rows = React.useMemo(
     () => filterQueue(QUEUE, tab, owner, text),
@@ -92,191 +68,216 @@ export function ScrutinyQueue() {
   );
   const filtered = !!text.trim() || owner !== "anyone";
 
-  React.useEffect(() => {
-    if (!note) return;
-    const timer = setTimeout(() => setNote(null), 2600);
-    return () => clearTimeout(timer);
-  }, [note]);
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const start = (currentPage - 1) * pageSize;
+  const pageRows = rows.slice(start, start + pageSize);
 
-  function open(filing: Filing) {
-    if (!filing.openable) {
-      setNote(
-        "Only F/AHM/2026/00341 has a case bundle behind it in this prototype.",
-      );
-      return;
-    }
-    router.push(`/employee/scrutiny/${encodeURIComponent(filing.no)}`);
+  function changeTab(next: Ball) {
+    setTab(next);
+    setPage(1);
   }
 
   function clearFilters() {
     setText("");
     setOwner("anyone");
+    setPage(1);
   }
 
   return (
-    /*
-     * The header and filters are fixed; only the list scrolls. The shell bounds the
-     * column's height, so a screen that wants scrolling asks for it here rather than
-     * letting the page grow.
-     */
-    <main
-      className="flex min-h-0 flex-1 flex-col gap-4 px-6 pt-6"
-      aria-label="Scrutiny queue"
-    >
-      {/* The rail's label, word for word — the court screens' own convention, and what
-          makes the trail's "Actions" step enough above it. */}
-      <h1 className="text-title text-balance font-semibold sm:text-title-l">
-        Scrutinise submitted cases
-      </h1>
+    <div className="flex min-w-0 flex-1 flex-col gap-8 p-6 md:p-8">
+      <header className="flex flex-col gap-2">
+        {/* The rail's label, word for word — the court screens' own convention. */}
+        <h1 className="text-title text-balance font-semibold sm:text-title-l">
+          Scrutinise submitted cases
+        </h1>
+        {/* The count is the whole point of the queue, so the supporting line carries it
+            rather than restating the title — and it counts what the rail counts: the
+            filings sitting with the registry, which is this desk's actual inbox.
+            Singular is spelled out because "1 complaints" is the kind of thing a court
+            notices. */}
+        <p className="text-body text-muted-foreground">
+          {SCRUTINY_QUEUE_COUNT === 1
+            ? "1 complaint is waiting to be scrutinised."
+            : `${SCRUTINY_QUEUE_COUNT} complaints are waiting to be scrutinised.`}
+        </p>
+      </header>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Tabs
-          value={tab}
-          onValueChange={(value) => setTab(value as Ball)}
-          className="w-auto"
-          activationMode="automatic"
-        >
-          <TabsList>
+      <Tabs
+        value={tab}
+        onValueChange={(value) => changeTab(value as Ball)}
+        activationMode="automatic"
+        className="flex min-w-0 flex-col gap-6"
+      >
+        {/* Line TabsList, not the pill track: these are stages of one thing rather than
+            alternative views of it, and the underline is what a line looks like. The
+            primitive hangs its mark at `after:bottom-[-5px]` for a padded track, so the
+            mark is sat at `after:-bottom-px` to land on the gutter's own rule instead of
+            floating above it as a second horizontal line (ui-craft §2). */}
+        <div className="overflow-x-auto border-b border-hairline">
+          <TabsList
+            variant="line"
+            aria-label="Whose hands the filing is in"
+            className="h-10 w-max min-w-full justify-start rounded-none p-0 group-data-horizontal/tabs:h-10"
+          >
             {QUEUE_TABS.map((queueTab) => (
-              <TabsTrigger key={queueTab.id} value={queueTab.id}>
+              <TabsTrigger
+                key={queueTab.id}
+                value={queueTab.id}
+                className="h-10 flex-none gap-2 px-3 text-body group-data-horizontal/tabs:after:-bottom-px"
+              >
                 {queueTab.label}
-                {queueTab.id === "closed" ? null : (
-                  <span className="ms-1.5 text-muted-foreground tabular-nums">
-                    {countByBall(QUEUE, queueTab.id)}
-                  </span>
-                )}
+                {/* How much is standing here. One presentation across all three —
+                    Closed included, because a count shown two ways is two data types
+                    to the eye — and it inherits the trigger's colour so the count and
+                    its label read as one thing (ui-craft §2). */}
+                <span className="font-normal tabular-nums">
+                  {countByBall(QUEUE, queueTab.id)}
+                </span>
               </TabsTrigger>
             ))}
           </TabsList>
-        </Tabs>
+        </div>
 
-        <div className="flex items-center gap-2">
-          <Input
-            type="search"
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-            placeholder="Filing no., party or advocate"
-            aria-label="Search filings"
-            className="w-72"
-          />
-          <Select
-            value={owner}
-            onValueChange={(value) => setOwner(value as QueueOwner)}
+        {QUEUE_TABS.map((queueTab) => (
+          <TabsContent
+            key={queueTab.id}
+            value={queueTab.id}
+            className="min-w-0 outline-none"
           >
-            <SelectTrigger className="w-36" aria-label="Claimed by">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="anyone">Anyone</SelectItem>
-              <SelectItem value="me">Me</SelectItem>
-              <SelectItem value="unclaimed">Unclaimed</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+            {queueTab.id !== tab ? null : (
+              /* One panel: filters, list and footer are one unit of work, so they share
+                 one lifted sheet — the recipe every other court-side queue uses. Nothing
+                 inside draws a second frame, and nothing inside scrolls on its own. */
+              <section className="flex min-w-0 flex-col gap-6 rounded-xl border border-hairline bg-card p-6 shadow-raised">
+                <QueueFilters
+                  text={text}
+                  owner={owner}
+                  onTextChange={(next) => {
+                    setText(next);
+                    setPage(1);
+                  }}
+                  onOwnerChange={(next) => {
+                    setOwner(next);
+                    setPage(1);
+                  }}
+                />
 
-      {note ? (
-        <Banner variant="info">
-          <FileSearchIcon />
-          <div className="min-w-0 flex-1 leading-snug">{note}</div>
-        </Banner>
-      ) : null}
+                {pageRows.length === 0 ? (
+                  <QueueEmpty
+                    tab={tab}
+                    filtered={filtered}
+                    onClearFilters={clearFilters}
+                    onGoToAdvocate={() => changeTab("advocate")}
+                  />
+                ) : (
+                  <div className="flex min-w-0 flex-col gap-4">
+                    {/* min-w-0 lets this flex item shrink below the table's content
+                        width, so a wide table scrolls inside the panel instead of
+                        pushing the page sideways. */}
+                    <div className="min-w-0 overflow-x-auto">
+                      <div className="hidden md:block">
+                        <ScrutinyQueueTable rows={pageRows} />
+                      </div>
+                      <div className="md:hidden">
+                        <ScrutinyQueueItemList rows={pageRows} />
+                      </div>
+                    </div>
 
-      <div className="min-h-0 flex-1 overflow-auto pb-6">
-      {rows.length ? (
-        /*
-         * The panel is the table's frame — lifted off the white page rather than drawn
-         * on it, so the rows inside need no frame of their own. `overflow-hidden` keeps
-         * the first and last rows inside the radius; the inner scroller carries the
-         * width so a wide table never stretches the page.
-         */
-        <div className={cn("overflow-hidden rounded-xl bg-card", PANEL_CLASS)}>
-          <div className="overflow-x-auto">
-            <Table className="w-full">
-              <TableHeader className="[&_tr]:border-hairline">
-                <TableRow className="bg-surface-sunken hover:bg-surface-sunken">
-                  {COLUMNS.map((column) => (
-                    <TableHead
-                      key={column}
-                      className={cn(
-                        "text-caption text-muted-foreground",
-                        column === "Type" && "hidden xl:table-cell",
-                      )}
-                    >
-                      {column}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((filing) => (
-                  <TableRow
-                    key={filing.no}
-                    className="cursor-pointer border-hairline text-body-compact last:border-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-                    tabIndex={0}
-                    onClick={() => open(filing)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        open(filing);
-                      }
-                    }}
-                  >
-                    <TableCell className="tabular-nums">{filing.no}</TableCell>
-                    {/*
-                     * Every cell is `whitespace-nowrap` from the DS table recipe, so the
-                     * natural width overflowed and clipped Waiting — the ageing signal
-                     * and the sort key. Parties absorbs the slack and truncates instead:
-                     * `w-full max-w-0` is the shrink-to-fit pattern for a table cell.
-                     */}
-                    <TableCell className="w-full max-w-0 truncate font-medium">
-                      {filing.parties}
-                    </TableCell>
-                    <TableCell className="hidden xl:table-cell">
-                      {filing.type}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={stageVariant(filing)}>{filing.stage}</Badge>
-                    </TableCell>
-                    <TableCell className="max-w-44 truncate text-muted-foreground">
-                      {filing.reason}
-                    </TableCell>
-                    <TableCell className="max-w-44 truncate">
-                      {filing.advocate}
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        filing.self ? "font-medium" : "text-muted-foreground",
-                      )}
-                    >
-                      {filing.who}
-                    </TableCell>
-                    <TableCell>
-                      <WaitingCell filing={filing} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      ) : (
-        <QueueEmpty
-          tab={tab}
-          filtered={filtered}
-          onClearFilters={clearFilters}
-          onGoToAdvocate={() => setTab("advocate")}
-        />
-      )}
+                    <ListFooter
+                      id="scrutiny-page-size"
+                      from={start + 1}
+                      to={start + pageRows.length}
+                      total={rows.length}
+                      page={currentPage}
+                      pageCount={pageCount}
+                      onPageChange={setPage}
+                      pageSize={pageSize}
+                      onPageSizeChange={(size) => {
+                        setPageSize(size);
+                        setPage(1);
+                      }}
+                    />
+                  </div>
+                )}
+              </section>
+            )}
+          </TabsContent>
+        ))}
+      </Tabs>
+    </div>
+  );
+}
+
+/**
+ * Free text and who holds it — the two questions this queue is filtered by.
+ *
+ * Both filter as you type rather than on a button, which is this screen's own behaviour
+ * and the one thing that differs from the sibling queues. Every control still carries a
+ * visible label: a placeholder is a hint, not a name, and ACCESSIBILITY §12 wants a
+ * permanent one.
+ */
+function QueueFilters({
+  text,
+  owner,
+  onTextChange,
+  onOwnerChange,
+}: {
+  text: string;
+  owner: QueueOwner;
+  onTextChange: (value: string) => void;
+  onOwnerChange: (value: QueueOwner) => void;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+      {/* `Field` rather than a bare `Label htmlFor` beside an `Input id`. The DS `Input`
+          destructures `id` out of its props and only puts it back through
+          `useFieldControlProps`, which returns nothing when there is no `Field`
+          context — so an `id` handed to an `Input` outside a `Field` is dropped and the
+          label points at an element that does not exist. Upstream DS bug; see
+          `RegisterCasesFilters`. */}
+      <Field className="min-w-0 sm:w-80">
+        <FieldLabel className="text-body">Search filings</FieldLabel>
+        <InputGroup>
+          <InputGroupAddon>
+            <SearchIcon aria-hidden />
+          </InputGroupAddon>
+          <InputGroupInput
+            type="search"
+            autoComplete="off"
+            value={text}
+            onChange={(event) => onTextChange(event.target.value)}
+            placeholder="filing no., party or advocate"
+          />
+        </InputGroup>
+      </Field>
+
+      <div className="flex min-w-0 flex-col gap-2">
+        <Label htmlFor="scrutiny-claimed-by" className="w-fit text-body">
+          Claimed by
+        </Label>
+        <Select
+          value={owner}
+          onValueChange={(value) => onOwnerChange(value as QueueOwner)}
+        >
+          <SelectTrigger id="scrutiny-claimed-by" className="w-full sm:w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="anyone">Anyone</SelectItem>
+            <SelectItem value="me">Me</SelectItem>
+            <SelectItem value="unclaimed">Unclaimed</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
-    </main>
+    </div>
   );
 }
 
 /**
  * A genuinely empty tab and a filtered-empty tab are different situations and get
  * different copy: one teaches where the work is, the other offers the way back out of
- * the filter.
+ * the filter. Borderless and unpadded; the panel is already the frame.
  */
 function QueueEmpty({
   tab,
@@ -291,18 +292,20 @@ function QueueEmpty({
 }) {
   if (filtered) {
     return (
-      <Empty className="mt-8">
+      <Empty className="border-0 p-0">
         <EmptyHeader>
           <EmptyMedia variant="icon">
-            <FileSearchIcon />
+            <FileSearchIcon aria-hidden />
           </EmptyMedia>
-          <EmptyTitle>No filings match these filters</EmptyTitle>
-          <EmptyDescription>
+          <EmptyTitle className="text-title-s font-semibold">
+            No filings match these filters
+          </EmptyTitle>
+          <EmptyDescription className="text-body">
             Nothing in this tab matches the search or the claim filter.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Button variant="outline" size="sm" onClick={onClearFilters}>
+          <Button variant="outline" onClick={onClearFilters}>
             Clear filters
           </Button>
         </EmptyContent>
@@ -312,12 +315,12 @@ function QueueEmpty({
 
   const withAdvocates = countByBall(QUEUE, "advocate");
   return (
-    <Empty className="mt-8">
+    <Empty className="border-0 p-0">
       <EmptyHeader>
         <EmptyMedia variant="icon">
-          <InboxIcon />
+          <InboxIcon aria-hidden />
         </EmptyMedia>
-        <EmptyTitle>
+        <EmptyTitle className="text-title-s font-semibold">
           {tab === "registry"
             ? "Nothing awaiting scrutiny"
             : tab === "advocate"
@@ -325,14 +328,16 @@ function QueueEmpty({
               : "No cases closed yet"}
         </EmptyTitle>
         {tab === "registry" ? (
-          <EmptyDescription>
-            {withAdvocates} filings are with advocates.
+          <EmptyDescription className="text-body">
+            {withAdvocates === 1
+              ? "1 filing is with an advocate."
+              : `${withAdvocates} filings are with advocates.`}
           </EmptyDescription>
         ) : null}
       </EmptyHeader>
       {tab === "registry" ? (
         <EmptyContent>
-          <Button variant="outline" size="sm" onClick={onGoToAdvocate}>
+          <Button variant="outline" onClick={onGoToAdvocate}>
             View filings with advocates
           </Button>
         </EmptyContent>

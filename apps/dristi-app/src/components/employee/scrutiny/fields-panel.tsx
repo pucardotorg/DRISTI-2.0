@@ -14,7 +14,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { DescriptionList } from "@/components/ui/description-list";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export interface FieldsPanelHandle {
   scrollToRow: (fieldId: string) => void;
@@ -23,12 +22,15 @@ export interface FieldsPanelHandle {
 /**
  * Filed information: one continuous scroll through every section.
  *
- * The tab strip above it is an INDICATOR that follows the reading position and a way to
- * jump — not a set of panels. Clicking scrolls; scrolling moves the indicator.
+ * The strip above it is an INDICATOR that follows the reading position and a way to
+ * jump — not a set of panels. Clicking scrolls; scrolling moves the indicator. So it is
+ * a `nav` of buttons carrying `aria-current`, not `Tabs`: Radix's `TabsTrigger` always
+ * emits `aria-controls`, and there is no panel at the other end of it.
  *
- * The column is a scoped work canvas: `bg-muted` in light so the white group cards on it
- * read as the working surface, but `dark:bg-background`, because in dark `muted` sits
- * *above* `card` and tinting here would invert the depth.
+ * The column is a work canvas, layered the way the bundle beside it already is: a sunken
+ * ground with the group cards lifted off it. `bg-muted` measured 1.03:1 against `card` in
+ * light and, in dark, sits *above* `card` — so the pane read as flat in one theme and
+ * inverted in the other. `surface-sunken` is a well in both.
  */
 export function FieldsPanel({
   controller,
@@ -127,22 +129,40 @@ export function FieldsPanel({
 
   return (
     <section
-      className="flex min-h-0 flex-col bg-muted dark:bg-background"
+      /* `h-full`, like the bundle beside it: the pane is what bounds the height, and the
+         scroller below only scrolls once something above it says how tall it may be. */
+      className="flex h-full min-h-0 flex-col bg-surface-sunken"
       aria-label="Filed information"
     >
-      {/* Chrome: white, hairline seam — never `border-border`. */}
-      <div className="flex h-14 shrink-0 items-center border-b border-hairline bg-card px-4">
-        <Tabs value={active} onValueChange={jumpTo} className="w-full">
-          <TabsList className="h-auto w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&_[data-slot=tabs-trigger]]:py-1.5">
-            {SECTIONS.map((section) => {
-              return (
-                <TabsTrigger key={section.id} value={section.id}>
-                  {section.num}. {section.title}
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
-        </Tabs>
+      {/* Chrome: white, hairline seam — never `border-border`. The line-tabs shape the
+          court screens already use: the rule and the horizontal scroll sit on the band,
+          and each mark hangs at `-bottom-px` so it lands ON that rule rather than
+          floating above it as a second horizontal line (ui-craft §2). The old pill track
+          fought the primitive for the same effect and clipped its own labels to "ails". */}
+      <div className="flex h-14 shrink-0 items-stretch overflow-x-auto border-b border-hairline bg-card px-4">
+        <nav aria-label="Sections" className="flex items-stretch gap-1">
+          {SECTIONS.map((section) => {
+            const current = active === section.id;
+            return (
+              <button
+                key={section.id}
+                type="button"
+                aria-current={current ? "true" : undefined}
+                onClick={() => jumpTo(section.id)}
+                className={cn(
+                  "relative flex shrink-0 items-center px-3 text-body-compact font-medium whitespace-nowrap transition-colors",
+                  "after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-brand-accent after:opacity-0 after:transition-opacity after:content-['']",
+                  "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
+                  current
+                    ? "text-primary after:opacity-100"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {section.num}. {section.title}
+              </button>
+            );
+          })}
+        </nav>
       </div>
 
       <div className="relative flex-1 overflow-y-auto p-4" ref={scrollRef}>
@@ -165,7 +185,15 @@ export function FieldsPanel({
               {section.groups.map((group) => {
                 const Icon = GROUP_ICONS[group.icon];
                 return (
-                  <Card size="sm" key={group.id} className="w-full">
+                  /* The panel recipe, on the thing that is actually a panel: a lifted
+                     card on the sunken canvas, hairline-edged. `Card` already supplies
+                     the border width, so only the colour and the shadow are added here
+                     (ui-craft §4). */
+                  <Card
+                    size="sm"
+                    key={group.id}
+                    className="w-full border-hairline shadow-raised"
+                  >
                     <CardHeader>
                       <div className="flex items-center gap-2.5">
                         <span className="inline-flex text-muted-foreground">

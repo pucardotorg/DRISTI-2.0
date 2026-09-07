@@ -41,14 +41,12 @@ export function filterQueue(
     .sort((a, b) => b.days - a.days || a.no.localeCompare(b.no));
 }
 
-export type StageVariant = "info" | "secondary" | "success" | "outline";
-
-/** The badge variant encodes who holds the ball, not the prose of the stage. */
-export function stageVariant(filing: Filing): StageVariant {
-  if (filing.ball === "registry") return "info";
-  if (filing.ball === "advocate") return "secondary";
-  return filing.stage === "Registered" ? "success" : "outline";
-}
+/*
+ * There is no `stageVariant` any more. It keyed the badge off `filing.ball` — which is
+ * exactly what the tab above the table already filters by — so within one tab every row
+ * wore the same chip in the same colour, saying nothing thirty times over. The stage now
+ * reads as plain text in its column.
+ */
 
 export type WaitTone = "plain" | "muted" | "warning" | "destructive";
 

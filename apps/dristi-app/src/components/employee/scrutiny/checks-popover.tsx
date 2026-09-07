@@ -33,7 +33,7 @@ export function ChecksPopover() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="outline">
           <FileCheckIcon />
           {checked.size
             ? `What to check · ${checked.size}/${CHECKS.length}`

@@ -342,39 +342,40 @@ export function BundleView({
           </span>
         </div>
 
+        {/* The DS ships the segmented control: `outline` draws the item edges and
+            `spacing={0}` collapses the borders and rounds the two ends. The hand-rolled
+            version restated all of that in classNames and added an `overflow-hidden`
+            that clipped the focus ring off the end items. */}
         <ToggleGroup
           type="single"
           value={tool}
           onValueChange={(value) => value && controller.setTool(value as BundleTool)}
           spacing={0}
-          className="overflow-hidden border border-input"
+          variant="outline"
+          className="bg-surface-sunken"
           aria-label="Bundle tool"
         >
-          <ToggleGroupItem
-            value="select"
-            className="rounded-none border-input"
-            aria-label="Select tool"
-          >
+          <ToggleGroupItem value="select" aria-label="Select tool">
             <MousePointer2Icon />
             Select
           </ToggleGroupItem>
-          <ToggleGroupItem
-            value="rect"
-            className="rounded-none border-s border-input"
-            aria-label="Mark tool"
-          >
+          <ToggleGroupItem value="rect" aria-label="Mark tool">
             <SquareDashedIcon />
             Mark
           </ToggleGroupItem>
         </ToggleGroup>
 
-        <Separator orientation="vertical" className="h-5" />
+        {/* `bg-border` is the darkest non-text mark in the system, and a chrome bar is
+            the last place it belongs — hairline is the seam role (ui-craft §1.1). */}
+        <Separator orientation="vertical" className="h-5 bg-hairline" />
 
         <Tooltip>
           <TooltipTrigger asChild>
+            {/* Default size, like every other control on a court screen: the registry
+                works on tablets and the DS floor for a control is 40px. */}
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon"
               onClick={() => stepZoom(-1)}
               disabled={zoom <= ZOOM_STEPS[0]}
               aria-label="Zoom out"
@@ -386,10 +387,9 @@ export function BundleView({
         </Tooltip>
         <Button
           variant="ghost"
-          size="sm"
           className="tabular-nums"
           onClick={() => zoomTo(100)}
-          title="Reset to 100%"
+          aria-label={`Zoom is ${zoom} percent — reset to 100 percent`}
         >
           {zoom}%
         </Button>
@@ -397,7 +397,7 @@ export function BundleView({
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon"
               onClick={() => stepZoom(1)}
               disabled={zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]}
               aria-label="Zoom in"
@@ -419,7 +419,10 @@ export function BundleView({
       >
         {drawing ? (
           <div className="pointer-events-none sticky top-0 z-8 mb-2 flex justify-center">
-            <Badge>{drawHint}</Badge>
+            {/* Guidance is neutral. The workbench spends its one teal on Register case
+                (the Ration Teal Law), and a brand-filled pill floating over the bundle
+                was competing with it for the same meaning. */}
+            <Badge variant="secondary">{drawHint}</Badge>
           </div>
         ) : null}
 
@@ -449,7 +452,9 @@ export function BundleView({
                 id={`doc-${doc.id}`}
                 key={doc.id}
               >
-                <div className="text-caption text-muted-foreground">
+                {/* The only navigational anchor in a scroll this long, so it reads as
+                    one: caption size, but foreground ink at 600 rather than grey. */}
+                <div className="text-caption font-semibold text-foreground">
                   <span className="tabular-nums">{doc.no}</span> · {doc.name}
                 </div>
                 <div
