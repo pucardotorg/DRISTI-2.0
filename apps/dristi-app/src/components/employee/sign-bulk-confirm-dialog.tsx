@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CircleCheckIcon } from "lucide-react";
+import { CheckIcon } from "lucide-react";
 
 import { ChromeDialogContent } from "@/components/chrome/app-chrome";
 
@@ -118,12 +118,13 @@ export type SignBulkSelection = {
  *
  * A `Dialog` rather than an `AlertDialog`: the flow no longer ends on the decision, and
  * an alert has neither a third state nor a close affordance. This gives every queue the
- * X the reference draws.
+ * X the reference draws, on the step that asks the question.
  *
  * The chrome is the advocate product's own overlay recipe — bordered header, scrolling
- * body, bordered footer, and the same submitted-state medallion `BailApplicationDialog`
- * and `BailBondDialog` land on. Signing off a queue and filing an application are the
- * same beat of the same product; they should not be two different kinds of object.
+ * body, bordered footer — and the confirmation it ends on is `AddSignatureDialog`'s: a
+ * solid success panel carrying the heading, the tick beneath it, and the facts in a
+ * well under that. Signing off a queue and signing a submission are the same beat of
+ * the same product; they should not end on two different kinds of object.
  *
  * The bulk path asks for no signature method. Choosing between e-sign and an upload is a
  * question about *one* document the bench has read; the queues' single-document paths
@@ -139,6 +140,7 @@ export function SignBulkConfirmDialog({
   open,
   onOpenChange,
   onConfirm,
+  onDownload,
   triggerRef,
   onReturnFocus,
 }: {
@@ -157,6 +159,20 @@ export function SignBulkConfirmDialog({
    * closing here would take it away before it rendered.
    */
   onConfirm: () => void;
+  /**
+   * Take the papers away, offered on the success step only.
+   *
+   * Optional, and the four single-act queues pass nothing — their footer is the single
+   * Done it has always been. The process line passes it because that is the one screen
+   * where the rows are worth having in hand the moment they are signed.
+   *
+   * **It must resolve the rows again, not close over the ones it was given.** By the time
+   * this can be clicked the act has run: the rows have moved stage and been stamped, and
+   * a copy captured before that would write "Pending the signature of the magistrate"
+   * across ten papers the bench has just signed. The screen keeps the ids and reads them
+   * back off its own list — see `SignProcessScreen`.
+   */
+  onDownload?: () => void;
   /**
    * The sticky-bar button this was opened from, to hand focus back to on the way out.
    *
@@ -186,6 +202,7 @@ export function SignBulkConfirmDialog({
           selection={selection}
           onClose={() => onOpenChange(false)}
           onConfirm={onConfirm}
+          onDownload={onDownload}
           triggerRef={triggerRef}
           onReturnFocus={onReturnFocus}
         />
@@ -201,6 +218,7 @@ function SignBulkConfirmBody({
   selection,
   onClose,
   onConfirm,
+  onDownload,
   triggerRef,
   onReturnFocus,
 }: {
@@ -210,6 +228,7 @@ function SignBulkConfirmBody({
   selection: SignBulkSelection;
   onClose: () => void;
   onConfirm: () => void;
+  onDownload?: () => void;
   triggerRef: React.RefObject<HTMLButtonElement | null>;
   onReturnFocus: () => void;
 }) {
@@ -245,6 +264,10 @@ function SignBulkConfirmBody({
   return (
     <ChromeDialogContent
       className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg"
+      /* The DS places a small ghost X top-right, which lands on the success panel's dark
+         fill and disappears into it — the reason the advocate confirmation drew its own.
+         Here the footer's Done is the way out, so the step goes without one. */
+      showCloseButton={step === "confirm"}
       onCloseAutoFocus={(event) => {
         /* Backing out returns the bench to the button it left; signing sends it to the
            search field, because signing is what disabled that button — and on the queues
@@ -259,11 +282,15 @@ function SignBulkConfirmBody({
       }}
     >
       {step === "confirm" ? (
-        /* `pr-14` keeps the title clear of the close button the DS places top-right —
+        /* A header and a footer, and nothing between them. The question names the count
+           — the one fact the bench cannot get anywhere else at this moment, having
+           opened none of these documents — and the line under it names the risk. What
+           was ticked is the list it just came from; restating it here is a second
+           reading of the same page at the moment it has to decide.
+
+           `pr-14` keeps the title clear of the close button the DS places top-right —
            the advocate overlays' own figure for the same bordered header. */
-        <DialogHeader className="shrink-0 border-b border-hairline px-6 py-5 pr-14 text-left">
-          {/* The question carries the count, which is the one fact the bench cannot get
-              anywhere else at this moment — it has opened none of these documents. */}
+        <DialogHeader className="min-h-0 shrink overflow-y-auto border-b border-hairline px-6 py-5 pr-14 text-left">
           <DialogTitle className="text-title-s font-semibold text-balance tabular-nums">
             {act.question(subject)}
           </DialogTitle>
@@ -272,60 +299,65 @@ function SignBulkConfirmBody({
           </DialogDescription>
         </DialogHeader>
       ) : (
-        <DialogHeader className="shrink-0 border-b border-hairline px-6 py-5 pr-14 text-left">
-          {/* The advocate product's submitted-state medallion, to the pixel — signing off
-              a queue and filing an application are the same beat and should look it. */}
-          <div className="flex items-center gap-4">
-            <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-success-muted text-success-muted-foreground">
-              <CircleCheckIcon className="size-7" aria-hidden />
-            </span>
-            <div className="flex min-w-0 flex-col gap-1.5">
-              {/* The verb the question asked, answered. */}
-              <DialogTitle
-                ref={titleRef}
-                tabIndex={-1}
-                className="text-title-s font-semibold text-balance tabular-nums outline-none"
-              >
-                {act.done(phrase)}
-              </DialogTitle>
-              {/* Focus lands on the heading, which announces the title and its role and
-                  nothing else; `aria-describedby` sits on the dialog and does not re-fire
-                  when the description's contents are swapped underneath it. A live region
-                  is what gets the outcome spoken at all. */}
-              <DialogDescription
-                role="status"
-                className="text-body text-pretty"
-              >
-                {act.outcome(one)}
-              </DialogDescription>
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <div className="flex flex-col gap-4">
+            {/* The advocate product's confirmation, brought across whole: a solid success
+                panel carrying the heading, with the tick under it. */}
+            <div className="flex flex-col items-center gap-4 rounded-lg bg-success p-6 text-center">
+              <div className="flex flex-col gap-1.5">
+                {/* The verb the question asked, answered. */}
+                <DialogTitle
+                  ref={titleRef}
+                  tabIndex={-1}
+                  className="text-title-s font-semibold text-balance tabular-nums text-success-foreground outline-none"
+                >
+                  {act.done(phrase)}
+                </DialogTitle>
+                {/* Focus lands on the heading, which announces the title and its role and
+                    nothing else; `aria-describedby` sits on the dialog and does not re-fire
+                    when the description's contents are swapped underneath it. A live region
+                    is what gets the outcome spoken at all. */}
+                <DialogDescription
+                  role="status"
+                  className="text-body-compact text-pretty text-success-foreground"
+                >
+                  {act.outcome(one)}
+                </DialogDescription>
+              </div>
+              <span className="flex size-10 items-center justify-center rounded-full bg-success-foreground">
+                <CheckIcon className="size-6 text-success" aria-hidden />
+              </span>
             </div>
-          </div>
-        </DialogHeader>
-      )}
 
-      {/* What the selection is made of — the part of it this overlay is covering. The
-          bench checked boxes down a list and can no longer see it, and whether eight rows
-          are eight cases or three, and which kinds of document they are, changes what
-          signing them together means. Facts the screen already holds; no identifier is
-          minted for an act that files nothing. */}
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-        <DescriptionList>
-          {signed.kinds.map((kind) => (
-            <DescriptionRow key={kind.label} className="border-hairline">
-              <DescriptionTerm>{kind.label}</DescriptionTerm>
-              <DescriptionDetails className="tabular-nums">
-                {kind.count}
-              </DescriptionDetails>
-            </DescriptionRow>
-          ))}
-          <DescriptionRow className="border-hairline">
-            <DescriptionTerm>Cases</DescriptionTerm>
-            <DescriptionDetails className="tabular-nums">
-              {signed.cases === 1 ? "1 case" : `${signed.cases} cases`}
-            </DescriptionDetails>
-          </DescriptionRow>
-        </DescriptionList>
-      </div>
+            {/* What left the queue, in the well the advocate confirmation puts its facts
+                in. Worth saying here and not on the question: these rows have just gone
+                from the list that held them, and this is the last place they can be read.
+                Facts the screen already holds; no identifier is minted for an act that
+                files nothing. */}
+            <DescriptionList className="rounded-lg bg-surface-sunken px-4 py-1">
+              {signed.kinds.map((kind) => (
+                <DescriptionRow
+                  key={kind.label}
+                  className="grid-cols-[1fr_auto] items-center border-hairline"
+                >
+                  <DescriptionTerm className="text-body">
+                    {kind.label}
+                  </DescriptionTerm>
+                  <DescriptionDetails className="text-body tabular-nums">
+                    {kind.count}
+                  </DescriptionDetails>
+                </DescriptionRow>
+              ))}
+              <DescriptionRow className="grid-cols-[1fr_auto] items-center border-hairline">
+                <DescriptionTerm className="text-body">Cases</DescriptionTerm>
+                <DescriptionDetails className="text-body tabular-nums">
+                  {signed.cases === 1 ? "1 case" : `${signed.cases} cases`}
+                </DescriptionDetails>
+              </DescriptionRow>
+            </DescriptionList>
+          </div>
+        </div>
+      )}
 
       <footer className="flex shrink-0 flex-col-reverse gap-2 border-t border-hairline px-6 py-4 sm:flex-row sm:justify-end">
         {step === "confirm" ? (
@@ -344,9 +376,26 @@ function SignBulkConfirmBody({
             </Button>
           </>
         ) : (
-          <Button type="button" onClick={onClose}>
-            Done
-          </Button>
+          <>
+            {/* The rows have just left the queue that listed them, and the bar that could
+                have downloaded them went with the selection. One bordered action beside
+                the strong one, the same pair the sticky bar makes — the count is the
+                dialog's own captured one, so it agrees with the heading above it. */}
+            {onDownload ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="tabular-nums"
+                onClick={onDownload}
+              >
+                Download {signed.count}{" "}
+                {signed.count === 1 ? "document" : "documents"}
+              </Button>
+            ) : null}
+            <Button type="button" onClick={onClose}>
+              Done
+            </Button>
+          </>
         )}
       </footer>
     </ChromeDialogContent>

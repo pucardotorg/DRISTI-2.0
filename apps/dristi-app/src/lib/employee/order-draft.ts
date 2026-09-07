@@ -1,11 +1,10 @@
 /**
  * The order of one listing — what the cause-list icon opens, as data.
  *
- * Employee stays self-contained (`content.ts`): this module restates the hearing-day
- * direction labels rather than importing the advocate-side register. The *words* are
- * the register's (`lib/cases/orders.ts`) so the two halves cannot disagree about
- * "Interim compensation". The catalogue here is the sitting-only subset; scheduling
- * types are not in it, because the next date is its own section on the composer.
+ * Employee stays self-contained (`content.ts`): nothing here reaches into the
+ * advocate-side register. What the bench fills in is the reference's own four regions —
+ * the applications standing in the matter, who is present and who is absent, the item
+ * itself, and where the case is posted to next.
  *
  * **Nothing here is issued.** Assembling the text is a screen derivation. Saving a
  * draft and previewing it do not file, notify, or sign — the same honesty bargain
@@ -15,6 +14,12 @@
 import type { RichTextValue } from "@/components/cases/rich-text-field";
 
 import { CURRENT_STAFF } from "./content";
+import {
+  applicationsForListing,
+  listingApplicationSentence,
+  type ListingApplication,
+  type ListingApplicationDecision,
+} from "./listing-applications";
 import {
   CAUSE_LIST,
   causeTitle,
@@ -71,64 +76,45 @@ export function appearancesFor(hearing: CourtHearing): Appearance[] {
 }
 
 /**
- * Directions the bench can add on a sitting. Labels match the case-register catalogue
- * exactly; the ids are the same so a later wiring cannot silently rename them.
+ * The body of the item, as the bench dictates it.
+ *
+ * One field, not a catalogue of typed directions. The reference composes an order as
+ * *Item Text* — a single dictated passage — and that is what a §138 day-order is: the
+ * bench speaks the item and the clerk sets it. The editor's own list controls carry the
+ * numbering when an item genuinely has (a), (b), (c) in it, which is where the previous
+ * build's separate "direction" objects were really coming from.
+ *
+ * Both shapes, the convention `rich-text-field.tsx` sets and the applications draft
+ * already follows: `html` is what the order renders, `text` is what decides whether the
+ * item has been written at all. Imported as a type only — this module is read by a node
+ * test, and a value import would drag a client component into it.
  */
-export const HEARING_DIRECTION_TYPES = [
-  { id: "notice", label: "Notice" },
-  { id: "summons", label: "Summons" },
-  { id: "warrant", label: "Warrant" },
-  { id: "proclamation", label: "Proclamation" },
-  { id: "interim-compensation", label: "Interim compensation" },
-  { id: "cost", label: "Cost" },
-  { id: "bail", label: "Bail" },
-  { id: "production-of-documents", label: "Production of documents" },
-  { id: "others", label: "Others" },
-] as const;
-
-export type HearingDirectionTypeId =
-  (typeof HEARING_DIRECTION_TYPES)[number]["id"];
-
-export function isHearingDirectionType(
-  value: string,
-): value is HearingDirectionTypeId {
-  return HEARING_DIRECTION_TYPES.some((entry) => entry.id === value);
-}
-
-export function hearingDirectionLabel(id: HearingDirectionTypeId): string {
-  return (
-    HEARING_DIRECTION_TYPES.find((entry) => entry.id === id)?.label ?? id
-  );
-}
-
-export type DirectionDraft = {
-  id: string;
-  typeId: HearingDirectionTypeId;
-  /**
-   * Both shapes, the convention `rich-text-field.tsx` sets and the applications draft
-   * already follows: `html` is what the order renders, `text` is what decides whether
-   * the direction has been written at all. Imported as a type only — this module is
-   * read by a node test, and a value import would drag a client component into it.
-   */
-  body: RichTextValue;
-};
+export type ItemText = RichTextValue;
 
 export type NextListingChoice = "list" | "none";
 
 export type OrderDraft = {
   marks: Readonly<Record<string, AttendanceMark | undefined>>;
+  /**
+   * How the bench answered each application pending on this listing, keyed by
+   * application id. Absent means it has not been answered yet — which is a real state
+   * and not a default, so the order says so rather than passing over it in silence.
+   */
+  applications: Readonly<Record<string, ListingApplicationDecision | undefined>>;
   next: NextListingChoice;
   nextPurpose: CourtHearingPurposeId | "";
   nextDate: string | null;
-  directions: DirectionDraft[];
+  /** The dictated body of the item — the reference's Item Text. */
+  itemText: ItemText;
 };
 
 export const EMPTY_ORDER_DRAFT: OrderDraft = {
   marks: {},
+  applications: {},
   next: "list",
   nextPurpose: "",
   nextDate: null,
-  directions: [],
+  itemText: { html: "", text: "" },
 };
 
 /** One named block in the assembled order. `pending` when the matching control is empty. */
@@ -137,7 +123,7 @@ export type OrderBlock = {
   heading: string;
   /** The plain sentence — what a reader hears, and what "written" is measured on. */
   body: string;
-  /** Directions only: the same words with the composer's formatting kept. */
+  /** The item body only: the same words with the composer's formatting kept. */
   html?: string;
   pending: boolean;
   /**
@@ -145,6 +131,12 @@ export type OrderBlock = {
    * than the joined `body` paragraph — same words, one appearance per line.
    */
   appearances?: AttendanceEntry[];
+  /**
+   * Applications only. One disposal per line, for the same reason the roll is a list:
+   * two applications answered differently are two findings, and a reader should not
+   * have to unpick them out of one paragraph. The last line may be the pending note.
+   */
+  sentences?: { text: string; pending: boolean }[];
 };
 
 export type AttendanceEntry = {
@@ -208,6 +200,58 @@ export function assembleAttendance(
   };
 }
 
+/**
+ * The applications answered in this item — the block that only exists when something
+ * was pending.
+ *
+ * A listing with no application returns nothing at all rather than an empty section:
+ * most matters on a board have none, and an order that recites "no application was
+ * pending" on twenty-one of twenty-three items is noise the bench has to read past.
+ *
+ * What has *not* been answered is stated, in the document's own pending voice. An
+ * application is on the file whether or not the bench got to it, and an order that
+ * silently omitted one would be the screen deciding to hide work rather than report it.
+ */
+export function assembleApplications(
+  hearing: CourtHearing,
+  applications: ListingApplication[],
+  decisions: OrderDraft["applications"],
+): OrderBlock | undefined {
+  if (applications.length === 0) return undefined;
+
+  const sentences: { text: string; pending: boolean }[] = applications.flatMap(
+    (application) => {
+      const decision = decisions[application.id];
+      if (decision !== "allowed" && decision !== "dismissed") return [];
+      return [
+        {
+          text: listingApplicationSentence(hearing, application, decision),
+          pending: false,
+        },
+      ];
+    },
+  );
+
+  const unanswered = applications.length - sentences.length;
+  if (unanswered > 0) {
+    sentences.push({
+      text:
+        unanswered === 1
+          ? "One application pending on this matter has not been answered."
+          : `${unanswered} applications pending on this matter have not been answered.`,
+      pending: true,
+    });
+  }
+
+  return {
+    id: "applications",
+    heading: "Applications",
+    body: sentences.map((sentence) => sentence.text).join(" "),
+    pending: unanswered > 0,
+    sentences,
+  };
+}
+
 export function assembleNextListing(
   draft: Pick<OrderDraft, "next" | "nextPurpose" | "nextDate">,
 ): OrderBlock {
@@ -244,26 +288,34 @@ export function assembleNextListing(
   };
 }
 
-export function assembleDirection(direction: DirectionDraft): OrderBlock {
-  const heading = hearingDirectionLabel(direction.typeId);
-  /* On the text, not the markup: an empty editor still holds a `<br>`, and a direction
-     that is only formatting is a direction nobody wrote. */
-  const body = direction.body.text.trim();
+/**
+ * The item body as the order carries it.
+ *
+ * On the text, not the markup: an empty editor still holds a `<br>`, and an item that is
+ * only formatting is an item nobody dictated.
+ */
+export function assembleItemText(itemText: ItemText): OrderBlock {
+  const body = itemText.text.trim();
   if (!body) {
     return {
-      id: direction.id,
-      heading,
-      body: "The direction has not been written.",
+      id: "item",
+      heading: "Item text",
+      body: "The item has not been dictated.",
       pending: true,
     };
   }
   return {
-    id: direction.id,
-    heading,
+    id: "item",
+    heading: "Item text",
     body,
-    html: direction.body.html,
+    html: itemText.html,
     pending: false,
   };
+}
+
+/** A block that may not exist, as the zero-or-one blocks the order actually holds. */
+function toBlocks(block: OrderBlock | undefined): OrderBlock[] {
+  return block ? [block] : [];
 }
 
 export function assembleOrder(
@@ -278,7 +330,16 @@ export function assembleOrder(
     purpose: courtHearingPurposeLabel(hearing.purpose),
     blocks: [
       assembleAttendance(appearances, draft.marks),
-      ...draft.directions.map(assembleDirection),
+      /* Between the roll and the item, where an order takes them: the bench disposes
+         of what is pending before it dictates what happens next. */
+      ...toBlocks(
+        assembleApplications(
+          hearing,
+          applicationsForListing(hearing.id),
+          draft.applications,
+        ),
+      ),
+      assembleItemText(draft.itemText),
       assembleNextListing(draft),
     ],
   };
@@ -314,13 +375,13 @@ export function nextUnhandledListing(
  * The order as paper — what Preview shows.
  *
  * Shaped as the facsimile the signing queue already prints (`sign-order-dialog.tsx`):
- * court and cause at the head, the directions as an ordered list, the date, then the
+ * court and cause at the head, the dictated item as its body, the date, then the
  * signature block. The composer and the signing queue print the same artefact, so they
  * must not disagree about what it looks like.
  *
- * Attendance opens the order and the next listing closes it, both as plain sentences.
- * Only the directions are numbered, and they carry the same numbers the composer shows,
- * so a direction can be named by number in either place.
+ * Attendance opens the order, the applications answered in this sitting follow it, and
+ * the next listing closes it — all as plain sentences. The item keeps whatever numbering
+ * the bench put in it with the editor's own list controls.
  *
  * **Nothing here is issued.** The signature block says the order is unsigned, because
  * it is, and this build has no act that would change that.
@@ -332,14 +393,14 @@ export type OrderDocument = {
   title: string;
   /** Attendance, as it opens the order. */
   opening: string;
-  directions: {
-    id: string;
-    heading: string;
-    body: string;
-    /** Empty while the direction is unwritten — the paper then prints the plain line. */
-    html: string;
-    pending: boolean;
-  }[];
+  /**
+   * How the applications pending on this listing were answered. Empty when none was
+   * pending — the paper then has no such paragraph at all.
+   */
+  applications: { text: string; pending: boolean }[];
+  /** The dictated item. `html` is empty while it is unwritten — the paper then prints
+      the plain line in its muted voice. */
+  item: { body: string; html: string; pending: boolean };
   /** The next listing, as it closes the order. */
   closing: string;
   dated: string;
@@ -358,16 +419,20 @@ export function buildOrderDocument(
     matter: causeTitle(hearing),
     title: "Order",
     opening: assembleAttendance(appearances, draft.marks).body,
-    directions: draft.directions.map((direction) => {
-      const block = assembleDirection(direction);
+    applications:
+      assembleApplications(
+        hearing,
+        applicationsForListing(hearing.id),
+        draft.applications,
+      )?.sentences ?? [],
+    item: (() => {
+      const block = assembleItemText(draft.itemText);
       return {
-        id: block.id,
-        heading: block.heading,
         body: block.body,
         html: block.html ?? "",
         pending: block.pending,
       };
-    }),
+    })(),
     closing: assembleNextListing(draft).body,
     dated: formatCourtDay(day),
     signature: "Pending the signature of the magistrate.",

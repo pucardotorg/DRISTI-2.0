@@ -5,8 +5,10 @@ import { HearingOverviewScreen } from "@/components/employee/hearing-overview-sc
 export const metadata: Metadata = { title: "Case overview" };
 
 /**
- * What is in the case the bench has just called — opened by Start hearing on today's
- * cause list, and by the cause title on the same row.
+ * What is in the case — opened by the cause title on today's cause list, and by any
+ * link, bookmark or tab that names this listing. Start hearing does not come here: it
+ * opens the same overview over the list it was pressed on
+ * (`components/employee/hearing-overview-dialog.tsx`).
  *
  * The screen is a client component because the marks this sitting has made live on
  * the client (`lib/employee/hearing-session.ts`) and the day is read from the

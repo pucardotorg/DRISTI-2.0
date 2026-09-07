@@ -12,7 +12,11 @@
  * actually logs in is still an open product question (`docs/product/open-questions.md`).
  */
 
-export type CourtRole = "magistrate" | "bench-clerk" | "scrutiny-officer";
+export type CourtRole =
+  | "magistrate"
+  | "bench-clerk"
+  | "scrutiny-officer"
+  | "typist";
 
 /**
  * How a role is written where it is shown to the person holding it.
@@ -32,14 +36,42 @@ export const COURT_ROLE_LABEL: Record<CourtRole, string> = {
   magistrate: "Magistrate",
   "bench-clerk": "Bench clerk",
   "scrutiny-officer": "Scrutiny officer",
+  typist: "Typist",
 };
+
+/**
+ * The seats the court side can be worked from — what the rail's settings control
+ * switches between.
+ *
+ * Two, and not every role above: `magistrate` and `scrutiny-officer` are roles the
+ * domain model names, but nobody has asked to sit in them here yet, and a switcher that
+ * offered a seat with nothing behind it would be the dead control this one replaced.
+ *
+ * **`typist` is the owner's word, not the domain model's.** `docs/product/domain/
+ * actors.md` names *Stenographer / Interpreter* for the person who records dictation and
+ * has no separate typist; the owner asked for these two seats by name on 2026-09-07, and
+ * an owner naming a role is the one sanctioned source for one. Whether it is the same
+ * actor under a court's own vocabulary is an open question for `actors.md`, not
+ * something this constant gets to settle.
+ *
+ * Choosing a seat changes **who the rail says you are and nothing else** — same rail,
+ * same queues, same screens. What each seat's work actually is comes later, from
+ * product; until then the switch must not pretend to be a different product.
+ */
+export const COURT_SEATS: CourtRole[] = ["bench-clerk", "typist"];
 
 /**
  * The identity the court side runs as.
  *
- * There is no sign-in on this branch, so the area is one fixed staff member: the JMFC
- * magistrate the court-side dashboard is being built for. Real authentication replaces
- * this constant with what the court establishment's directory returns.
+ * There is no sign-in on this branch, so the area is one fixed staff member on the JMFC
+ * bench at Kollam. Real authentication replaces this constant with what the court
+ * establishment's directory returns.
+ *
+ * `role` is where a seat *starts*, not where it stays: the rail's settings control
+ * switches between `COURT_SEATS` for the length of a visit (`court-role.ts`), and the
+ * footer reads the live one. The bench clerk is the default because that is the seat the
+ * court side is built for today — the owner's call on 2026-09-07, which moved it off
+ * `magistrate`.
  *
  * `name` is a demo given name like the court and the role beside it, not a claim about
  * who sits on this bench; the directory supplies the real one. Nothing keys off it, so
@@ -48,5 +80,5 @@ export const COURT_ROLE_LABEL: Record<CourtRole, string> = {
 export const CURRENT_STAFF: { name: string; court: string; role: CourtRole } = {
   name: "Uddipan",
   court: "JMFC Court 1, Kollam",
-  role: "magistrate",
+  role: "bench-clerk",
 };

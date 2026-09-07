@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { CAUSE_LIST } from "./hearings";
+import { applicationsForListing } from "./listing-applications";
 import {
   appearancesFor,
+  assembleApplications,
   assembleAttendance,
+  assembleItemText,
   assembleNextListing,
   assembleOrder,
   EMPTY_ORDER_DRAFT,
@@ -73,25 +76,131 @@ describe("assembleNextListing", () => {
   });
 });
 
+describe("assembleItemText", () => {
+  it("is pending on the text, not the markup — an empty editor still holds a break", () => {
+    const block = assembleItemText({ html: "<br>", text: "   " });
+    assert.equal(block.pending, true);
+    assert.equal(block.body, "The item has not been dictated.");
+  });
+
+  it("keeps the formatting the bench put in, alongside the plain words", () => {
+    const block = assembleItemText({
+      html: "<ol><li>Notice to the accused.</li></ol>",
+      text: "Notice to the accused.",
+    });
+    assert.equal(block.pending, false);
+    assert.equal(block.body, "Notice to the accused.");
+    assert.equal(block.html, "<ol><li>Notice to the accused.</li></ol>");
+  });
+});
+
 describe("assembleOrder", () => {
-  it("is attendance, then directions, then next listing", () => {
-    const order = assembleOrder(hearing, {
+  it("is attendance, then the item, then next listing", () => {
+    /* A listing with nothing pending on it — this claim is about where the item sits,
+       and a matter carrying applications grows a block between the two. That ordering
+       has its own test below. */
+    const bare = CAUSE_LIST.find(
+      (row) => applicationsForListing(row.id).length === 0,
+    );
+    assert.ok(bare);
+    const order = assembleOrder(bare, {
       ...EMPTY_ORDER_DRAFT,
-      directions: [
-        {
-          id: "d-1",
-          typeId: "notice",
-          body: {
-            html: "Notice to the accused.",
-            text: "Notice to the accused.",
-          },
-        },
-      ],
+      itemText: {
+        html: "Notice to the accused.",
+        text: "Notice to the accused.",
+      },
     });
     assert.deepEqual(
       order.blocks.map((block) => block.heading),
-      ["Attendance", "Notice", "Next listing"],
+      ["Attendance", "Item text", "Next listing"],
     );
     assert.equal(order.blocks[1].body, "Notice to the accused.");
+  });
+});
+
+describe("assembleApplications", () => {
+  const withApplications = CAUSE_LIST.find(
+    (row) => applicationsForListing(row.id).length > 1,
+  );
+
+  it("gives a listing with nothing pending no block at all", () => {
+    const bare = CAUSE_LIST.find(
+      (row) => applicationsForListing(row.id).length === 0,
+    );
+    assert.ok(bare);
+    assert.equal(assembleApplications(bare, [], {}), undefined);
+  });
+
+  it("says how many are unanswered rather than passing over them", () => {
+    assert.ok(withApplications);
+    const applications = applicationsForListing(withApplications.id);
+    const block = assembleApplications(withApplications, applications, {});
+    assert.ok(block);
+    assert.equal(block.pending, true);
+    /* Nothing is answered, so every line is the pending note — never a silent omission
+       of an application that is on the file. */
+    assert.equal(block.sentences?.length, 1);
+    assert.equal(block.sentences?.[0].pending, true);
+    assert.match(block.body, /have not been answered/);
+  });
+
+  it("records each answer in the court's words, not the button's", () => {
+    assert.ok(withApplications);
+    const [first, second] = applicationsForListing(withApplications.id);
+    const block = assembleApplications(withApplications, [first, second], {
+      [first.id]: "allowed",
+      [second.id]: "dismissed",
+    });
+    assert.ok(block);
+    assert.equal(block.pending, false);
+    assert.equal(block.sentences?.length, 2);
+    assert.match(block.body, /is allowed\./);
+    assert.match(block.body, /is dismissed\./);
+    /* The order names the application by its own serial, never the case number. */
+    assert.ok(block.body.includes(first.number));
+    assert.equal(block.body.includes(withApplications.caseNumber), false);
+  });
+
+  it("keeps the answered ones and still reports the rest", () => {
+    assert.ok(withApplications);
+    const [first, second] = applicationsForListing(withApplications.id);
+    const block = assembleApplications(withApplications, [first, second], {
+      [first.id]: "allowed",
+    });
+    assert.ok(block);
+    assert.equal(block.pending, true);
+    assert.equal(block.sentences?.length, 2);
+    assert.equal(block.sentences?.[0].pending, false);
+    assert.equal(block.sentences?.[1].pending, true);
+    assert.match(block.body, /One application .* has not been answered\./);
+  });
+});
+
+describe("assembleOrder with applications", () => {
+  it("puts the disposals between the roll and the directions", () => {
+    const withApplications = CAUSE_LIST.find(
+      (row) => applicationsForListing(row.id).length > 0,
+    );
+    assert.ok(withApplications);
+    const order = assembleOrder(withApplications, EMPTY_ORDER_DRAFT);
+    const headings = order.blocks.map((block) => block.heading);
+    assert.deepEqual(headings, [
+      "Attendance",
+      "Applications",
+      "Item text",
+      "Next listing",
+    ]);
+  });
+
+  it("leaves a listing with nothing pending exactly as it was", () => {
+    const bare = CAUSE_LIST.find(
+      (row) => applicationsForListing(row.id).length === 0,
+    );
+    assert.ok(bare);
+    const order = assembleOrder(bare, EMPTY_ORDER_DRAFT);
+    assert.deepEqual(
+      order.blocks.map((block) => block.heading),
+      ["Attendance", "Item text", "Next listing"],
+    );
   });
 });

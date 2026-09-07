@@ -47,6 +47,7 @@
  */
 
 import { CURRENT_STAFF } from "./content";
+import { matchesQuery } from "./filter-state";
 import { causeTitle, formatListingDate, parseIsoDay } from "./hearings";
 
 /**
@@ -977,7 +978,7 @@ export type ProcessFilters = {
   channel: ProcessChannelId | "all";
   /** ISO day of the listing the process is returnable for, or `""` for any day. */
   hearingDate: string;
-  /** Free text over the cause title and the case number. */
+  /** Free text over the cause title and the case number, token by token. */
   query: string;
 };
 
@@ -1002,7 +1003,6 @@ export function filterProcesses(
   rows: CourtProcess[],
   filters: ProcessFilters,
 ): CourtProcess[] {
-  const query = filters.query.trim().toLowerCase();
   return rows.filter((process) => {
     if (filters.type !== "all" && process.type !== filters.type) return false;
     if (filters.channel !== "all" && process.channel !== filters.channel) {
@@ -1011,16 +1011,60 @@ export function filterProcesses(
     if (filters.hearingDate && process.hearingDate !== filters.hearingDate) {
       return false;
     }
-    if (!query) return true;
-    const haystack = [
-      process.parties.complainant,
-      process.parties.accused,
+    /* The cause title rather than the two parties, because the cause title is what the
+       Case name column prints and therefore what gets typed back into the box. See
+       `matchesQuery`. */
+    return matchesQuery(
+      filters.query,
+      causeTitle(process),
       process.caseNumber,
-    ]
-      .join(" ")
-      .toLowerCase();
-    return haystack.includes(query);
+    );
   });
+}
+
+/**
+ * The same request, asked of another stage.
+ *
+ * A stage-defining channel is a fact about the stage, not something the bench asked for:
+ * carrying "RPAD" out of Pending RPAD collection and into Signed would hide every police
+ * round the bench is looking for. A channel the bench *did* choose travels, because that
+ * one is a question. Everything else travels untouched.
+ */
+export function rebaseFilters(
+  filters: ProcessFilters,
+  from: ProcessStage,
+  to: ProcessStage,
+): ProcessFilters {
+  if (from.onlyChannel === undefined || filters.channel !== from.onlyChannel) {
+    return { ...filters };
+  }
+  return { ...filters, channel: to.onlyChannel ?? "all" };
+}
+
+/**
+ * Where else in the line this search would have found something.
+ *
+ * A queue that holds one stage can answer an unmatched search with "nothing matches" and
+ * be telling the whole truth. A *line* cannot: the row the bench is hunting for has very
+ * often simply moved on, and five tabs each independently saying "no" is how a working
+ * search gets reported as broken. So when a stage comes up empty, it asks the other four
+ * before it says nothing is there.
+ */
+export function processesElsewhere(
+  rows: CourtProcess[],
+  filters: ProcessFilters,
+  from: ProcessStageId,
+): { stage: ProcessStage; count: number }[] {
+  const here = processStage(from);
+  return PROCESS_STAGES.filter((stage) => stage.id !== from)
+    .map((stage) => ({
+      stage,
+      count: filterProcesses(
+        processesAt(rows, stage.id),
+        rebaseFilters(filters, here, stage),
+      ).length,
+    }))
+    .filter((entry) => entry.count > 0);
 }
 
 /** The day a row lands with when it reaches a stage. */
@@ -1059,14 +1103,22 @@ export function advanceProcesses(
   );
 }
 
-/** How many of the chosen rows the act would actually move. */
-export function countAdvancing(
+/**
+ * Which of the chosen rows the act would actually move.
+ *
+ * The rows rather than a count of them, because the screen needs both: how many to say it
+ * moved, and which ones — so the confirmation can still offer the papers after the act has
+ * stamped them and they have left the tab (`SignProcessScreen`). The same guard
+ * `advanceProcesses` applies, so the two can never disagree about what a run touched.
+ */
+export function processesAdvancing(
   rows: CourtProcess[],
   ids: ReadonlySet<string>,
   from: ProcessStageId,
-): number {
-  return rows.filter((process) => ids.has(process.id) && process.stage === from)
-    .length;
+): CourtProcess[] {
+  return rows.filter(
+    (process) => ids.has(process.id) && process.stage === from,
+  );
 }
 
 /** "31 Aug 2026" — the same column register every other court-side list uses. */

@@ -4,12 +4,14 @@ import * as React from "react";
 import { CalendarX2Icon, SearchIcon, SearchXIcon, VideoIcon } from "lucide-react";
 
 import { CounselCell } from "@/components/employee/counsel-cell";
+import { HearingOverviewDialog } from "@/components/employee/hearing-overview-dialog";
 import {
   HearingCaseLink,
   HearingRowActions,
   HearingsTable,
 } from "@/components/employee/hearings-table";
 import { ListFooter } from "@/components/employee/list-footer";
+import { useCourtRole } from "@/components/employee/use-court-role";
 import { useCourtToday } from "@/components/employee/use-court-today";
 import { useHearingSession } from "@/components/employee/use-hearing-session";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +45,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { CourtRole } from "@/lib/employee/content";
 import { isPendingFilterChange } from "@/lib/employee/filter-state";
 import {
   markHearingEnded,
@@ -82,6 +85,10 @@ import {
  */
 export function HearingsScreen() {
   const today = useCourtToday();
+  /* Which seat the court side is being worked from. It decides what the rows offer, not
+     what they say: the same board, with the acts that move the sitting on it or not
+     (`lib/employee/court-role.ts`). */
+  const seat = useCourtRole();
 
   /* `null` means "the day the court is sitting" — resolved against the reader's clock
      rather than frozen at first render, so the screen is right whenever it is opened. */
@@ -96,23 +103,31 @@ export function HearingsScreen() {
   const [pageSize, setPageSize] = React.useState<HearingsPageSize>(PAGE_SIZE);
   const [page, setPage] = React.useState(1);
   /* Which listing the bench has called, which it has ended, and which it has passed
-     over. Held outside this component, because Start hearing now opens that matter's
-     case overview and this screen unmounts on the way — see
-     `lib/employee/hearing-session.ts`. None of the three writes a court record; that
-     part of the bargain is unchanged. */
+     over. Held outside this component because the marks have to outlive it: the cause
+     title and the order composer both navigate away, and the matter must still read as
+     ongoing when the bench lands there — see `lib/employee/hearing-session.ts`. None of
+     the three writes a court record; that part of the bargain is unchanged. */
   const session = useHearingSession();
   const [liveMessage, setLiveMessage] = React.useState<string | null>(null);
+  /* The matter the bench has called and is reading, held as an id rather than a row:
+     the row it names has just changed status, and a copy taken at click time would
+     show the overlay a listing that is still scheduled. */
+  const [openHearingId, setOpenHearingId] = React.useState<string | null>(null);
 
   const listed = withHearingSession(hearingsForDay(activeDay, today), session);
   const rows = filterHearings(listed, applied);
 
-  /* The announcement stays with the list because End hearing and Pass over both
-     leave the bench standing on it. Start hearing does not: the page it opens is
-     what tells the court the matter is now live, and this line is overtaken by the
-     navigation. It is still made — a slow route change should not swallow the only
-     confirmation there is. */
+  /* All three announcements stay with the list, because the bench stays with it —
+     Start hearing opens an overlay over this screen rather than navigating off it.
+     The overlay names the matter and its new chip on open, so the line is a second
+     confirmation for a reader who dismisses it, not the only one.
+     None of the three runs in a seat that does not run the sitting: the controls that
+     call them are simply not on the row, so the overlay never opens there either. The
+     case overview is still one click away for that seat — the cause title, which reads
+     rather than calls, and goes to the page. */
   function startHearing(hearing: CourtHearing) {
     markHearingOngoing(hearing.id);
+    setOpenHearingId(hearing.id);
     setLiveMessage(`Hearing started for ${causeTitle(hearing)}`);
   }
 
@@ -136,6 +151,10 @@ export function HearingsScreen() {
     applied.query !== "";
 
   const canSearch = isPendingFilterChange(draft, applied);
+  /* Read from `listed`, not from `rows`: a filter set to Scheduled drops the matter
+     the bench has just called out of the filtered list, and the overlay reading it
+     should not close because of that. */
+  const openHearing = listed.find((hearing) => hearing.id === openHearingId) ?? null;
 
   function applyFilters() {
     setApplied(draft);
@@ -197,6 +216,7 @@ export function HearingsScreen() {
               <div className="hidden min-w-0 md:block">
                 <HearingsTable
                   rows={pageRows}
+                  seat={seat}
                   onStartHearing={startHearing}
                   onEndHearing={endHearing}
                   onPassOver={passOverHearing}
@@ -205,6 +225,7 @@ export function HearingsScreen() {
               <div className="md:hidden">
                 <HearingsItemList
                   rows={pageRows}
+                  seat={seat}
                   onStartHearing={startHearing}
                   onEndHearing={endHearing}
                   onPassOver={passOverHearing}
@@ -235,6 +256,16 @@ export function HearingsScreen() {
           </div>
         )}
       </div>
+
+      {/* Focus goes back to the control that opened it, which by then reads End
+          hearing — same slot, same node, the next move on the same matter. Radix
+          restores it; nothing here has to. */}
+      <HearingOverviewDialog
+        hearing={openHearing}
+        onOpenChange={(open) => {
+          if (!open) setOpenHearingId(null);
+        }}
+      />
     </div>
   );
 }
@@ -475,11 +506,13 @@ function HearingsEmpty({
  */
 function HearingsItemList({
   rows,
+  seat,
   onStartHearing,
   onEndHearing,
   onPassOver,
 }: {
   rows: CourtHearing[];
+  seat: CourtRole;
   onStartHearing: (hearing: CourtHearing) => void;
   onEndHearing: (hearing: CourtHearing) => void;
   onPassOver: (hearing: CourtHearing) => void;
@@ -520,6 +553,7 @@ function HearingsItemList({
             />
             <HearingRowActions
               hearing={hearing}
+              seat={seat}
               onStartHearing={onStartHearing}
               onEndHearing={onEndHearing}
               onPassOver={onPassOver}

@@ -18,16 +18,16 @@
  *
  * **Starting, ending, and passing over are screen actions, not a court record.** The
  * listing stands as scheduled until the bench presses Start hearing; only then does
- * the chip read ongoing, and that matter's case overview opens — the glance the
- * advocate list already ships, on a page of its own. End hearing, on the same
- * control, marks that listing completed. Pass over, from the row overflow, marks it
+ * the chip read ongoing, and that matter's case overview opens over the list — the
+ * glance the advocate list already ships, as an overlay the day sits behind. End
+ * hearing, on the same control, marks that listing completed. Pass over, from the row overflow, marks it
  * passed over — to be heard on a later date — without completing it. Nothing is
  * filed, notified, or written back. Choosing that later date is Bulk reschedule /
  * Schedule, not this mark.
  *
- * The three marks themselves live in `hearing-session.ts`, because Start hearing
- * navigates and the screen that used to hold them does not survive the trip. Where
- * they are kept changed; what they claim did not.
+ * The three marks themselves live in `hearing-session.ts`, because the cause title
+ * and the order composer both navigate and the screen holding them does not survive
+ * the trip. Where they are kept changed; what they claim did not.
  */
 
 export type CourtHearingStatus =
@@ -115,6 +115,32 @@ export function courtHearingStatusLabel(status: CourtHearingStatus): string {
   return (
     COURT_HEARING_STATUSES.find((entry) => entry.id === status)?.label ?? status
   );
+}
+
+/**
+ * Whether the sitting on this listing has been started or ended, said as a sentence.
+ *
+ * The same fact the status chip carries, in the other register: the chip names where the
+ * *listing* stands on the board, this names what happened to the *hearing*. It is what
+ * the Action column becomes for a seat that does not run the sitting — a typist records
+ * what the court did and does not call matters, so the slot holding Start hearing for
+ * the bench holds this instead (`court-role.ts`).
+ *
+ * Everything that is not under way and not finished reads as not started, and that
+ * includes a passed-over listing: it was deferred without being heard, which is exactly
+ * what "not started" says. Which of those it is stays with the chip, where the day's
+ * vocabulary lives — this line must not grow a fourth wording and become a second
+ * status column.
+ */
+export function hearingProgressLabel(status: CourtHearingStatus): string {
+  switch (status) {
+    case "ongoing":
+      return "Hearing started";
+    case "completed":
+      return "Hearing ended";
+    default:
+      return "Hearing not started";
+  }
 }
 
 /** Only a listing that has not yet been called can be started. */

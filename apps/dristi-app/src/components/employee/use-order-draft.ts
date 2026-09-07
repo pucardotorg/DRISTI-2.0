@@ -19,11 +19,19 @@ import {
  * suppress.
  *
  * The whole map is the snapshot — selecting a key here would mint a new object on
- * every read and defeat the identity comparison. `EMPTY_ORDER_DRAFT` is a module
- * constant, so an untouched listing reads as the same draft every time.
+ * every read and defeat the identity comparison.
+ *
+ * `initial` is what this listing opens on before anybody has dictated: the empty draft
+ * for most of the board, and the written order for a listing the bench has finished
+ * (`lib/employee/order-demo.ts`). It must be **stable across renders** — the caller
+ * memoises it — because it is this hook's return value until the first edit, and a new
+ * object every render would restart everything downstream that watches the draft.
+ * It is handed to the store as well as read from it, so an edit is applied to the draft
+ * the screen was actually showing.
  */
 export function useOrderDraft(
   hearingId: string,
+  initial: OrderDraft = EMPTY_ORDER_DRAFT,
 ): [OrderDraft, (update: (current: OrderDraft) => OrderDraft) => void] {
   const drafts = React.useSyncExternalStore(
     subscribeToOrderDrafts,
@@ -32,9 +40,9 @@ export function useOrderDraft(
   );
   const setDraft = React.useCallback(
     (update: (current: OrderDraft) => OrderDraft) => {
-      updateOrderDraft(hearingId, update);
+      updateOrderDraft(hearingId, update, initial);
     },
-    [hearingId],
+    [hearingId, initial],
   );
-  return [drafts[hearingId] ?? EMPTY_ORDER_DRAFT, setDraft];
+  return [drafts[hearingId] ?? initial, setDraft];
 }

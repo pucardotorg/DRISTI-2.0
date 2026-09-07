@@ -2,14 +2,14 @@
  * What this sitting has done so far — which listing the bench has called, which it
  * has ended, and which it has passed over.
  *
- * It lives in a module rather than in a screen's state because Start hearing now
- * navigates: pressing it opens that matter's case overview, so the cause list
- * unmounts on the way there. Marks kept on the list would be gone by the time the
- * bench came back — the matter would read as scheduled again, could be called a
- * second time, and would re-lock the order composer that `canDraftOrder` opens once
- * a hearing is under way. A client module instance outlives client-side navigation
- * inside `/employee`, so the marks survive the trip. They do not survive a reload,
- * and are not meant to: see below.
+ * It lives in a module rather than in a screen's state because the marks have to
+ * outlive the cause list. Start hearing itself no longer leaves it — the matter opens
+ * in an overlay over the day — but the cause title and the order composer both do, and
+ * marks kept on the list would be gone by the time the bench came back: the matter
+ * would read as scheduled again, could be called a second time, and would re-lock the
+ * composer that `canDraftOrder` opens once a hearing is under way. A client module
+ * instance outlives client-side navigation inside `/employee`, so the marks survive the
+ * trip. They do not survive a reload, and are not meant to: see below.
  *
  * **Still not a court record.** This is the same bargain `lib/employee/hearings.ts`
  * already describes — Start, End and Pass over are screen actions. Nothing here is

@@ -926,9 +926,26 @@ const ASKS: Record<OtherApplicationType, { sought: string; prayer: string }> = {
   },
 };
 
+/**
+ * What a head of application asks the court for, and the prayer it ends on — by type.
+ *
+ * Exposed keyed by type, not by row, so the order composer's own application strip
+ * (`listing-applications.ts`) reads these fourteen asks rather than restating them. An
+ * application for bail is asking for the same thing whether the bench meets it in this
+ * queue or in the middle of a sitting, and a second copy of the table is how the two
+ * screens end up wording it two ways.
+ */
+export function applicationAsk(type: OtherApplicationType): string {
+  return ASKS[type].sought;
+}
+
+export function applicationPrayer(type: OtherApplicationType): string {
+  return ASKS[type].prayer;
+}
+
 /** What this application asks the court for — the sentence, not the head. */
 export function otherApplicationAsk(application: OtherApplication): string {
-  return ASKS[application.type].sought;
+  return applicationAsk(application.type);
 }
 
 export type OtherApplicationDocument = {

@@ -3,9 +3,16 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MinusIcon, PlusIcon, SettingsIcon } from "lucide-react";
+import { ChevronDownIcon, SettingsIcon } from "lucide-react";
 
-import { COURT_ROLE_LABEL, CURRENT_STAFF } from "@/lib/employee/content";
+import { useCourtRole } from "@/components/employee/use-court-role";
+import {
+  COURT_ROLE_LABEL,
+  COURT_SEATS,
+  CURRENT_STAFF,
+  type CourtRole,
+} from "@/lib/employee/content";
+import { setCourtRole } from "@/lib/employee/court-role";
 import {
   COURT_NAV_GROUPS,
   COURT_NAV_LINKS,
@@ -30,6 +37,14 @@ import {
 } from "@/components/chrome/app-chrome";
 import { CHARCOAL_PLATE } from "@/components/chrome/rail-plate";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Collapsible,
   CollapsibleContent,
@@ -502,15 +517,12 @@ function CourtNavGroupSection({
             <span className="min-w-0 flex-1 truncate text-left">
               {group.label}
             </span>
-            {/* Both signs are rendered and one is hidden, so the toggle's width never
-                changes as it flips and the label's truncation point holds still. */}
-            <PlusIcon
+            {/* One mark turned rather than two swapped: the toggle's width is constant
+                by construction, so the label's truncation point cannot move as the
+                section flips. Down closed, up open, as every other disclosure here. */}
+            <ChevronDownIcon
               aria-hidden
-              className="hidden group-data-[state=closed]/court-group:block"
-            />
-            <MinusIcon
-              aria-hidden
-              className="group-data-[state=closed]/court-group:hidden"
+              className="transition-transform group-data-[state=open]/court-group:rotate-180"
             />
           </CollapsibleTrigger>
         </SidebarGroupLabel>
@@ -593,38 +605,70 @@ function initialsOf(name: string): string {
 }
 
 /**
- * Settings — a real control that says outright that it goes nowhere.
+ * Settings — which seat the court side is being worked from.
  *
- * There is no court settings route, and the one `/settings` this app has belongs to the
- * citizen half: it renders inside the advocate's shell and its content is a litigant
- * elevating to an advocate profile. Sending a magistrate there would be worse than the
- * missing screen, and a stub route would be a promise this branch cannot keep. So the
- * control is the same explained dead control the rail's unwired rows already are —
- * focusable, hoverable, at full contrast, and honest about why nothing happens. `disabled`
- * would take it out of the tab order and leave the magistrate no way to ask.
+ * It used to be a dead control with a tooltip saying so, because there is no court
+ * settings route: the one `/settings` this app has belongs to the citizen half, and a
+ * stub route would have been a promise this branch cannot keep. That is still true, and
+ * this is still not a route — it is a menu, because the one setting the court side
+ * actually has is small enough to answer in place.
+ *
+ * **Two seats, and the choice changes who the rail says you are and nothing else**
+ * (`COURT_SEATS`). Same rail, same queues, same screens, nothing granted and nothing
+ * hidden — what a typist's work is as against a bench clerk's comes from product, and
+ * this build must not answer that by quietly showing a different app. The menu is
+ * honest by being small.
+ *
+ * A radio group rather than two items: the seats are one mutually exclusive answer, and
+ * the menu has to show which one is being worked in without being opened twice. `w-auto
+ * min-w-48` because the primitive otherwise inherits the trigger's width, and a 40px
+ * trigger would pinch "Bench clerk" to a column of letters.
+ *
+ * The tooltip stays, and now names the control rather than excusing it. Its trigger
+ * wraps the menu's so one button carries both — the hover name and the click.
  *
  * It leaves with the labels when the rail folds. A strip has room for one mark at its
- * foot, and that mark is the person rather than a control that does nothing yet.
+ * foot, and that mark is the person.
  */
 function CourtSettingsControl() {
+  const seat = useCourtRole();
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-disabled
-          aria-label="Court settings"
-          className={`${RAIL_ICON_BUTTON} group-data-[collapsible=icon]:hidden`}
+    <DropdownMenu>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Court settings"
+              className={`${RAIL_ICON_BUTTON} group-data-[collapsible=icon]:hidden`}
+            >
+              <SettingsIcon aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="top">Court settings</TooltipContent>
+      </Tooltip>
+      {/* Opens upward off the rail's foot, and aligned to the trigger's own edge — there
+          is no room below it and the menu would otherwise be pinned against the bottom
+          of the window. */}
+      <DropdownMenuContent side="top" align="end" className="w-auto min-w-48">
+        {/* No dress on it: the DS label is already the muted eyebrow this wants, and a
+            named role over the primitive's own size would be two sizes on one element. */}
+        <DropdownMenuLabel>Working as</DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={seat}
+          onValueChange={(next) => setCourtRole(next as CourtRole)}
         >
-          <SettingsIcon aria-hidden />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="top">
-        Court settings — not part of this build
-      </TooltipContent>
-    </Tooltip>
+          {COURT_SEATS.map((role) => (
+            <DropdownMenuRadioItem key={role} value={role}>
+              {COURT_ROLE_LABEL[role]}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -634,14 +678,20 @@ function CourtSettingsControl() {
  * A block, not a menu. The advocate's footer is a popover because an advocate's account
  * has things to switch between — a litigant profile, a sandbox user, a rail plate. None
  * of those exist here: the court side runs as one staff member with no sign-in, and the
- * plate is charcoal by decision rather than by preference (`rail-plate.ts`). A trigger
- * that opens a menu with nothing actionable in it is worse than the plain fact it hides,
- * so the fact is what this renders.
+ * plate is charcoal by decision rather than by preference (`rail-plate.ts`). The one
+ * thing there *is* to switch — the seat — belongs to the settings control beside this
+ * block, where a court would look for a setting; folding it into the person's name would
+ * hide it behind an identity that is not itself a menu.
  *
- * Three lines rather than the advocate's two. Which bench a magistrate is sitting on is
- * part of who they are on this screen — every order and form the sign queues produce is
- * headed with that court — and the chrome says it nowhere else, because the mark at the
- * head of the rail is the product's and not the court's.
+ * So the block reports and does not act. The role line is the live seat rather than the
+ * fixture's, because the two must not disagree about the same visit: the switch is one
+ * control away, and a footer still reading Bench clerk after the menu says Typist would
+ * be the screen contradicting itself.
+ *
+ * Three lines rather than the advocate's two. Which bench the staff member is sitting on
+ * is part of who they are on this screen — every order and form the sign queues produce
+ * is headed with that court — and the chrome says it nowhere else, because the mark at
+ * the head of the rail is the product's and not the court's.
  *
  * The name is `CURRENT_STAFF`'s demo given name; no honorific and no designation are
  * added to it here.
@@ -652,7 +702,8 @@ function CourtSettingsControl() {
  * person's name off a hover the keyboard cannot reach.
  */
 function CourtIdentityFooter() {
-  const { name, court, role } = CURRENT_STAFF;
+  const { name, court } = CURRENT_STAFF;
+  const role = useCourtRole();
   /* The settings control leaves the layout with the labels, so folding while it holds
      focus drops the keyboard the same way a section's rows do. Its fallback is the fold
      control — the one thing that caused the change and is on screen either side of it,

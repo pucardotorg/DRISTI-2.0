@@ -8,7 +8,7 @@ matching the house sticky-bar recipe (`justify-end` / `sm:ml-auto`). Sections 1-
 are kept exactly as written, because what was weighed is worth keeping; §14 logs the
 override, and §7's header and hierarchy bullets now describe the superseded layout
 rather than the built one.
-Updated: 2026-09-06
+Updated: 2026-09-07
 Source: docs/product/README.md · docs/product/open-questions.md ·
 docs/product/domain/practice-notes.md (checked — carries nothing on hearings or the
 bench) · user in this conversation (2026-09-06): “the view case right now is on the
@@ -32,8 +32,10 @@ that use the pinned bottom band (listed in §5, decision 1)
 ## 1. Context
 
 **Where this sits.** `/employee/hearings/[hearingId]` is one listing from today's cause
-list, opened up. It is reached from **Start hearing** on the row and from the cause
-title on the same row. `lib/employee/navigation.ts` treats it as *the cause list seen
+list, opened up. It is reached from the **cause title** on the row, and by any link,
+bookmark or tab that names the listing. **Start hearing no longer comes here** — since
+2026-09-07 it opens the same sections in an overlay over the cause list (§14); the two
+surfaces render one composition, `HearingOverviewSections`. `lib/employee/navigation.ts` treats it as *the cause list seen
 closer up*, not a new destination: `isCourtNavActive` keeps Today's hearings lit while
 this page is open, and `courtTrail` renders **Court home › Hearings › Today's hearings**
 above it. Hearings and Today's hearings are both live links back to the list — the
@@ -336,3 +338,4 @@ the twelfth — it is not a blocker for this brief and I have not added it to
 | 2026-09-06 | **Overridden, and built.** The owner read the recommendation above and decided the other way: View case leaves the header for a sticky band at the foot of the page, on the house recipe (`order-screen.tsx` — hairline top rule, card fill, no shadow, `z-30` alongside the trail). The action **moved rather than multiplied** — the header now holds caption, cause title and status chip only, so the view still spends one teal, and decision 2 survives intact. Decision 5 is untouched: the button is still `aria-disabled` with the *case file is not connected yet* tooltip, wired to nothing. This makes it the first screen carrying that band that does not commit or advance work, which is the cost decision 1 priced; it was accepted knowingly. | user (override), ui-designer (build) |
 | 2026-09-06 | **View case sits on the trailing edge of the band, not the leading.** First build placed it left; the owner asked for the right. Matches the sticky-bar recipe already on `sign-orders-screen.tsx` / `order-screen.tsx` (`justify-end` / `sm:ml-auto`). Tooltip `align` flipped from `start` to `end` so the portalled copy does not overrun the page edge from the right gutter. The button stays `w-fit` at every width — stretching it would make a teal bar, not a right-aligned control. | user (ask), ui-designer (build) |
 | 2026-09-06 | **Hearings in the trail is a link on nested listing pages.** It had been text — a section is a disclosure, not a route — so clicking it from the overview did nothing. The owner asked for the crumb to take them back. `courtTrail` now gives the section the queue's href whenever the page is nested under that queue; Today's hearings was already a link to the same place. Queue screens themselves are unchanged: the section stays text, Court home is the way out. | user (ask), ui-designer (build) |
+| 2026-09-07 | **Start hearing opens an overlay, not this page.** The owner asked for the call to stop taking the bench off today's cause list. Pressing Start hearing now marks the listing ongoing and opens the overview in a dialog over the list (`hearing-overview-dialog.tsx`), so the day stays on screen and the next item is one dismissal away; the control changed from a link to a button, and Radix returns focus to it — by then reading End hearing. The page keeps the route for the two jobs an overlay cannot do: reading a matter without calling it (the cause title, still an anchor), and a link that survives a bookmark, a new tab or the back button. The retired case peek's actual fault was two surfaces holding the same facts, so the sections are **one** component rendered on both, dressed per surface — lifted panels on the page, sunken wells inside the sheet. The overlay's footer carries the same `View case`, still wired to nothing. | user (ask), ui-designer (build) |

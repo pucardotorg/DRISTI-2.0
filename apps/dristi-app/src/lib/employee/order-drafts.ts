@@ -43,9 +43,21 @@ export function readOrderDrafts(): OrderDrafts {
   return drafts;
 }
 
-/** One listing's draft, or the empty one. Never undefined — a composer always opens. */
-export function readOrderDraft(hearingId: string): OrderDraft {
-  return drafts[hearingId] ?? EMPTY_ORDER_DRAFT;
+/**
+ * One listing's draft, or the one it opens on. Never undefined — a composer always
+ * opens.
+ *
+ * `initial` is what a listing nobody has dictated on starts from. It is empty for most
+ * of the board and a written order for a listing the bench has finished
+ * (`order-demo.ts`), and it has to be the *same* value on the read path and the write
+ * path: an edit that started from the empty draft while the screen was showing the
+ * written one would blank the order the bench could see.
+ */
+export function readOrderDraft(
+  hearingId: string,
+  initial: OrderDraft = EMPTY_ORDER_DRAFT,
+): OrderDraft {
+  return drafts[hearingId] ?? initial;
 }
 
 /** Replace one listing's draft. The others are untouched. */
@@ -64,6 +76,7 @@ export function writeOrderDraft(hearingId: string, next: OrderDraft): void {
 export function updateOrderDraft(
   hearingId: string,
   update: (current: OrderDraft) => OrderDraft,
+  initial: OrderDraft = EMPTY_ORDER_DRAFT,
 ): void {
-  writeOrderDraft(hearingId, update(readOrderDraft(hearingId)));
+  writeOrderDraft(hearingId, update(readOrderDraft(hearingId, initial)));
 }

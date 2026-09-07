@@ -20,6 +20,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { CourtRole } from "@/lib/employee/content";
+import {
+  seatOrdersAlwaysOpen,
+  seatRunsSitting,
+} from "@/lib/employee/court-role";
 import {
   canDraftOrder,
   canEndHearing,
@@ -30,6 +35,7 @@ import {
   courtHearingPurposeLabel,
   courtHearingStatusLabel,
   courtHearingStatusVariant,
+  hearingProgressLabel,
   type CourtHearing,
 } from "@/lib/employee/hearings";
 import { cn } from "@/lib/utils";
@@ -47,9 +53,9 @@ const cellClass =
 
 /**
  * Start hearing and End hearing live in the Action column, as one labelled outline
- * control — not teal (Join VC is the screen's one primary). Start is a link to the
- * matter's case overview that marks the listing on its way out; End stays a button,
- * because ending a sitting goes nowhere.
+ * control — not teal (Join VC is the screen's one primary). Both are buttons: Start
+ * marks the listing ongoing and opens that matter over the list; End marks it
+ * completed. Neither leaves the day.
  *
  * It is the only bordered action on a callable row (ui-craft §2). Scheduled listings
  * start; the same slot ends the one that is ongoing. Completed listings have nothing
@@ -102,13 +108,17 @@ const ORDERS_COLUMN_CLASS = "w-18";
 /**
  * The cause title, as the way into that matter's case overview.
  *
- * It used to open a floating peek over the list. The peek is retired: it showed
- * exactly what the overview page now shows, and two surfaces holding the same facts
- * is how they start disagreeing. So the row's one emphasised cell is what it always
- * read as — a link to the case — and it goes to the same page Start hearing opens.
+ * It used to open a floating peek over the list, which was retired for the overview
+ * page. So the row's one emphasised cell is what it always read as — a link to the
+ * case — and it is now the only way to that page: Start hearing opens the same
+ * sections in an overlay instead (`hearing-overview-dialog.tsx`). The two surfaces
+ * render one composition, so the peek's real fault — the same facts said twice — does
+ * not come back with it.
  *
  * Reading the case and calling it are still two different acts. This one only reads:
- * it does not mark the listing ongoing. Start hearing, on the same row, is the call.
+ * it does not mark the listing ongoing, and it is the one that has to survive a middle
+ * click, a new tab and the back button, which is why it stays an anchor while the call
+ * beside it is a button.
  *
  * It wears the same quiet-name dress as the queues' dialog openers, but stays an
  * anchor: this one navigates, and a destination has to be middle-clickable
@@ -144,34 +154,50 @@ export function HearingCaseLink({
 
 export function HearingSessionButton({
   hearing,
+  seat,
   onStartHearing,
   onEndHearing,
   className,
 }: {
   hearing: CourtHearing;
+  seat: CourtRole;
   onStartHearing: (hearing: CourtHearing) => void;
   onEndHearing: (hearing: CourtHearing) => void;
   className?: string;
 }) {
+  /* A seat that does not run the sitting gets the fact instead of the control: the
+     typist is recording what the court did, not calling matters. It holds the same slot
+     at the same height, so the column does not shift when the seat changes, and it is
+     plain muted text rather than a second chip — the row already spends its one status
+     mark in the Status column (ui-craft §1.4). */
+  if (!seatRunsSitting(seat)) {
+    return (
+      <span
+        className={cn(
+          SESSION_SLOT_CLASS,
+          "inline-flex h-10 items-center text-muted-foreground",
+          className,
+        )}
+      >
+        {hearingProgressLabel(hearing.status)}
+      </span>
+    );
+  }
   if (canStartHearing(hearing.status)) {
     return (
-      /* A link, not a button that navigates: calling the matter takes the bench to
-         that case's overview, and a destination the court can middle-click, open in
-         a second tab, or land on from the browser's own history has to be an anchor.
-         The mark rides along on the click — `markHearingOngoing` is in a module that
-         outlives this screen, so it is still made when the list unmounts a moment
-         later (`lib/employee/hearing-session.ts`). */
+      /* A button, and no longer a link. Calling the matter used to navigate to that
+         case's overview; it now marks the listing ongoing and opens the same overview
+         over this list (`hearing-overview-dialog.tsx`), so the day the bench is working
+         stays on the screen and the next item is one dismissal away. Reading a case
+         without calling it is still a destination — that is the cause title on this
+         row, which stays an anchor. */
       <Button
-        asChild
+        type="button"
         variant="outline"
         className={cn(SESSION_SLOT_CLASS, className)}
+        onClick={() => onStartHearing(hearing)}
       >
-        <Link
-          href={`/employee/hearings/${hearing.id}`}
-          onClick={() => onStartHearing(hearing)}
-        >
-          Start hearing
-        </Link>
+        Start hearing
       </Button>
     );
   }
@@ -213,11 +239,18 @@ export function HearingSessionButton({
  */
 export function HearingPassOverMenu({
   hearing,
+  seat,
   onPassOver,
 }: {
   hearing: CourtHearing;
+  seat: CourtRole;
   onPassOver: (hearing: CourtHearing) => void;
 }) {
+  /* Passing a matter over moves the sitting, exactly as calling one does. A seat that
+     cannot start a hearing cannot defer one either, so the overflow leaves with the
+     control it sits beside rather than staying behind as the one bench act a typist
+     could still perform from a smaller menu. */
+  if (!seatRunsSitting(seat)) return null;
   if (!canPassOver(hearing.status)) return null;
 
   return (
@@ -262,10 +295,18 @@ export function HearingPassOverMenu({
  * `disabled:pointer-events-none`. Sighted readers get it from the row — the
  * Scheduled chip and Start hearing sit inches away.
  */
-export function HearingOrdersButton({ hearing }: { hearing: CourtHearing }) {
+export function HearingOrdersButton({
+  hearing,
+  seat,
+}: {
+  hearing: CourtHearing;
+  seat: CourtRole;
+}) {
   const label = `Order for item ${hearing.item}, ${causeTitle(hearing)}`;
 
-  if (!canDraftOrder(hearing.status)) {
+  /* Open down the whole board for a seat whose work is the typing rather than the call
+     (`seatOrdersAlwaysOpen`) — the precondition below is the bench's, not everyone's. */
+  if (!seatOrdersAlwaysOpen(seat) && !canDraftOrder(hearing.status)) {
     return (
       <Button
         type="button"
@@ -300,12 +341,14 @@ export function HearingOrdersButton({ hearing }: { hearing: CourtHearing }) {
 /** Mobile stack: the start/end control, then Pass over, then orders. */
 export function HearingRowActions({
   hearing,
+  seat,
   onStartHearing,
   onEndHearing,
   onPassOver,
   className,
 }: {
   hearing: CourtHearing;
+  seat: CourtRole;
   onStartHearing: (hearing: CourtHearing) => void;
   onEndHearing: (hearing: CourtHearing) => void;
   onPassOver: (hearing: CourtHearing) => void;
@@ -315,12 +358,17 @@ export function HearingRowActions({
     <div className={cn("flex items-center gap-2", className)}>
       <HearingSessionButton
         hearing={hearing}
+        seat={seat}
         onStartHearing={onStartHearing}
         onEndHearing={onEndHearing}
         className="min-w-0 flex-1"
       />
-      <HearingPassOverMenu hearing={hearing} onPassOver={onPassOver} />
-      <HearingOrdersButton hearing={hearing} />
+      <HearingPassOverMenu
+        hearing={hearing}
+        seat={seat}
+        onPassOver={onPassOver}
+      />
+      <HearingOrdersButton hearing={hearing} seat={seat} />
     </div>
   );
 }
@@ -335,11 +383,13 @@ export function HearingRowActions({
  */
 export function HearingsTable({
   rows,
+  seat,
   onStartHearing,
   onEndHearing,
   onPassOver,
 }: {
   rows: CourtHearing[];
+  seat: CourtRole;
   onStartHearing: (hearing: CourtHearing) => void;
   onEndHearing: (hearing: CourtHearing) => void;
   onPassOver: (hearing: CourtHearing) => void;
@@ -375,10 +425,14 @@ export function HearingsTable({
           >
             Orders
           </TableHead>
+          {/* The column is named for what is in it. For a seat that runs the sitting
+              that is the call; for one that does not it is a line about the hearing, and
+              a column headed Action with nothing actionable under it is the header
+              lying about its own contents. */}
           <TableHead
             className={cn(headClass, ACTION_COLUMN_CLASS, "whitespace-nowrap")}
           >
-            Action
+            {seatRunsSitting(seat) ? "Action" : "Hearing"}
           </TableHead>
         </TableRow>
       </TableHeader>
@@ -401,8 +455,8 @@ export function HearingsTable({
             >
               {hearing.item}
             </TableCell>
-            {/* The row's one emphasised cell. Opens this matter's case overview —
-                the same page Start hearing opens, without calling the matter. */}
+            {/* The row's one emphasised cell. Opens this matter's case overview as a
+                page, without calling the matter. */}
             <TableCell
               className={cn(cellClass, "min-w-40 font-medium whitespace-normal")}
             >
@@ -444,7 +498,7 @@ export function HearingsTable({
               className={cn(cellClass, ORDERS_COLUMN_CLASS, "whitespace-nowrap")}
             >
               <div className="flex justify-center">
-                <HearingOrdersButton hearing={hearing} />
+                <HearingOrdersButton hearing={hearing} seat={seat} />
               </div>
             </TableCell>
             <TableCell
@@ -453,11 +507,13 @@ export function HearingsTable({
               <div className="flex items-center gap-2">
                 <HearingSessionButton
                   hearing={hearing}
+                  seat={seat}
                   onStartHearing={onStartHearing}
                   onEndHearing={onEndHearing}
                 />
                 <HearingPassOverMenu
                   hearing={hearing}
+                  seat={seat}
                   onPassOver={onPassOver}
                 />
               </div>

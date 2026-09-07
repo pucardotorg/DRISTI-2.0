@@ -5,7 +5,7 @@ import {
   advanceProcesses,
   buildProcessDocument,
   COURT_PROCESS_TYPES,
-  countAdvancing,
+  processesAdvancing,
   defaultProcessFilters,
   filterProcesses,
   PROCESS_LINE,
@@ -14,6 +14,8 @@ import {
   processDocumentText,
   processStage,
   processesAt,
+  processesElsewhere,
+  rebaseFilters,
   type CourtProcess,
   type ProcessStageId,
 } from "./sign-process";
@@ -227,6 +229,89 @@ describe("filterProcesses", () => {
   });
 });
 
+describe("finding a process that has moved on", () => {
+  const collection = processStage("pending-rpad-collection");
+  /* A real row sitting under Signed — the case a bench would hunt for from the tab it
+     last saw it at. */
+  const moved = processesAt(PROCESS_LINE, "signed")[0];
+
+  function searchFrom(stage: ProcessStageId, query: string) {
+    const here = processStage(stage);
+    return {
+      here: filterProcesses(processesAt(PROCESS_LINE, stage), {
+        ...defaultProcessFilters(here),
+        query,
+      }),
+      elsewhere: processesElsewhere(
+        PROCESS_LINE,
+        { ...defaultProcessFilters(here), query },
+        stage,
+      ),
+    };
+  }
+
+  it("finds a row by the cause title the Case name column prints", () => {
+    const cause = `${moved.parties.complainant} v. ${moved.parties.accused}`;
+    const rows = filterProcesses(processesAt(PROCESS_LINE, "signed"), {
+      ...defaultProcessFilters(processStage("signed")),
+      query: cause,
+    });
+    assert.ok(
+      rows.some((process) => process.id === moved.id),
+      "a cause title read off the screen finds nothing",
+    );
+  });
+
+  it("names the stage that has it when this one does not", () => {
+    const { here, elsewhere } = searchFrom(
+      "pending-rpad-collection",
+      moved.caseNumber,
+    );
+    assert.equal(here.length, 0);
+    assert.deepEqual(
+      elsewhere.map((entry) => [entry.stage.id, entry.count]),
+      [["signed", 1]],
+    );
+  });
+
+  it("says nothing is anywhere only when nothing is", () => {
+    const { here, elsewhere } = searchFrom(
+      "pending-rpad-collection",
+      "ST/9999/2026",
+    );
+    assert.equal(here.length, 0);
+    assert.deepEqual(elsewhere, []);
+  });
+
+  it("does not carry a stage's own channel onto a stage that is not defined by one", () => {
+    /* Leaving Pending RPAD collection with "RPAD" still on would hide every police and
+       bailiff round — which is most of what the bench is looking for. */
+    const police = PROCESS_LINE.find(
+      (process) => process.stage === "pending-sign" && process.channel === "police",
+    );
+    assert.ok(police);
+    const { elsewhere } = searchFrom(
+      "pending-rpad-collection",
+      police.caseNumber,
+    );
+    assert.deepEqual(
+      elsewhere.map((entry) => entry.stage.id),
+      ["pending-sign"],
+    );
+  });
+
+  it("keeps a channel the bench chose for itself", () => {
+    const from = processStage("pending-sign");
+    const to = processStage("signed");
+    const chosen = { ...defaultProcessFilters(from), channel: "police" as const };
+    assert.equal(rebaseFilters(chosen, from, to).channel, "police");
+    /* …and drops one it never had a control for. */
+    const pinned = defaultProcessFilters(collection);
+    assert.equal(pinned.channel, "rpad");
+    assert.equal(rebaseFilters(pinned, collection, to).channel, "all");
+  });
+});
+
 describe("advanceProcesses", () => {
   const pending = processesAt(PROCESS_LINE, "pending-sign");
   const chosen = new Set(pending.slice(0, 2).map((process) => process.id));
@@ -268,7 +353,7 @@ describe("advanceProcesses", () => {
       next.map((process) => process.stage),
       PROCESS_LINE.map((process) => process.stage),
     );
-    assert.equal(countAdvancing(PROCESS_LINE, stale, "pending-sign"), 0);
+    assert.deepEqual(processesAdvancing(PROCESS_LINE, stale, "pending-sign"), []);
   });
 
   it("moves nothing out of a stage with no act", () => {
@@ -282,8 +367,38 @@ describe("advanceProcesses", () => {
     );
   });
 
-  it("counts what an act would actually move", () => {
-    assert.equal(countAdvancing(PROCESS_LINE, chosen, "pending-sign"), 2);
+  it("names what an act would actually move, and agrees with the act", () => {
+    const moving = processesAdvancing(PROCESS_LINE, chosen, "pending-sign");
+    assert.deepEqual(new Set(moving.map((process) => process.id)), chosen);
+    /* The success step downloads exactly these rows, read back after the act — so the
+       two must pick out the same set or the bench is handed the wrong papers. */
+    const after = advanceProcesses(PROCESS_LINE, chosen, "pending-sign", ON);
+    const moved = after.filter(
+      (process) => process.stage === "signed" && process.signedOn === ON,
+    );
+    assert.deepEqual(
+      new Set(moved.map((process) => process.id)),
+      new Set(moving.map((process) => process.id)),
+    );
+  });
+
+  it("stamps the signature onto the papers the success step hands over", () => {
+    /* The regression the download exists to avoid: resolving the rows *before* the act
+       writes "Pending the signature of the magistrate" across papers just signed. */
+    const after = advanceProcesses(PROCESS_LINE, chosen, "pending-sign", ON);
+    for (const id of chosen) {
+      const before = PROCESS_LINE.find((process) => process.id === id);
+      const now = after.find((process) => process.id === id);
+      assert.ok(before && now);
+      assert.match(
+        buildProcessDocument(before).signature,
+        /^Pending the signature/,
+      );
+      assert.match(
+        buildProcessDocument(now).signature,
+        /^Signed by the magistrate/,
+      );
+    }
   });
 
   it("walks a row the whole length of the line", () => {

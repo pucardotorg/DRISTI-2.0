@@ -52,20 +52,60 @@ import {
 } from "@/lib/employee/hearing-overview";
 
 /**
- * How a panel sits on the court-side page — the same recipe as today's cause list
- * (`HearingsScreen`) and the order composer. One lifted sheet, hairline edge, no
- * nested second frame inside it.
+ * The two surfaces this overview is read on.
+ *
+ * `page` is the route: a section is a lifted sheet, the same recipe as today's cause
+ * list (`HearingsScreen`) and the order composer — hairline edge, no nested second
+ * frame inside it. `overlay` is the sheet Start hearing opens over the cause list,
+ * which is *itself* the lifted surface, so the same sections drop to sunken wells
+ * inside it. A `shadow-raised` panel inside a `shadow-modal` sheet is depth spent
+ * twice, and the radius steps down with the nesting (ui-craft §4).
+ *
+ * One set of sections, two dresses — rather than a second composition of the same
+ * facts, which is how two surfaces holding one case start disagreeing about it.
  */
-const PANEL =
-  "min-w-0 rounded-xl border border-hairline bg-card p-6 shadow-raised";
+export type HearingOverviewSurface = "page" | "overlay";
+
+const PANEL: Record<HearingOverviewSurface, string> = {
+  page: "min-w-0 rounded-xl border border-hairline bg-card p-6 shadow-raised",
+  overlay: "min-w-0 rounded-lg bg-surface-sunken p-4",
+};
+
+/**
+ * The one inset inside Last hearing. On the page it is the panel's sunken well; in
+ * the overlay the section around it is already sunken, so the order lifts back to
+ * card fill instead — sunken on sunken is a well nobody can see.
+ */
+const ORDER_WELL: Record<HearingOverviewSurface, string> = {
+  page: "bg-surface-sunken",
+  overlay: "bg-card",
+};
+
+/**
+ * The corner anything nested inside a section takes — the date tile and the order
+ * well. It follows the section's own, one step down the ladder: an inset that rounds
+ * as hard as the box holding it bulges at the corners, and in the overlay the section
+ * has already stepped down once itself (ui-craft §4).
+ */
+const INSET_RADIUS: Record<HearingOverviewSurface, string> = {
+  page: "rounded-lg",
+  overlay: "rounded-md",
+};
 
 /**
  * One listing's case overview — what is in this case, at a glance.
  *
- * Entered from Start hearing on today's cause list, and from the cause title on the
- * same row. It replaces the floating case peek: the same facts, on a page the bench
- * can read, land on and come back to, rather than a panel that vanished the moment
- * anything else was clicked.
+ * Entered from the cause title on today's cause list, and by anyone landing on the
+ * URL. **Start hearing no longer comes here.** Calling a matter now opens these same
+ * sections in an overlay over the cause list (`hearing-overview-dialog.tsx`), because
+ * the bench that has just called item 4 is still working the day's list and should not
+ * be taken off it to read the case it is about to hear. The route stays for the other
+ * two ways in: reading a matter without calling it, and a link that has to survive a
+ * new tab, a bookmark or the back button.
+ *
+ * The two surfaces are not two compositions. `HearingOverviewSections` is one set of
+ * sections rendered on both, dressed for whichever it is on — the peek was retired for
+ * showing the same facts a second way, and that is not a mistake worth making twice.
  *
  * **It reads, it does not run the sitting.** End hearing, Pass over and the order
  * composer all stay on the cause list, where the day is. Calling the matter is what
@@ -139,9 +179,6 @@ function HearingMissing() {
 }
 
 function HearingOverview({ hearing }: { hearing: CourtHearing }) {
-  const today = useCourtToday();
-  const extras = hearingCaseExtras(hearing.id);
-
   /* Two parts: the page, which scrolls, and the band, which does not. The padding
      moves off the outer column and onto the reading column so the band can reach
      both edges — the composer's arrangement next door, and the reason the band's
@@ -159,11 +196,7 @@ function HearingOverview({ hearing }: { hearing: CourtHearing }) {
             at every width. */}
         <header className="flex min-w-0 flex-col gap-2">
           <p className="text-caption font-medium text-muted-foreground">
-            Item <span className="tabular-nums">{hearing.item}</span>
-            {" · "}
-            <span className="tabular-nums">{hearing.caseNumber}</span>
-            {" · "}
-            {courtHearingPurposeLabel(hearing.purpose)}
+            <HearingOverviewCaption hearing={hearing} />
           </p>
           {/* The chip rides with the title rather than taking a third line under
               it. The cause and where its sitting stands are one thought — this
@@ -180,44 +213,7 @@ function HearingOverview({ hearing }: { hearing: CourtHearing }) {
           </div>
         </header>
 
-        {/* Case details and Last hearing pair across the top; the history runs the
-            full width beneath them.
-
-            The facts are six term/detail pairs and want the smaller share — at
-            three-fifths the list spread "Evidence" across 500px of nothing and read
-            as stretched. The order of the day is a paragraph and wants measure, so
-            it takes the larger. History is last because it is the part that grows:
-            three steps today, but a matter that has run two years is a long column,
-            and the width is there for entries that carry more than a date.
-
-            The two top panels stretch to a common height rather than sitting at
-            their own — `items-start` is what left the shorter one dangling beside
-            the taller. Slack inside a lifted panel reads as padding; the same slack
-            beside it reads as a hole. */}
-        <div className="grid min-w-0 gap-8 lg:grid-cols-5">
-          <CaseFactsPanel
-            hearing={hearing}
-            extras={extras}
-            className="lg:col-span-2"
-          />
-          {extras.lastHearing ? (
-            <LastHearingPanel
-              on={extras.lastHearing.on}
-              purpose={extras.lastHearing.purpose}
-              order={extras.lastHearing.order}
-              directed={extras.lastHearing.directed}
-              className="lg:col-span-3"
-            />
-          ) : (
-            <NoLastHearingPanel className="lg:col-span-3" />
-          )}
-          <CaseHistoryPanel
-            hearing={hearing}
-            extras={extras}
-            today={today}
-            className="lg:col-span-5"
-          />
-        </div>
+        <HearingOverviewSections hearing={hearing} surface="page" />
       </div>
 
       {/* The band. One action, pinned, on the trailing edge — the house sticky-bar
@@ -244,7 +240,98 @@ function HearingOverview({ hearing }: { hearing: CourtHearing }) {
 }
 
 /**
- * The page's one CTA — and the one thing on it that does not work.
+ * Which listing this is: the court's serial, the case number, and what it is listed
+ * for today. The same words on both surfaces, in different roles — an eyebrow above
+ * the page's title, and the `DialogDescription` under the overlay's — so it hands back
+ * the line and lets each surface own the element it sits in. Wrapping it in a `<p>`
+ * here would put a paragraph inside the dialog's own.
+ */
+export function HearingOverviewCaption({ hearing }: { hearing: CourtHearing }) {
+  return (
+    <>
+      Item <span className="tabular-nums">{hearing.item}</span>
+      {" · "}
+      <span className="tabular-nums">{hearing.caseNumber}</span>
+      {" · "}
+      {courtHearingPurposeLabel(hearing.purpose)}
+    </>
+  );
+}
+
+/**
+ * What is in this case — the three sections, on whichever surface is asking.
+ *
+ * Case details and Last hearing pair across the top; the history runs the full width
+ * beneath them.
+ *
+ * The facts are six term/detail pairs and want the smaller share — at three-fifths the
+ * list spread "Evidence" across 500px of nothing and read as stretched. The order of
+ * the day is a paragraph and wants measure, so it takes the larger. History is last
+ * because it is the part that grows: three steps today, but a matter that has run two
+ * years is a long column, and the width is there for entries that carry more than a
+ * date.
+ *
+ * The two top panels stretch to a common height rather than sitting at their own —
+ * `items-start` is what left the shorter one dangling beside the taller. Slack inside a
+ * lifted panel reads as padding; the same slack beside it reads as a hole.
+ *
+ * The column split is a viewport query on both surfaces, not a container one: the
+ * overlay is `sm:max-w-4xl`, so at the width where the page pairs them the sheet has
+ * room to pair them too, and below it both stack.
+ */
+export function HearingOverviewSections({
+  hearing,
+  surface,
+}: {
+  hearing: CourtHearing;
+  surface: HearingOverviewSurface;
+}) {
+  const today = useCourtToday();
+  const extras = hearingCaseExtras(hearing.id);
+
+  return (
+    /* `gap-8` is the page's section break. Inside the overlay the sections are wells
+       on one sheet rather than separate panels on a page, so they close to `gap-4` —
+       the step the sheet's own padding is set at. */
+    <div
+      className={`grid min-w-0 lg:grid-cols-5 ${
+        surface === "page" ? "gap-8" : "gap-4"
+      }`}
+    >
+      <CaseFactsPanel
+        hearing={hearing}
+        extras={extras}
+        surface={surface}
+        className="lg:col-span-2"
+      />
+      {extras.lastHearing ? (
+        <LastHearingPanel
+          on={extras.lastHearing.on}
+          purpose={extras.lastHearing.purpose}
+          order={extras.lastHearing.order}
+          directed={extras.lastHearing.directed}
+          surface={surface}
+          className="lg:col-span-3"
+        />
+      ) : (
+        <NoLastHearingPanel surface={surface} className="lg:col-span-3" />
+      )}
+      <CaseHistoryPanel
+        hearing={hearing}
+        extras={extras}
+        today={today}
+        surface={surface}
+        className="lg:col-span-5"
+      />
+    </div>
+  );
+}
+
+/**
+ * The overview's one CTA — and the one thing on it that does not work.
+ *
+ * Shared by the page's band and the overlay's footer, so the two ends of the same
+ * promise cannot drift apart.
  *
  * A full case file has been built, on the citizen side, in the advocate's flows.
  * `/employee` does not read from there (`lib/employee/content.ts`), and there is no
@@ -274,7 +361,7 @@ function HearingOverview({ hearing }: { hearing: CourtHearing }) {
  * bar pinned under the reading, permanently, on the one control here that goes
  * nowhere. The band still stacks if a second action ever joins it.
  */
-function ViewCaseAction() {
+export function ViewCaseAction() {
   return (
     <TooltipProvider delayDuration={300}>
       <Tooltip>
@@ -310,10 +397,12 @@ function ViewCaseAction() {
 function CaseFactsPanel({
   hearing,
   extras,
+  surface,
   className,
 }: {
   hearing: CourtHearing;
   extras: HearingCaseExtras;
+  surface: HearingOverviewSurface;
   className?: string;
 }) {
   const complainantCounsel = counselFor(hearing, "complainant").map(
@@ -325,7 +414,7 @@ function CaseFactsPanel({
 
   return (
     <section
-      className={`${PANEL} flex flex-col gap-2 ${className ?? ""}`}
+      className={`${PANEL[surface]} flex flex-col gap-2 ${className ?? ""}`}
       aria-labelledby="case-facts"
     >
       {/* `gap-2` and not the section default: the list's own rows already carry
@@ -442,12 +531,14 @@ function LastHearingPanel({
   purpose,
   order,
   directed,
+  surface,
   className,
 }: {
   on: string;
   purpose: string;
   order: string;
   directed: boolean;
+  surface: HearingOverviewSurface;
   className?: string;
 }) {
   const sat = parseIsoDay(on);
@@ -456,7 +547,7 @@ function LastHearingPanel({
 
   return (
     <section
-      className={`${PANEL} flex flex-col gap-4 ${className ?? ""}`}
+      className={`${PANEL[surface]} flex flex-col gap-4 ${className ?? ""}`}
       aria-labelledby="last-hearing"
     >
       <h2 id="last-hearing" className="text-body font-semibold">
@@ -472,7 +563,7 @@ function LastHearingPanel({
             the cheaper of the two costs. `<time>` carries the machine-readable
             day, so the date is stated once in each register. */}
         <div
-          className="flex size-12 shrink-0 flex-col items-center justify-center rounded-lg bg-brand-muted"
+          className={`flex size-12 shrink-0 flex-col items-center justify-center bg-brand-muted ${INSET_RADIUS[surface]}`}
           aria-hidden
         >
           <span className="text-body font-semibold tabular-nums text-brand-muted-foreground">
@@ -489,7 +580,9 @@ function LastHearingPanel({
           <p className="text-body-compact text-muted-foreground">{purpose}</p>
         </div>
       </div>
-      <div className="flex min-w-0 flex-col gap-2 rounded-lg bg-surface-sunken p-4">
+      <div
+        className={`flex min-w-0 flex-col gap-2 p-4 ${INSET_RADIUS[surface]} ${ORDER_WELL[surface]}`}
+      >
         <p className="text-body font-medium">
           {directed ? "Order of the day" : "Latest update"}
         </p>
@@ -512,10 +605,16 @@ function LastHearingPanel({
  * sitting for this matter (`lib/employee/hearing-overview.ts`), and this build must
  * not upgrade that into a finding that the court never called it.
  */
-function NoLastHearingPanel({ className }: { className?: string }) {
+function NoLastHearingPanel({
+  surface,
+  className,
+}: {
+  surface: HearingOverviewSurface;
+  className?: string;
+}) {
   return (
     <section
-      className={`${PANEL} flex flex-col gap-4 ${className ?? ""}`}
+      className={`${PANEL[surface]} flex flex-col gap-4 ${className ?? ""}`}
       aria-labelledby="last-hearing-none"
     >
       <h2 id="last-hearing-none" className="text-body font-semibold">
@@ -559,18 +658,20 @@ function CaseHistoryPanel({
   hearing,
   extras,
   today,
+  surface,
   className,
 }: {
   hearing: CourtHearing;
   extras: HearingCaseExtras;
   today: string;
+  surface: HearingOverviewSurface;
   className?: string;
 }) {
   const items = caseHistory(hearing, extras, today);
 
   return (
     <section
-      className={`${PANEL} flex flex-col gap-4 ${className ?? ""}`}
+      className={`${PANEL[surface]} flex flex-col gap-4 ${className ?? ""}`}
       aria-labelledby="case-history"
     >
       <h2 id="case-history" className="text-body font-semibold">

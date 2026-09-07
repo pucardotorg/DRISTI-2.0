@@ -74,7 +74,13 @@ export function ApplicationReviewOverlay({
   /** The queue's own `ReviewRow`s, for the facts well. */
   facts: ReactNode;
   document: CourtApplicationDocument;
-  onDownload: () => void;
+  /**
+   * Omitted where there is nothing to hand over. The review queues offer the file
+   * because a bench working through paper between sittings may want it; the order
+   * composer does not, for the reason its own preview already gives — this build has
+   * no court record, and offering a file would claim one.
+   */
+  onDownload?: () => void;
   /** "Accept" where a queue's own vocabulary says so. */
   approveLabel?: string;
   onApprove: () => void;
@@ -116,10 +122,11 @@ export function ApplicationReviewOverlay({
             kind: "composed",
             content: <ApplicationFacsimile document={document} />,
           }}
-          download={{
-            onDownload,
-            label: `Download ${document.title}`,
-          }}
+          download={
+            onDownload
+              ? { onDownload, label: `Download ${document.title}` }
+              : undefined
+          }
         />
       </div>
       <DialogFooter className="mx-0 mb-0 shrink-0">

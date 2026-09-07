@@ -1,7 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { FileCheck2Icon, SearchIcon, SearchXIcon } from "lucide-react";
+import {
+  ArrowRightIcon,
+  FileCheck2Icon,
+  SearchIcon,
+  SearchXIcon,
+} from "lucide-react";
 
 import { ListFooter } from "@/components/employee/list-footer";
 import { SignBulkConfirmDialog } from "@/components/employee/sign-bulk-confirm-dialog";
@@ -43,7 +48,6 @@ import {
 } from "@/lib/employee/hearings";
 import {
   advanceProcesses,
-  countAdvancing,
   courtProcessTypeInline,
   courtProcessTypeLabel,
   COURT_PROCESS_TYPES,
@@ -56,8 +60,11 @@ import {
   PROCESS_LINE,
   PROCESS_STAGES,
   processChannelLabel,
+  processesAdvancing,
   processesAt,
+  processesElsewhere,
   processStage,
+  rebaseFilters,
   todayIsoDay,
   type CourtProcess,
   type ProcessFilters,
@@ -124,6 +131,13 @@ export function SignProcessScreen() {
   const [open, setOpen] = React.useState<CourtProcess | null>(null);
   const [bulkOpen, setBulkOpen] = React.useState(false);
   const [notice, setNotice] = React.useState("");
+  /* What the act just moved, so the confirmation's success step can still offer the
+     papers. Ids rather than rows: by the time that button can be pressed the rows have
+     been stamped, and a copy taken before the act would hand the bench ten processes
+     that still say they are waiting to be signed. */
+  const [actedIds, setActedIds] = React.useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const searchRef = React.useRef<HTMLInputElement>(null);
   /* The bulk confirmation hands focus back here on the way out — see its `triggerRef`. */
   const actRef = React.useRef<HTMLButtonElement>(null);
@@ -144,11 +158,31 @@ export function SignProcessScreen() {
      stale id is dropped rather than counted. */
   const selected = stageRows.filter((process) => selectedIds.has(process.id));
 
-  function changeStage(next: ProcessStageId) {
+  /* Only asked when this stage has come up empty under a filter — the one moment the
+     answer changes what the screen should say. */
+  const elsewhere =
+    rows.length === 0 && isFiltered
+      ? processesElsewhere(line, applied, stageId)
+      : [];
+
+  /**
+   * Move to another stage.
+   *
+   * `carry` is the filters to arrive with, and only the empty state passes it: following
+   * "1 in Signed" out of a search that found nothing here has to land on that search
+   * still applied, or the bench arrives at eight rows and has to type it again. Anything
+   * carried is rebased first, because a stage-defining channel is not a question the
+   * bench asked (`rebaseFilters`). The tab strip itself passes nothing and resets, which
+   * is what picking a stage off the strip means.
+   */
+  function changeStage(next: ProcessStageId, carry?: ProcessFilters) {
     const nextStage = processStage(next);
+    const filters = carry
+      ? rebaseFilters(carry, stage, nextStage)
+      : defaultProcessFilters(nextStage);
     setStageId(next);
-    setDraft(defaultProcessFilters(nextStage));
-    setApplied(defaultProcessFilters(nextStage));
+    setDraft(filters);
+    setApplied(filters);
     setSelectedIds(new Set());
     setPage(1);
     setNotice("");
@@ -195,8 +229,10 @@ export function SignProcessScreen() {
   function advance(ids: ReadonlySet<string>) {
     const act = stage.act;
     if (!act) return;
-    const count = countAdvancing(line, ids, stageId);
+    const moving = processesAdvancing(line, ids, stageId);
+    const count = moving.length;
     if (count === 0) return;
+    setActedIds(new Set(moving.map((process) => process.id)));
     setLine((current) =>
       advanceProcesses(current, ids, stageId, todayIsoDay()),
     );
@@ -289,7 +325,9 @@ export function SignProcessScreen() {
                   <ProcessEmpty
                     stage={stage}
                     isFiltered={isFiltered}
+                    elsewhere={elsewhere}
                     onClear={clearFilters}
+                    onGoToStage={(next) => changeStage(next, applied)}
                   />
                 ) : (
                   <div className="flex min-w-0 flex-col gap-4">
@@ -373,6 +411,19 @@ export function SignProcessScreen() {
           onOpenChange={setBulkOpen}
           triggerRef={actRef}
           onConfirm={() => advance(selectedIds)}
+          /* Only off Pending sign. Signing is the act that produces something worth
+             having in hand — a paper that now carries the magistrate's name and the day
+             it was signed — and the rows have left the tab that could have downloaded
+             them. The other two acts move rows that are unchanged as documents, and both
+             land on a tab whose own bar still offers Download. Owner ask, 2026-09-07. */
+          onDownload={
+            stageId === "pending-sign"
+              ? () =>
+                  downloadProcessBundle(
+                    line.filter((process) => actedIds.has(process.id)),
+                  )
+              : undefined
+          }
           onReturnFocus={returnFocus}
         />
       ) : null}
@@ -652,44 +703,88 @@ function ProcessBar({
 /**
  * Why the list is empty, and what to do about it.
  *
- * Two different facts, so two different states: a filter that matched nothing is a dead
- * end with an action worth offering, while an empty stage is the line being clear at that
- * point — and what *that* means is different at each of the five, so the words come off
- * the stage. Borderless and unpadded; the panel is already the frame.
+ * Three facts, so three states. An empty stage is the line being clear at that point, and
+ * what *that* means differs at each of the five, so the words come off the stage. A
+ * filter that matched nothing anywhere is a dead end with one action worth offering.
+ *
+ * And then the state a single-stage queue never has: **the row is in the line, just not
+ * at this stage.** A process moves, so the most ordinary search on this screen — a case
+ * number typed while standing on the tab it was last seen at — finds nothing here and
+ * everything one tab over. Answering that with "no process matches" is true of the tab
+ * and useless about the line, and it is how a working search gets reported as broken. So
+ * the stage that has the row says so by name, with its count, and takes the search along
+ * when the bench follows it.
+ *
+ * Borderless and unpadded; the panel is already the frame.
  */
 function ProcessEmpty({
   stage,
   isFiltered,
+  elsewhere,
   onClear,
+  onGoToStage,
 }: {
   stage: ProcessStage;
   isFiltered: boolean;
+  /** Stages that do hold something matching. Empty unless this stage found nothing. */
+  elsewhere: { stage: ProcessStage; count: number }[];
   onClear: () => void;
+  onGoToStage: (next: ProcessStageId) => void;
 }) {
+  const found = isFiltered && elsewhere.length > 0;
+  const total = elsewhere.reduce((sum, entry) => sum + entry.count, 0);
+
   return (
     <Empty className="border-0 p-0">
       <EmptyHeader>
         <EmptyMedia variant="icon">
-          {isFiltered ? (
+          {found ? (
+            <ArrowRightIcon aria-hidden />
+          ) : isFiltered ? (
             <SearchXIcon aria-hidden />
           ) : (
             <FileCheck2Icon aria-hidden />
           )}
         </EmptyMedia>
         <EmptyTitle className="text-title-s font-semibold">
-          {isFiltered ? "No process matches these filters" : stage.empty.title}
+          {found
+            ? "Further along the line"
+            : isFiltered
+              ? "No process matches these filters"
+              : stage.empty.title}
         </EmptyTitle>
         <EmptyDescription className="text-body">
-          {isFiltered
-            ? "No process at this stage matches the type, channel, date or search you asked for."
-            : stage.empty.description}
+          {found
+            ? `Nothing at this stage matches, but ${total === 1 ? "1 process does" : `${total} processes do`} elsewhere in the line. A process leaves a stage as the court works it.`
+            : isFiltered
+              ? "No process anywhere in this line matches the type, channel, date or search you asked for."
+              : stage.empty.description}
         </EmptyDescription>
       </EmptyHeader>
       {isFiltered ? (
         <EmptyContent>
-          <Button variant="outline" onClick={onClear}>
-            Clear filters
-          </Button>
+          {/* One button per stage that holds something, carrying this search with it.
+              At most four, and in practice one — they wrap rather than truncate, because
+              a stage name the bench cannot read is a destination it cannot choose. */}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {elsewhere.map((entry) => (
+              <Button
+                key={entry.stage.id}
+                variant="outline"
+                onClick={() => onGoToStage(entry.stage.id)}
+              >
+                <span className="tabular-nums">
+                  {entry.count} in {entry.stage.label}
+                </span>
+              </Button>
+            ))}
+            <Button
+              variant={found ? "ghost" : "outline"}
+              onClick={onClear}
+            >
+              Clear filters
+            </Button>
+          </div>
         </EmptyContent>
       ) : null}
     </Empty>
