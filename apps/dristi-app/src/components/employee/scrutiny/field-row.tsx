@@ -1,0 +1,514 @@
+"use client";
+
+import * as React from "react";
+import { toast } from "sonner";
+import {
+  ArrowUpRightIcon,
+  Link2Icon,
+  CheckIcon,
+  FileTextIcon,
+  FlagIcon,
+  MicIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
+
+import { DOC_BY_ID, DOC_ROW } from "@/lib/employee/scrutiny/bundle";
+import { docName } from "@/lib/employee/scrutiny/field";
+import { FIELD_BY_ID } from "@/lib/employee/scrutiny/sections";
+import type {
+  Flag as FlagType,
+  FlatField,
+} from "@/lib/employee/scrutiny/types";
+import type { ScrutinyController } from "@/lib/employee/scrutiny/use-scrutiny-state";
+import { cn } from "@/lib/utils";
+import { FlagComposer } from "@/components/employee/scrutiny/flag-composer";
+import { MarkThumb } from "@/components/employee/scrutiny/mark-thumb";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DescriptionDetails,
+  DescriptionRow,
+  DescriptionTerm,
+} from "@/components/ui/description-list";
+
+/**
+ * One filed field = one `DescriptionRow`, made interactive.
+ *
+ * The row carries NO border radius: its own bottom border IS the divider between rows,
+ * and rounding the box rounds the ends of that 1px rule. Selection is a fill, the way
+ * the system's own table row does it — not a ring, not a border (the loudness ladder).
+ */
+export function FieldRow({
+  field,
+  controller,
+  aiOn,
+  onGoToDoc,
+  onGoToItem,
+}: {
+  field: FlatField;
+  controller: ScrutinyController;
+  aiOn: boolean;
+  onGoToDoc: (docId: string) => void;
+  onGoToItem: (fieldId: string) => void;
+}) {
+  const flag = controller.flags[field.id];
+  const selected = controller.selectedId === field.id;
+  const composing = controller.composeField === field.id;
+  const attention =
+    aiOn && !flag && !composing && !!(field.docread || field.ocrfail || field.scannote);
+  const flagTitle = flag
+    ? "Edit this flag"
+    : field.docrow
+      ? "Flag document"
+      : "Correct or flag";
+
+  return (
+    <DescriptionRow
+      id={`row-${field.id}`}
+      className={cn(
+        "group/frow relative -mx-2 cursor-pointer grid-cols-[minmax(5.5rem,9rem)_1fr] px-2 transition-colors",
+        "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
+        "hover:bg-accent",
+        // A machine observation the officer has not acted on yet tints the whole
+        // row — the warning has to catch the eye at the field, not only in a caption.
+        // Its own ink pair on its own fill; selection still wins while selected.
+        attention && !selected && "bg-warning-muted hover:bg-warning-muted",
+        selected && "bg-accent-strong",
+        // While composing, the composer's well is the surface; a row fill under it
+        // would stack two greys and blur the well's edge.
+        composing && "bg-transparent hover:bg-transparent",
+      )}
+      role="option"
+      tabIndex={0}
+      aria-selected={selected}
+      data-flagged={flag ? true : undefined}
+      onClick={() => controller.selectField(field.id)}
+      onKeyDown={(event) => {
+        // Only the row itself: a Space typed into the composer's textarea bubbles
+        // here, and swallowing it made "Not a clear document" come out as
+        // "Notacleardocument".
+        if (event.target !== event.currentTarget) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          controller.selectField(field.id);
+        }
+      }}
+    >
+      <DescriptionTerm>{field.label}</DescriptionTerm>
+      <DescriptionDetails>
+        <div className="flex items-start gap-2">
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            {/*
+             * While the composer is open the row says nothing of its own: the composer's
+             * "Filed" block carries the old value and its AI badge carries the machine
+             * reading, so repeating them here stated the same two numbers three times —
+             * the exact "all over the place" the redesign removes.
+             */}
+            {composing ? null : (
+              <>
+                <ValueLines field={field} flag={flag} />
+                <Hints field={field} flag={flag} aiOn={aiOn} />
+              </>
+            )}
+          </div>
+          <div className="flex shrink-0 items-start gap-1">
+            {/*
+             * A persistent source glyph, not a hover-gated one: structure is shown by
+             * form, and hover-only affordances are unreachable by keyboard and touch.
+             */}
+            {field.doc && !field.thumb ? (
+              <span
+                className="inline-flex size-8 shrink-0 items-center justify-center text-muted-foreground"
+                title={`Doc ${DOC_BY_ID[field.doc]?.no} · ${DOC_BY_ID[field.doc]?.name}${
+                  field.srcnote ? ` — ${field.srcnote}` : ""
+                }`}
+              >
+                <FileTextIcon className="size-3" />
+              </span>
+            ) : null}
+            <Button
+              variant="destructive-ghost"
+              size="icon-sm"
+              title={flagTitle}
+              aria-label={`${flagTitle}: ${field.label}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                controller.openComposer(field.id);
+              }}
+            >
+              <FlagIcon />
+            </Button>
+          </div>
+        </div>
+      </DescriptionDetails>
+
+      {/*
+       * The record and the composer occupy the same box, spanning both columns. At the
+       * panel's 24% floor the value column can spare about 140px — not enough for a
+       * badge, a claim and two buttons — and editing an item now unfolds it in place
+       * instead of moving it.
+       */}
+      {composing ? (
+        <FlagComposer field={field} controller={controller} onGoToItem={onGoToItem} />
+      ) : flag ? (
+        <RaisedItem
+          field={field}
+          flag={flag}
+          controller={controller}
+          onGoToDoc={onGoToDoc}
+          onGoToItem={onGoToItem}
+        />
+      ) : null}
+    </DescriptionRow>
+  );
+}
+
+/**
+ * A saved correction shows the proposed value as THE value, with the filed value on one
+ * quiet line beneath — no strikethrough noise in the primary position.
+ */
+function ValueLines({ field, flag }: { field: FlatField; flag?: FlagType }) {
+  if (flag?.correction) {
+    // Only the proposed value — the current truth of the row. The filed value lives in
+    // the raised item's well below, beside the note and the actions, so the whole
+    // record of "what changed and why" reads as one block instead of three.
+    return (
+      <div className="text-body-compact font-medium break-words">
+        {flag.correction}
+      </div>
+    );
+  }
+  if (!field.value) return null;
+  return (
+    <div
+      className={cn(
+        "text-body-compact break-words",
+        field.long ? "text-muted-foreground" : "font-medium",
+      )}
+    >
+      {field.value}
+    </div>
+  );
+}
+
+/**
+ * Only real signals appear here. Rows with nothing to say say nothing — an interface
+ * that narrates itself is an interface that isn't legible.
+ *
+ * Once a human has acted, the machine goes quiet: every machine-origin observation moves
+ * inside the item's well as grey provenance, so a settled row carries one cue, not three.
+ * `nodoc` is the exception because it is not a machine reading — it is a standing fact
+ * about the bundle that renders with AI off and is already grey.
+ */
+function Hints({
+  field,
+  flag,
+  aiOn,
+}: {
+  field: FlatField;
+  flag?: FlagType;
+  aiOn: boolean;
+}) {
+  const lines: React.ReactNode[] = [];
+  const flagged = !!flag;
+  const thumbId = field.thumb ?? field.docrow;
+  const thumbDoc = thumbId ? DOC_BY_ID[thumbId] : undefined;
+  // The item's crop is strictly more specific than the row's source thumbnail. Showing
+  // both stacks two sunken boxes of the same document in one row.
+  const croppedHere = flag?.evidence?.doc === thumbId;
+
+  if (thumbDoc?.src && !croppedHere) {
+    lines.push(
+      <div
+        key="thumb"
+        className="inline-flex items-center gap-2 self-start rounded-md bg-surface-sunken p-1 pe-2.5 text-caption text-muted-foreground"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={thumbDoc.src}
+          alt=""
+          className="h-8 w-12 rounded-sm object-cover"
+        />
+        <span className="tabular-nums">Doc {thumbDoc.no}</span>
+      </div>,
+    );
+  }
+  if (aiOn && field.docread && !flagged) {
+    lines.push(
+      <HintLine key="docread" tone="warning" icon={<TriangleAlertIcon />}>
+        The uploaded document shows a different value.
+      </HintLine>,
+    );
+  }
+  if (aiOn && field.ocrfail && !flagged) {
+    lines.push(
+      <HintLine key="ocrfail" tone="warning" icon={<TriangleAlertIcon />}>
+        The value could not be read from the uploaded document.
+      </HintLine>,
+    );
+  }
+  if (aiOn && field.aiok && !flagged) {
+    lines.push(
+      <HintLine key="aiok" tone="success" icon={<CheckIcon />}>
+        {field.aiok}
+      </HintLine>,
+    );
+  }
+  if (field.nodoc) {
+    lines.push(
+      <HintLine key="nodoc" tone="muted" icon={<FileTextIcon />}>
+        {field.nodoc}
+      </HintLine>,
+    );
+  }
+  if (field.scannote && !flagged) {
+    lines.push(
+      <HintLine key="scannote" tone="warning" icon={<TriangleAlertIcon />}>
+        {field.scannote}
+      </HintLine>,
+    );
+  }
+  return <>{lines}</>;
+}
+
+/** Each tone takes the ink of its own status pair — never grey text on a status line. */
+const HINT_TONE = {
+  muted: "text-muted-foreground",
+  warning: "text-warning-muted-foreground",
+  success: "text-success-muted-foreground",
+} as const;
+
+function HintLine({
+  tone,
+  icon,
+  children,
+}: {
+  tone: keyof typeof HINT_TONE;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={cn("flex items-start gap-1.5 text-caption", HINT_TONE[tone])}>
+      <span className="mt-px shrink-0 [&>svg]:size-3.5">{icon}</span>
+      <span>{children}</span>
+    </div>
+  );
+}
+
+/**
+ * The record. Reading it answers four questions without a click: what kind, what is
+ * wrong, what backs it up, and what it unlocks — in that fixed order.
+ *
+ * The Edit/Remove pair reveals on hover, selection and focus-within, and stays visible
+ * on touch: a hover-only control is no control at all on a tablet, which is what the
+ * registry actually uses.
+ */
+function RaisedItem({
+  field,
+  flag,
+  controller,
+  onGoToDoc,
+  onGoToItem,
+}: {
+  field: FlatField;
+  flag: FlagType;
+  controller: ScrutinyController;
+  onGoToDoc: (docId: string) => void;
+  onGoToItem: (fieldId: string) => void;
+}) {
+  const evidence = flag.evidence;
+  const evidenceDoc = evidence ? DOC_BY_ID[evidence.doc] : undefined;
+  const partnerId = flag.linkedTo ?? flag.linkedFrom ?? null;
+  const partner = partnerId ? FIELD_BY_ID[partnerId] : undefined;
+  // A field sourced from an uploaded document could have had a re-upload requested,
+  // so the row states the answer either way. Generated pages have nothing to re-upload.
+  const reuploadApplies = !field.docrow && !!field.doc && !!DOC_ROW[field.doc];
+  const silent = !flag.comment && !flag.correction && !flag.reason;
+
+  /*
+   * The record is a small table: one label column, one value column, rows only where
+   * they apply. That is what makes it scannable at a glance and scalable as items grow
+   * more kinds of fact — the owner's call, replacing the earlier stack of unlike lines.
+   *
+   * A white box with a hairline, not a sunken well: the well sat on the selected row's
+   * accent fill and read as beige on beige.
+   */
+  return (
+    <div className="col-span-full my-1 flex flex-col gap-3 rounded-lg border border-hairline bg-card p-3 @container">
+      <div className="flex items-center gap-2">
+        <Badge variant={flag.correction ? "info" : "destructive"}>
+          {flag.correction
+            ? "FSO’s correction"
+            : field.docrow
+              ? "Document issue"
+              : "Flag"}
+        </Badge>
+        <span className="ms-auto -my-1 flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover/frow:opacity-100 group-focus-within/frow:opacity-100 group-aria-selected/frow:opacity-100 [@media(hover:none)]:opacity-100">
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={(event) => {
+              event.stopPropagation();
+              controller.openComposer(field.id);
+            }}
+          >
+            Edit
+          </Button>
+          <Button
+            variant="destructive-ghost"
+            size="xs"
+            onClick={(event) => {
+              event.stopPropagation();
+              const stranded = controller.removeFlag(field.id);
+              if (!stranded) return;
+              /*
+               * Removal never cascades: a bad scan is still a bad scan. Say what stayed
+               * behind, and offer the second removal rather than performing it.
+               */
+              toast(
+                `Flag removed. The document issue on ${docName(
+                  FIELD_BY_ID[stranded]?.docrow ?? "",
+                )} stays.`,
+                {
+                  action: {
+                    label: "Remove it too",
+                    onClick: () => controller.removeFlag(stranded),
+                  },
+                },
+              );
+            }}
+          >
+            Remove
+          </Button>
+        </span>
+      </div>
+
+      {/* Two columns when the record has room; labels stack above values when the
+          panel is dragged to its floor, instead of starving the values. */}
+      <dl className="grid grid-cols-1 gap-x-3 gap-y-2 @[22rem]:grid-cols-[minmax(6rem,8rem)_1fr]">
+        {flag.correction ? (
+          <>
+            <RecordRow label="FSO’s value">
+              <span className="font-medium">{flag.correction}</span>
+            </RecordRow>
+            <RecordRow label="Filed value">
+              <span className="text-muted-foreground">{field.value || "—"}</span>
+            </RecordRow>
+          </>
+        ) : null}
+
+        {field.docrow && flag.reason ? (
+          <RecordRow label="Reason">{flag.reason}</RecordRow>
+        ) : null}
+
+        {flag.comment ? (
+          <RecordRow label="FSO’s comment">
+            <span className="break-words">{flag.comment}</span>
+            {flag.voice ? (
+              <span className="ms-2 inline-flex items-center gap-1 text-caption text-muted-foreground">
+                <MicIcon className="size-3" aria-hidden="true" /> voice
+              </span>
+            ) : null}
+          </RecordRow>
+        ) : silent ? (
+          <RecordRow label="FSO’s comment">
+            <span className="text-warning-ink">{SILENT_FALLBACK}</span>
+          </RecordRow>
+        ) : null}
+
+        {evidence && evidenceDoc ? (
+          <RecordRow label="Annotation">
+            <button
+              type="button"
+              className="-m-1 flex items-center gap-2 rounded-md p-1 pe-2 text-start transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              onClick={(event) => {
+                event.stopPropagation();
+                onGoToDoc(evidence.doc);
+              }}
+              aria-label={`Go to the annotation on Doc ${evidenceDoc.no}, ${docName(evidence.doc)}`}
+            >
+              <MarkThumb evidence={evidence} />
+              <span className="min-w-0 truncate">
+                <span className="tabular-nums">Doc {evidenceDoc.no}</span> ·{" "}
+                {docName(evidence.doc)}
+              </span>
+              <ArrowUpRightIcon
+                className="size-3 shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
+            </button>
+          </RecordRow>
+        ) : null}
+
+        {reuploadApplies ? (
+          <RecordRow label="Re-upload requested">
+            {partner ? (
+              <RecordLink onClick={() => onGoToItem(partner.id)}>
+                Yes — {docName(partner.docrow ?? "")}
+                {controller.flags[partner.id]?.reason
+                  ? ` · ${controller.flags[partner.id]?.reason}`
+                  : ""}
+              </RecordLink>
+            ) : (
+              <span className="text-muted-foreground">No</span>
+            )}
+          </RecordRow>
+        ) : null}
+
+        {field.docrow && partner ? (
+          <RecordRow label="Raised with">
+            <RecordLink onClick={() => onGoToItem(partner.id)}>
+              {partner.label}
+            </RecordLink>
+          </RecordRow>
+        ) : null}
+      </dl>
+    </div>
+  );
+}
+
+/** One row of the record: a quiet label, then the fact. */
+function RecordRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <>
+      <dt className="pt-px text-caption text-muted-foreground @[22rem]:pt-0.5">
+        {label}
+      </dt>
+      <dd className="-mt-1 min-w-0 text-body-compact leading-snug @[22rem]:mt-0">
+        {children}
+      </dd>
+    </>
+  );
+}
+
+/** A fact that is also a way to the related item. */
+function RecordLink({
+  onClick,
+  children,
+}: {
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      className="inline-flex items-center gap-1 text-start underline-offset-2 transition-colors hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
+    >
+      {children}
+      <Link2Icon className="size-3 text-muted-foreground" aria-hidden="true" />
+    </button>
+  );
+}
+
+/** Defensive only — D1 stops a new item ever reaching it. */
+const SILENT_FALLBACK = "No note — the advocate won't know what to fix.";
