@@ -21,10 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { CourtRole } from "@/lib/employee/content";
-import {
-  seatOrdersAlwaysOpen,
-  seatRunsSitting,
-} from "@/lib/employee/court-role";
+import { seatHasBenchControls } from "@/lib/employee/court-role";
 import {
   canDraftOrder,
   canEndHearing,
@@ -155,31 +152,69 @@ export function HearingCaseLink({
 export function HearingSessionButton({
   hearing,
   seat,
+  starting = false,
   onStartHearing,
   onEndHearing,
   className,
 }: {
   hearing: CourtHearing;
   seat: CourtRole;
+  /** This row is inside the typist's start delay — pressed, not yet under way. */
+  starting?: boolean;
   onStartHearing: (hearing: CourtHearing) => void;
   onEndHearing: (hearing: CourtHearing) => void;
   className?: string;
 }) {
-  /* A seat that does not run the sitting gets the fact instead of the control: the
-     typist is recording what the court did, not calling matters. It holds the same slot
-     at the same height, so the column does not shift when the seat changes, and it is
-     plain muted text rather than a second chip — the row already spends its one status
-     mark in the Status column (ui-craft §1.4). */
-  if (!seatRunsSitting(seat)) {
+  /* The typist's slot: one control that carries the whole sitting rather than the
+     bench's three. It starts the matter and then reports on it — the end is not pressed
+     here, it happens on the way into the order (`hearings-screen.tsx`). Same slot, same
+     metric and the same outline dress as the bench's, so nothing in the column moves
+     when the seat changes. */
+  if (!seatHasBenchControls(seat)) {
+    const step = hearingProgressLabel(hearing.status);
+    if (canStartHearing(hearing.status)) {
+      return (
+        /* Stays pressable while the start is running rather than going `disabled`:
+           disabling under the finger takes the control out of the tab order at the exact
+           moment a keyboard user is standing on it, and 2s later it is still gone. The
+           label and `aria-busy` carry the wait; a second press is ignored below. */
+        <Button
+          type="button"
+          variant="outline"
+          aria-busy={starting || undefined}
+          className={cn(SESSION_SLOT_CLASS, className)}
+          onClick={() => {
+            if (!starting) onStartHearing(hearing);
+          }}
+        >
+          {starting ? "Starting…" : step}
+        </Button>
+      );
+    }
+    if (step !== "To start") {
+      return (
+        /* Once the matter is under way this reports and no longer acts, so it is
+           `disabled` and not `aria-disabled` — the same distinction the orders control
+           next to it draws: a live precondition, not an unbuilt promise. The fact is
+           also in the row's Status chip, so nothing is lost to a reader who cannot tab
+           to it. */
+        <Button
+          type="button"
+          disabled
+          variant="outline"
+          className={cn(SESSION_SLOT_CLASS, className)}
+        >
+          {step}
+        </Button>
+      );
+    }
+    /* Passed over: the label would still read *To start*, but the mark cannot be made —
+       `withHearingSession` does not recall a passed-over listing today — and a control
+       that offers a press it will not honour is worse than none. The bench leaves this
+       slot empty for the same reason; the Passed over chip on the row is the mark. */
     return (
-      <span
-        className={cn(
-          SESSION_SLOT_CLASS,
-          "inline-flex h-10 items-center text-muted-foreground",
-          className,
-        )}
-      >
-        {hearingProgressLabel(hearing.status)}
+      <span className={cn("inline-flex h-10 items-center", className)}>
+        <span className="sr-only">Passed over</span>
       </span>
     );
   }
@@ -246,11 +281,10 @@ export function HearingPassOverMenu({
   seat: CourtRole;
   onPassOver: (hearing: CourtHearing) => void;
 }) {
-  /* Passing a matter over moves the sitting, exactly as calling one does. A seat that
-     cannot start a hearing cannot defer one either, so the overflow leaves with the
-     control it sits beside rather than staying behind as the one bench act a typist
-     could still perform from a smaller menu. */
-  if (!seatRunsSitting(seat)) return null;
+  /* Pass over is one of the bench's three controls, and the typist's slot carries one.
+     It leaves with the other two rather than staying behind as the single bench act
+     reachable from a smaller menu. */
+  if (!seatHasBenchControls(seat)) return null;
   if (!canPassOver(hearing.status)) return null;
 
   return (
@@ -283,30 +317,36 @@ export function HearingPassOverMenu({
  * listing. Issuing the order is still a real judicial act this build does not
  * perform; the composer itself says so.
  *
- * The control follows the sitting, not the row: a matter the bench has not called
- * yet has no hearing to pass an order in, so on a scheduled listing the icon holds
- * the column disabled and Start hearing on the same row is what opens it
- * (`canDraftOrder`). Disabled by the DS `disabled` prop rather than an
- * `aria-disabled` mark, because this is a live precondition and not a missing
- * build — the same distinction as Sign selected forms with nothing ticked.
+ * The control follows the sitting, not the row: a matter nobody has called yet has no
+ * hearing to pass an order in, so on a scheduled listing the icon holds the column
+ * disabled and the control beside it is what opens it — Start hearing for the bench, To
+ * start for the typist (`canDraftOrder`). **One gate, both seats.** A column open down
+ * the whole board for one of them would have every row's order reachable before its
+ * matter existed, which is the state this precondition is for.
+ *
+ * Disabled by the DS `disabled` prop rather than an `aria-disabled` mark, because this
+ * is a live precondition and not a missing build — the same distinction as Sign selected
+ * forms with nothing ticked.
  *
  * The reason lives in the accessible name: an icon-only control has no room to
  * carry it, and a tooltip cannot be hovered through the DS's
  * `disabled:pointer-events-none`. Sighted readers get it from the row — the
- * Scheduled chip and Start hearing sit inches away.
+ * Scheduled chip and the start control sit inches away.
+ *
+ * `onOpen` is the caller's chance to act on the trip itself. The cause list uses it for
+ * the typist, where walking into the order is what ends the matter; for the bench it is
+ * not supplied and opening the composer changes nothing.
  */
 export function HearingOrdersButton({
   hearing,
-  seat,
+  onOpen,
 }: {
   hearing: CourtHearing;
-  seat: CourtRole;
+  onOpen?: (hearing: CourtHearing) => void;
 }) {
   const label = `Order for item ${hearing.item}, ${causeTitle(hearing)}`;
 
-  /* Open down the whole board for a seat whose work is the typing rather than the call
-     (`seatOrdersAlwaysOpen`) — the precondition below is the bench's, not everyone's. */
-  if (!seatOrdersAlwaysOpen(seat) && !canDraftOrder(hearing.status)) {
+  if (!canDraftOrder(hearing.status)) {
     return (
       <Button
         type="button"
@@ -331,6 +371,7 @@ export function HearingOrdersButton({
       <Link
         href={`/employee/hearings/${hearing.id}/order`}
         aria-label={label}
+        onClick={() => onOpen?.(hearing)}
       >
         <FilePlusIcon aria-hidden />
       </Link>
@@ -342,16 +383,20 @@ export function HearingOrdersButton({
 export function HearingRowActions({
   hearing,
   seat,
+  starting,
   onStartHearing,
   onEndHearing,
   onPassOver,
+  onOpenOrder,
   className,
 }: {
   hearing: CourtHearing;
   seat: CourtRole;
+  starting?: boolean;
   onStartHearing: (hearing: CourtHearing) => void;
   onEndHearing: (hearing: CourtHearing) => void;
   onPassOver: (hearing: CourtHearing) => void;
+  onOpenOrder?: (hearing: CourtHearing) => void;
   className?: string;
 }) {
   return (
@@ -359,6 +404,7 @@ export function HearingRowActions({
       <HearingSessionButton
         hearing={hearing}
         seat={seat}
+        starting={starting}
         onStartHearing={onStartHearing}
         onEndHearing={onEndHearing}
         className="min-w-0 flex-1"
@@ -368,7 +414,7 @@ export function HearingRowActions({
         seat={seat}
         onPassOver={onPassOver}
       />
-      <HearingOrdersButton hearing={hearing} seat={seat} />
+      <HearingOrdersButton hearing={hearing} onOpen={onOpenOrder} />
     </div>
   );
 }
@@ -384,15 +430,20 @@ export function HearingRowActions({
 export function HearingsTable({
   rows,
   seat,
+  startingId,
   onStartHearing,
   onEndHearing,
   onPassOver,
+  onOpenOrder,
 }: {
   rows: CourtHearing[];
   seat: CourtRole;
+  /** The listing inside the typist's start delay, if any. */
+  startingId?: string | null;
   onStartHearing: (hearing: CourtHearing) => void;
   onEndHearing: (hearing: CourtHearing) => void;
   onPassOver: (hearing: CourtHearing) => void;
+  onOpenOrder?: (hearing: CourtHearing) => void;
 }) {
   return (
     <Table className="w-full border-separate border-spacing-0 text-body-compact">
@@ -432,7 +483,7 @@ export function HearingsTable({
           <TableHead
             className={cn(headClass, ACTION_COLUMN_CLASS, "whitespace-nowrap")}
           >
-            {seatRunsSitting(seat) ? "Action" : "Hearing"}
+            {seatHasBenchControls(seat) ? "Action" : "Hearing"}
           </TableHead>
         </TableRow>
       </TableHeader>
@@ -498,7 +549,7 @@ export function HearingsTable({
               className={cn(cellClass, ORDERS_COLUMN_CLASS, "whitespace-nowrap")}
             >
               <div className="flex justify-center">
-                <HearingOrdersButton hearing={hearing} seat={seat} />
+                <HearingOrdersButton hearing={hearing} onOpen={onOpenOrder} />
               </div>
             </TableCell>
             <TableCell
@@ -508,6 +559,7 @@ export function HearingsTable({
                 <HearingSessionButton
                   hearing={hearing}
                   seat={seat}
+                  starting={startingId === hearing.id}
                   onStartHearing={onStartHearing}
                   onEndHearing={onEndHearing}
                 />

@@ -118,17 +118,21 @@ export function courtHearingStatusLabel(status: CourtHearingStatus): string {
 }
 
 /**
- * Whether the sitting on this listing has been started or ended, said as a sentence.
+ * What the typist's one control says at each point of the sitting.
  *
- * The same fact the status chip carries, in the other register: the chip names where the
- * *listing* stands on the board, this names what happened to the *hearing*. It is what
- * the Action column becomes for a seat that does not run the sitting — a typist records
- * what the court did and does not call matters, so the slot holding Start hearing for
- * the bench holds this instead (`court-role.ts`).
+ * Three words for three moments, and the first of them is an invitation rather than a
+ * state: a matter nobody has called yet is the one point where there is something to
+ * press, so the slot says **To start** and means it. After that the same slot reports —
+ * *Hearing started* while it is under way, *Hearing ended* once it is done — and stops
+ * taking a press, because nothing is left for this seat to do to the sitting from here.
  *
- * Everything that is not under way and not finished reads as not started, and that
- * includes a passed-over listing: it was deferred without being heard, which is exactly
- * what "not started" says. Which of those it is stays with the chip, where the day's
+ * The bench reads the same three moments off Start hearing / End hearing / the tick.
+ * This is the other seat's wording of them, not a second set of states
+ * (`court-role.ts`).
+ *
+ * Everything that is neither under way nor finished offers the start, and that includes
+ * a passed-over listing: it was deferred without being heard, so starting it is exactly
+ * what is left to do. Which of those it is stays with the status chip, where the day's
  * vocabulary lives — this line must not grow a fourth wording and become a second
  * status column.
  */
@@ -139,7 +143,7 @@ export function hearingProgressLabel(status: CourtHearingStatus): string {
     case "completed":
       return "Hearing ended";
     default:
-      return "Hearing not started";
+      return "To start";
   }
 }
 

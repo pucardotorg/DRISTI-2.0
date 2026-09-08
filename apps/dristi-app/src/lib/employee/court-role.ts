@@ -45,7 +45,8 @@ export function setCourtRole(next: CourtRole): void {
 }
 
 /**
- * Whether this seat runs the sitting — Start hearing, End hearing, Pass over.
+ * Whether this seat gets the bench's own three controls — Start hearing, End hearing,
+ * and Pass over from the row overflow.
  *
  * **A view rule, not a permission.** There is no authentication on this branch and
  * nothing here is enforced: it decides what the cause list *offers*, on the plain ground
@@ -53,23 +54,12 @@ export function setCourtRole(next: CourtRole): void {
  * worst. A build with real sign-in decides who may do what somewhere this file cannot
  * see, and this must not be mistaken for that decision.
  *
- * The typist records the court's work; the bench does it. So in that seat the row's
- * action slot stops being a control and becomes a line saying whether the hearing has
- * started or ended (`hearingProgressLabel`), and the overflow that passes a matter over
- * goes with it — passing over is the same act as calling one, made from a smaller menu.
+ * It does **not** mean the other seat is a spectator. The typist moves the same sitting;
+ * it just moves it along one scripted line of work instead of from three controls — one
+ * button to start, and the trip into the order is what finishes the matter
+ * (`hearings-table.tsx`, `hearings-screen.tsx`). Both seats write the same marks to
+ * `hearing-session.ts`, and neither writes a court record.
  */
-export function seatRunsSitting(role: CourtRole): boolean {
+export function seatHasBenchControls(role: CourtRole): boolean {
   return role !== "typist";
-}
-
-/**
- * Whether the orders icon is open on every listing, or only on one the bench has called.
- *
- * For the bench the gate is the sitting: an order is drafted *in* a hearing, so a matter
- * that has not been called has nothing to draft from (`canDraftOrder`). A typist is not
- * waiting on the call — the work is the typing, and it is done ahead of the item as
- * often as during it — so the column is open down the whole board.
- */
-export function seatOrdersAlwaysOpen(role: CourtRole): boolean {
-  return role === "typist";
 }

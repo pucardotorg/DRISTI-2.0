@@ -46,6 +46,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { CourtRole } from "@/lib/employee/content";
+import { seatHasBenchControls } from "@/lib/employee/court-role";
 import { isPendingFilterChange } from "@/lib/employee/filter-state";
 import {
   markHearingEnded,
@@ -72,6 +73,17 @@ import {
   type HearingFilters,
   type HearingsPageSize,
 } from "@/lib/employee/hearings";
+
+/**
+ * How long the typist's start takes to land.
+ *
+ * A prototype's beat and nothing more: it stands in for the pause between the control
+ * being pressed and the court actually being in session, so the walk-through does not
+ * jump from an untouched board to a matter under way in one frame. Nothing is being
+ * waited on — there is no request, no server, and no clock in this build that this
+ * number is measuring.
+ */
+const TYPIST_START_DELAY_MS = 2000;
 
 /**
  * Today's hearings — the court's cause list for the day it is sitting.
@@ -113,6 +125,17 @@ export function HearingsScreen() {
      the row it names has just changed status, and a copy taken at click time would
      show the overlay a listing that is still scheduled. */
   const [openHearingId, setOpenHearingId] = React.useState<string | null>(null);
+  /* The listing inside the typist's start delay. Held here rather than in the session
+     module because it is not a mark — nothing has happened to the sitting yet, and if
+     the screen goes away mid-wait then so does the press. */
+  const [startingId, setStartingId] = React.useState<string | null>(null);
+  const startTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  React.useEffect(
+    () => () => {
+      if (startTimer.current) clearTimeout(startTimer.current);
+    },
+    [],
+  );
 
   const listed = withHearingSession(hearingsForDay(activeDay, today), session);
   const rows = filterHearings(listed, applied);
@@ -126,9 +149,51 @@ export function HearingsScreen() {
      case overview is still one click away for that seat — the cause title, which reads
      rather than calls, and goes to the page. */
   function startHearing(hearing: CourtHearing) {
-    markHearingOngoing(hearing.id);
-    setOpenHearingId(hearing.id);
-    setLiveMessage(`Hearing started for ${causeTitle(hearing)}`);
+    if (seatHasBenchControls(seat)) {
+      markHearingOngoing(hearing.id);
+      setOpenHearingId(hearing.id);
+      setLiveMessage(`Hearing started for ${causeTitle(hearing)}`);
+      return;
+    }
+    /* The typist's start takes a beat. The bench presses Start hearing as the matter is
+       called and the mark is that call; from this seat the press is the court coming to
+       order around it, so the row says Starting… and settles a moment later. It is the
+       prototype's own timing and not a fact about any court — nothing is being waited
+       on, and there is no request behind it.
+       The last press wins: starting a second matter while the first is still counting
+       cancels it, the same way `markHearingOngoing` returns an earlier listing to
+       scheduled. The bench hears one cause at a time either way. */
+    if (startTimer.current) clearTimeout(startTimer.current);
+    setStartingId(hearing.id);
+    startTimer.current = setTimeout(() => {
+      startTimer.current = null;
+      setStartingId(null);
+      markHearingOngoing(hearing.id);
+      /* The only confirmation of a change nobody pressed for: the row settles two
+         seconds after the click, so the announcement is what tells a reader who is not
+         watching that column. */
+      setLiveMessage(`Hearing started for ${causeTitle(hearing)}`);
+    }, TYPIST_START_DELAY_MS);
+  }
+
+  /**
+   * The typist walking into a listing's order.
+   *
+   * For the bench, opening the composer is just navigation — the sitting is ended from
+   * the row, deliberately, and a trip to type an order must not do it by accident.
+   *
+   * The typist has no End control, so the trip is the end: the matter is marked
+   * completed on the way in, which is what makes the row read *Hearing ended* when the
+   * trail brings them back. Marking it here rather than on the order screen is what
+   * keeps the composer honest — it opens already knowing the sitting is over, so the
+   * order it opens on is the finished one (`order-demo.ts`) rather than an empty
+   * composer that fills in underneath the typing.
+   *
+   * Still not a court record. It is the same screen mark End hearing makes.
+   */
+  function openOrder(hearing: CourtHearing) {
+    if (seatHasBenchControls(seat)) return;
+    markHearingEnded(hearing.id);
   }
 
   function endHearing(hearing: CourtHearing) {
@@ -217,18 +282,22 @@ export function HearingsScreen() {
                 <HearingsTable
                   rows={pageRows}
                   seat={seat}
+                  startingId={startingId}
                   onStartHearing={startHearing}
                   onEndHearing={endHearing}
                   onPassOver={passOverHearing}
+                  onOpenOrder={openOrder}
                 />
               </div>
               <div className="md:hidden">
                 <HearingsItemList
                   rows={pageRows}
                   seat={seat}
+                  startingId={startingId}
                   onStartHearing={startHearing}
                   onEndHearing={endHearing}
                   onPassOver={passOverHearing}
+                  onOpenOrder={openOrder}
                 />
               </div>
             </div>
@@ -507,15 +576,19 @@ function HearingsEmpty({
 function HearingsItemList({
   rows,
   seat,
+  startingId,
   onStartHearing,
   onEndHearing,
   onPassOver,
+  onOpenOrder,
 }: {
   rows: CourtHearing[];
   seat: CourtRole;
+  startingId: string | null;
   onStartHearing: (hearing: CourtHearing) => void;
   onEndHearing: (hearing: CourtHearing) => void;
   onPassOver: (hearing: CourtHearing) => void;
+  onOpenOrder: (hearing: CourtHearing) => void;
 }) {
   return (
     <ul className="flex flex-col gap-3">
@@ -554,9 +627,11 @@ function HearingsItemList({
             <HearingRowActions
               hearing={hearing}
               seat={seat}
+              starting={startingId === hearing.id}
               onStartHearing={onStartHearing}
               onEndHearing={onEndHearing}
               onPassOver={onPassOver}
+              onOpenOrder={onOpenOrder}
             />
           </li>
         );

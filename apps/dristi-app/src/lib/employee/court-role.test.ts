@@ -4,15 +4,10 @@ import { describe, it } from "node:test";
 import { COURT_ROLE_LABEL, COURT_SEATS, CURRENT_STAFF } from "./content";
 import {
   readCourtRole,
-  seatOrdersAlwaysOpen,
-  seatRunsSitting,
+  seatHasBenchControls,
   setCourtRole,
 } from "./court-role";
-import {
-  canDraftOrder,
-  hearingProgressLabel,
-  type CourtHearingStatus,
-} from "./hearings";
+import { canDraftOrder, hearingProgressLabel } from "./hearings";
 
 describe("court seats", () => {
   it("offers the bench clerk and the typist, and starts in the first", () => {
@@ -41,47 +36,46 @@ describe("court seats", () => {
   });
 });
 
-describe("seatRunsSitting", () => {
-  it("is the bench's work and not the typist's", () => {
-    assert.equal(seatRunsSitting("bench-clerk"), true);
-    assert.equal(seatRunsSitting("magistrate"), true);
-    assert.equal(seatRunsSitting("typist"), false);
+describe("seatHasBenchControls", () => {
+  it("gives Start / End / Pass over to the bench and not to the typist", () => {
+    assert.equal(seatHasBenchControls("bench-clerk"), true);
+    assert.equal(seatHasBenchControls("magistrate"), true);
+    assert.equal(seatHasBenchControls("typist"), false);
   });
 });
 
-describe("seatOrdersAlwaysOpen", () => {
-  it("opens the orders column down the whole board for the typist only", () => {
-    assert.equal(seatOrdersAlwaysOpen("typist"), true);
-    assert.equal(seatOrdersAlwaysOpen("bench-clerk"), false);
+describe("hearingProgressLabel", () => {
+  it("offers the start while there is one to make", () => {
+    assert.equal(hearingProgressLabel("scheduled"), "To start");
   });
 
-  /* The rule only ever adds: whatever the bench can draft on, so can the typist. */
-  it("never closes a listing the bench could already draft on", () => {
-    const statuses: CourtHearingStatus[] = [
+  it("reports the sitting once it is under way, and once it is done", () => {
+    assert.equal(hearingProgressLabel("ongoing"), "Hearing started");
+    assert.equal(hearingProgressLabel("completed"), "Hearing ended");
+  });
+
+  it("offers the start on a listing that was deferred without being heard", () => {
+    assert.equal(hearingProgressLabel("passed-over"), "To start");
+    assert.equal(hearingProgressLabel("rescheduled"), "To start");
+  });
+
+  /* The whole point of the walk-through: the orders column opens on exactly the
+     statuses this label stops offering a start for, so a typist can only reach an order
+     through a matter that has been started. */
+  it("stops offering a start exactly where the orders column opens", () => {
+    for (const status of [
       "scheduled",
       "ongoing",
       "completed",
       "passed-over",
       "rescheduled",
       "abandoned",
-    ];
-    for (const status of statuses) {
-      const bench = canDraftOrder(status);
-      const typist = seatOrdersAlwaysOpen("typist") || canDraftOrder(status);
-      assert.ok(typist || !bench, `${status} closed for the typist`);
+    ] as const) {
+      assert.equal(
+        canDraftOrder(status),
+        hearingProgressLabel(status) !== "To start",
+        `${status} disagrees about the order column`,
+      );
     }
-  });
-});
-
-describe("hearingProgressLabel", () => {
-  it("says what happened to the sitting, not where the listing stands", () => {
-    assert.equal(hearingProgressLabel("scheduled"), "Hearing not started");
-    assert.equal(hearingProgressLabel("ongoing"), "Hearing started");
-    assert.equal(hearingProgressLabel("completed"), "Hearing ended");
-  });
-
-  it("reads a deferred listing as one that never started", () => {
-    assert.equal(hearingProgressLabel("passed-over"), "Hearing not started");
-    assert.equal(hearingProgressLabel("rescheduled"), "Hearing not started");
   });
 });
