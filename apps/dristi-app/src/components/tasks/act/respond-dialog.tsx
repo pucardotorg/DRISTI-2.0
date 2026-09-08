@@ -41,9 +41,19 @@ export function TaskRespondDialog({
   const { act, busy } = useTaskActions();
   const [note, setNote] = React.useState("");
 
-  React.useEffect(() => {
+  /*
+   * A fresh note each time the dialog opens, adjusted during render rather than in an
+   * effect. As an effect this ran a second render pass after the dialog had already
+   * painted with the previous note still in the box — and `react-hooks/set-state-in-effect`
+   * fails the lint gate on it. This is React's own "adjusting state when a prop changes"
+   * pattern: the comparison state changes with `open`, so the reset happens once, before
+   * anything is shown.
+   */
+  const [wasOpen, setWasOpen] = React.useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) setNote("");
-  }, [open]);
+  }
 
   async function decide(accepted: boolean) {
     if (!task) return;
