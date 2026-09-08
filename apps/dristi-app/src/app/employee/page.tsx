@@ -1,32 +1,61 @@
-"use client";
+import type { Metadata } from "next";
+import { GavelIcon } from "lucide-react";
 
-import * as React from "react";
-import { useRouter } from "next/navigation";
+import { COURT_HOME } from "@/lib/employee/navigation";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 
-import { Button } from "@/components/ui/button";
+export const metadata: Metadata = { title: COURT_HOME.label };
 
 /**
- * `/employee` — the court-staff home.
+ * The court-staff home — the screen everything on the court side grows from.
  *
- * Blank on purpose. This is where the magistrate / bench-clerk / scrutiny-officer
- * screens get built. There is no session yet, so for now this stands in as the
- * post-login landing; when real auth exists, guard this route and redirect signed-out
- * staff back to `/employee/login`.
+ * It is a placeholder on purpose. The first court-side surface is the magistrate's
+ * dashboard, and what belongs on a bench's home is that dashboard's decision to make; a
+ * stand-in board of invented counts would be a harder thing to delete than an empty state
+ * that says what is coming. The chrome around it (`EmployeeArea`) is real: it names the
+ * court and the role the person signed in as.
+ *
+ * The heading is `COURT_HOME.label` rather than the words, because the top bar's trail
+ * roots every court screen at this page and has to call it something. Read from one place
+ * the crumb and the heading cannot drift into two names for one destination.
  */
 export default function EmployeeHomePage() {
-  const router = useRouter();
-
   return (
-    <main className="flex min-h-full flex-col items-center justify-center gap-4 p-6 text-center">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-8 sm:px-6">
       <div className="flex flex-col gap-2">
-        <h1 className="text-title-l font-semibold">Court staff home</h1>
-        <p className="text-body text-muted-foreground text-balance">
-          The magistrate, bench-clerk and scrutiny-officer screens are built from here.
+        <h1 className="text-title text-balance font-semibold sm:text-title-l">
+          {COURT_HOME.label}
+        </h1>
+        <p className="text-body text-muted-foreground">
+          Everything this court does on a cheque-dishonour case starts here.
         </p>
       </div>
-      <Button variant="outline" onClick={() => router.push("/employee/login")}>
-        Back to sign-in
-      </Button>
-    </main>
+
+      <Card className="border-hairline shadow-raised">
+        <CardContent>
+          <Empty className="px-0 py-6">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <GavelIcon aria-hidden />
+              </EmptyMedia>
+              <EmptyTitle className="text-body font-semibold">
+                Nothing on the board yet
+              </EmptyTitle>
+              <EmptyDescription className="text-body-compact">
+                This is the court-staff home. The court-side dashboard is built on
+                this screen.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

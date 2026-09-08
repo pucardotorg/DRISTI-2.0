@@ -13,6 +13,8 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { InfoIcon } from "lucide-react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import { blankAccused } from "@/lib/filing/blank";
 import { ACCUSED_ENTITY_TYPES, ACCUSED_TYPES } from "@/lib/filing/options";
 import {
@@ -27,7 +29,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -283,7 +284,7 @@ export function AccusedSection() {
 
       {/* Continue while some accused — named here — has no phone or email. */}
       <Dialog open={noContactOpen} onOpenChange={setNoContactOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <ChromeDialogContent className="sm:max-w-lg">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <span
@@ -307,12 +308,12 @@ export function AccusedSection() {
               Add details
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       {/* The confirmation itself — the court is told this was a considered choice. */}
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent aria-describedby={confirmStatementId} className="sm:max-w-lg">
+        <ChromeDialogContent aria-describedby={confirmStatementId} className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Confirm — proceed without details</DialogTitle>
           </DialogHeader>
@@ -346,7 +347,7 @@ export function AccusedSection() {
               Confirm
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       <ConfirmDialog

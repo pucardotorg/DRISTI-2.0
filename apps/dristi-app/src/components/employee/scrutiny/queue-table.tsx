@@ -1,0 +1,229 @@
+"use client";
+
+import Link from "next/link";
+
+import { waitTone } from "@/lib/employee/scrutiny/queue";
+import type { Filing } from "@/lib/employee/scrutiny/types";
+import { cn } from "@/lib/utils";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+/* The court-side table treatment, restated from `register-cases-table.tsx` rather than
+ * imported: header separated by fill instead of a second stroke, rows by hairline, and
+ * the panel edge as the only full-strength border on the screen (ui-craft §1.1). The
+ * classes are copied for the reason that file gives — when the court tables collapse
+ * onto one shared treatment they should do it together, not by one becoming the
+ * other's parent. */
+const headClass =
+  "h-10 bg-surface-sunken px-4 py-3 text-caption font-semibold text-muted-foreground";
+const cellClass =
+  "border-b border-hairline px-4 py-3 align-middle text-left text-body-compact";
+
+/** How many columns the spacer row has to span. */
+const COLUMN_COUNT = 7;
+
+/**
+ * The ageing cell.
+ *
+ * One presentation for one datum: the wait is always plain `tabular-nums` text, and
+ * escalation is carried by ink on that same text. A red chip on the 16-day row beside
+ * plain text on the 1-day row would be two treatments of one column — and it is the
+ * default sort key, so it is already the most-read number on the screen. The number
+ * itself says the thing; the colour only says how loudly.
+ */
+export function WaitingCell({ filing }: { filing: Filing }) {
+  const tone = waitTone(filing);
+  return (
+    <span
+      className={cn(
+        "tabular-nums",
+        tone === "destructive" && "font-medium text-destructive-ink",
+        tone === "warning" && "font-medium text-warning-ink",
+        tone === "muted" && "text-muted-foreground",
+      )}
+    >
+      {filing.days} d
+    </span>
+  );
+}
+
+/**
+ * The filing number, and whether it goes anywhere.
+ *
+ * Only one filing in this prototype has a bundle behind it, so only that row is a real
+ * `Link`. The rest are plain text — an underline that opens nothing would promise the
+ * officer a screen that is not there, and a row-level `onClick` would promise it to
+ * every row at once. A link also restores what a hand-rolled row handler took away:
+ * middle-click, ⌘-click and open-in-new-tab.
+ */
+function FilingNo({ filing }: { filing: Filing }) {
+  if (!filing.openable) {
+    return <span className="tabular-nums">{filing.no}</span>;
+  }
+  return (
+    <Link
+      href={`/employee/scrutiny/${encodeURIComponent(filing.no)}`}
+      className="flex min-h-10 w-full items-center rounded-sm tabular-nums underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
+    >
+      <span className="sr-only">Scrutinise </span>
+      {filing.no}
+    </Link>
+  );
+}
+
+/**
+ * The scrutiny queue as a table.
+ *
+ * Seven columns. There is no Type column: it was `hidden xl:table-cell` with nothing in
+ * its place below that width, so the instrument now rides under the parties as a caption
+ * — one fact, one place, readable at every width.
+ *
+ * There is no Stage chip either. `stageVariant` keyed off who holds the ball, which is
+ * exactly what the tab above the table already filters by, so a chip on every row of a
+ * tab said one thing thirty times in colour. The words stay; the badge goes.
+ *
+ * The panel shell (border, fill, shadow) lives on the screen around this, so the table
+ * is one panel rather than a box inside a box.
+ */
+export function ScrutinyQueueTable({ rows }: { rows: Filing[] }) {
+  return (
+    <Table className="w-full border-separate border-spacing-0 text-body-compact">
+      <TableHeader>
+        {/* The panel insets this table by p-6, so the header strip is a well, not a
+            full-bleed band — it rounds itself (ui-craft §4). `border-separate` means
+            each cell paints its own fill, so the radius goes on the end cells rather
+            than the row. */}
+        <TableRow className="hover:bg-transparent [&>th:first-child]:rounded-l-lg [&>th:last-child]:rounded-r-lg">
+          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+            Filing no.
+          </TableHead>
+          <TableHead className={cn(headClass, "min-w-64 whitespace-normal")}>
+            Parties
+          </TableHead>
+          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+            Stage
+          </TableHead>
+          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+            Reason
+          </TableHead>
+          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+            Advocate
+          </TableHead>
+          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+            With
+          </TableHead>
+          <TableHead
+            className={cn(headClass, "text-right whitespace-nowrap")}
+          >
+            Waiting
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      {/* `border-separate` puts the row stroke on the cell, so the DS TableBody rule
+          that clears the last row targets the wrong element. Reach the cells directly,
+          or the final row doubles its line against the panel edge. */}
+      <TableBody className="[&_tr:last-child_td]:border-b-0">
+        {/* The header is a well, not a band welded to the rows — it needs the panel's
+            fill under it or its rounded bottom corners read as cut off (ui-craft §4).
+            `border-separate` has no per-edge row gap, so the gap is one inert row held
+            out of the accessibility tree. */}
+        <tr aria-hidden="true">
+          <td colSpan={COLUMN_COUNT} className="h-2 p-0" />
+        </tr>
+        {rows.map((filing) => (
+          /* `hover:bg-card`, not nothing: the DS TableRow ships `hover:bg-accent`, and
+             accent is the transient-hover role — a fill that says something under the
+             pointer is live. The row is not; only the filing number is, and it carries
+             its own hover. */
+          <TableRow key={filing.no} className="bg-card hover:bg-card">
+            <TableCell className={cn(cellClass, "whitespace-nowrap")}>
+              <FilingNo filing={filing} />
+            </TableCell>
+            {/* The row's one emphasised cell, with the instrument under it as the
+                quieter second line — two weights, no third. */}
+            <TableCell className={cn(cellClass, "min-w-64 whitespace-normal")}>
+              <span className="font-medium">{filing.parties}</span>
+              <span className="block text-caption text-muted-foreground">
+                {filing.type}
+              </span>
+            </TableCell>
+            <TableCell className={cn(cellClass, "whitespace-nowrap")}>
+              {filing.stage}
+            </TableCell>
+            <TableCell
+              className={cn(
+                cellClass,
+                "max-w-44 truncate text-muted-foreground",
+              )}
+            >
+              {filing.reason}
+            </TableCell>
+            <TableCell className={cn(cellClass, "max-w-44 truncate")}>
+              {filing.advocate}
+            </TableCell>
+            <TableCell
+              className={cn(
+                cellClass,
+                "whitespace-nowrap",
+                filing.self ? "font-medium" : "text-muted-foreground",
+              )}
+            >
+              {filing.who}
+            </TableCell>
+            {/* Right-aligned because it is a compared number, and it is the sort key. */}
+            <TableCell
+              className={cn(cellClass, "text-right whitespace-nowrap")}
+            >
+              <WaitingCell filing={filing} />
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+/**
+ * The same rows below `md`, stacked.
+ *
+ * Seven columns do not survive a phone — the answer the rest of the court side already
+ * gives. The filing number stays the one link, and every column that lost its header
+ * spells out what it is.
+ */
+export function ScrutinyQueueItemList({ rows }: { rows: Filing[] }) {
+  return (
+    <ul className="flex flex-col gap-3">
+      {rows.map((filing) => (
+        <li
+          key={filing.no}
+          className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-4"
+        >
+          <div className="text-body-compact font-medium">
+            <FilingNo filing={filing} />
+          </div>
+          <p className="min-w-0 text-body-compact">{filing.parties}</p>
+          <p className="text-caption text-muted-foreground">
+            {filing.type}
+            {" · "}
+            {filing.stage}
+            {" · "}
+            {filing.reason}
+          </p>
+          <p className="text-caption text-muted-foreground">
+            {filing.advocate}
+            {" · with "}
+            {filing.who}
+            {" · waiting "}
+            <WaitingCell filing={filing} />
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
+}

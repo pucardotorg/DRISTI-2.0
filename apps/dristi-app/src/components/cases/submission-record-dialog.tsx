@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import { DocumentPreview } from "@/components/cases/document-preview";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogClose,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -94,7 +95,7 @@ function SubmissionBody({
   const isApplication = submission.kind === "application";
 
   return (
-    <DialogContent className="flex max-h-[90svh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
+    <ChromeDialogContent className="flex max-h-[90svh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
       <DialogHeader className="shrink-0 gap-2 p-6 pr-16">
         <div className="flex flex-wrap items-center gap-2">
           <DialogTitle className="text-title font-semibold">
@@ -137,7 +138,7 @@ function SubmissionBody({
           />
         </div>
       </div>
-    </DialogContent>
+    </ChromeDialogContent>
   );
 }
 

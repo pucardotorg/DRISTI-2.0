@@ -3,6 +3,7 @@
 import * as React from "react";
 import { usePathname } from "next/navigation";
 
+import { ChromeRailFolds } from "@/components/chrome/app-chrome";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppSidebar } from "@/components/shell/app-sidebar";
@@ -94,19 +95,21 @@ export function AppShell({
            */}
           <RailThemeProvider>
             <AppSearchProvider>
-            <SidebarProvider
-              open={navOpen}
-              onOpenChange={setNavOpen}
-              style={{ "--sidebar-width-icon": "4rem" } as React.CSSProperties}
-            >
-              <AppSidebar />
-              {/* Not `SidebarInset`: that primitive is itself a `<main>`, and the screens
-              below already own that landmark. */}
-              <div className="flex min-h-svh min-w-0 flex-1 flex-col bg-background">
-                {topBar ?? <TopBar />}
-                <div className="flex min-h-0 flex-1">{children}</div>
-              </div>
-            </SidebarProvider>
+              <ChromeRailFolds>
+                <SidebarProvider
+                  open={navOpen}
+                  onOpenChange={setNavOpen}
+                  style={{ "--sidebar-width-icon": "4rem" } as React.CSSProperties}
+                >
+                  <AppSidebar />
+                  {/* Not `SidebarInset`: that primitive is itself a `<main>`, and the screens
+                  below already own that landmark. */}
+                  <div className="flex min-h-svh min-w-0 flex-1 flex-col bg-background">
+                    {topBar ?? <TopBar />}
+                    <div className="flex min-h-0 flex-1">{children}</div>
+                  </div>
+                </SidebarProvider>
+              </ChromeRailFolds>
             </AppSearchProvider>
           </RailThemeProvider>
         </ChromeContext.Provider>

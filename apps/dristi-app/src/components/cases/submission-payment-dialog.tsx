@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import { Badge } from "@/components/ui/badge";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -14,7 +16,6 @@ import {
 import {
   Dialog,
   DialogClose,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -130,7 +131,7 @@ function PaymentBody({
   }
 
   return (
-    <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
+    <ChromeDialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
       <DialogHeader>
         <div className="flex flex-wrap items-center gap-2">
           <DialogTitle
@@ -196,6 +197,6 @@ function PaymentBody({
           </>
         )}
       </DialogFooter>
-    </DialogContent>
+    </ChromeDialogContent>
   );
 }

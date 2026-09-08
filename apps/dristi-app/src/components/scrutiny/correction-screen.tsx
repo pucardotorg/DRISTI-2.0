@@ -37,6 +37,8 @@ import {
   TriangleAlertIcon,
 } from "lucide-react";
 
+import { ChromeAlertDialogContent } from "@/components/chrome/app-chrome";
+
 import { dueCueOf, longDate } from "@/lib/tasks/format";
 import {
   allResolved,
@@ -59,7 +61,6 @@ import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -935,7 +936,7 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
       </Drawer>
 
       <AlertDialog open={confirm} onOpenChange={setConfirm}>
-        <AlertDialogContent>
+        <ChromeAlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Send these corrections back?</AlertDialogTitle>
             {/* The limitation point lives here rather than under the button: it is the one
@@ -951,7 +952,7 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => void submit()}>Send them back</AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
+        </ChromeAlertDialogContent>
       </AlertDialog>
     </CorrectionProvider>
     </FilingChromeContext.Provider>

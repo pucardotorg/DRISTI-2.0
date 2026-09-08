@@ -11,6 +11,8 @@ import * as React from "react";
 import { toast } from "sonner";
 import { CheckIcon, FileTextIcon, SignatureIcon, TrashIcon } from "lucide-react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import { fileUrl, formatBytes, storeUpload } from "@/lib/tasks/data";
 import { dateTime, nameOf } from "@/lib/tasks/format";
 import { signatoriesOf } from "@/lib/tasks/permissions";
@@ -19,7 +21,6 @@ import type { Case, Person, StoredFileRef, Task } from "@/lib/tasks/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -344,10 +345,10 @@ export function OtpDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <ChromeDialogContent className="sm:max-w-md">
         {/* Mounted per open, so the code always starts empty. */}
         {open ? <OtpForm signer={signer} onSign={onSign} title={title} confirmLabel={confirmLabel} /> : null}
-      </DialogContent>
+      </ChromeDialogContent>
     </Dialog>
   );
 }
@@ -437,7 +438,7 @@ export function CourtSandbox({ ctx }: { ctx: ActContext }) {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
+        <ChromeDialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Return with defects</DialogTitle>
             <DialogDescription>
@@ -477,7 +478,7 @@ export function CourtSandbox({ ctx }: { ctx: ActContext }) {
               Return
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
     </RailCard>
   );

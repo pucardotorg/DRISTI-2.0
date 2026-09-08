@@ -13,12 +13,13 @@ import {
   SearchIcon,
 } from "lucide-react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -202,7 +203,7 @@ export function JoinCaseDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
+      <ChromeDialogContent
         lang={locale}
         className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
       >
@@ -767,7 +768,7 @@ export function JoinCaseDialog({
             )
           ) : null}
         </footer>
-      </DialogContent>
+      </ChromeDialogContent>
     </Dialog>
   );
 }

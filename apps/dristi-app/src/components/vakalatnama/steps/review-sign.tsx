@@ -16,6 +16,8 @@ import {
   UploadIcon,
 } from "lucide-react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,7 +25,6 @@ import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -187,7 +188,7 @@ export function ReviewSignStep({ vak }: { vak: Vakalatnama }) {
 
       {/* ── Choose how to sign ── */}
       <Dialog open={modal === "choose"} onOpenChange={(open) => !open && setModal(null)}>
-        <DialogContent className="sm:max-w-lg">
+        <ChromeDialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>How will {nextSigner?.label} sign?</DialogTitle>
             <DialogDescription>
@@ -249,12 +250,12 @@ export function ReviewSignStep({ vak }: { vak: Vakalatnama }) {
               />
             </button>
           </div>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       {/* ── eSign OTP ── */}
       <Dialog open={modal === "esign"} onOpenChange={(open) => !open && setModal(null)}>
-        <DialogContent className="sm:max-w-sm">
+        <ChromeDialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Enter the OTP</DialogTitle>
             <DialogDescription>
@@ -299,17 +300,17 @@ export function ReviewSignStep({ vak }: { vak: Vakalatnama }) {
           <p className="text-center text-caption text-muted-foreground">
             Sandbox — any six digits work.
           </p>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       {/* ── Processing ── */}
       <Dialog open={modal === "processing"} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-xs" showCloseButton={false}>
+        <ChromeDialogContent className="sm:max-w-xs" showCloseButton={false}>
           <div className="flex flex-col items-center gap-3 py-4">
             <Spinner className="size-6" />
             <p className="text-body-compact text-muted-foreground">Recording the signature…</p>
           </div>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
     </div>
   );

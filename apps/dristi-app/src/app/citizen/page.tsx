@@ -1,35 +1,15 @@
-"use client";
-
-import * as React from "react";
-import { useRouter } from "next/navigation";
-
-import { Spinner } from "@/components/ui/spinner";
+import { redirect } from "next/navigation";
 
 /**
- * `/citizen` — the citizen namespace: everyone outside the court (advocates, clerks,
- * litigants, party-in-person, PoA-holders).
+ * `/citizen/*` — everyone outside the court: advocates, clerks, litigants, parties in
+ * person, PoA-holders.
  *
- * TEMPORARY. The citizen product already exists — the advocate/litigant sign-in and
- * screens are live at `/join` and the routes around it — and that work is not being
- * moved yet so as not to disrupt it. Until it is relocated under `/citizen`, this door
- * simply forwards to the sign-in that already exists.
- *
- * When the citizen screens move here, replace this redirect with the real citizen home.
- * The landing page (`/`) already links to `/citizen`, so nothing upstream changes.
- *
- * A client redirect (not `next/navigation`'s server `redirect`) so it also works under
- * the static export build.
+ * The URL exists so the role split has both halves and `/welcome` has somewhere to send
+ * people, but the citizen screens have not moved under it yet — that work is in flight and
+ * moving it mid-flow would break it. So this forwards to the sign-in that already lives at
+ * the root. When the citizen area is really built here, this file is what it replaces, and
+ * nothing that links to `/citizen` has to change.
  */
-export default function CitizenEntry() {
-  const router = useRouter();
-
-  React.useEffect(() => {
-    router.replace("/join");
-  }, [router]);
-
-  return (
-    <main className="flex min-h-full items-center justify-center p-6">
-      <Spinner aria-label="Loading" />
-    </main>
-  );
+export default function CitizenPage() {
+  redirect("/");
 }

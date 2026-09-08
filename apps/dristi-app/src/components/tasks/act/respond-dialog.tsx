@@ -15,7 +15,6 @@ import type { Case, Task } from "@/lib/tasks/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -23,6 +22,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useTaskActions } from "@/components/tasks/use-task-actions";
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
 
 export function TaskRespondDialog({
   task,
@@ -70,7 +70,7 @@ export function TaskRespondDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <ChromeDialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Review the request</DialogTitle>
           <DialogDescription>
@@ -111,7 +111,7 @@ export function TaskRespondDialog({
             Accept
           </Button>
         </div>
-      </DialogContent>
+      </ChromeDialogContent>
     </Dialog>
   );
 }

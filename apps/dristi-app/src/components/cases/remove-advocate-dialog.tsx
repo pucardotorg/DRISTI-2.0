@@ -27,7 +27,6 @@ import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -42,7 +41,6 @@ import {
 } from "@/components/ui/description-list";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -57,6 +55,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { FlowStepper } from "@/components/cases/flow-stepper";
+import { ChromeDialogContent, ChromeAlertDialogContent } from "@/components/chrome/app-chrome";
 import {
   PartyApplicationDocument,
   PartySignatureDialog,
@@ -218,7 +217,7 @@ export function RemoveAdvocateDialog({
           else requestExit();
         }}
       >
-        <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+        <ChromeDialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
           {done ? (
             <>
               <DialogHeader className="shrink-0 px-6 py-5 pr-14 text-left">
@@ -471,7 +470,7 @@ export function RemoveAdvocateDialog({
               </footer>
             </>
           )}
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       <PartySignatureDialog
@@ -491,7 +490,7 @@ export function RemoveAdvocateDialog({
         open={exitConfirmationOpen}
         onOpenChange={setExitConfirmationOpen}
       >
-        <AlertDialogContent>
+        <ChromeAlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard this request?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -504,7 +503,7 @@ export function RemoveAdvocateDialog({
               Discard draft
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
+        </ChromeAlertDialogContent>
       </AlertDialog>
     </>
   );

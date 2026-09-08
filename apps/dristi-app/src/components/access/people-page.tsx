@@ -10,11 +10,12 @@ import {
   XIcon,
 } from "lucide-react";
 
+import { ChromeAlertDialogContent } from "@/components/chrome/app-chrome";
+
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -852,7 +853,7 @@ export function PeoplePage({
 
       {/* --------------------------------------------- bulk-remove confirm */}
       <AlertDialog open={confirmRemove} onOpenChange={setConfirmRemove}>
-        <AlertDialogContent>
+        <ChromeAlertDialogContent>
           {openPerson ? (
             <>
               <AlertDialogHeader>
@@ -879,7 +880,7 @@ export function PeoplePage({
               </AlertDialogFooter>
             </>
           ) : null}
-        </AlertDialogContent>
+        </ChromeAlertDialogContent>
       </AlertDialog>
 
       {/* ------------------------------------- vakalat removal (court flow) */}

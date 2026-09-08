@@ -11,6 +11,8 @@ import {
   XIcon,
 } from "lucide-react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import {
   ChoicePillGroup,
   formatFileSize,
@@ -38,7 +40,6 @@ import {
 import {
   Dialog,
   DialogClose,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -245,7 +246,7 @@ export function AddSignatureDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
+      <ChromeDialogContent
         className="max-h-[85dvh] overflow-y-auto sm:max-w-lg"
         // The primitive's small ghost X disappears against the dark surface
         // once there is no title row beside it — the success step swaps it
@@ -513,7 +514,7 @@ export function AddSignatureDialog({
             </>
           ) : null}
         </DialogFooter>
-      </DialogContent>
+      </ChromeDialogContent>
     </Dialog>
   );
 }

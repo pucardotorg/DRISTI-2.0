@@ -24,6 +24,8 @@ import {
   UserIcon,
 } from "lucide-react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import {
   intakeChequeGroup,
   intakeOtherPartyDoc,
@@ -47,7 +49,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -614,7 +615,7 @@ export function UploadSection() {
           if (!open) setPreviewKey(null);
         }}
       >
-        <DialogContent className="sm:max-w-lg">
+        <ChromeDialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex flex-wrap items-center gap-2 pr-8">
               <Badge variant="secondary">{previewFile?.ext}</Badge>
@@ -641,7 +642,7 @@ export function UploadSection() {
               Done
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       {/* Removals delete stored files and their machine-read values — always ask first. */}

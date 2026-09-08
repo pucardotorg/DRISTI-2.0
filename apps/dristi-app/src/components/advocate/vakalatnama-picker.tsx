@@ -3,10 +3,11 @@
 import * as React from "react";
 import { FileTextIcon, Maximize2Icon, SearchIcon } from "lucide-react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -142,7 +143,7 @@ function VakalatnamaPreviewDialog({
 }) {
   return (
     <Dialog open={Boolean(item)} onOpenChange={onOpenChange}>
-      <DialogContent lang={locale} className="flex max-h-[90dvh] flex-col gap-4 overflow-hidden sm:max-w-lg">
+      <ChromeDialogContent lang={locale} className="flex max-h-[90dvh] flex-col gap-4 overflow-hidden sm:max-w-lg">
         <DialogHeader className="pr-10 text-left">
           <DialogTitle>{pick(advDialog.previewTitle, locale)}</DialogTitle>
           <DialogDescription className="text-pretty">
@@ -196,7 +197,7 @@ function VakalatnamaPreviewDialog({
             </div>
           </div>
         ) : null}
-      </DialogContent>
+      </ChromeDialogContent>
     </Dialog>
   );
 }

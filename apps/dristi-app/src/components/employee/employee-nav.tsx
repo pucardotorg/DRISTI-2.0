@@ -1,0 +1,792 @@
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ChevronDownIcon, SettingsIcon } from "lucide-react";
+
+import { useCourtRole } from "@/components/employee/use-court-role";
+import {
+  COURT_ROLE_LABEL,
+  COURT_SEATS,
+  CURRENT_STAFF,
+  type CourtRole,
+} from "@/lib/employee/content";
+import { setCourtRole } from "@/lib/employee/court-role";
+import {
+  COURT_NAV_GROUPS,
+  COURT_NAV_LINKS,
+  isCourtNavActive,
+  type CourtNavGroup,
+  type CourtNavItem,
+} from "@/lib/employee/navigation";
+import { BrandGlyph } from "@/components/brand-lockup";
+import {
+  CHROME_FOLD_TRIGGER,
+  ChromeRail,
+  focusChromeFoldTrigger,
+  RAIL_BRAND_ROW,
+  RAIL_GROUP_LABEL,
+  RAIL_ICON_BUTTON,
+  RAIL_MUTED,
+  RAIL_ROW,
+  RAIL_SEAM,
+  railRowNote,
+  useFoldFocusHandoff,
+  useRailCollapsed,
+} from "@/components/chrome/app-chrome";
+import { CHARCOAL_PLATE } from "@/components/chrome/rail-plate";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarTrigger,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+/**
+ * The court-side navigation rail — the magistrate's own, not the advocate's.
+ *
+ * Everything about how it looks comes from the shared chrome frame: the plate, the row
+ * and section metrics, the seam, the fold to a 4rem strip, the off-canvas behaviour below
+ * `md`. What lives here is only what is the bench's — the four groups of work, which of
+ * them the court can actually reach yet, and who is sitting.
+ *
+ * The plate is charcoal, always. A magistrate's rail is institutional chrome; it does not
+ * read a preference store and it offers no picker.
+ */
+
+/**
+ * A menu column in this rail.
+ *
+ * `items-center` is what keeps the 40px square honest once the rail is a strip: the rail
+ * carries a hairline on its trailing edge, so centring by padding leaves 8px on one side
+ * and 7px on the other. Centring by flex is immune to the border.
+ */
+const RAIL_MENU = "gap-1 group-data-[collapsible=icon]:items-center";
+
+/** What the row says out loud past its label. The count is a mark; the words go here. */
+function spokenNote(item: CourtNavItem): string {
+  return railRowNote([
+    item.count !== undefined &&
+      (item.count === 0 ? "nothing waiting" : `${item.count} waiting`),
+    item.external && "opens outside DRISTI",
+    !item.href && "not available yet",
+  ]);
+}
+
+/**
+ * What a row is made of, in both the link and the not-yet-a-link case.
+ *
+ * The label truncates and the count does not: a count is the whole point of the row, and
+ * `1312` losing a digit would be a lie where a clipped label is only an inconvenience.
+ *
+ * A zero count renders no mark at all. The count exists to say how much is waiting, and
+ * an empty queue has nothing to say — a spark against a nought would report an obligation
+ * that is not there. The row stays and the absence is the answer; a screen reader is told
+ * "nothing waiting" outright rather than left with silence.
+ */
+function RowContents({ item }: { item: CourtNavItem }) {
+  const Icon = item.icon;
+  const note = spokenNote(item);
+  return (
+    <>
+      {/* The glyph column is reserved on every row, not just the rows that fill it, so
+          all 17 labels in the rail start at the same x. Only the two standalone links
+          carry a mark; a group's rows hold the space and show nothing. Without the
+          placeholder the two marked rows indent past the fifteen unmarked ones, which is
+          the misalignment this rail was pulled up on. `size-4` matches the icon box above, so the two branches are the same width by construction. */}
+      {Icon ? (
+        /* Matched to the group headers' mark, not to this row's text: the same 16px box
+           the DS gives a `SidebarGroupLabel` glyph, and the same `--rail-muted` ink.
+           `RAIL_ROW` sizes row glyphs at 20px for a rail whose every row is marked; here
+           only two rows are, and at 20px in full-strength ink they read as a louder
+           species of icon than the four section marks they sit above. Muted also keeps
+           the mark under its own label, which stays at the row's ink.
+
+           Folded, that reasoning inverts exactly. The labels are gone, every square left
+           in the strip is a mark, and a 16px glyph in a 40px square is the lost mark
+           `RAIL_ROW` sizes against in the first place — so it returns to 20px and hands
+           its ink back to the row, which is what lets the selected card's teal keep
+           winning over it. */
+        <Icon
+          aria-hidden
+          className={[
+            "size-4! text-(--rail-muted)",
+            "group-data-[collapsible=icon]:size-5!",
+            "group-data-[collapsible=icon]:text-current",
+          ].join(" ")}
+        />
+      ) : (
+        <span aria-hidden className="size-4 shrink-0" />
+      )}
+      {/* The label leaves the layout rather than being clipped by the strip's overflow: a
+          flex child of zero visible width is still a flex child, and it holds a centred
+          glyph hard against the leading edge. */}
+      <span className="min-w-0 flex-1 truncate group-data-[collapsible=icon]:hidden">
+        {item.label}
+      </span>
+      {note ? <span className="sr-only">, {note}</span> : null}
+      {item.count !== undefined && item.count > 0 ? (
+        /* How much is waiting: a quiet numeral with a small spark beside it.
+           This is the advocate rail's `TasksCount` treatment, adopted rather than
+           re-derived. That rail was deliberately pulled back from a full red pill —
+           it "read as an alarm bolted to the nav" — and this rail had twelve of them at
+           rest, since every group opens by default. The red also claimed the wrong thing:
+           `--rail-badge` resolves to `--destructive-solid`, and the DS reserves that
+           family for irreversible or dangerous actions. A signing queue is workload.
+           The red survives as the 6px spark — enough to say "live obligation" without
+           shouting a number that is already legible as text.
+
+           The ink has to change with the row's ground. Idle, the numeral sits on the
+           charcoal plate at `--rail-muted` (6.28:1). Selected, the row inverts to the
+           white card and the same ink would fall to 2.08:1 — so it switches to the
+           plate's `--rail-card-muted` (5.70:1), which `CARD` names for exactly this.
+           `text-caption` carries the DS's 500 weight floor, so the numeral also stays
+           at one weight while the selected row's label goes to 600.
+
+           There is no folded register for it, because no folded row carries one: the only
+           rows the strip renders are the two standalone links, and neither has a count.
+           Where a count goes in a folded rail is answered in `CourtNavGroupMark` —
+           nowhere, and for a reason. This hides it rather than trusting that, so a row
+           that gains a count tomorrow cannot quietly squeeze four digits into 40px. */
+        <span
+          aria-hidden
+          className={[
+            "flex shrink-0 items-center gap-1.5",
+            "group-data-[collapsible=icon]:hidden",
+            "text-caption tabular-nums",
+            RAIL_MUTED,
+            "group-data-[active=true]/menu-button:text-(--rail-card-muted)",
+          ].join(" ")}
+        >
+          <span className="size-1.5 rounded-full bg-(--rail-badge)" />
+          {item.count}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * What the tooltip on a row that goes nowhere says.
+ *
+ * Folded there is no label left on the row to explain, so the note names it first — the
+ * same string the DS's own `tooltip` prop puts on a live row, with the reason after it.
+ */
+function deadRowNote(item: CourtNavItem, collapsed: boolean): string {
+  if (item.external) {
+    return collapsed
+      ? `${item.label} — opens outside DRISTI, not part of this build`
+      : "Opens outside DRISTI — not part of this build";
+  }
+  return collapsed
+    ? `${item.label} — not part of this build`
+    : "Not part of this build";
+}
+
+/**
+ * One row: a link when it has somewhere to go, and an explained dead control when it does
+ * not. The dead one is still a button and still takes focus — a control that can be
+ * reached and asked why it does nothing is worth more than one that cannot be reached.
+ *
+ * A live row hands its label to the DS's `tooltip`, which shows only while the rail is
+ * folded. None of the built rows stands outside a disclosure today, so none of them is on
+ * screen in that state — but where a row sits is `navigation.ts`'s decision to change,
+ * and a row promoted out of a group should not also have to remember to bring its folded
+ * name with it.
+ */
+function CourtNavRow({ item }: { item: CourtNavItem }) {
+  const pathname = usePathname();
+  const collapsed = useRailCollapsed();
+
+  if (item.href) {
+    const isActive = isCourtNavActive(pathname, item.href);
+    return (
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          asChild
+          isActive={isActive}
+          tooltip={item.label}
+          className={RAIL_ROW}
+        >
+          <Link href={item.href} aria-current={isActive ? "page" : undefined}>
+            <RowContents item={item} />
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  }
+
+  return (
+    <SidebarMenuItem>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <SidebarMenuButton type="button" aria-disabled className={RAIL_ROW}>
+            <RowContents item={item} />
+          </SidebarMenuButton>
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          {deadRowNote(item, collapsed)}
+        </TooltipContent>
+      </Tooltip>
+    </SidebarMenuItem>
+  );
+}
+
+/** A group is current when the page open is one of its rows. */
+function isCourtNavGroupActive(
+  pathname: string,
+  group: CourtNavGroup,
+): boolean {
+  return group.items.some(
+    (item) => item.href !== undefined && isCourtNavActive(pathname, item.href),
+  );
+}
+
+/**
+ * Which one of the four sections is open, for the whole rail.
+ *
+ * One at a time. The rail holds seventeen rows, and with all four sections open at rest
+ * the headers stopped being findable: the column read as one long list that happened to
+ * have four labels in it. Single-open is what gives the four kinds of work their shape
+ * back, and it costs exactly one thing — the magistrate can no longer keep two sections
+ * in view — so which section is open has to be right without being asked for.
+ *
+ * **The route answers it, and is re-asked on every navigation.** Landing anywhere in the
+ * court opens the section that page belongs to, so the rail points at where you are after
+ * a deep link, a press on the folded strip, or a link a screen offers to somewhere outside
+ * its own section. Between navigations the magistrate may open any other section and that
+ * choice stands — reading the Sign queues from a hearings screen is an ordinary thing to
+ * want, and a rail that sprang back would be unusable. The next navigation derives again,
+ * because arriving somewhere new is precisely when "where am I" is the live question.
+ *
+ * `/employee` belongs to no section, so the court's home opens none: two links above four
+ * shut headers. Picking one there would be an opinion about what a magistrate does first,
+ * which is not something this build knows — and `courtTrail` says the same thing about the
+ * same route by carrying no trail on it.
+ *
+ * All four shut is therefore a state the rail already has to be able to hold, which
+ * settles the other end of it: pressing the open section's header closes it and leaves
+ * none open. A header that refused would be a control that does nothing, and the rail
+ * would be claiming a section is open because it has run out of ways to say otherwise.
+ *
+ * The area's layout outlives every route change inside it, so this state is never
+ * remounted and a navigation cannot be inferred from mount order. The pathname it was
+ * last derived from is kept beside it, which is what tells a navigation apart from an
+ * ordinary re-render. Adjusting during render rather than in an effect is deliberate: the
+ * section that opens has to be right in the same paint as the screen behind it, not one
+ * frame later.
+ */
+function useCourtNavDisclosure() {
+  const pathname = usePathname();
+  const currentId =
+    COURT_NAV_GROUPS.find((group) => isCourtNavGroupActive(pathname, group))
+      ?.id ?? null;
+  const [openId, setOpenId] = React.useState<string | null>(currentId);
+  const [derivedFrom, setDerivedFrom] = React.useState(pathname);
+
+  if (derivedFrom !== pathname) {
+    setDerivedFrom(pathname);
+    setOpenId(currentId);
+  }
+
+  return { openId, setOpenId, currentId };
+}
+
+/**
+ * The group, folded: its mark alone, as a peer of the two standalone links.
+ *
+ * This is what a folded court rail *is*, and the data decided it rather than taste.
+ * Fifteen of the seventeen rows carry no icon — deliberately, so the four section marks
+ * do not flatten into their own contents — so there is no version of this strip that
+ * shows the rows at all. Four marks and two links is the whole of what 4rem can hold, and
+ * it turns out to be the right thing to say: which kind of work you are in, and how to
+ * get back to the rest of it.
+ *
+ * So the mark answers "where am I" by taking the selected card whenever the page open is
+ * one of its rows, and pressing it opens the rail on that section rather than toggling a
+ * disclosure the strip has no room to show. A flyout listing the rows beside the strip
+ * would say more, but it invents an interaction this product has nowhere else — and the
+ * rail is already the disclosure, so it is one press either way.
+ *
+ * It is a button standing on its own, not a one-item list. A section header is not a list
+ * item in the open rail either — it is a `SidebarGroupLabel`, a `div` — and wrapping each
+ * of the four in its own `ul` to reuse the row primitives would have a screen reader
+ * announce "list, 1 item" four times down a strip of six squares.
+ *
+ * **No count marks here.** The open rail annotates a *queue* with its length; a section
+ * stands for three to six of them, and their sum is a figure this product states nowhere
+ * — Sign alone runs to four digits on a 20px glyph. The alternative, a bare dot for "work
+ * is waiting", is worse than nothing: all four sections have work waiting and always do,
+ * so four red dots on six squares would discriminate between exactly nothing while
+ * spending the rail's whole budget for alarm. Workload is what the magistrate opens the
+ * rail to read; folded, it carries where-you-are and the way back.
+ */
+function CourtNavGroupMark({
+  group,
+  isActive,
+  onPress,
+  ref,
+}: {
+  group: CourtNavGroup;
+  isActive: boolean;
+  onPress: () => void;
+  /** The section's header while the strip is closed — see `useFoldFocusHandoff`. */
+  ref: React.Ref<HTMLButtonElement>;
+}) {
+  const Icon = group.icon;
+  return (
+    <SidebarMenuButton
+      ref={ref}
+      type="button"
+      isActive={isActive}
+      /* Not `page`: this is not the page's own link, it is the section the page sits in —
+         the generic value, for the current item in a set of six. Without it the white card
+         says "you are here" to everyone who can see the strip and to nobody who cannot. */
+      aria-current={isActive ? true : undefined}
+      tooltip={group.label}
+      className={RAIL_ROW}
+      onClick={onPress}
+    >
+      <Icon aria-hidden className="size-5!" />
+      {/* The glyph is decorative, so the button needs words of its own — and they say more
+          than the tooltip beside it does. The tooltip names the section for someone who
+          can see the strip; this names it and its consequence for someone who cannot. */}
+      <span className="sr-only">{group.label}, expands the navigation</span>
+    </SidebarMenuButton>
+  );
+}
+
+/**
+ * A group of rows behind its own disclosure. One section open at a time; the whole header
+ * toggles. Which one that is belongs to the rail — see `useCourtNavDisclosure` — because
+ * a section can no longer decide it alone.
+ *
+ * **Still `Collapsible`, and the DS `Accordion` was read before that was kept.** Single
+ * open plus the disclosure semantics is what `type="single" collapsible` exists to give,
+ * so it was the first candidate and it does not survive contact with this rail. Its
+ * trigger renders its own pair of chevrons as children, with no prop to withhold them,
+ * and this header's sign is a plus and a minus for a stated reason; suppressing a
+ * primitive's glyph in order to draw a different one is editing it at a distance. Its
+ * content pane styles descendant anchors with an underline, which every row in a section
+ * is. And an item is only operable through that trigger, while these headers swap to
+ * `CourtNavGroupMark` when the rail folds — a control that opens the rail rather than a
+ * disclosure, and one that must not be wearing accordion semantics while it does. Its
+ * root also moves a roving tab stop between the four triggers, which in a column where
+ * links sit between the headers would take the arrow keys away from half the rail. That
+ * is four overrides and a semantic mismatch to buy a behaviour that is one shared piece
+ * of state. Radix `Collapsible` already carries the whole of the disclosure contract the
+ * accordion pattern asks of a header — `aria-expanded`, `aria-controls`, and a panel that
+ * leaves the document — so what is coordinated here is which section is open, not the
+ * accessibility of a section. The DS accordion is a prose component; this is chrome.
+ *
+ * No nested `SidebarGroup`: each one carries `p-2`, and stacking a group per section
+ * doubled the air between "All cases" and "Hearings" (and between every closed
+ * disclosure) while the rows inside a menu only had `gap-1`. The outer group owns the
+ * inset; this section is just another beat in that same `gap-1` column.
+ *
+ * The toggle is a plus when the group is shut and a minus when it is open — the sign
+ * names what pressing it does, which a chevron only implies. It is decorative on purpose:
+ * `aria-expanded` on the header already carries the state, and announcing the glyph too
+ * would say the same thing twice and disagree with it half the time.
+ *
+ * The disclosure is controlled rather than `defaultOpen` so that folding the rail is not
+ * an opinion about it: the strip forces every section shut, and what each one returns to
+ * is the state the rail is holding. Radix unmounts a closed section's rows, so the folded
+ * strip holds no invisible links for the keyboard to walk into — which is also why the
+ * header swaps component rather than hides. Hiding it would have left
+ * `aria-expanded="true"` on a trigger whose panel is not in the document.
+ *
+ * **A shut section still says whether you are standing in it.** That is the bill single
+ * open runs up: open Hearings from a signing queue and the selected row leaves with the
+ * rows it sat among, and an expanded rail that shows the current page nowhere is worse
+ * than the four open sections it replaced. The folded strip already answers this by
+ * giving the mark the selected card; here the card is the wrong strength twice over —
+ * it is the loudest mark the rail owns, sitting among open content rather than alone in a
+ * strip, and the moment the section opens its own current row takes a card, so two would
+ * be two answers to one question. The plate offers no fill between its ground and that
+ * card except the hover fill, and hover and selection are deliberately different kinds of
+ * mark in this rail, not two strengths of one. The ink is already at full strength on
+ * every header. What is left is the weight, which is a strict part of what the selected
+ * row does anyway — so the header goes semibold, and `aria-current` says the same thing
+ * to a reader that cannot see it. Both only while the section is shut, so they hand the
+ * question back to the row the instant the row can answer it.
+ */
+function CourtNavGroupSection({
+  group,
+  isCurrent,
+  open,
+  onOpenChange,
+}: {
+  group: CourtNavGroup;
+  /** The page open is one of this group's rows. Worked out once, for the whole rail. */
+  isCurrent: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const Icon = group.icon;
+  const collapsed = useRailCollapsed();
+  const { setOpen: setRailOpen } = useSidebar();
+  /* One ref for whichever header is mounted. The two never coexist, and React detaches
+     the outgoing one before it attaches the incoming one, so by the time the handoff
+     effect runs this points at the header that is actually on screen. */
+  const headerRef = React.useRef<HTMLButtonElement>(null);
+  const focusHeader = React.useCallback(() => headerRef.current?.focus(), []);
+  /* Two ways this section can lose the element holding the keyboard, and they are not the
+     same event. The fold swaps the header itself and can strand focus whether the section
+     was open or shut. Single open added the second: these rows now also leave when some
+     *other* section opens, at a moment when nothing about the fold has changed — so the
+     first handoff never hears about it. Both land the keyboard on this section's header,
+     which is the element that took the place of what went away. Each keeps its own record
+     of whether it held focus, and both bail unless focus actually fell to the document
+     body, so the one that did not cause the loss stays out of it. Ordinary presses never
+     reach either: pressing a header to close it, or another section's header to open it,
+     leaves focus on a header that is still mounted. */
+  const foldHandoff = useFoldFocusHandoff(collapsed, focusHeader);
+  const closeHandoff = useFoldFocusHandoff(open, focusHeader);
+  const handoff = {
+    onFocus: () => {
+      foldHandoff.onFocus();
+      closeHandoff.onFocus();
+    },
+    onBlur: (event: React.FocusEvent) => {
+      foldHandoff.onBlur(event);
+      closeHandoff.onBlur(event);
+    },
+  };
+
+  return (
+    <Collapsible
+      open={open && !collapsed}
+      onOpenChange={onOpenChange}
+      {...handoff}
+      /* The section's own column carries the folded centring that `RAIL_MENU` gives the
+         lists, because folded the header stands in this column directly rather than
+         inside one. */
+      className="group/court-group flex flex-col gap-1 group-data-[collapsible=icon]:items-center"
+    >
+      {collapsed ? (
+        <CourtNavGroupMark
+          ref={headerRef}
+          group={group}
+          isActive={isCurrent}
+          /* Unfolding on a section is now also a choice of which section, and it is the
+             one the magistrate just pointed at. Whatever was open closes, so the rail
+             opens on the thing that was pressed rather than beside it. */
+          onPress={() => {
+            onOpenChange(true);
+            setRailOpen(true);
+          }}
+        />
+      ) : (
+        <SidebarGroupLabel
+          asChild
+          className={`${RAIL_GROUP_LABEL} ${isCurrent && !open ? "font-semibold" : ""}`}
+        >
+          <CollapsibleTrigger
+            ref={headerRef}
+            /* Not `page`, for the reason the folded mark is not: the section is the set
+               this page is in, not the page. It goes quiet the moment the section opens
+               and the row inside can say `page` for itself. */
+            aria-current={isCurrent && !open ? true : undefined}
+          >
+            <Icon aria-hidden />
+            <span className="min-w-0 flex-1 truncate text-left">
+              {group.label}
+            </span>
+            {/* One mark turned rather than two swapped: the toggle's width is constant
+                by construction, so the label's truncation point cannot move as the
+                section flips. Down closed, up open, as every other disclosure here. */}
+            <ChevronDownIcon
+              aria-hidden
+              className="transition-transform group-data-[state=open]/court-group:rotate-180"
+            />
+          </CollapsibleTrigger>
+        </SidebarGroupLabel>
+      )}
+      <CollapsibleContent>
+        <SidebarMenu className={RAIL_MENU}>
+          {group.items.map((item) => (
+            <CourtNavRow key={item.id} item={item} />
+          ))}
+        </SidebarMenu>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+/**
+ * The rail's head: the mark at the page origin, and the control that folds the rail.
+ *
+ * The brand row is the bar's own height and carries the plate's seam, so the rule under it
+ * and the rule under the top bar are one continuous line, in both rail widths.
+ *
+ * **The mark is pinned and the control is the one that gives way.** Folded, 4rem has room
+ * for exactly one thing in this row, and the two candidates are not equals. A fold control
+ * has somewhere else it can live — the bar carries it, as the advocate's does — while the
+ * mark has nowhere: fold the rail with the mark hidden and DRISTI has no brand anywhere on
+ * screen, on precisely the wide-table screens a magistrate spends the day in. The strip
+ * below is also seven identical 40px squares on charcoal, and a mark at the top of it is a
+ * different *kind* of thing, which is what makes a header read as a header rather than as
+ * an eighth square. So this control leaves with the labels and the bar's takes over.
+ *
+ * **The glyph, not the lockup, in both states.** The lockup stacks "24×7 ON COURTS" under
+ * the mark and the wordmark is 120 of its 735 viewBox units — at the 32px a 56px row can
+ * spare, that is a 5px smudge, not a word. No height that fits this row makes it legible,
+ * so the row carries the mark alone at both widths, as the advocate's rail does. `onDark`
+ * follows the plate, not the app's mode — charcoal stays charcoal at night.
+ *
+ * In the sheet there is no trigger at all: the sheet appends its own close control at the
+ * top right, and a second one 40px from it in the same row would overlap it and mean the
+ * same thing. That gate is `isMobile` rather than a media query because it decides what to
+ * *render*, and nothing depends on it being right before hydration — the sheet is shut at
+ * first paint, and the column this also empties is `hidden` below `md`.
+ */
+function CourtRailHeader() {
+  const { isMobile } = useSidebar();
+  const handoff = useFoldFocusHandoff(
+    useRailCollapsed(),
+    focusChromeFoldTrigger,
+  );
+  return (
+    <div className={RAIL_BRAND_ROW}>
+      <BrandGlyph className="h-6 shrink-0" onDark={CHARCOAL_PLATE.darkPlate} />
+      {isMobile ? null : (
+        <SidebarTrigger
+          {...CHROME_FOLD_TRIGGER}
+          {...handoff}
+          /* Only ever on screen while the rail is open, so the label states the one thing
+             it does. Its counterpart on the bar names the other direction. */
+          aria-label="Collapse court navigation"
+          className={`${RAIL_ICON_BUTTON} group-data-[collapsible=icon]:hidden`}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * The monogram.
+ *
+ * One initial for a single name, two for a compound one. The advocate rail's
+ * first-and-last rule reads "Uddipan" as "UU", which is not a pair of initials, it is a
+ * stutter — and the court side runs as one staff member whose name is one word, so the
+ * case that rail never meets is the only case this one has.
+ */
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "";
+  const first = parts[0].charAt(0);
+  const last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : "";
+  return (first + last).toUpperCase();
+}
+
+/**
+ * Settings — which seat the court side is being worked from.
+ *
+ * It used to be a dead control with a tooltip saying so, because there is no court
+ * settings route: the one `/settings` this app has belongs to the citizen half, and a
+ * stub route would have been a promise this branch cannot keep. That is still true, and
+ * this is still not a route — it is a menu, because the one setting the court side
+ * actually has is small enough to answer in place.
+ *
+ * **Two seats, and the choice changes who the rail says you are and nothing else**
+ * (`COURT_SEATS`). Same rail, same queues, same screens, nothing granted and nothing
+ * hidden — what a typist's work is as against a bench clerk's comes from product, and
+ * this build must not answer that by quietly showing a different app. The menu is
+ * honest by being small.
+ *
+ * A radio group rather than two items: the seats are one mutually exclusive answer, and
+ * the menu has to show which one is being worked in without being opened twice. `w-auto
+ * min-w-48` because the primitive otherwise inherits the trigger's width, and a 40px
+ * trigger would pinch "Bench clerk" to a column of letters.
+ *
+ * The tooltip stays, and now names the control rather than excusing it. Its trigger
+ * wraps the menu's so one button carries both — the hover name and the click.
+ *
+ * It leaves with the labels when the rail folds. A strip has room for one mark at its
+ * foot, and that mark is the person.
+ */
+function CourtSettingsControl() {
+  const seat = useCourtRole();
+  return (
+    <DropdownMenu>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Court settings"
+              className={`${RAIL_ICON_BUTTON} group-data-[collapsible=icon]:hidden`}
+            >
+              <SettingsIcon aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="top">Court settings</TooltipContent>
+      </Tooltip>
+      {/* Opens upward off the rail's foot, and aligned to the trigger's own edge — there
+          is no room below it and the menu would otherwise be pinned against the bottom
+          of the window. */}
+      <DropdownMenuContent side="top" align="end" className="w-auto min-w-48">
+        {/* No dress on it: the DS label is already the muted eyebrow this wants, and a
+            named role over the primitive's own size would be two sizes on one element. */}
+        <DropdownMenuLabel>Working as</DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={seat}
+          onValueChange={(next) => setCourtRole(next as CourtRole)}
+        >
+          {COURT_SEATS.map((role) => (
+            <DropdownMenuRadioItem key={role} value={role}>
+              {COURT_ROLE_LABEL[role]}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/**
+ * The rail's foot: who is sitting, and on which bench.
+ *
+ * A block, not a menu. The advocate's footer is a popover because an advocate's account
+ * has things to switch between — a litigant profile, a sandbox user, a rail plate. None
+ * of those exist here: the court side runs as one staff member with no sign-in, and the
+ * plate is charcoal by decision rather than by preference (`rail-plate.ts`). The one
+ * thing there *is* to switch — the seat — belongs to the settings control beside this
+ * block, where a court would look for a setting; folding it into the person's name would
+ * hide it behind an identity that is not itself a menu.
+ *
+ * So the block reports and does not act. The role line is the live seat rather than the
+ * fixture's, because the two must not disagree about the same visit: the switch is one
+ * control away, and a footer still reading Bench clerk after the menu says Typist would
+ * be the screen contradicting itself.
+ *
+ * Three lines rather than the advocate's two. Which bench the staff member is sitting on
+ * is part of who they are on this screen — every order and form the sign queues produce
+ * is headed with that court — and the chrome says it nowhere else, because the mark at
+ * the head of the rail is the product's and not the court's.
+ *
+ * The name is `CURRENT_STAFF`'s demo given name; no honorific and no designation are
+ * added to it here.
+ *
+ * Folded, the text goes `sr-only` rather than `hidden`. The disc keeps the initial, and
+ * the identity stays in the accessibility tree in both states — which is what a static
+ * block can offer in place of the tooltip a control would get, and it beats hanging a
+ * person's name off a hover the keyboard cannot reach.
+ */
+function CourtIdentityFooter() {
+  const { name, court } = CURRENT_STAFF;
+  const role = useCourtRole();
+  /* The settings control leaves the layout with the labels, so folding while it holds
+     focus drops the keyboard the same way a section's rows do. Its fallback is the fold
+     control — the one thing that caused the change and is on screen either side of it,
+     though not the same element either side: see `focusChromeFoldTrigger`. The identity
+     block itself is static and takes no focus to lose. */
+  const handoff = useFoldFocusHandoff(
+    useRailCollapsed(),
+    focusChromeFoldTrigger,
+  );
+  return (
+    <div
+      {...handoff}
+      className={`flex items-center gap-3 border-t ${RAIL_SEAM} p-3 group-data-[collapsible=icon]:justify-center`}
+    >
+      <span
+        aria-hidden
+        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-(--rail-avatar) text-caption font-semibold text-(--rail-avatar-ink)"
+      >
+        {initialsOf(name)}
+      </span>
+      {/* Nothing in this block truncates. "JMFC Court 1, Kollam" fits the 147px column and
+          "JMFC Court 1, Thiruvananthapuram" does not, nor will a Malayalam rendering of
+          either — and an ellipsis here has nothing behind it: there is no tooltip to open,
+          and folded the whole block is `sr-only`, so there is no second place to read it.
+          That matters more than an ordinary clipped label for the reason the court is here
+          at all: every order and form the sign queues produce is headed with it. So the
+          lines wrap and the footer grows, per `ACCESSIBILITY.md` §10 and §13, and
+          `wrap-break-word` catches the long unspaced compounds an Indic script produces
+          that a space-based wrap would push past the rail's edge. */}
+      <div className="flex min-w-0 flex-1 flex-col leading-tight group-data-[collapsible=icon]:sr-only">
+        <span className="wrap-break-word text-body-compact font-medium">
+          {name}
+        </span>
+        {/* One weight down the whole block, so a long court name never starts competing
+            with the person's; the step between them is size and ink. */}
+        <span className={`wrap-break-word text-caption font-medium ${RAIL_MUTED}`}>
+          {COURT_ROLE_LABEL[role]}
+        </span>
+        <span className={`wrap-break-word text-caption font-medium ${RAIL_MUTED}`}>
+          {court}
+        </span>
+      </div>
+      <CourtSettingsControl />
+    </div>
+  );
+}
+
+export function EmployeeNav() {
+  const { openId, setOpenId, currentId } = useCourtNavDisclosure();
+  return (
+    /* Rows that go nowhere explain themselves on hover and on focus; at the DS default of
+       0ms that turns a sweep down the rail into a strobe. */
+    <TooltipProvider delayDuration={500}>
+      <ChromeRail
+        plate={CHARCOAL_PLATE}
+        navLabel="Court navigation"
+        sheetTitle="Court navigation"
+        sheetDescription="Hearings, actions, applications and signing for this court."
+        header={<CourtRailHeader />}
+        footer={<CourtIdentityFooter />}
+      >
+        {/* One group, one inset, one gap: standalone links and disclosures share the
+            same vertical rhythm instead of each section padding itself. */}
+        <SidebarGroup className="gap-1">
+          <SidebarMenu className={RAIL_MENU}>
+            {COURT_NAV_LINKS.map((item) => (
+              <CourtNavRow key={item.id} item={item} />
+            ))}
+          </SidebarMenu>
+          {COURT_NAV_GROUPS.map((group) => (
+            <CourtNavGroupSection
+              key={group.id}
+              group={group}
+              isCurrent={currentId === group.id}
+              open={openId === group.id}
+              /* Opening one closes whichever was open; closing the open one leaves none.
+                 Both fall out of storing the id rather than four booleans — there is no
+                 state here that could represent two sections open at once. */
+              onOpenChange={(next) => setOpenId(next ? group.id : null)}
+            />
+          ))}
+        </SidebarGroup>
+      </ChromeRail>
+    </TooltipProvider>
+  );
+}
