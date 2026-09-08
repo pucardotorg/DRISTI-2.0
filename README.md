@@ -4,7 +4,7 @@ PUCAR's DRISTI platform for NI Act §138 (cheque-dishonour) cases through Indian
 shared national core, deployed per state.
 
 This repository holds product orientation docs and the main app shell. UI look and feel
-comes from [pucar-design-system](https://github.com/neer-ideasbeforenoon/pucar-design-system) —
+comes from [pucar-design-system](https://github.com/pucardotorg/dristi-design-system) —
 fetched automatically into `vendor/` on install; this repo does not fork it.
 
 ## Get started
@@ -19,7 +19,7 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000).
 
 No sibling clones, no home-path config. `npm install` places the authoritative DS at
-`vendor/pucar-design-system` (`neer-ideasbeforenoon` only) and refuses wrong-org trees.
+`vendor/pucar-design-system` (`pucardotorg` only) and refuses wrong-org trees.
 
 ## Layout
 

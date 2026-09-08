@@ -8,7 +8,7 @@ docs/product/domain/actors.md · docs/design/research/pending-tasks-ask.md (owne
 docs/design/proposals/pending-tasks.md §1 (owner confirmations, 18–19 Aug) ·
 **owner feedback 2026-08-28 (six items + meta), recorded verbatim-of-intent — the authoritative input for
 Round 4**
-DS read: `vendor/pucar-design-system` — origin verified `neer-ideasbeforenoon/pucar-design-system`
+DS read: `vendor/pucar-design-system` — origin verified `pucardotorg/dristi-design-system`
 via `.git/config` (no `.pucar-ds-id` file present in this checkout). `AGENTS.md`, `RESPONSIVE.md`,
 foundations `laws` and `colors`; source of `badge.tsx`, `segmented-control.tsx`, `toggle-group.tsx`,
 `toggle.tsx`, **`avatar.tsx`, `card.tsx`, `button.tsx`, `select.tsx`**; component catalog globbed (70 files).
@@ -514,7 +514,7 @@ nine more strings — §15.10.8.)*
 
 ## 13. Gaps in the DS
 
-Framed as requests against `neer-ideasbeforenoon/pucar-design-system`; add to
+Framed as requests against `pucardotorg/dristi-design-system`; add to
 `docs/design/ds-requests.md` when raised (that file currently ends at 15, so these are 16–17).
 
 1. **No count-badge / numeral-annotation role.** Three hand-rolled numeral pills exist in this

@@ -7,7 +7,7 @@ decoded to plain HTML for this build) · docs/product/product-foundation.md ·
 docs/product/domain/journey.md · docs/product/domain/practice-notes.md ·
 docs/product/open-questions.md
 DS read: `vendor/pucar-design-system` (origin verified
-`neer-ideasbeforenoon/pucar-design-system`) — `AGENTS.md`, `ACCESSIBILITY.md`,
+`pucardotorg/dristi-design-system`) — `AGENTS.md`, `ACCESSIBILITY.md`,
 `RESPONSIVE.md`, foundations `laws` / `typography` / `spacing`; source of
 document-slot · date-picker · banner · field · input · input-group · toggle-group ·
 tabs · sheet · dialog · alert-dialog · alert · badge · progress · table · select ·

@@ -32,7 +32,7 @@ Orientation for this repo. Docs describe the product and how we design; they are
 
 - Full statutory text and growing datasets — pull from the domain site / its `data/`.
 - The design-system **code** (tokens, components) — lives in
-  [pucar-design-system](https://github.com/neer-ideasbeforenoon/pucar-design-system);
+  [pucar-design-system](https://github.com/pucardotorg/dristi-design-system);
   this repo **consumes** it (agents always pull from there into Dristi App).
 - A bespoke docs-only `agents/` folder for orchestration prose — tool-native paths
   above (`.claude/agents/`, `.claude/rules/`, `.claude/skills/`) are the agent layer;
