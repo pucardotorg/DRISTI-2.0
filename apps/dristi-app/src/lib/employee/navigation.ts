@@ -13,6 +13,7 @@ import { DELAY_CONDONATION_QUEUE_COUNT } from "./delay-condonation";
 import { hearingById, TODAYS_HEARING_COUNT } from "./hearings";
 import { OTHER_APPLICATIONS_QUEUE_COUNT } from "./other-applications";
 import { REGISTER_QUEUE_COUNT } from "./register-cases";
+import { findFiling, SCRUTINY_QUEUE_COUNT } from "./scrutiny/queue";
 import { RESCHEDULING_QUEUE_COUNT } from "./rescheduling-request";
 import { SCHEDULING_QUEUE_COUNT } from "./schedule";
 import { A_DIARY_PENDING_COUNT } from "./sign-a-diary";
@@ -151,6 +152,16 @@ export const COURT_NAV_GROUPS: CourtNavGroup[] = [
     label: "Actions",
     icon: ListChecksIcon,
     items: [
+      /* Scrutiny comes first because it comes first: a complaint an advocate files
+         lands here, and only what survives scrutiny reaches the register below it.
+         The row's count is the registry's own half of the queue — see
+         `lib/employee/scrutiny/queue.ts`. */
+      {
+        id: "scrutiny",
+        label: "Scrutinise submitted cases",
+        href: "/employee/scrutiny",
+        count: SCRUTINY_QUEUE_COUNT,
+      },
       {
         id: "register-cases",
         label: "Register cases",
@@ -286,8 +297,35 @@ export const COURT_HOME = { href: "/employee", label: "Court home" } as const;
  */
 const NESTED_LISTING = /^\/employee\/hearings\/([^/]+)(?:\/order)?\/?$/;
 
+/**
+ * The scrutiny workbench, `/employee/scrutiny/<filing no.>`. Same shape and same guard
+ * as the hearings listing above: the segment counts only when it names a filing the
+ * queue actually holds, so a typed URL that names nothing gets no section rather than a
+ * trail that claims a place the officer is not in.
+ *
+ * A filing number carries slashes (`F/AHM/2026/00341`), so the segment is percent-encoded
+ * in the path and has to be decoded before the queue is asked about it.
+ */
+const NESTED_SCRUTINY = /^\/employee\/scrutiny\/([^/]+)\/?$/;
+
+function scrutinyFilingIn(pathname: string): string | undefined {
+  const nested = NESTED_SCRUTINY.exec(pathname);
+  if (!nested) return undefined;
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(nested[1]);
+  } catch {
+    // A malformed escape is not a filing number.
+    return undefined;
+  }
+  return findFiling(decoded)?.no;
+}
+
 export function isCourtNavActive(pathname: string, href: string): boolean {
   if (pathname === href) return true;
+  if (href === "/employee/scrutiny") {
+    return scrutinyFilingIn(pathname) !== undefined;
+  }
   if (href !== "/employee/hearings") return false;
   const nested = NESTED_LISTING.exec(pathname);
   return nested !== null && hearingById(nested[1]) !== undefined;

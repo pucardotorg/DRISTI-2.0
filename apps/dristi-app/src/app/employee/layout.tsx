@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { EmployeeArea } from "@/components/employee/employee-area";
+import { Toaster } from "@/components/ui/sonner";
 
 /**
  * `/employee/*` — the court-staff area: magistrate, bench clerk, scrutiny officer.
@@ -22,5 +23,11 @@ export default function EmployeeLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <EmployeeArea>{children}</EmployeeArea>;
+  return (
+    <>
+      <EmployeeArea>{children}</EmployeeArea>
+      {/* Per-area, as every other area mounts it: scrutiny's removal toast needs it. */}
+      <Toaster position="bottom-right" />
+    </>
+  );
 }
