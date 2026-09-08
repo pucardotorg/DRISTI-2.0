@@ -18,11 +18,9 @@
 
 import * as React from "react";
 import {
-  CheckIcon,
   CreditCardIcon,
   FileTextIcon,
   PlusIcon,
-  TriangleAlertIcon,
   UserIcon,
 } from "lucide-react";
 
@@ -39,7 +37,7 @@ import {
   extractDocument,
   extractable,
 } from "@/lib/filing/ocr";
-import { findIntakeSlot, intakeProgress } from "@/lib/filing/selectors";
+import { findIntakeSlot } from "@/lib/filing/selectors";
 import { FILINGS_HOME } from "@/lib/filing/steps";
 import { useFiling } from "@/lib/filing/store";
 import { cn } from "@/lib/utils";
@@ -55,7 +53,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/filing/confirm-dialog";
 import { FilingFooter } from "@/components/filing/filing-footer";
@@ -152,10 +149,7 @@ export function UploadSection() {
   /* In a correction round the bundle itself is fixed: a flagged document is *replaced*,
      never removed, and nothing is added. Only the officer's flags open anything (D3). */
   const inCorrection = useInCorrection();
-  const { done, total, remaining, pct } = intakeProgress(intake);
   const { pick, input } = useFilePicker();
-
-  const progressLabelId = React.useId();
 
   const [previewKey, setPreviewKey] = React.useState<string | null>(null);
   const [pickError, setPickError] = React.useState<string | null>(null);
@@ -448,45 +442,35 @@ export function UploadSection() {
 
       <FilingMain width="narrow">
         {/* In a correction round this section is a record of the filed documents, not an
-            intake — so the "add a card for every cheque" invitation, the intake progress
-            and the drag hint all stand down (v3.2 sanity pass). */}
+            intake — so the invitation and the drag hint stand down (v3.2 sanity pass). */}
+        {/* Header and hint are one block: the hint is a footnote to the invitation
+            above it, not a section of its own. */}
+        <div className="flex flex-col gap-2">
         <FilingPageHeader
           eyebrow="Documents"
           title={inCorrection ? "Case documents" : "Add your case documents"}
           description={
             inCorrection
               ? "The documents filed with the complaint, as scrutiny received them."
-              : "Add a card for every cheque and every complainant. We read what we can and fill the form from it."
+              : "Add the papers you already have — the cheque, the bank's memo, the notice you sent. We read them and fill in the form for you, so it is worth doing now. You can also continue without them and add them later."
           }
         />
 
-        {/* The one progress statement on this screen. */}
+        {/*
+         * Nothing on this screen counts documents any more.
+         *
+         * A progress bar reading "0 of 7 required documents added · 7 to go" said the
+         * step was a checklist that had to be cleared, and the footer repeated it as a
+         * warning. Neither was true: every one of these can be added later, and the
+         * screen's own Continue never blocked on them. What is left is the affordance
+         * people actually miss — that a file can be dropped straight onto a card.
+         */}
         {inCorrection ? null : (
-          <Card size="sm" className={PANEL_CLASS}>
-            <CardContent className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <p
-                  id={progressLabelId}
-                  className="text-body font-semibold tabular-nums text-foreground"
-                >
-                  {done} of {total} required documents added
-                </p>
-                <p
-                  className={cn(
-                    "text-caption tabular-nums",
-                    remaining > 0 ? "text-muted-foreground" : "text-success-ink"
-                  )}
-                >
-                  {remaining > 0 ? `${remaining} to go` : "All set"}
-                </p>
-              </div>
-              <Progress value={pct} aria-labelledby={progressLabelId} className="h-2" />
-              <p className="text-caption text-muted-foreground pointer-coarse:hidden">
-                Drag files onto a card or a row, or choose them one at a time.
-              </p>
-            </CardContent>
-          </Card>
+          <p className="text-body-compact text-muted-foreground pointer-coarse:hidden">
+            Drag files onto a card or a row, or choose them one at a time.
+          </p>
         )}
+        </div>
 
         {pickError ? (
           <SectionNotice
@@ -615,29 +599,12 @@ export function UploadSection() {
         </div>
       </FilingMain>
 
+      {/* Back names where it goes: this is the one step whose Back leaves the filing. */}
       <FilingFooter
         backHref={FILINGS_HOME}
+        backLabel="Back to dashboard"
         continueHref={hrefFor("complainant")}
         continueLabel="Continue to filing"
-        leading={
-          <span className="flex items-center gap-2 text-body-compact text-muted-foreground">
-            <span
-              className={cn(
-                "flex size-6 shrink-0 items-center justify-center rounded-full",
-                remaining > 0
-                  ? "bg-warning-muted text-warning-muted-foreground"
-                  : "bg-success-muted text-success-muted-foreground"
-              )}
-            >
-              {remaining > 0 ? (
-                <TriangleAlertIcon className="size-4" aria-hidden />
-              ) : (
-                <CheckIcon className="size-4" aria-hidden />
-              )}
-            </span>
-            {remaining > 0 ? "Required documents still missing" : "Ready to continue"}
-          </span>
-        }
       />
 
       {/* Document preview */}

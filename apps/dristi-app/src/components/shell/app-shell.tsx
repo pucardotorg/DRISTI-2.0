@@ -11,6 +11,7 @@ import {
   type ChromeValue,
   type Crumb,
 } from "@/components/shell/chrome";
+import { AppSearchProvider } from "@/components/shell/app-search";
 import { ProfileProvider } from "@/components/shell/profile";
 import { RailThemeProvider } from "@/components/shell/rail-theme";
 import { TopBar } from "@/components/shell/top-bar";
@@ -92,6 +93,7 @@ export function AppShell({
            * palette outright instead of borrowing a scope.
            */}
           <RailThemeProvider>
+            <AppSearchProvider>
             <SidebarProvider
               open={navOpen}
               onOpenChange={setNavOpen}
@@ -105,6 +107,7 @@ export function AppShell({
                 <div className="flex min-h-0 flex-1">{children}</div>
               </div>
             </SidebarProvider>
+            </AppSearchProvider>
           </RailThemeProvider>
         </ChromeContext.Provider>
       </ProfileProvider>

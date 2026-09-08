@@ -8,7 +8,7 @@ import {
   FilingChromeProvider,
   SECTIONS_COOKIE,
 } from "@/components/filing/chrome";
-import { FilingTopBar } from "@/components/filing/filing-top-bar";
+import { FilingBreadcrumbs } from "@/components/filing/filing-breadcrumbs";
 
 export const metadata: Metadata = {
   title: "Filings",
@@ -17,10 +17,12 @@ export const metadata: Metadata = {
 /**
  * Filings area: the one app shell, with the filing flow's own top bar in its slot.
  *
- * This layout used to mount a second, filings-only shell — the app's third. Now the
- * rail, its theme, the profile foot and the fold behaviour are the shared shell's, and
- * the only thing this area declares is what is genuinely its own: the sections-rail
- * state and the draft breadcrumb, both carried by `FilingChromeProvider` + the bar.
+ * This layout used to mount a second, filings-only shell — the app's third — and then,
+ * for a while, the shared shell with a bar of its own. The bar is gone too: it carried a
+ * search pill, an account avatar and a breadcrumb that the rest of the product did not
+ * have, so the same four things sat in different places depending on which screen you
+ * were on. What is left is what is genuinely this area's — the sections-rail state and
+ * the draft trail — declared through the channels every other area uses.
  */
 export default async function FilingsLayout({
   children,
@@ -39,7 +41,10 @@ export default async function FilingsLayout({
     <TasksProvider>
       <ProfileProvider>
         <FilingChromeProvider sectionsDefaultOpen={sectionsOpen}>
-          <AppShell topBar={<FilingTopBar />}>{children}</AppShell>
+          <AppShell>
+            <FilingBreadcrumbs />
+            {children}
+          </AppShell>
         </FilingChromeProvider>
       </ProfileProvider>
     </TasksProvider>

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { FileCheckIcon, FileTextIcon, SearchIcon } from "lucide-react";
+import { FileCheckIcon, FileTextIcon } from "lucide-react";
 
 import { toDisplayDate } from "@/lib/filing/format";
 import { draftTitle } from "@/lib/filing/selectors";
@@ -10,7 +10,6 @@ import { getStep, stepHref } from "@/lib/filing/steps";
 import { useMounted } from "@/lib/filing/store";
 import type { FilingDraft } from "@/lib/filing/types";
 import { useDrafts } from "@/lib/filing/use-drafts";
-import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandDialog,
@@ -20,8 +19,20 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Kbd } from "@/components/ui/kbd";
 import { Spinner } from "@/components/ui/spinner";
+
+/**
+ * The app's search, opened from the rail.
+ *
+ * It used to be a pill in the filings area's own top bar, which is the only place in the
+ * product that had one — so search existed on four screens and nowhere else, and the rail
+ * carried a Search row that said it was not built. The row is the search now: one
+ * entry point, on the chrome every area shares, reachable from anywhere with ⌘K.
+ *
+ * What it searches has not changed: the drafts and filed cases this browser holds. It
+ * looks in what is actually stored, so it can only find what was filed from here —
+ * nothing is looked up in a registry.
+ */
 
 /** Everything a filing can be found by: the parties named in it and its case-file number. */
 function haystack(draft: FilingDraft): string {
@@ -148,12 +159,19 @@ function useShortcutLabel() {
   return navigator.userAgent.includes("Mac") ? "⌘K" : "Ctrl K";
 }
 
-/**
- * Search across the filings this browser holds — drafts and filed cases — reachable from
- * the top bar or with ⌘K. It searches what is actually stored, so it can only find what
- * the person filed from here; nothing is looked up in a registry.
- */
-export function FilingSearch() {
+type AppSearchValue = { open: () => void; shortcut: string };
+
+const AppSearchContext = React.createContext<AppSearchValue | null>(null);
+
+/** Opens the app's search. Available anywhere inside the shell. */
+export function useAppSearch(): AppSearchValue {
+  const ctx = React.useContext(AppSearchContext);
+  if (!ctx) throw new Error("useAppSearch must be used inside <AppSearchProvider>");
+  return ctx;
+}
+
+/** Holds the dialog and the ⌘K binding for the whole shell. */
+export function AppSearchProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = React.useState(false);
   const shortcut = useShortcutLabel();
 
@@ -168,25 +186,14 @@ export function FilingSearch() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  return (
-    <>
-      {/* A search well, not a bordered field: the bar is chrome, and the pill reads as
-          the one recessed thing on it. */}
-      <Button
-        type="button"
-        variant="ghost"
-        aria-haspopup="dialog"
-        aria-label="Search your filings"
-        onClick={() => setOpen(true)}
-        className="w-10 justify-center rounded-full bg-surface-sunken px-0 text-muted-foreground sm:w-64 sm:justify-start sm:px-3"
-      >
-        <SearchIcon aria-hidden />
-        <span className="hidden min-w-0 flex-1 truncate text-left font-normal sm:inline">
-          Search your filings
-        </span>
-        <Kbd className="hidden bg-card sm:inline-flex">{shortcut}</Kbd>
-      </Button>
+  const value = React.useMemo<AppSearchValue>(
+    () => ({ open: () => setOpen(true), shortcut }),
+    [shortcut]
+  );
 
+  return (
+    <AppSearchContext.Provider value={value}>
+      {children}
       <CommandDialog
         open={open}
         onOpenChange={setOpen}
@@ -195,6 +202,6 @@ export function FilingSearch() {
       >
         <Results onNavigate={() => setOpen(false)} />
       </CommandDialog>
-    </>
+    </AppSearchContext.Provider>
   );
 }
