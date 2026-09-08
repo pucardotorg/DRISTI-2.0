@@ -262,18 +262,6 @@ export const mismatch: Record<Role, { title: Copy; body: Copy; action: Copy }> =
   },
 };
 
-export const unregistered = {
-  title: t(
-    "We could not find an account for this number",
-    "ഈ നമ്പറിന് ഒരു അക്കൗണ്ട് കണ്ടെത്താനായില്ല",
-  ),
-  body: t(
-    "Check the mobile number, or create an account if you are new here.",
-    "മൊബൈൽ നമ്പർ പരിശോധിക്കുക. ഇവിടെ പുതുതാണെങ്കിൽ ഒരു അക്കൗണ്ട് ഉണ്ടാക്കുക.",
-  ),
-  action: t("Create an account", "അക്കൗണ്ട് ഉണ്ടാക്കുക"),
-} satisfies Record<string, Copy>;
-
 /* ------------------------------------------------------------------------ footer */
 
 export const footerNavLabel = t("About this site", "ഈ സൈറ്റിനെക്കുറിച്ച്");

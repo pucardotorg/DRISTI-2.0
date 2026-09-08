@@ -14,7 +14,7 @@ import type { FilingDraft } from "./types";
 describe("migrateDraft — drafts written by another branch", () => {
   /** A draft as `feature/settlement-options` leaves it: no `adr`, version 4. */
   function settlementShaped(): FilingDraft {
-    const draft = createBlankDraft("draft-settlement") as FilingDraft & {
+    const draft = createBlankDraft("draft-settlement") as Omit<FilingDraft, "version"> & {
       settlement?: unknown;
       version: number;
     };
