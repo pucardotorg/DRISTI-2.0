@@ -70,10 +70,11 @@ export function AppShell({
   const unfoldNav = React.useCallback(() => setNavOpen(true), [setNavOpen]);
 
   const [crumbs, setCrumbs] = React.useState<Crumb[]>([]);
+  const [crumbRoot, setCrumbRoot] = React.useState<Crumb | null>(null);
 
   const chrome = React.useMemo<ChromeValue>(
-    () => ({ crumbs, setCrumbs, navOpen, foldNav, unfoldNav }),
-    [crumbs, navOpen, foldNav, unfoldNav],
+    () => ({ crumbs, setCrumbs, crumbRoot, setCrumbRoot, navOpen, foldNav, unfoldNav }),
+    [crumbs, crumbRoot, navOpen, foldNav, unfoldNav],
   );
 
   return (

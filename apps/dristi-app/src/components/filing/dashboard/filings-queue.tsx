@@ -21,6 +21,7 @@ import {
 } from "@/lib/filing/queue";
 import { NEW_FILING } from "@/lib/filing/steps";
 import { cn } from "@/lib/utils";
+import { withOrigin } from "@/lib/nav/origin";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -129,6 +130,14 @@ export function FilingsQueue({
     },
     [router, pathname, view]
   );
+
+  /*
+   * Every row action leaves this screen, and three of the four leave the area entirely —
+   * the scrutiny correction round lives under `/tasks`. The view is recorded on the link
+   * so the breadcrumb over there can bring the person back to this tab, this search, this
+   * page, rather than to whichever root that screen's route happens to sit under.
+   */
+  const here = `${pathname}${writeView(view)}`;
 
   const rows = data[view.tab];
   const layout = TAB_LAYOUT[view.tab];
@@ -265,7 +274,7 @@ export function FilingsQueue({
                           column === "court" && "text-muted-foreground"
                         )}
                       >
-                        {renderCell(column, row, onDiscard)}
+                        {renderCell(column, row, onDiscard, here)}
                       </TableCell>
                     ))}
                   </TableRow>
@@ -408,7 +417,8 @@ function headingFor(column: ColumnId, layout: (typeof TAB_LAYOUT)[QueueTab]): Re
 function renderCell(
   column: ColumnId,
   row: QueueRow,
-  onDiscard: (id: string) => void
+  onDiscard: (id: string) => void,
+  here: string
 ): React.ReactNode {
   switch (column) {
     case "ref":
@@ -435,7 +445,7 @@ function renderCell(
             {/* The link stretches over the whole row, so the row is the target and the
                 button is only where it is visible. Anything else in the row that must
                 stay clickable sits above it on `z-10`. */}
-            <Link href={row.action.href} className="after:absolute after:inset-0">
+            <Link href={withOrigin(row.action.href, here)} className="after:absolute after:inset-0">
               {row.action.label}
               <ArrowRightIcon data-icon="inline-end" aria-hidden />
             </Link>

@@ -28,6 +28,8 @@ import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Breadcrumbs, useChrome } from "@/components/shell/chrome";
+import { useHereHref } from "@/components/shell/origin";
+import { withOrigin } from "@/lib/nav/origin";
 import { ConfirmDialog } from "@/components/shell/confirm-dialog";
 import { TaskActModal } from "@/components/tasks/act/act-modal";
 import { TaskRespondDialog } from "@/components/tasks/act/respond-dialog";
@@ -73,6 +75,8 @@ export function TasksScreen() {
   const { state, error, people, cases, tasks, user, online, reload, requestHighlight } = store;
   const { act, busy } = useTaskActions();
   const router = useRouter();
+  // This list, with the open task and the filters on it — where a flow should return to.
+  const here = useHereHref();
   const { filters, setFilters, taskId, setTaskId } = useFilters();
   const now = useNow();
   const { navOpen, foldNav, unfoldNav } = useChrome();
@@ -455,7 +459,7 @@ export function TasksScreen() {
           // Waiting and closed items open their flow to look, not to act: pay and file
           // live in the modal; sign and returned tasks live on their own pages.
           const path = actPathOf(openTask);
-          if (path) router.push(path);
+          if (path) router.push(withOrigin(path, here));
           else openAct(openTask, actModeOf(openTask));
         }}
         onMarkDone={() => openTask && setConfirmDone([openTask])}
@@ -501,7 +505,7 @@ export function TasksScreen() {
         onConfirm={() => {
           const notice = flowNotice;
           setFlowNotice(null);
-          if (notice) router.push(flowPathOf(notice.flow, notice.task));
+          if (notice) router.push(withOrigin(flowPathOf(notice.flow, notice.task), here));
         }}
       />
 

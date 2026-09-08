@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumbs } from "@/components/shell/chrome";
+import { useOrigin } from "@/components/shell/origin";
 import { SectionNotice } from "@/components/shell/notices";
 import { PANEL_CLASS } from "@/components/shell/panel";
 import { type ActContext } from "@/components/tasks/act/shared";
@@ -74,6 +75,7 @@ function Body({ ctx, action }: { ctx: ActContext; action: ActPageAction }) {
 export function TaskActPage({ action }: { action: ActPageAction }) {
   const params = useParams<{ taskId: string }>();
   const router = useRouter();
+  const origin = useOrigin();
   const { state, tasks, cases, people, user, online, requestHighlight } = useTasks();
   const id = decodeURIComponent(params.taskId);
   const task = tasks.find((t) => t.id === id) ?? null;
@@ -95,7 +97,7 @@ export function TaskActPage({ action }: { action: ActPageAction }) {
   if (state !== "ready" || missing || forbidden || !task || !kase) {
     return (
       <main className="flex min-w-0 flex-1 flex-col">
-        <Breadcrumbs crumbs={[{ label: CRUMB[action] }]} />
+        <Breadcrumbs root={origin} crumbs={[{ label: CRUMB[action] }]} />
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-6 lg:px-8">
           {state !== "ready" ? (
             <>
@@ -139,11 +141,19 @@ export function TaskActPage({ action }: { action: ActPageAction }) {
     signatory: canComplete(user, kase),
     finish,
   };
-  const back = `/tasks?task=${encodeURIComponent(task.id)}`;
+  // The door, if the link that opened this page recorded one; the task's detail if not.
+  const back = origin?.href ?? `/tasks?task=${encodeURIComponent(task.id)}`;
 
   return (
     <main className="flex min-w-0 flex-1 flex-col">
-      <Breadcrumbs crumbs={[{ label: task.title, href: back }, { label: CRUMB[action] }]} />
+      <Breadcrumbs
+        root={origin}
+        crumbs={
+          origin
+            ? [{ label: CRUMB[action] }]
+            : [{ label: task.title, href: back }, { label: CRUMB[action] }]
+        }
+      />
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-6 lg:px-8">
         <div className="flex flex-col gap-3">
           <Button asChild variant="ghost" size="xs" className="self-start text-muted-foreground">

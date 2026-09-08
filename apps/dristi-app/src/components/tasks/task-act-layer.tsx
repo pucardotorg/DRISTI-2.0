@@ -7,6 +7,8 @@ import { verbFor } from "@/lib/tasks/permissions";
 import { caseOf } from "@/lib/tasks/selectors";
 import { useTasks } from "@/lib/tasks/store";
 import { taskHref } from "@/lib/tasks/routes";
+import { withOrigin } from "@/lib/nav/origin";
+import { useHereHref } from "@/components/shell/origin";
 import { markDone } from "@/lib/tasks/transitions";
 import type { Task } from "@/lib/tasks/types";
 import { ConfirmDialog } from "@/components/shell/confirm-dialog";
@@ -36,6 +38,8 @@ import {
 export function useTaskAct() {
   const store = useTasks();
   const router = useRouter();
+  // Whichever screen is hosting the layer — the flow's way back.
+  const here = useHereHref();
   const { act } = useTaskActions();
 
   const [acting, setActing] = React.useState<{ task: Task; mode: ActMode } | null>(null);
@@ -119,7 +123,7 @@ export function useTaskAct() {
         onConfirm={() => {
           const notice = flowNotice;
           setFlowNotice(null);
-          if (notice) router.push(flowPathOf(notice.flow, notice.task));
+          if (notice) router.push(withOrigin(flowPathOf(notice.flow, notice.task), here));
         }}
       />
 
