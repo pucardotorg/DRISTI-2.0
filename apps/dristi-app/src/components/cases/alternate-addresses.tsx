@@ -19,13 +19,13 @@ import { PlusIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
 import {
   emptyStructuredAddress,
   structuredAddressComplete,
@@ -157,7 +157,7 @@ function AddAddressDialog({
       }}
     >
       {/* xl, not md: the structured grid runs two columns. */}
-      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+      <ChromeDialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
         <DialogHeader className="shrink-0 gap-1.5 border-b border-hairline px-6 py-5 pr-14 text-left">
           <DialogTitle className="text-title-s font-semibold text-balance">
             Add an address for {subjectName}
@@ -208,7 +208,7 @@ function AddAddressDialog({
             Add address
           </Button>
         </footer>
-      </DialogContent>
+      </ChromeDialogContent>
     </Dialog>
   );
 }

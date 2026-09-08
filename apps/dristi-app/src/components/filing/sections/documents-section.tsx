@@ -22,6 +22,8 @@ import {
   XIcon,
 } from "lucide-react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import { uid } from "@/lib/filing/blank";
 import { getRepository, storeUpload } from "@/lib/filing/data";
 import { forgetFile, formatBytes, useFilePreview } from "@/lib/filing/files";
@@ -41,7 +43,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -549,7 +550,7 @@ export function DocumentsSection() {
           if (!open) setPreviewId(null);
         }}
       >
-        <DialogContent className="sm:max-w-lg">
+        <ChromeDialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex flex-wrap items-center gap-2 pr-8">
               {previewFile ? <Badge variant="secondary">{previewFile.ext}</Badge> : null}
@@ -605,7 +606,7 @@ export function DocumentsSection() {
               </Button>
             </div>
           </DialogFooter>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       <ConfirmDialog

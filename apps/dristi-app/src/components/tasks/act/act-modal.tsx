@@ -12,13 +12,14 @@
 import * as React from "react";
 import { toast } from "sonner";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import { canComplete } from "@/lib/tasks/permissions";
 import { useTasks } from "@/lib/tasks/store";
 import type { Case, Task, TaskId } from "@/lib/tasks/types";
 import { useMinWidth } from "@/hooks/use-min-width";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -109,14 +110,14 @@ export function TaskActModal({
   if (overlay) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className={`max-h-[85svh] w-full overflow-y-auto ${WIDTH[mode]}`}>
+        <ChromeDialogContent className={`max-h-[85svh] w-full overflow-y-auto ${WIDTH[mode]}`}>
           <DialogHeader className="pr-8">
             <DialogTitle className="text-title-s font-semibold text-balance">{task.title}</DialogTitle>
             <DialogDescription className="text-caption text-muted-foreground">{caseLine}</DialogDescription>
           </DialogHeader>
           <p className="text-caption text-muted-foreground">{SANDBOX[mode]}</p>
           <Body ctx={ctx} mode={mode} />
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
     );
   }

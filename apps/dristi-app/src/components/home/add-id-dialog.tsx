@@ -7,10 +7,11 @@ import {
   Maximize2Icon,
 } from "lucide-react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -268,7 +269,7 @@ export function AddIdForm({
         </div>
       </form>
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent
+        <ChromeDialogContent
           lang={locale}
           className="flex h-dvh w-screen max-w-none flex-col overflow-hidden rounded-none sm:max-w-none"
         >
@@ -292,7 +293,7 @@ export function AddIdForm({
               />
             ) : null}
           </div>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
     </>
   );
@@ -325,7 +326,7 @@ export function SubmittedIdSummary({ submission, locale }: { submission: Submitt
         </div>
       </div>
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent lang={locale} className="flex h-dvh w-screen max-w-none flex-col overflow-hidden rounded-none sm:max-w-none">
+        <ChromeDialogContent lang={locale} className="flex h-dvh w-screen max-w-none flex-col overflow-hidden rounded-none sm:max-w-none">
           <DialogHeader className="pr-10 text-left">
             <DialogTitle>{pick(idUpload.previewTitle, locale)}</DialogTitle>
             <DialogDescription>{pick(idUpload.previewDescription, locale)}</DialogDescription>
@@ -337,7 +338,7 @@ export function SubmittedIdSummary({ submission, locale }: { submission: Submitt
               <NextImage src={previewUrl} alt={pick(idUpload.previewAlt, locale)} width={1200} height={1600} unoptimized className="mx-auto h-full w-auto max-w-full rounded-md object-contain" />
             )}
           </div>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
     </>
   );

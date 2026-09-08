@@ -28,7 +28,6 @@ import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -37,7 +36,6 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -59,6 +57,7 @@ import {
   type CaseRef,
 } from "@/components/cases/party-application";
 import { usePartiesLive } from "@/components/cases/parties-live";
+import { ChromeDialogContent, ChromeAlertDialogContent } from "@/components/chrome/app-chrome";
 import { blankWitness } from "@/lib/filing/blank";
 import { witnessComplete } from "@/lib/filing/selectors";
 import type { AddressBlock, Witness } from "@/lib/filing/types";
@@ -239,7 +238,7 @@ export function AddWitnessDialog({
           else requestExit();
         }}
       >
-        <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+        <ChromeDialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
           <DialogHeader className="shrink-0 gap-1.5 border-b border-hairline px-6 py-5 pr-14 text-left">
             <DialogTitle className="text-title-s font-semibold text-balance">
               Add witnesses
@@ -414,7 +413,7 @@ export function AddWitnessDialog({
               </Button>
             )}
           </footer>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       <PartySignatureDialog
@@ -453,7 +452,7 @@ export function AddWitnessDialog({
         open={exitConfirmationOpen}
         onOpenChange={setExitConfirmationOpen}
       >
-        <AlertDialogContent>
+        <ChromeAlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard witness draft?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -467,7 +466,7 @@ export function AddWitnessDialog({
               Discard draft
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
+        </ChromeAlertDialogContent>
       </AlertDialog>
     </>
   );

@@ -10,11 +10,12 @@ import {
   UserRoundIcon,
 } from "lucide-react";
 
+import { ChromeAlertDialogContent } from "@/components/chrome/app-chrome";
+
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -609,7 +610,7 @@ export function DiscardFilingDialog({
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <ChromeAlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Discard filing draft?</AlertDialogTitle>
           <AlertDialogDescription>
@@ -623,7 +624,7 @@ export function DiscardFilingDialog({
             Discard draft
           </AlertDialogAction>
         </AlertDialogFooter>
-      </AlertDialogContent>
+      </ChromeAlertDialogContent>
     </AlertDialog>
   );
 }

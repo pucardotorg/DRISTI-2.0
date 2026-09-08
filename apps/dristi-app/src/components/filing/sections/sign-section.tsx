@@ -64,7 +64,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -93,6 +92,7 @@ import { useLeaveGuard } from "@/components/filing/leave-guard";
 import { SectionNotice } from "@/components/filing/notices";
 import { CourtDocument } from "@/components/filing/sections/preview/court-document";
 import { pickErrorMessage, useFilePicker } from "@/components/filing/use-file-picker";
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
 
 type ModalKey =
   | "choose"
@@ -984,7 +984,7 @@ export function SignSection() {
         it reaches before either one is clickable, not after (owner, 2026-08-19).
       */}
       <Dialog open={modal === "choose"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className="sm:max-w-lg">
+        <ChromeDialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>How will this complaint be signed?</DialogTitle>
             <DialogDescription>
@@ -1067,7 +1067,7 @@ export function SignSection() {
               Print or save as PDF
             </Button>
           </p>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       {/*
@@ -1077,7 +1077,7 @@ export function SignSection() {
         corner, and everything around it is a caption.
       */}
       <Dialog open={modal === "esign"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className="sm:max-w-sm">
+        <ChromeDialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Enter the OTP</DialogTitle>
             <DialogDescription>
@@ -1147,7 +1147,7 @@ export function SignSection() {
           <p className="text-center text-caption text-muted-foreground">
             Sandbox — any six digits work.
           </p>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       {/* ── Upload signed complaint ── */}
@@ -1166,7 +1166,7 @@ export function SignSection() {
           The roster grows with the parties, so the body scrolls and the two fixed points
           stay on screen: the title, and the button the whole list gates.
         */}
-        <DialogContent className="grid-rows-[auto_minmax(0,1fr)_auto] max-h-[calc(100svh-2rem)] sm:max-w-xl">
+        <ChromeDialogContent className="grid-rows-[auto_minmax(0,1fr)_auto] max-h-[calc(100svh-2rem)] sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Upload signed complaint</DialogTitle>
             <DialogDescription>
@@ -1301,7 +1301,7 @@ export function SignSection() {
               Submit as fully signed
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       {/* ── Choose process & address ── */}
@@ -1314,7 +1314,7 @@ export function SignSection() {
         offered as declinable rather than offered and then refused.
       */}
       <Dialog open={modal === "procaddr"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className="grid-rows-[auto_minmax(0,1fr)_auto] max-h-[calc(100svh-2rem)] sm:max-w-2xl">
+        <ChromeDialogContent className="grid-rows-[auto_minmax(0,1fr)_auto] max-h-[calc(100svh-2rem)] sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Change process &amp; address</DialogTitle>
             <DialogDescription>
@@ -1532,7 +1532,7 @@ export function SignSection() {
               Back to fees
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       {/* ── Pay court fees ── */}
@@ -1546,7 +1546,7 @@ export function SignSection() {
         process by process, and this screen only adds it up.
       */}
       <Dialog open={modal === "payment"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className="grid-rows-[auto_minmax(0,1fr)_auto] max-h-[calc(100svh-2rem)] sm:max-w-xl">
+        <ChromeDialogContent className="grid-rows-[auto_minmax(0,1fr)_auto] max-h-[calc(100svh-2rem)] sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Pay court fees</DialogTitle>
             <DialogDescription>
@@ -1601,12 +1601,12 @@ export function SignSection() {
               Change process &amp; address
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       {/* ── Processing ── */}
       <Dialog open={modal === "processing"}>
-        <DialogContent
+        <ChromeDialogContent
           className="sm:max-w-sm"
           showCloseButton={false}
           onEscapeKeyDown={(e) => e.preventDefault()}
@@ -1624,12 +1624,12 @@ export function SignSection() {
               Sandbox payment — no money moves.
             </p>
           </div>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       {/* ── Payment successful ── */}
       <Dialog open={modal === "success"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent
+        <ChromeDialogContent
           showCloseButton={false}
           className="gap-0 overflow-hidden p-0 sm:max-w-lg"
         >
@@ -1689,7 +1689,7 @@ export function SignSection() {
               </Button>
             </div>
           </div>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       {/* ── Leaving with signatures on the sheet ── */}

@@ -4,7 +4,14 @@ import * as React from "react";
 import NextImage from "next/image";
 import { FileTextIcon, Maximize2Icon } from "lucide-react";
 
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
+import {
+  Dialog,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { pick, type Locale } from "@/lib/onboarding/content";
 import { idUpload } from "@/lib/join/content";
 import { cn } from "@/lib/utils";
@@ -134,7 +141,7 @@ export function DocumentPreviewDialog({ open, onOpenChange, file, url, locale, c
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {/* Sized by the document, not a fixed frame: the image's own aspect ratio sets
           the dialog's shape, capped by the viewport on both axes. */}
-      <DialogContent lang={locale} className={cn("flex max-h-[90dvh] flex-col gap-4 overflow-hidden p-4 sm:p-6", isPdf ? "h-[85dvh] w-[calc(100vw-2rem)] max-w-3xl" : "w-fit min-w-[min(20rem,calc(100vw-2rem))] max-w-[min(calc(100vw-2rem),72rem)]")}>
+      <ChromeDialogContent lang={locale} className={cn("flex max-h-[90dvh] flex-col gap-4 overflow-hidden p-4 sm:p-6", isPdf ? "h-[85dvh] w-[calc(100vw-2rem)] max-w-3xl" : "w-fit min-w-[min(20rem,calc(100vw-2rem))] max-w-[min(calc(100vw-2rem),72rem)]")}>
         <DialogHeader className="pr-10 text-left">
           <DialogTitle>{copy?.title ?? pick(idUpload.previewTitle, locale)}</DialogTitle>
           {/* One line on desktop: the nowrap description sets the dialog's minimum
@@ -168,7 +175,7 @@ export function DocumentPreviewDialog({ open, onOpenChange, file, url, locale, c
             />
           </div>
         ) : null}
-      </DialogContent>
+      </ChromeDialogContent>
     </Dialog>
   );
 }

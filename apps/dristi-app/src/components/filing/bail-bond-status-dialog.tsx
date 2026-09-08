@@ -3,11 +3,12 @@
 import * as React from "react";
 import { PencilIcon } from "lucide-react";
 
+import { ChromeDialogContent, ChromeAlertDialogContent } from "@/components/chrome/app-chrome";
+
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -16,7 +17,6 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -52,7 +52,7 @@ export function BailBondStatusDialog({
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
+      <ChromeDialogContent
         lang={locale}
         className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
       >
@@ -89,7 +89,7 @@ export function BailBondStatusDialog({
             {pick(bondCopy.editDetails, locale)}
           </Button>
           <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-            <AlertDialogContent lang={locale}>
+            <ChromeAlertDialogContent lang={locale}>
               <AlertDialogHeader>
                 <AlertDialogTitle>{pick(bondCopy.invalidateTitle, locale)}</AlertDialogTitle>
                 <AlertDialogDescription className="text-pretty">
@@ -102,10 +102,10 @@ export function BailBondStatusDialog({
                   {pick(bondCopy.invalidateConfirm, locale)}
                 </AlertDialogAction>
               </AlertDialogFooter>
-            </AlertDialogContent>
+            </ChromeAlertDialogContent>
           </AlertDialog>
         </footer>
-      </DialogContent>
+      </ChromeDialogContent>
     </Dialog>
   );
 }

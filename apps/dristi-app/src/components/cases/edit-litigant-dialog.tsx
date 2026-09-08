@@ -18,7 +18,6 @@ import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -28,7 +27,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -40,6 +38,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { ChromeDialogContent, ChromeAlertDialogContent } from "@/components/chrome/app-chrome";
 import {
   PartyApplicationDocument,
   PartySignatureDialog,
@@ -346,7 +345,7 @@ function EditLitigantDialog({
           else requestExit();
         }}
       >
-        <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+        <ChromeDialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
           <>
               {/* No stepper: two steps do not earn one. Heading stays put so
                   the review does not read as a different task (owner, Sept 2). */}
@@ -606,7 +605,7 @@ function EditLitigantDialog({
                 )}
               </footer>
             </>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       <PartySignatureDialog
@@ -626,7 +625,7 @@ function EditLitigantDialog({
         open={exitConfirmationOpen}
         onOpenChange={setExitConfirmationOpen}
       >
-        <AlertDialogContent>
+        <ChromeAlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard this application?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -639,7 +638,7 @@ function EditLitigantDialog({
               Discard draft
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
+        </ChromeAlertDialogContent>
       </AlertDialog>
     </>
   );

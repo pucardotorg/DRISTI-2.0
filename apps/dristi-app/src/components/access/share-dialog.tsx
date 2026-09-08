@@ -8,7 +8,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -18,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { CaseAccessList, initials } from "@/components/access/access-list";
 import { formatPhone, useAccess, type InviteResult } from "@/components/access/access-state";
 import { RemoveAdvocateDialog } from "@/components/cases/remove-advocate-dialog";
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
 import { pick, type Locale } from "@/lib/onboarding/content";
 import {
   FREQUENT_COLLABORATORS,
@@ -175,7 +175,7 @@ export function ShareDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="flex max-h-[calc(100dvh---spacing(12))] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+      <ChromeDialogContent className="flex max-h-[calc(100dvh---spacing(12))] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
         {/* Header: what this is, then exactly what it applies to. */}
         <DialogHeader className="gap-2.5 border-b border-hairline px-6 py-5 text-left">
           <DialogTitle className="text-title-s font-semibold">
@@ -443,7 +443,7 @@ export function ShareDialog({
             </>
           ) : null}
         </div>
-      </DialogContent>
+      </ChromeDialogContent>
 
       <RemoveAdvocateDialog
         open={Boolean(removeTarget)}

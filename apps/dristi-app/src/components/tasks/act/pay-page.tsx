@@ -11,6 +11,8 @@
 import * as React from "react";
 import { CircleCheckIcon } from "lucide-react";
 
+import { ChromeAlertDialogContent } from "@/components/chrome/app-chrome";
+
 import { dateTime, dueCueOf, longDate, rupees } from "@/lib/tasks/format";
 import { signatoriesOf, TERMINAL } from "@/lib/tasks/permissions";
 import { confirmPayment, recordPayment } from "@/lib/tasks/transitions";
@@ -20,7 +22,6 @@ import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -144,7 +145,7 @@ function PayCard({ ctx }: { ctx: ActContext }) {
       </div>
 
       <AlertDialog open={confirm} onOpenChange={setConfirm}>
-        <AlertDialogContent>
+        <ChromeAlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Pay {amount}?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -157,7 +158,7 @@ function PayCard({ ctx }: { ctx: ActContext }) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => void pay()}>Pay {amount}</AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
+        </ChromeAlertDialogContent>
       </AlertDialog>
     </RailCard>
   );

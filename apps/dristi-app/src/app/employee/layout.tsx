@@ -1,23 +1,26 @@
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: {
-    default: "Court staff",
-    template: "%s · Court staff · DRISTI",
-  },
-};
+import { EmployeeArea } from "@/components/employee/employee-area";
 
 /**
  * `/employee/*` — the court-staff area: magistrate, bench clerk, scrutiny officer.
  *
- * This is a blank canvas on purpose. It does NOT wrap children in the citizen app
- * shell (`AppShell`) — court staff get their own navigation, built here. Add the
- * employee shell/sidebar in this layout when it exists.
+ * Kept apart from `/citizen/*` (advocates, litigants, clerks, parties in person) so the
+ * two can be built in parallel without colliding. Nothing here reaches into the citizen
+ * screens and nothing there reaches in here — including the app shell, which is the
+ * advocate's product and not the bench's. See `EmployeeArea` for the chrome.
  */
+export const metadata: Metadata = {
+  title: {
+    default: "Court staff",
+    template: "%s · DRISTI",
+  },
+};
+
 export default function EmployeeLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <div className="flex min-h-full flex-col">{children}</div>;
+  return <EmployeeArea>{children}</EmployeeArea>;
 }

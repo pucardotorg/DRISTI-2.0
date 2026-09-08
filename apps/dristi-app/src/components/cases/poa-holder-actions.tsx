@@ -27,7 +27,6 @@ import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -36,7 +35,6 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -58,6 +56,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { FlowStepper } from "@/components/cases/flow-stepper";
+import { ChromeDialogContent, ChromeAlertDialogContent } from "@/components/chrome/app-chrome";
 import {
   PartyApplicationDocument,
   PartySignatureDialog,
@@ -262,7 +261,7 @@ function RemovePoaDialog({
           else requestExit();
         }}
       >
-        <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+        <ChromeDialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
           <>
               {/* No stepper: two steps do not earn one. Heading stays put so
                   the review does not read as a different task (owner, Sept 2). */}
@@ -362,7 +361,7 @@ function RemovePoaDialog({
                 )}
               </footer>
             </>
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       <PartySignatureDialog
@@ -547,7 +546,7 @@ function ReplacePoaDialog({
           else requestExit();
         }}
       >
-        <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+        <ChromeDialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
           {(
             <>
               <div className="shrink-0 border-b border-hairline px-6 pt-6 pb-4">
@@ -778,7 +777,7 @@ function ReplacePoaDialog({
               </footer>
             </>
           )}
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       <PartySignatureDialog
@@ -818,7 +817,7 @@ function DiscardConfirm({
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <ChromeAlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Discard this application?</AlertDialogTitle>
           <AlertDialogDescription>
@@ -831,7 +830,7 @@ function DiscardConfirm({
             Discard draft
           </AlertDialogAction>
         </AlertDialogFooter>
-      </AlertDialogContent>
+      </ChromeAlertDialogContent>
     </AlertDialog>
   );
 }

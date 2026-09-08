@@ -3,6 +3,8 @@
 import { useState, type Ref } from "react";
 import { ArrowLeftIcon } from "lucide-react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Banner } from "@/components/ui/banner";
@@ -15,7 +17,6 @@ import {
 } from "@/components/ui/description-list";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -192,9 +193,9 @@ type HearingRecordStepProps = {
 /** The record as its own dialog — the routed page's presentation, unchanged. */
 function HearingRecordBody(props: HearingRecordStepProps) {
   return (
-    <DialogContent className="flex max-h-[90svh] flex-col gap-6 overflow-hidden sm:max-w-2xl">
+    <ChromeDialogContent className="flex max-h-[90svh] flex-col gap-6 overflow-hidden sm:max-w-2xl">
       <HearingRecordStep {...props} />
-    </DialogContent>
+    </ChromeDialogContent>
   );
 }
 
@@ -210,7 +211,7 @@ function HearingRecordBody(props: HearingRecordStepProps) {
  * Escape key with two meanings, which is the defect, not the nesting.
  *
  * `onBack` is what tells the two presentations apart. Absent, this is the
- * whole dialog and DialogContent's own close button holds the corner.
+ * whole dialog and ChromeDialogContent's own close button holds the corner.
  * Present, the corner belongs to the step above and the way out is the back
  * control here — which is also what Escape does there, so no one gesture
  * means two things.
@@ -257,7 +258,7 @@ export function HearingRecordStep({
 
   return (
     <>
-      {/* `pr-12` clears DialogContent's close button, so it is only owed when
+      {/* `pr-12` clears ChromeDialogContent's close button, so it is only owed when
           that button is there. With a back control it is not, and the header
           gets its full width back. */}
       <DialogHeader className={cn("shrink-0", !onBack && "pr-12")}>

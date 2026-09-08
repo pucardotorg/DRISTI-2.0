@@ -39,7 +39,6 @@ import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -56,7 +55,6 @@ import {
 } from "@/components/ui/description-list";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -86,6 +84,7 @@ import { initials } from "@/components/access/access-list";
 import { VakalatnamaPicker } from "@/components/advocate/vakalatnama-picker";
 import { FlowStepper } from "@/components/cases/flow-stepper";
 import { usePartiesLive } from "@/components/cases/parties-live";
+import { ChromeDialogContent, ChromeAlertDialogContent } from "@/components/chrome/app-chrome";
 import {
   ReviewDocValue,
   UPLOAD_HELP,
@@ -291,7 +290,7 @@ export function AddAdvocateDialog({
           else requestExit();
         }}
       >
-        <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+        <ChromeDialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
           {done ? (
             /* The join dialog's done stage: icon, outcome, one action. A
                dead disabled button asked the reader to imagine the ending
@@ -767,14 +766,14 @@ export function AddAdvocateDialog({
           </footer>
             </>
           )}
-        </DialogContent>
+        </ChromeDialogContent>
       </Dialog>
 
       <AlertDialog
         open={exitConfirmationOpen}
         onOpenChange={setExitConfirmationOpen}
       >
-        <AlertDialogContent>
+        <ChromeAlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard advocate draft?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -787,7 +786,7 @@ export function AddAdvocateDialog({
               Discard draft
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
+        </ChromeAlertDialogContent>
       </AlertDialog>
     </>
   );
