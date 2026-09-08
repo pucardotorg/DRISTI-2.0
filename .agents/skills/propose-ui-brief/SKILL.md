@@ -80,7 +80,7 @@ pass into rule-checking.
 ## 3. Read the design system
 
 DS root: `vendor/pucar-design-system` (from `npm install`), or `PUCAR_DS_ROOT` if set.
-Verify origin contains `neer-ideasbeforenoon/pucar-design-system` (or `.pucar-ds-id`).
+Verify origin contains `pucardotorg/dristi-design-system` (or `.pucar-ds-id`).
 If none resolve or wrong org, stop — do not propose UI blind. Never search Desktop/home
 for other clones.
 

@@ -47,7 +47,7 @@ into DRISTI remains an open question (`docs/product/open-questions.md`).
 ## 2. Read the design system (for accurate attribution)
 
 DS root: `vendor/pucar-design-system` (from `npm install`), or `PUCAR_DS_ROOT` if set.
-Verify origin contains `neer-ideasbeforenoon/pucar-design-system` (or `.pucar-ds-id`).
+Verify origin contains `pucardotorg/dristi-design-system` (or `.pucar-ds-id`).
 
 Read enough to attribute correctly: `{DS}/AGENTS.md`, Laws, and the primitives actually
 used on the screen. Do not invent component names or token roles.
