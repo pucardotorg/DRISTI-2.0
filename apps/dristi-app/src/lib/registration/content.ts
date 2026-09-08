@@ -14,6 +14,7 @@ export const journeySteps = {
   role: { title: t("Role", "പങ്ക്"), description: t("How you use the portal", "പോർട്ടൽ എങ്ങനെ ഉപയോഗിക്കുന്നു") },
   name: { title: t("Name", "പേര്"), description: t("Your name", "നിങ്ങളുടെ പേര്") },
   contact: { title: t("Contact", "ബന്ധപ്പെടുക"), description: t("Mobile and email", "മൊബൈലും ഇമെയിലും") },
+  password: { title: t("Password", "പാസ്‌വേഡ്"), description: t("Secure your account", "അക്കൗണ്ട് സുരക്ഷിതമാക്കുക") },
   verification: { title: t("Verification", "പരിശോധന"), description: t("Your registration details", "നിങ്ങളുടെ രജിസ്ട്രേഷൻ വിവരങ്ങൾ") },
   terms: { title: t("Terms", "നിബന്ധനകൾ"), description: t("Read and accept", "വായിച്ച് അംഗീകരിക്കുക") },
 } as const;
@@ -32,13 +33,22 @@ export const roleStep = {
   required: t("Choose how you will use this account.", "ഈ അക്കൗണ്ട് എങ്ങനെ ഉപയോഗിക്കുമെന്ന് തിരഞ്ഞെടുക്കുക."),
 } as const;
 
+/**
+ * One field, not three.
+ *
+ * Splitting a name into first / middle / last is an assumption about how names are
+ * built that a great many Indian names do not meet — a single given name, an initial
+ * that expands to a father's name or a house name, a name that runs the other way
+ * round. The court needs the name to match the ID that proves it, so that is what the
+ * field asks for, in one line, exactly as it is printed.
+ */
 export const nameStep = {
   title: t("Your name", "നിങ്ങളുടെ പേര്"),
-  body: t("Enter your first name to continue. Middle and last names are optional.", "തുടരാൻ നിങ്ങളുടെ പേര് നൽകുക. മധ്യനാമവും അവസാന നാമവും നിർബന്ധമല്ല."),
-  firstName: t("First name", "പേര്"),
-  middleName: t("Middle name (optional)", "മധ്യനാമം (നിർബന്ധമല്ല)"),
-  lastName: t("Last name (optional)", "അവസാന നാമം (നിർബന്ധമല്ല)"),
-  error: t("Enter your first name.", "നിങ്ങളുടെ പേര് നൽകുക."),
+  body: t("Enter your name exactly as it appears on your government ID.", "നിങ്ങളുടെ സർക്കാർ തിരിച്ചറിയൽ രേഖയിൽ ഉള്ളതു പോലെ തന്നെ പേര് നൽകുക."),
+  fullName: t("Full name", "പൂർണ്ണ നാമം"),
+  fullNamePlaceholder: t("As printed on your ID", "തിരിച്ചറിയൽ രേഖയിൽ ഉള്ളതു പോലെ"),
+  fullNameHint: t("The court matches this against the ID you provide.", "നിങ്ങൾ നൽകുന്ന തിരിച്ചറിയൽ രേഖയുമായി കോടതി ഇത് ഒത്തുനോക്കും."),
+  error: t("Enter your name as it appears on your ID.", "തിരിച്ചറിയൽ രേഖയിൽ ഉള്ളതു പോലെ പേര് നൽകുക."),
 } as const;
 
 export const contactStep = {
@@ -56,11 +66,40 @@ export const contactStep = {
   otpLabel: t("6-digit code", "6 അക്ക കോഡ്"),
   otpError: t("Enter all 6 digits.", "6 അക്കങ്ങളും നൽകുക."),
   otpVerify: t("Verify", "പരിശോധിക്കുക"),
+  otpShow: t("Show the code", "കോഡ് കാണിക്കുക"),
+  otpHide: t("Hide the code", "കോഡ് മറയ്ക്കുക"),
   otpResend: t("Send the code again", "കോഡ് വീണ്ടും അയയ്ക്കുക"),
   otpResendIn: t("You can ask for a new code in {seconds} seconds.", "{seconds} സെക്കൻഡിനുള്ളിൽ പുതിയ കോഡ് ചോദിക്കാം."),
   verified: t("Mobile number verified", "മൊബൈൽ നമ്പർ പരിശോധിച്ചു"),
   changeNumber: t("Change number", "നമ്പർ മാറ്റുക"),
   verifyFirst: t("Verify your mobile number to continue.", "തുടരാൻ നിങ്ങളുടെ മൊബൈൽ നമ്പർ പരിശോധിക്കുക."),
+} as const;
+
+/**
+ * Creating the password the account signs in with.
+ *
+ * Sign-in offers a password as well as a one-time code, so registration has to produce
+ * one — the flow used to reach the end without ever asking. What the password has to
+ * clear is stated once, under the field, in the same words the error uses.
+ */
+export const passwordStep = {
+  title: t("Create a password", "ഒരു പാസ്‌വേഡ് ഉണ്ടാക്കുക"),
+  body: t("You will sign in with your mobile number and this password.", "നിങ്ങളുടെ മൊബൈൽ നമ്പറും ഈ പാസ്‌വേഡും ഉപയോഗിച്ചാണ് സൈൻ ഇൻ ചെയ്യുക."),
+  password: t("Password", "പാസ്‌വേഡ്"),
+  passwordPlaceholder: t("Enter a password", "ഒരു പാസ്‌വേഡ് നൽകുക"),
+  confirm: t("Confirm password", "പാസ്‌വേഡ് ആവർത്തിക്കുക"),
+  confirmPlaceholder: t("Enter it again", "വീണ്ടും നൽകുക"),
+  show: t("Show password", "പാസ്‌വേഡ് കാണിക്കുക"),
+  hide: t("Hide password", "പാസ്‌വേഡ് മറയ്ക്കുക"),
+  rules: t(
+    "At least 8 characters, with a letter, a number and a symbol.",
+    "കുറഞ്ഞത് 8 പ്രതീകങ്ങൾ, ഒരു അക്ഷരവും ഒരു അക്കവും ഒരു ചിഹ്നവും ഉൾപ്പെടെ.",
+  ),
+  error: t(
+    "Use at least 8 characters, with a letter, a number and a symbol.",
+    "കുറഞ്ഞത് 8 പ്രതീകങ്ങൾ ഉപയോഗിക്കുക — ഒരു അക്ഷരവും ഒരു അക്കവും ഒരു ചിഹ്നവും ഉൾപ്പെടെ.",
+  ),
+  confirmError: t("Both passwords must match.", "രണ്ട് പാസ്‌വേഡുകളും ഒരുപോലെ ആയിരിക്കണം."),
 } as const;
 
 /**

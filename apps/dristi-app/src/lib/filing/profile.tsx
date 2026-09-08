@@ -58,6 +58,17 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;
 }
 
+/**
+ * The filing profile when one is mounted, `null` otherwise.
+ *
+ * The chrome is shared by areas that carry this provider and areas that do not, so a
+ * control that edits these details has to be able to ask whether there is anything to
+ * edit rather than throw.
+ */
+export function useOptionalProfile(): ProfileContextValue | null {
+  return React.useContext(ProfileContext);
+}
+
 export function useProfile(): ProfileContextValue {
   const ctx = React.useContext(ProfileContext);
   if (!ctx) throw new Error("useProfile must be used inside <ProfileProvider>");

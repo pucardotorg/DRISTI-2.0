@@ -26,6 +26,8 @@ import { summaryOf } from "@/lib/tasks/selectors";
 import { useTasks } from "@/lib/tasks/store";
 import { BrandGlyph } from "@/components/brand-lockup";
 import { ConfirmDialog } from "@/components/shell/confirm-dialog";
+import { YourDetailsItem } from "@/components/filing/your-details-item";
+import { useAppSearch } from "@/components/shell/app-search";
 import { useProfile } from "@/components/shell/profile";
 import { RAIL_THEMES, useRailTheme } from "@/components/shell/rail-theme";
 import { Button } from "@/components/ui/button";
@@ -165,7 +167,6 @@ const LABEL = "truncate group-data-[collapsible=icon]:hidden";
 const MUTED = "text-(--rail-muted)";
 
 const UNBUILT_NOTE = "not part of this build";
-const SEARCH_NOTE = "product-wide search — not part of this build";
 
 /**
  * How many tasks are waiting on you.
@@ -241,6 +242,14 @@ function TasksCountLabel() {
  * One nav row: a link when it goes somewhere, an action when it starts something in
  * place, and an explained dead control when it does neither.
  */
+/** The keystroke that opens search, on the row that opens it. Muted — it is a reminder. */
+function SearchShortcut() {
+  const { shortcut } = useAppSearch();
+  return (
+    <span className={`${LABEL} ${MUTED} ml-auto text-caption tabular-nums`}>{shortcut}</span>
+  );
+}
+
 function NavRow({ item, onAction }: { item: NavItem; onAction?: () => void }) {
   const pathname = usePathname();
   const { id, label, icon: Icon, href } = item;
@@ -251,6 +260,7 @@ function NavRow({ item, onAction }: { item: NavItem; onAction?: () => void }) {
         <SidebarMenuButton tooltip={label} className={ROW} onClick={onAction}>
           <Icon aria-hidden />
           <span className={LABEL}>{label}</span>
+          {id === "search" ? <SearchShortcut /> : null}
         </SidebarMenuButton>
       </SidebarMenuItem>
     );
@@ -273,7 +283,7 @@ function NavRow({ item, onAction }: { item: NavItem; onAction?: () => void }) {
             </SidebarMenuButton>
           </TooltipTrigger>
           <TooltipContent side="right">
-            {id === "search" ? SEARCH_NOTE : `${label} — ${UNBUILT_NOTE}`}
+            {`${label} — ${UNBUILT_NOTE}`}
           </TooltipContent>
         </Tooltip>
       </SidebarMenuItem>
@@ -506,6 +516,9 @@ function ProfileFooter() {
                   </Button>
                 ) : null}
 
+                {/* Only in an area that has a filing profile to edit. */}
+                <YourDetailsItem />
+
                 {/* The sandbox's own controls, kept with the identity they act on rather
                     than behind a second account avatar in the top bar. They are scaffolding
                     for a build with no session yet, so they read as a separate, quieter
@@ -594,6 +607,7 @@ function ProfileFooter() {
 export function AppSidebar() {
   const { theme } = useRailTheme();
   const { profileRole } = useProfile();
+  const { open: openSearch } = useAppSearch();
 
   // Home is role-aware: the advocate's home and the litigant's home are different
   // screens on the same shell. The rest of the nav is shared.
@@ -640,7 +654,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        <NavGroup items={mainItems} label="Main" />
+        <NavGroup items={mainItems} label="Main" actions={{ search: openSearch }} />
         <NavGroup items={START} label="Start something" separated />
         <NavGroup items={WITH} label="People" separated />
       </SidebarContent>

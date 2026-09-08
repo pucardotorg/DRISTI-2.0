@@ -2,7 +2,13 @@
 
 import * as React from "react";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
-import { ArrowLeftIcon, CheckCircle2Icon, ClockIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  CheckCircle2Icon,
+  ClockIcon,
+  EyeIcon,
+  EyeOffIcon,
+} from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -24,6 +30,7 @@ import {
   contactStep,
   journeySteps,
   nameStep,
+  passwordStep,
   registrationUi,
   roleStep,
   successStep,
@@ -33,12 +40,27 @@ import {
 } from "@/lib/registration/content";
 import { cn } from "@/lib/utils";
 
-type Step = "role" | "name" | "contact" | "verification" | "terms" | "success" | "application";
+type Step = "role" | "name" | "contact" | "password" | "verification" | "terms" | "success" | "application";
 type AccountRole = "litigant" | "advocate" | "advocateClerk" | "poa" | "";
 const DIGITS = /\D/g;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const OTP_LENGTH = 6;
 const RESEND_SECONDS = 30;
+
+/**
+ * What a password has to clear.
+ *
+ * Kept as four separate tests rather than one regex so the rule the copy states and the
+ * rule the form enforces cannot drift apart.
+ */
+const PASSWORD_RULES = [
+  { key: "ruleLength", test: (value: string) => value.length >= 8 },
+  { key: "ruleLetter", test: (value: string) => /[A-Za-z]/.test(value) },
+  { key: "ruleNumber", test: (value: string) => /\d/.test(value) },
+  { key: "ruleSymbol", test: (value: string) => /[^A-Za-z0-9]/.test(value) },
+] as const;
+
+const passwordStrong = (value: string) => PASSWORD_RULES.every((rule) => rule.test(value));
 
 /** Which roles the court must approve before the account works. */
 const NEEDS_VERIFICATION = new Set<AccountRole>(["advocate", "advocateClerk"]);
@@ -77,11 +99,12 @@ export function RegistrationFlow({ locale, summoned, initialMobile = "", onFinis
 }) {
   const [step, setStep] = React.useState<Step>("role");
   const [role, setRole] = React.useState<AccountRole>("");
-  const [firstName, setFirstName] = React.useState("");
-  const [middleName, setMiddleName] = React.useState("");
-  const [lastName, setLastName] = React.useState("");
+  const [fullName, setFullName] = React.useState("");
   const [mobile, setMobile] = React.useState(initialMobile);
   const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [passwordRevealed, setPasswordRevealed] = React.useState(false);
   const [termsAccepted, setTermsAccepted] = React.useState(false);
   const [touched, setTouched] = React.useState(false);
   const [destinationNotice, setDestinationNotice] = React.useState(false);
@@ -92,6 +115,9 @@ export function RegistrationFlow({ locale, summoned, initialMobile = "", onFinis
   const [otpCode, setOtpCode] = React.useState("");
   const [otpVerified, setOtpVerified] = React.useState(false);
   const [otpTouched, setOtpTouched] = React.useState(false);
+  // The code is masked at rest. It arrives on the lock screen of the phone in the
+  // person's hand, in a room they do not control — the same reason a password is dotted.
+  const [otpRevealed, setOtpRevealed] = React.useState(false);
   const [resendIn, setResendIn] = React.useState(0);
 
   // Advocate / clerk verification.
@@ -109,8 +135,8 @@ export function RegistrationFlow({ locale, summoned, initialMobile = "", onFinis
   const verification = role === "advocateClerk" ? verificationSteps.advocateClerk : verificationSteps.advocate;
 
   const journeyKeys: readonly (keyof typeof journeySteps)[] = needsVerification
-    ? ["role", "name", "contact", "verification", "terms"]
-    : ["role", "name", "contact", "terms"];
+    ? ["role", "name", "contact", "password", "verification", "terms"]
+    : ["role", "name", "contact", "password", "terms"];
   const journeyIndex = Math.max(0, journeyKeys.indexOf(step as keyof typeof journeySteps));
 
   function resetOtp() {
@@ -118,6 +144,7 @@ export function RegistrationFlow({ locale, summoned, initialMobile = "", onFinis
     setOtpCode("");
     setOtpVerified(false);
     setOtpTouched(false);
+    setOtpRevealed(false);
     setResendIn(0);
   }
 
@@ -148,7 +175,6 @@ export function RegistrationFlow({ locale, summoned, initialMobile = "", onFinis
   }
 
   if (step === "application") {
-    const fullName = [firstName, middleName, lastName].filter((part) => part.trim()).join(" ");
     return (
       <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
         <h1 className="text-title text-balance text-center font-semibold">{pick(applicationView.title, locale).replace("{id}", appId)}</h1>
@@ -195,19 +221,22 @@ export function RegistrationFlow({ locale, summoned, initialMobile = "", onFinis
         ) : null}
 
         {step === "name" ? (
-          <form className="flex flex-col gap-6" noValidate onSubmit={(event) => { event.preventDefault(); setTouched(true); if (!firstName.trim()) return; setTouched(false); setStep("contact"); }}>
+          <form className="flex flex-col gap-6" noValidate onSubmit={(event) => { event.preventDefault(); setTouched(true); if (!fullName.trim()) return; setTouched(false); setStep("contact"); }}>
             <Heading title={pick(nameStep.title, locale)} body={pick(nameStep.body, locale)} />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field data-invalid={touched && !firstName.trim()} className="sm:col-span-2"><FieldLabel>{pick(nameStep.firstName, locale)} <span className="text-destructive">*</span></FieldLabel><Input value={firstName} autoComplete="given-name" onChange={(event) => { setFirstName(event.target.value); setTouched(false); }} /><FieldError>{touched && !firstName.trim() ? pick(nameStep.error, locale) : null}</FieldError></Field>
-              <Field><FieldLabel>{pick(nameStep.middleName, locale)}</FieldLabel><Input value={middleName} autoComplete="additional-name" onChange={(event) => setMiddleName(event.target.value)} /></Field>
-              <Field><FieldLabel>{pick(nameStep.lastName, locale)}</FieldLabel><Input value={lastName} autoComplete="family-name" onChange={(event) => setLastName(event.target.value)} /></Field>
-            </div>
+            {/* One line, `autoComplete="name"`. The three-box version asked every person
+                whose name does not split that way to decide which box their name is. */}
+            <Field data-invalid={touched && !fullName.trim()}>
+              <FieldLabel>{pick(nameStep.fullName, locale)} <span className="text-destructive">*</span></FieldLabel>
+              <Input value={fullName} autoComplete="name" placeholder={pick(nameStep.fullNamePlaceholder, locale)} onChange={(event) => { setFullName(event.target.value); setTouched(false); }} />
+              <FieldDescription>{pick(nameStep.fullNameHint, locale)}</FieldDescription>
+              <FieldError>{touched && !fullName.trim() ? pick(nameStep.error, locale) : null}</FieldError>
+            </Field>
             <Actions locale={locale} onBack={() => { setTouched(false); setStep("role"); }} />
           </form>
         ) : null}
 
         {step === "contact" ? (
-          <form className="flex flex-col gap-6" noValidate onSubmit={(event) => { event.preventDefault(); setTouched(true); if (mobile.length !== 10 || !otpVerified || (email && !EMAIL.test(email))) return; setTouched(false); setStep(needsVerification ? "verification" : "terms"); }}>
+          <form className="flex flex-col gap-6" noValidate onSubmit={(event) => { event.preventDefault(); setTouched(true); if (mobile.length !== 10 || !otpVerified || (email && !EMAIL.test(email))) return; setTouched(false); setStep("password"); }}>
             <Heading title={pick(contactStep.title, locale)} body={pick(contactStep.body, locale)} />
             <Field data-invalid={touched && (mobile.length !== 10 || !otpVerified)}>
               <FieldLabel>{pick(contactStep.mobile, locale)} <span className="text-destructive">*</span></FieldLabel>
@@ -234,12 +263,46 @@ export function RegistrationFlow({ locale, summoned, initialMobile = "", onFinis
 
             {otpRequested && !otpVerified ? (
               <Field data-invalid={otpTouched && otpCode.length !== OTP_LENGTH} className="rounded-lg bg-surface-sunken p-4">
-                <FieldLabel>{pick(contactStep.otpLabel, locale)}</FieldLabel>
+                <div className="flex items-center justify-between gap-4">
+                  <FieldLabel>{pick(contactStep.otpLabel, locale)}</FieldLabel>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0"
+                    aria-pressed={otpRevealed}
+                    onClick={() => setOtpRevealed((value) => !value)}
+                  >
+                    {otpRevealed ? <EyeOffIcon data-icon="inline-start" aria-hidden /> : <EyeIcon data-icon="inline-start" aria-hidden />}
+                    {pick(otpRevealed ? contactStep.otpHide : contactStep.otpShow, locale)}
+                  </Button>
+                </div>
                 <FieldDescription>{pick(contactStep.otpSent, locale).replace("{number}", mobile)}</FieldDescription>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                   <InputOTP maxLength={OTP_LENGTH} pattern={REGEXP_ONLY_DIGITS} inputMode="numeric" autoComplete="one-time-code" value={otpCode} onChange={(value) => { setOtpCode(value); setOtpTouched(false); }} containerClassName="flex-1">
-                    <InputOTPGroup className="w-full">
-                      {Array.from({ length: OTP_LENGTH }, (_, index) => <InputOTPSlot key={index} index={index} className="h-12 w-auto flex-1 text-body font-semibold" />)}
+                    {/* Masking, without touching the primitive. `InputOTPSlot` renders the
+                        character it reads off the OTP context and takes no children, so
+                        the digits are made transparent and a matching row of dots is laid
+                        over the group — same six equal cells, so they land dead centre.
+                        The caret is drawn separately and survives, and the real value is
+                        never re-encoded, so paste and SMS autofill still work. */}
+                    <InputOTPGroup className="relative w-full">
+                      {Array.from({ length: OTP_LENGTH }, (_, index) => (
+                        <InputOTPSlot
+                          key={index}
+                          index={index}
+                          className={cn("h-12 w-auto flex-1 text-body font-semibold", !otpRevealed && "text-transparent")}
+                        />
+                      ))}
+                      {!otpRevealed ? (
+                        <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center">
+                          {Array.from({ length: OTP_LENGTH }, (_, index) => (
+                            <span key={index} className="flex flex-1 items-center justify-center text-body font-semibold text-foreground">
+                              {index < otpCode.length ? "\u2022" : ""}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                     </InputOTPGroup>
                   </InputOTP>
                   <Button type="button" className="sm:h-12" onClick={() => { setOtpTouched(true); if (otpCode.length !== OTP_LENGTH) return; setOtpVerified(true); setOtpTouched(false); setTouched(false); }}>
@@ -247,16 +310,71 @@ export function RegistrationFlow({ locale, summoned, initialMobile = "", onFinis
                   </Button>
                 </div>
                 <FieldError>{otpTouched && otpCode.length !== OTP_LENGTH ? pick(contactStep.otpError, locale) : null}</FieldError>
-                {resendIn > 0 ? (
-                  <p className="text-body-compact text-muted-foreground">{pick(contactStep.otpResendIn, locale).replace("{seconds}", String(resendIn))}</p>
-                ) : (
-                  <Button type="button" variant="link" className="self-start p-0" onClick={() => { setResendIn(RESEND_SECONDS); setOtpCode(""); }}>{pick(contactStep.otpResend, locale)}</Button>
-                )}
+                {/* Countdown and resend occupy the same slot on the same left edge, so the
+                    line does not hop when the timer runs out. */}
+                <div className="flex min-h-8 items-center">
+                  {resendIn > 0 ? (
+                    <p className="text-body-compact text-muted-foreground">{pick(contactStep.otpResendIn, locale).replace("{seconds}", String(resendIn))}</p>
+                  ) : (
+                    <Button type="button" variant="link" className="h-auto p-0" onClick={() => { setResendIn(RESEND_SECONDS); setOtpCode(""); }}>{pick(contactStep.otpResend, locale)}</Button>
+                  )}
+                </div>
               </Field>
             ) : null}
 
             <Field data-invalid={touched && Boolean(email) && !EMAIL.test(email)}><FieldLabel>{pick(contactStep.email, locale)}</FieldLabel><Input type="email" value={email} placeholder={pick(contactStep.emailPlaceholder, locale)} onChange={(event) => { setEmail(event.target.value); setTouched(false); }} /><FieldError>{touched && email && !EMAIL.test(email) ? pick(contactStep.emailError, locale) : null}</FieldError></Field>
             <Actions locale={locale} onBack={() => { setTouched(false); setStep("name"); }} />
+          </form>
+        ) : null}
+
+        {step === "password" ? (
+          <form className="flex flex-col gap-6" noValidate onSubmit={(event) => { event.preventDefault(); setTouched(true); if (!passwordStrong(password) || password !== confirmPassword) return; setTouched(false); setStep(needsVerification ? "verification" : "terms"); }}>
+            <Heading title={pick(passwordStep.title, locale)} body={pick(passwordStep.body, locale)} />
+
+            <div className="flex flex-col gap-3">
+            {/* One reveal governs both boxes. Two separate eyes would let someone show
+                the first and check the second against a field they cannot read. */}
+            <Field data-invalid={touched && !passwordStrong(password)}>
+              <div className="flex items-center justify-between gap-4">
+                <FieldLabel>{pick(passwordStep.password, locale)} <span className="text-destructive">*</span></FieldLabel>
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0"
+                  aria-pressed={passwordRevealed}
+                  onClick={() => setPasswordRevealed((value) => !value)}
+                >
+                  {passwordRevealed ? <EyeOffIcon data-icon="inline-start" aria-hidden /> : <EyeIcon data-icon="inline-start" aria-hidden />}
+                  {pick(passwordRevealed ? passwordStep.hide : passwordStep.show, locale)}
+                </Button>
+              </div>
+              <Input
+                type={passwordRevealed ? "text" : "password"}
+                autoComplete="new-password"
+                value={password}
+                placeholder={pick(passwordStep.passwordPlaceholder, locale)}
+                onChange={(event) => { setPassword(event.target.value); setTouched(false); }}
+              />
+              <FieldDescription>{pick(passwordStep.rules, locale)}</FieldDescription>
+              <FieldError>{touched && !passwordStrong(password) ? pick(passwordStep.error, locale) : null}</FieldError>
+            </Field>
+
+            </div>
+
+            <Field data-invalid={touched && password !== confirmPassword}>
+              <FieldLabel>{pick(passwordStep.confirm, locale)} <span className="text-destructive">*</span></FieldLabel>
+              <Input
+                type={passwordRevealed ? "text" : "password"}
+                autoComplete="new-password"
+                value={confirmPassword}
+                placeholder={pick(passwordStep.confirmPlaceholder, locale)}
+                onChange={(event) => { setConfirmPassword(event.target.value); setTouched(false); }}
+              />
+              <FieldError>{touched && password !== confirmPassword ? pick(passwordStep.confirmError, locale) : null}</FieldError>
+            </Field>
+
+            <Actions locale={locale} onBack={() => { setTouched(false); setStep("contact"); }} />
           </form>
         ) : null}
 
@@ -288,7 +406,7 @@ export function RegistrationFlow({ locale, summoned, initialMobile = "", onFinis
               <FieldDescription>{pick(verification.uploadHint, locale)} {pick(verificationUi.fileHelp, locale)}</FieldDescription>
               <FieldError>{touched && !idFile ? pick(verification.uploadError, locale) : null}</FieldError>
             </Field>
-            <Actions locale={locale} onBack={() => { setTouched(false); setStep("contact"); }} />
+            <Actions locale={locale} onBack={() => { setTouched(false); setStep("password"); }} />
           </form>
         ) : null}
 
@@ -297,7 +415,7 @@ export function RegistrationFlow({ locale, summoned, initialMobile = "", onFinis
             <Heading title={pick(termsStep.title, locale)} body={pick(termsStep.body, locale)} />
             <div className="divide-y divide-border border-y border-border">{termsStep.clauses.map((clause, index) => <div key={index} className="flex gap-3 py-4"><span className="text-body-compact font-semibold text-muted-foreground">{index + 1}.</span><p className="text-body-compact text-muted-foreground">{pick(clause, locale)}</p></div>)}</div>
             <Field data-invalid={touched && !termsAccepted}><div className="flex items-start gap-3 rounded-lg bg-surface-sunken p-4"><Checkbox id="registration-terms" checked={termsAccepted} onCheckedChange={(checked) => { setTermsAccepted(checked === true); setTouched(false); }} /><Label htmlFor="registration-terms" className="cursor-pointer text-body-compact leading-5">{pick(termsStep.accept, locale)}</Label></div><FieldError>{touched && !termsAccepted ? pick(termsStep.error, locale) : null}</FieldError></Field>
-            <Actions locale={locale} onBack={() => { setTouched(false); setStep(needsVerification ? "verification" : "contact"); }} submitLabel={pick(termsStep.submit, locale)} />
+            <Actions locale={locale} onBack={() => { setTouched(false); setStep(needsVerification ? "verification" : "password"); }} submitLabel={pick(termsStep.submit, locale)} />
           </form>
         ) : null}
       </div>

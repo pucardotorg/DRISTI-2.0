@@ -141,9 +141,7 @@ export function ResubmissionFlow({
   rejection: RejectedRegistration;
 }) {
   const [step, setStep] = React.useState<Step>("name");
-  const [firstName, setFirstName] = React.useState(rejection.firstName);
-  const [middleName, setMiddleName] = React.useState(rejection.middleName);
-  const [lastName, setLastName] = React.useState(rejection.lastName);
+  const [fullName, setFullName] = React.useState(rejection.fullName);
   const [email, setEmail] = React.useState(rejection.email);
   const [regNumber, setRegNumber] = React.useState(rejection.regNumber);
   const [idFile, setIdFile] = React.useState<File | null>(null);
@@ -193,9 +191,6 @@ export function ResubmissionFlow({
   }
 
   if (step === "application") {
-    const fullName = [firstName, middleName, lastName]
-      .filter((part) => part.trim())
-      .join(" ");
     return (
       <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
         <h1 className="text-title text-balance text-center font-semibold">
@@ -309,7 +304,7 @@ export function ResubmissionFlow({
             onSubmit={(event) => {
               event.preventDefault();
               setTouched(true);
-              if (!firstName.trim()) return;
+              if (!fullName.trim()) return;
               setTouched(false);
               setStep("contact");
             }}
@@ -325,48 +320,33 @@ export function ResubmissionFlow({
               </p>
             </div>
             {officerMessage}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field
-                data-invalid={touched && !firstName.trim()}
-                className="sm:col-span-2"
-              >
-                <FieldLabel>
-                  {pick(nameStep.firstName, locale)}{" "}
-                  <span className="text-destructive">*</span>
-                </FieldLabel>
-                <Input
-                  value={firstName}
-                  autoComplete="given-name"
-                  onChange={(event) => {
-                    setFirstName(event.target.value);
-                    setTouched(false);
-                  }}
-                />
-                {flagged.has("name") ? <FlaggedNote locale={locale} /> : null}
-                <FieldError>
-                  {touched && !firstName.trim()
-                    ? pick(nameStep.error, locale)
-                    : null}
-                </FieldError>
-              </Field>
-              <Field>
-                <FieldLabel>{pick(nameStep.middleName, locale)}</FieldLabel>
-                <Input
-                  value={middleName}
-                  autoComplete="additional-name"
-                  onChange={(event) => setMiddleName(event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel>{pick(nameStep.lastName, locale)}</FieldLabel>
-                <Input
-                  value={lastName}
-                  autoComplete="family-name"
-                  onChange={(event) => setLastName(event.target.value)}
-                />
-                {flagged.has("name") ? <FlaggedNote locale={locale} /> : null}
-              </Field>
-            </div>
+            <Field data-invalid={touched && !fullName.trim()}>
+              <FieldLabel>
+                {pick(nameStep.fullName, locale)}{" "}
+                <span className="text-destructive">*</span>
+              </FieldLabel>
+              <Input
+                value={fullName}
+                autoComplete="name"
+                placeholder={pick(nameStep.fullNamePlaceholder, locale)}
+                onChange={(event) => {
+                  setFullName(event.target.value);
+                  setTouched(false);
+                }}
+              />
+              {flagged.has("name") ? (
+                <FlaggedNote locale={locale} />
+              ) : (
+                <FieldDescription>
+                  {pick(nameStep.fullNameHint, locale)}
+                </FieldDescription>
+              )}
+              <FieldError>
+                {touched && !fullName.trim()
+                  ? pick(nameStep.error, locale)
+                  : null}
+              </FieldError>
+            </Field>
             <div className="flex justify-end">
               <Button type="submit" className="sm:min-w-40">
                 {pick(registrationUi.continue, locale)}

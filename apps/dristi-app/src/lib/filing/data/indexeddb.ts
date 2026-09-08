@@ -49,16 +49,38 @@ function db(): Promise<IDBPDatabase<FilingDB>> {
   return dbPromise;
 }
 
+/**
+ * Migrate one stored draft, or leave it out of the list.
+ *
+ * `migrateDraft` handles every shape this branch knows about, but drafts on disk are
+ * written by whichever branch ran last on this origin, and the next one is not
+ * predictable. A record it cannot make sense of is dropped from the listing instead of
+ * throwing: the queue then shows the drafts it *can* read, rather than one bad row
+ * taking the whole filings screen down with it.
+ */
+function readable(draft: FilingDraft): FilingDraft | null {
+  try {
+    return migrateDraft(draft);
+  } catch (err) {
+    console.warn("[filing] skipping a draft this build cannot read", draft?.id, err);
+    return null;
+  }
+}
+
 export class IndexedDbFilingRepository implements FilingRepository {
   async listDrafts(): Promise<FilingDraft[]> {
     const all = await (await db()).getAllFromIndex("drafts", "updatedAt");
-    return all.reverse().map(migrateDraft); // newest first
+    // newest first
+    return all
+      .reverse()
+      .map(readable)
+      .filter((d): d is FilingDraft => d !== null);
   }
 
   async getDraft(id: string): Promise<FilingDraft | null> {
     const draft = await (await db()).get("drafts", id);
     // Drafts written by an earlier shape of the form are still on this person's disk.
-    return draft ? migrateDraft(draft) : null;
+    return draft ? readable(draft) : null;
   }
 
   async putDraft(draft: FilingDraft): Promise<void> {

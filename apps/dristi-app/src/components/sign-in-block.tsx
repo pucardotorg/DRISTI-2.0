@@ -49,7 +49,6 @@ import {
   METHOD_ORDER,
   methods,
   otp,
-  unregistered,
   type Method,
   type Role,
 } from "@/lib/sign-in/content";
@@ -194,7 +193,6 @@ export function SignInBlock({
   const [password, setPassword] = React.useState("");
   const [code, setCode] = React.useState("");
   const [revealed, setRevealed] = React.useState(false);
-  const [notRegistered, setNotRegistered] = React.useState(false);
   const [accepted, setAccepted] = React.useState(false);
   const [resendIn, setResendIn] = React.useState(0);
   // Which fields failed, not what the failure reads as. Storing the resolved sentence
@@ -213,7 +211,6 @@ export function SignInBlock({
   // started correcting is how people conclude the site is broken.
   const invalidate = React.useCallback(() => {
     setTouched(false);
-    setNotRegistered(false);
     setAccepted(false);
   }, []);
 
@@ -244,12 +241,17 @@ export function SignInBlock({
       return;
     }
 
+    /* No account for this number, so there is nothing to sign in to. Saying so and
+       waiting is a dead end dressed as a message: either the number has an account and
+       this person is signing in, or it does not and they are creating one. The number
+       they just typed is carried into the flow, so the fork costs them nothing —
+       whichever branch they were on, the next screen is the one they needed. */
     const registered = registeredRole(mobile);
     if (!registered) {
-      setNotRegistered(true);
+      setRegistrationOpen(true);
+      onRegister?.();
       return;
     }
-    setNotRegistered(false);
 
     if (method === "otp") {
       setStep("code");
@@ -415,26 +417,6 @@ export function SignInBlock({
                     aria-label={pick(form.title, locale)}
                     className="flex flex-col gap-4"
                   >
-                    {notRegistered ? (
-                      <Alert variant="info">
-                        <AlertTitle>{pick(unregistered.title, locale)}</AlertTitle>
-                        <AlertDescription className="flex flex-col items-start gap-2">
-                          {pick(unregistered.body, locale)}
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setRegistrationOpen(true);
-                              onRegister?.();
-                            }}
-                          >
-                            {pick(unregistered.action, locale)}
-                          </Button>
-                        </AlertDescription>
-                      </Alert>
-                    ) : null}
-
                     <Field data-invalid={badMobile}>
                       <FieldLabel>{pick(form.mobileLabel, locale)}</FieldLabel>
                       <InputGroup>

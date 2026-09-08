@@ -58,6 +58,7 @@ import { PrefillNotice } from "@/components/filing/prefill-notice";
 import { RichTextEditor } from "@/components/filing/rich-text-editor";
 import { SectionTabs } from "@/components/filing/section-tabs";
 import { Segmented, YesNoSegmented } from "@/components/filing/segmented";
+import { YesNoChoice } from "@/components/filing/yes-no-choice";
 import {
   SourcePanel,
   ViewSourceButton,
@@ -355,9 +356,11 @@ export function ComplainantSection() {
             {/* Contact */}
             <FormCard
               title="Contact"
-              description="Use the complainant's own number, not the advocate's."
+              description="How the court reaches the complainant. Use their own number and email, not the advocate's."
             >
-              <HalfWidth>
+              {/* Email sat under Basic details, two cards from the number it belongs
+                  beside. Both are how this person is reached; they are asked together. */}
+              <FormRow>
                 <FormField label="Mobile number" required>
                   <PrefixInput
                     prefix="+91"
@@ -368,18 +371,25 @@ export function ComplainantSection() {
                     autoComplete="tel-national"
                   />
                 </FormField>
-              </HalfWidth>
+                <FormField label="Email address" name="email" optional>
+                  <TextField
+                    type="email"
+                    value={c.email}
+                    onChange={(v) => setRead("email", v)}
+                    placeholder="optional@example.com"
+                    autoComplete="email"
+                    prefilled={emailPrefilled}
+                    onViewSource={() => openSource("email")}
+                  />
+                </FormField>
+              </FormRow>
 
               {/* Verify & fetch details removed — the phone number is collected as
                  contact information, not as a lookup key. */}
             </FormCard>
 
             {/* Basic details */}
-            {/*
-              Name beside age, then email — the same order the PoA holder and the
-              authorised representative are asked for further down this screen. Asking
-              for one person three ways on one screen is what made the form feel loose.
-            */}
+            {/* Who this person is; how to reach them is the card above. */}
             <FormCard title="Basic details">
               <FormRow>
                 <FormField label="Full name" name="name" required>
@@ -403,19 +413,6 @@ export function ComplainantSection() {
                   />
                 </FormField>
               </FormRow>
-              <HalfWidth>
-                <FormField label="Email address" name="email" optional>
-                  <TextField
-                    type="email"
-                    value={c.email}
-                    onChange={(v) => setRead("email", v)}
-                    placeholder="optional@example.com"
-                    autoComplete="email"
-                    prefilled={emailPrefilled}
-                    onViewSource={() => openSource("email")}
-                  />
-                </FormField>
-              </HalfWidth>
               <FormRow>
                 <FormField label="Gender" name="gender" optional>
                   <OptionSelect
@@ -430,10 +427,11 @@ export function ComplainantSection() {
                   label="Differently abled?"
                   optional
                 >
-                  <YesNoSegmented
-                    value={c.differentlyAbled || undefined}
+                  <YesNoChoice
+                    value={c.differentlyAbled}
                     onValueChange={(v) => set("differentlyAbled", v as Complainant["differentlyAbled"])}
                     ariaLabel="Is the complainant differently abled?"
+                    name={`complainant-${c.id}-differently-abled`}
                   />
                 </FormField>
               </FormRow>
@@ -655,10 +653,11 @@ export function ComplainantSection() {
                   label="Differently abled?"
                   optional
                 >
-                  <YesNoSegmented
-                    value={c.rep.differentlyAbled || undefined}
+                  <YesNoChoice
+                    value={c.rep.differentlyAbled}
                     onValueChange={(v) => setRep("differentlyAbled", v as Representative["differentlyAbled"])}
                     ariaLabel="Is the representative differently abled?"
+                    name={`complainant-${c.id}-rep-differently-abled`}
                   />
                 </FormField>
               </FormRow>

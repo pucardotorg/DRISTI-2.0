@@ -16,9 +16,7 @@ export type RejectedField = "name" | "email" | "regNumber" | "idFile";
 
 export type RejectedRegistration = {
   mobile: string;
-  firstName: string;
-  middleName: string;
-  lastName: string;
+  fullName: string;
   email: string;
   regNumber: string;
   /** What they uploaded last time — named so the flag can point at it. */
@@ -38,9 +36,7 @@ export type RejectedRegistration = {
 const REJECTED: RejectedRegistration[] = [
   {
     mobile: "9999999999",
-    firstName: "Sreelakshmi",
-    middleName: "",
-    lastName: "Menonn",
+    fullName: "Sreelakshmi Menonn",
     /* The name carries the deliberate error ("Menonn") — the field the
        officer flagged. Everything unflagged is authored correct. */
     email: "sreelakshmi.menon@gmail.com",
