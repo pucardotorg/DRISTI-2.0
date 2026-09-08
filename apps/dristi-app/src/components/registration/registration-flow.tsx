@@ -5,7 +5,6 @@ import { REGEXP_ONLY_DIGITS } from "input-otp";
 import {
   ArrowLeftIcon,
   CheckCircle2Icon,
-  CheckIcon,
   ClockIcon,
   EyeIcon,
   EyeOffIcon,
@@ -49,11 +48,10 @@ const OTP_LENGTH = 6;
 const RESEND_SECONDS = 30;
 
 /**
- * What a password has to clear, as four separate facts.
+ * What a password has to clear.
  *
- * Stated as a list the person can watch themselves satisfy rather than as one verdict
- * delivered after they press Continue — "not strong enough" tells you that you failed
- * without telling you at what.
+ * Kept as four separate tests rather than one regex so the rule the copy states and the
+ * rule the form enforces cannot drift apart.
  */
 const PASSWORD_RULES = [
   { key: "ruleLength", test: (value: string) => value.length >= 8 },
@@ -333,9 +331,6 @@ export function RegistrationFlow({ locale, summoned, initialMobile = "", onFinis
           <form className="flex flex-col gap-6" noValidate onSubmit={(event) => { event.preventDefault(); setTouched(true); if (!passwordStrong(password) || password !== confirmPassword) return; setTouched(false); setStep(needsVerification ? "verification" : "terms"); }}>
             <Heading title={pick(passwordStep.title, locale)} body={pick(passwordStep.body, locale)} />
 
-            {/* Field and rules are one unit — the list is what the field is asking for,
-                so it sits inside the field's own rhythm rather than floating a section
-                break away from it. */}
             <div className="flex flex-col gap-3">
             {/* One reveal governs both boxes. Two separate eyes would let someone show
                 the first and check the second against a field they cannot read. */}
@@ -361,28 +356,10 @@ export function RegistrationFlow({ locale, summoned, initialMobile = "", onFinis
                 placeholder={pick(passwordStep.passwordPlaceholder, locale)}
                 onChange={(event) => { setPassword(event.target.value); setTouched(false); }}
               />
+              <FieldDescription>{pick(passwordStep.rules, locale)}</FieldDescription>
               <FieldError>{touched && !passwordStrong(password) ? pick(passwordStep.error, locale) : null}</FieldError>
             </Field>
 
-            {/* The rules tick as they are met. Unmet is a quiet ring and muted text, met
-                is a check and ink — the state is in the icon and the words, so the colour
-                is the third treatment rather than the only one. */}
-            <ul aria-label={pick(passwordStep.rulesLabel, locale)} className="flex flex-col gap-2">
-              {PASSWORD_RULES.map((rule) => {
-                const met = rule.test(password);
-                return (
-                  <li key={rule.key} className={cn("flex items-center gap-2 text-body-compact", met ? "text-success-ink" : "text-muted-foreground")}>
-                    {met ? (
-                      <CheckIcon className="size-4 shrink-0" aria-hidden />
-                    ) : (
-                      <span className="size-4 shrink-0 rounded-full border border-input" aria-hidden />
-                    )}
-                    {pick(passwordStep[rule.key], locale)}
-                    {met ? <span className="sr-only"> — {pick(passwordStep.ruleMet, locale)}</span> : null}
-                  </li>
-                );
-              })}
-            </ul>
             </div>
 
             <Field data-invalid={touched && password !== confirmPassword}>

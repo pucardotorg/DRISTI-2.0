@@ -79,9 +79,8 @@ export const contactStep = {
  * Creating the password the account signs in with.
  *
  * Sign-in offers a password as well as a one-time code, so registration has to produce
- * one — the flow used to reach the end without ever asking. The four rules are listed
- * and ticked as they are met, rather than reported as a single failure after the fact:
- * a rule you can see is a rule you can satisfy on the first try.
+ * one — the flow used to reach the end without ever asking. What the password has to
+ * clear is stated once, under the field, in the same words the error uses.
  */
 export const passwordStep = {
   title: t("Create a password", "ഒരു പാസ്‌വേഡ് ഉണ്ടാക്കുക"),
@@ -92,13 +91,14 @@ export const passwordStep = {
   confirmPlaceholder: t("Enter it again", "വീണ്ടും നൽകുക"),
   show: t("Show password", "പാസ്‌വേഡ് കാണിക്കുക"),
   hide: t("Hide password", "പാസ്‌വേഡ് മറയ്ക്കുക"),
-  rulesLabel: t("Your password needs", "പാസ്‌വേഡിൽ വേണ്ടത്"),
-  ruleLength: t("At least 8 characters", "കുറഞ്ഞത് 8 പ്രതീകങ്ങൾ"),
-  ruleLetter: t("A letter", "ഒരു അക്ഷരം"),
-  ruleNumber: t("A number", "ഒരു അക്കം"),
-  ruleSymbol: t("A symbol, such as ! or @", "! അല്ലെങ്കിൽ @ പോലെ ഒരു ചിഹ്നം"),
-  ruleMet: t("Done", "ആയി"),
-  error: t("Your password does not meet all four requirements yet.", "പാസ്‌വേഡ് നാല് വ്യവസ്ഥകളും ഇതുവരെ പാലിക്കുന്നില്ല."),
+  rules: t(
+    "At least 8 characters, with a letter, a number and a symbol.",
+    "കുറഞ്ഞത് 8 പ്രതീകങ്ങൾ, ഒരു അക്ഷരവും ഒരു അക്കവും ഒരു ചിഹ്നവും ഉൾപ്പെടെ.",
+  ),
+  error: t(
+    "Use at least 8 characters, with a letter, a number and a symbol.",
+    "കുറഞ്ഞത് 8 പ്രതീകങ്ങൾ ഉപയോഗിക്കുക — ഒരു അക്ഷരവും ഒരു അക്കവും ഒരു ചിഹ്നവും ഉൾപ്പെടെ.",
+  ),
   confirmError: t("Both passwords must match.", "രണ്ട് പാസ്‌വേഡുകളും ഒരുപോലെ ആയിരിക്കണം."),
 } as const;
 
