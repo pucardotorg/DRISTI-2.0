@@ -1,7 +1,7 @@
 # Design-system requests
 
 Open requests against
-[neer-ideasbeforenoon/pucar-design-system](https://github.com/neer-ideasbeforenoon/pucar-design-system),
+[pucardotorg/dristi-design-system](https://github.com/pucardotorg/dristi-design-system),
 raised while designing Dristi screens.
 
 **This file is a queue, not a licence.** Nothing here may be worked around locally: an

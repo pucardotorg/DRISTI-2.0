@@ -3,7 +3,7 @@
 How Dristi looks and behaves in product UI. This folder is **guidance for this repo** —
 it does **not** contain design-system source code.
 
-**Source of truth for UI:** [pucar-design-system](https://github.com/neer-ideasbeforenoon/pucar-design-system)
+**Source of truth for UI:** [pucar-design-system](https://github.com/pucardotorg/dristi-design-system)
 
 ## Where the product app lives
 
@@ -14,7 +14,7 @@ comes from the DS — not a second kit inside Dristi.
 
 **DS root:** `vendor/pucar-design-system` (created by `npm install`), or
 `PUCAR_DS_ROOT` if set. Must be
-[neer-ideasbeforenoon/pucar-design-system](https://github.com/neer-ideasbeforenoon/pucar-design-system)
+[pucardotorg/dristi-design-system](https://github.com/pucardotorg/dristi-design-system)
 (verified by `apps/dristi-app/scripts/resolve-ds.mjs`). Never use other org forks.
 
 **New machine:** `git clone` this repo → `npm install` → `npm run dev`. No separate DS

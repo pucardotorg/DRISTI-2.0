@@ -134,7 +134,7 @@ git("checkout", "--quiet", "--detach", to);
 const next = {
   _comment:
     "The one design-system version this repo builds against. Everyone gets this exact commit; npm install checks it out. Change it only via `npm run ds:bump`, on main, never by hand on a feature branch.",
-  remote: lock?.remote ?? "neer-ideasbeforenoon/pucar-design-system",
+  remote: lock?.remote ?? "pucardotorg/dristi-design-system",
   commit: to,
   bumpedOn: new Date().toISOString().slice(0, 10),
 };
