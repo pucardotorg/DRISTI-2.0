@@ -126,9 +126,9 @@ export function courtHearingStatusLabel(status: CourtHearingStatus): string {
  * *Hearing started* while it is under way, *Hearing ended* once it is done — and stops
  * taking a press, because nothing is left for this seat to do to the sitting from here.
  *
- * The bench reads the same three moments off Start hearing / End hearing / the tick.
- * This is the other seat's wording of them, not a second set of states
- * (`court-role.ts`).
+ * The bench reads the same three moments off Start hearing / End hearing /
+ * Hearing ended (disabled). This is the other seat's wording of them, not a
+ * second set of states (`court-role.ts`).
  *
  * Everything that is neither under way nor finished offers the start, and that includes
  * a passed-over listing: it was deferred without being heard, so starting it is exactly

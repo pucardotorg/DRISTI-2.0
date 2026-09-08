@@ -265,20 +265,25 @@ function OrderReady({ hearing }: { hearing: CourtHearing }) {
             </>
           ) : null}
 
-          <MarkGroup
-            heading="Mark who is present"
-            mark="present"
-            appearances={appearances}
-            marks={draft.marks}
-            onMark={setMark}
-          />
-          <MarkGroup
-            heading="Mark who is absent"
-            mark="absent"
-            appearances={appearances}
-            marks={draft.marks}
-            onMark={setMark}
-          />
+          {/* One attendance cluster: present and absent are related rolls, not
+              separate card sections, so they take gap-4 rather than the panel's
+              gap-8. */}
+          <div className="flex min-w-0 flex-col gap-4">
+            <MarkGroup
+              heading="Mark who is present"
+              mark="present"
+              appearances={appearances}
+              marks={draft.marks}
+              onMark={setMark}
+            />
+            <MarkGroup
+              heading="Mark who is absent"
+              mark="absent"
+              appearances={appearances}
+              marks={draft.marks}
+              onMark={setMark}
+            />
+          </div>
 
           <Separator decorative={false} className="bg-hairline" />
 
@@ -440,9 +445,12 @@ function PendingApplications({
  * One of the reference's two attendance columns — present, or absent.
  *
  * A `fieldset` with the heading as its `legend`, so a screen reader announcing any box
- * in it says which roll it belongs to. Four checkboxes across at the reference's width,
- * folding to two and then one; each box carries the 40×40 hit area the DS primitive
- * builds in.
+ * in it says which roll it belongs to. Two columns, not four: four-across in this
+ * panel squeezed long labels into ~125px. Each box still carries the 40×40 hit
+ * area the DS primitive builds in.
+ *
+ * Legend is `display: table` in the UA stylesheet, so it does not take part in the
+ * fieldset's flex gap — `mb-3` is the spacing that actually lands under the heading.
  */
 function MarkGroup({
   heading,
@@ -459,9 +467,9 @@ function MarkGroup({
 }) {
   const group = React.useId();
   return (
-    <fieldset className="flex min-w-0 flex-col gap-3">
-      <legend className="text-body mb-3 font-semibold">{heading}</legend>
-      <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <fieldset className="flex min-w-0 flex-col">
+      <legend className="text-body mb-3 w-full font-semibold">{heading}</legend>
+      <div className="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
         {appearances.map((appearance) => {
           const id = `${group}-${appearance.id}`;
           /* A side may have two counsel on record, and two controls with the same
@@ -471,10 +479,12 @@ function MarkGroup({
             appearances.filter((other) => other.role === appearance.role)
               .length > 1;
           return (
-            <div key={appearance.id} className="flex min-w-0 items-start gap-2">
+            <div
+              key={appearance.id}
+              className="flex min-h-10 min-w-0 items-center gap-3"
+            >
               <Checkbox
                 id={id}
-                className="mt-1"
                 checked={marks[appearance.id] === mark}
                 onCheckedChange={(checked) =>
                   onMark(appearance.id, checked === true ? mark : undefined)

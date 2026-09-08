@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CircleCheckIcon, EllipsisVerticalIcon, FilePlusIcon } from "lucide-react";
+import { EllipsisVerticalIcon, FilePlusIcon } from "lucide-react";
 
 import { CounselCell } from "@/components/employee/counsel-cell";
 import { Badge } from "@/components/ui/badge";
@@ -56,20 +56,22 @@ const cellClass =
  *
  * It is the only bordered action on a callable row (ui-craft §2). Scheduled listings
  * start; the same slot ends the one that is ongoing. Completed listings have nothing
- * left to call, so the control leaves — a muted `circle-check` holds the slot.
- * A dash would read as missing data; the tick says the call is done. It stays
- * `text-muted-foreground` so the Completed chip remains the one status mark
- * (ui-craft §1.4). Passed-over listings also have nothing left to call today;
- * the slot empties rather than showing that tick, because the call was not
- * finished — the Passed over chip is the mark.
+ * left to call, so the control stops taking a press — the same outline slot now
+ * reads *Hearing ended*, disabled, matching the typist's report of that moment. A
+ * dash would read as missing data; the words say the call is done. It stays the
+ * outline dress (not a second status chip) so the Completed chip remains the one
+ * status mark (ui-craft §1.4). Passed-over listings also have nothing left to call
+ * today; the slot empties rather than showing that report, because the call was
+ * not finished — the Passed over chip is the mark.
  *
  * Pass over is the other sitting outcome, not a second session verb: it lives
  * in a row overflow beside this control, on scheduled and ongoing rows only.
  *
  * `min-w-32` is a floor, not a fit: "Start hearing" measures 83px of ink and "End
- * hearing" less, so 128px holds either label with room and neither the control nor
- * the column jumps when the word changes. It was `min-w-40`, which spent 45px per row
- * on nothing and pushed the table past the width of its own panel — see below.
+ * hearing" / "Hearing ended" sit inside the same width, so 128px holds any of those
+ * labels with room and neither the control nor the column jumps when the word
+ * changes. It was `min-w-40`, which spent 45px per row on nothing and pushed the
+ * table past the width of its own panel — see below.
  */
 const SESSION_SLOT_CLASS = "min-w-32";
 /**
@@ -256,10 +258,19 @@ export function HearingSessionButton({
     );
   }
   return (
-    <span className={cn("inline-flex h-10 items-center text-muted-foreground", className)}>
-      <CircleCheckIcon aria-hidden />
-      <span className="sr-only">Hearing ended</span>
-    </span>
+    /* Same report the typist already shows once the sitting is done: outline
+       dress, disabled, the words *Hearing ended*. `disabled` rather than
+       `aria-disabled` — a live precondition, not an unbuilt promise; the
+       Completed chip on the row still carries the fact for a reader who
+       cannot tab onto it. */
+    <Button
+      type="button"
+      disabled
+      variant="outline"
+      className={cn(SESSION_SLOT_CLASS, className)}
+    >
+      Hearing ended
+    </Button>
   );
 }
 
