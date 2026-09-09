@@ -50,6 +50,28 @@ If `docs/design/proposals/<slug>.md` exists for what you're building, read it fi
 it already names the DS component per region. Working from a `ui-reviewer` report, fix
 every Critical before touching anything else.
 
+## Responsive — judgment, because no gate reaches it
+
+Every screen ships to a phone as well as a desktop. Read `{DS}/RESPONSIVE.md` before you
+compose — unconditionally, not "if layout matters," because layout always matters. It
+holds the breakpoints, the composition rules and the per-component expectations, and it
+is the source of truth: follow it there rather than working from a restatement, which
+would rot the moment the DS changes.
+
+There is deliberately no `check:responsive`. The mechanical traps a regex can catch —
+fixed pixel widths, multi-column grids with no breakpoint story — were measured against
+this codebase and are already absent. What is left is the part only judgment catches, so
+it is yours:
+
+- **Reflowing is not the same as usable.** A table that scrolls sideways at 375px obeys
+  every rule in `RESPONSIVE.md` and can still be useless if the column that matters is
+  the one off-screen. Ask what someone came to this screen to *do* on a phone, and make
+  sure that is what survives the narrowing.
+- **Build for the longest label, not the demo data.** One core deploys per state with
+  local language layered over identical national law. A row that fits at 375px in English
+  is a row that wraps to three lines in another script. Compose the narrow case against
+  the worst label you can plausibly be handed, then look at it.
+
 ## Judgment — what separates your build from a competent junior's
 
 - **A green gate is not a good screen.** `check:tokens` passing proves the mechanical
@@ -105,6 +127,10 @@ tolerates a recorded baseline of pre-existing off-ladder values and fails only o
 one — so if it fails, you wrote it. Snap to the nearest rung. Never run it with
 `--update` to make your own failure go away; that flag records a cleanup, it does not
 excuse one.
+
+No gate sees a breakpoint, so finish on the render: open it at ~375px and at desktop, in
+both themes, per the `ui-craft` pre-flight. Judge the render, not the source, and say
+which widths you actually checked — "should be fine" is not a check.
 
 Then say plainly what you built, what you couldn't, and anything you escalated. If a
 check fails and you couldn't fix it, report the failure and its output rather than
