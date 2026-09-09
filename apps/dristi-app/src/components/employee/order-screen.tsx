@@ -20,6 +20,17 @@ import { PANEL_CLASS } from "@/components/shell/panel";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Combobox,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxLabel,
+  ComboboxList,
+} from "@/components/ui/combobox";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
@@ -71,14 +82,24 @@ import { initialOrderDraft } from "@/lib/employee/order-demo";
 import {
   appearancesFor,
   assembleAttendance,
+  assembleItems,
+  assembleNextListing,
   buildOrderDocument,
   nextUnhandledListing,
   type Appearance,
   type AttendanceMark,
-  type ItemText,
   type OrderDocument,
+  type ItemText,
   type OrderDraft,
+  type OrderItemEntry,
 } from "@/lib/employee/order-draft";
+import {
+  createOrderItem,
+  orderItemLabel,
+  ORDER_ITEM_GROUPS,
+  type OrderItemDraft,
+  type OrderItemTypeId,
+} from "@/lib/employee/order-items";
 
 /**
  * Compose the order of one listing.
@@ -154,6 +175,8 @@ function OrderReady({ hearing }: { hearing: CourtHearing }) {
 
   const appearances = React.useMemo(() => appearancesFor(hearing), [hearing]);
   const attendance = assembleAttendance(appearances, draft.marks);
+  const items = assembleItems(draft.items);
+  const next = assembleNextListing(draft);
   const upNext = nextUnhandledListing(hearing, session);
 
   /* Only what is still pending. The reference labels every row "Pending — …", so a row
@@ -182,8 +205,48 @@ function OrderReady({ hearing }: { hearing: CourtHearing }) {
     }));
   }
 
-  function setItemText(itemText: ItemText) {
-    setDraft((current) => ({ ...current, itemText }));
+  /**
+   * Add what the court passed, on its standing words.
+   *
+   * The words arrive with the item because that is the difference between the two seats
+   * this screen serves: the bench dictates an order it is making, and the typist sets
+   * down one the court already made, from the court's own form. Nothing is committed by
+   * adding it — the paragraph is editable the moment it lands, and the whole draft still
+   * dies on a reload (`order-drafts.ts`).
+   */
+  function addItem(type: OrderItemTypeId) {
+    const item = createOrderItem(hearing, type);
+    const number = draft.items.length + 1;
+    setDraft((current) => ({ ...current, items: [...current.items, item] }));
+    setAnnouncement(
+      item.text.text
+        ? `${orderItemLabel(type)} added as item ${number}. Its text is written in the order and can be edited.`
+        : `${orderItemLabel(type)} added as item ${number}. It has no standing text — write it in the order.`,
+    );
+  }
+
+  function removeItem(item: OrderItemDraft, number: number) {
+    setDraft((current) => ({
+      ...current,
+      items: current.items.filter((entry) => entry.id !== item.id),
+    }));
+    /* Renumbering is a fact about the order, so it is said — but only when something
+       actually moved. Removing the last item renumbers nothing. */
+    const following = draft.items.length - number;
+    setAnnouncement(
+      following > 0
+        ? `Item ${number}, ${orderItemLabel(item.type)}, removed. The ${following === 1 ? "item" : `${following} items`} after it moved up.`
+        : `Item ${number}, ${orderItemLabel(item.type)}, removed.`,
+    );
+  }
+
+  function setItemText(id: string, text: ItemText) {
+    setDraft((current) => ({
+      ...current,
+      items: current.items.map((entry) =>
+        entry.id === id ? { ...entry, text } : entry,
+      ),
+    }));
   }
 
   /**
@@ -302,11 +365,21 @@ function OrderReady({ hearing }: { hearing: CourtHearing }) {
               setDraft((current) => ({ ...current, nextDate }))
             }
           />
+
+          <Separator decorative={false} className="bg-hairline" />
+
+          <OrderItems
+            items={draft.items}
+            onAdd={addItem}
+            onRemove={removeItem}
+          />
         </Card>
 
         <OrderTextPanel
           attendanceBody={attendance.body}
-          itemText={draft.itemText}
+          items={draft.items}
+          entries={items.items ?? []}
+          nextBody={next.body}
           onItemText={setItemText}
         />
       </div>
@@ -590,31 +663,197 @@ function NextHearingDetails({
 }
 
 /**
- * The order, as the reference composes it: an attendance line the screen writes, and an
- * item the bench dictates.
+ * What the court passed today — the reference's fourth region, and the one the typist
+ * actually works.
  *
- * Attendance is read-only because it is not typed — it is the two checkbox rolls beside
- * it, in the words the order will use, and editing it here would let the sentence and
- * the marks disagree. `readOnly` rather than `disabled`: the DS primitive gives a
- * read-only field the muted fill the reference shows, and it stays in the tab order and
- * is still read out, which a disabled field is not.
+ * **Choosing the item is what writes the order.** A typist is not composing a direction
+ * from nothing; they are setting down an order the court has already made, from the
+ * court's own standing form. So the catalogue is the instrument: pick "Summons" and the
+ * paragraph appears in the column beside, with this listing's accused named in it, ready
+ * to be corrected. A blank editor asks the wrong question of this seat.
  *
- * The item takes the app's one editor — `RichTextField`, the same one the applications
+ * Membership lives here and the words live in the order (`OrderTextPanel`), which is the
+ * reference's own division and the one thing about its layout that was right: the left
+ * column is what the court decided, the right column is the order those decisions make.
+ * Neither restates the other — this row carries a name and a number, not a sentence.
+ *
+ * A `Combobox` rather than the reference's plain select: seventeen items in one unsorted
+ * list is a list you read, and this one is grouped as the case register groups it and
+ * takes type-ahead, so a typist who knows the word never opens the menu at all.
+ *
+ * Remove is neutral, not the reference's red Delete. Nothing here is issued, so taking a
+ * paragraph out of a draft is not a destructive act, and a red control on every row of a
+ * list the typist builds is the alarm fatigue the Laws ration colour to avoid.
+ */
+function OrderItems({
+  items,
+  onAdd,
+  onRemove,
+}: {
+  items: readonly OrderItemDraft[];
+  onAdd: (type: OrderItemTypeId) => void;
+  onRemove: (item: OrderItemDraft, number: number) => void;
+}) {
+  const [choice, setChoice] = React.useState<{
+    id: OrderItemTypeId;
+    label: string;
+  } | null>(null);
+
+  function add() {
+    if (!choice) return;
+    onAdd(choice.id);
+    /* The box empties on add: it is the way in to the catalogue, not a record of what
+       was chosen last. What is in the order is the list below it. */
+    setChoice(null);
+  }
+
+  return (
+    <section className="flex min-w-0 flex-col gap-4" aria-labelledby="order-items">
+      {/* `tabIndex={-1}`: focus comes back here when a removed row leaves the list. */}
+      <h2 id="order-items" tabIndex={-1} className="text-body font-semibold">
+        Order items
+      </h2>
+
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end">
+        <Field className="min-w-0 flex-1">
+          <FieldLabel
+            htmlFor="order-item-choice"
+            className="text-body font-medium"
+          >
+            Choose item
+          </FieldLabel>
+          <Combobox
+            items={ORDER_ITEM_GROUPS}
+            value={choice}
+            onValueChange={(next) => setChoice(next)}
+            isItemEqualToValue={(a, b) => a.id === b.id}
+            itemToStringLabel={(item) => item.label}
+            filter={(item, query) => {
+              const q = query.trim().toLowerCase();
+              if (!q) return true;
+              return item.label.toLowerCase().includes(q);
+            }}
+            autoComplete="off"
+          >
+            <ComboboxInput
+              id="order-item-choice"
+              placeholder="Search the catalogue"
+              className="w-full"
+            />
+            <ComboboxContent>
+              <ComboboxEmpty>No item found.</ComboboxEmpty>
+              <ComboboxList>
+                {(group: (typeof ORDER_ITEM_GROUPS)[number]) => (
+                  <ComboboxGroup key={group.id} items={group.items}>
+                    <ComboboxLabel className="text-caption font-medium">
+                      {group.label}
+                    </ComboboxLabel>
+                    <ComboboxCollection>
+                      {(item: { id: OrderItemTypeId; label: string }) => (
+                        <ComboboxItem key={item.id} value={item}>
+                          <span className="text-body whitespace-normal">
+                            {item.label}
+                          </span>
+                        </ComboboxItem>
+                      )}
+                    </ComboboxCollection>
+                  </ComboboxGroup>
+                )}
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
+        </Field>
+
+        {/* Outline, not teal: the view already rations its one primary to the advance in
+            the header, and adding a paragraph to a draft is not the act of the screen. */}
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full shrink-0 sm:w-fit"
+          disabled={!choice}
+          onClick={add}
+        >
+          Add item
+        </Button>
+      </div>
+
+      {items.length === 0 ? (
+        <p className="text-body text-muted-foreground">
+          No item has been added yet. Choose one and its text is written for you.
+        </p>
+      ) : (
+        <ol className="flex min-w-0 flex-col gap-2">
+          {items.map((item, index) => (
+            <li
+              key={item.id}
+              className="flex min-h-10 min-w-0 items-center justify-between gap-3 rounded-lg bg-surface-sunken px-3 py-2"
+            >
+              <p className="text-body min-w-0">
+                <span className="tabular-nums">{index + 1}.</span>{" "}
+                {orderItemLabel(item.type)}
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                className="shrink-0"
+                onClick={() => {
+                  onRemove(item, index + 1);
+                  document.getElementById("order-items")?.focus();
+                }}
+              >
+                Remove
+                {/* The visible word is the same for every row, so the name a voice user
+                    says is prefixed by it and finished by the item it belongs to. */}
+                <span className="sr-only"> {orderItemLabel(item.type)}</span>
+              </Button>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+/**
+ * The order, as the reference composes it: the three regions of its Order Text column,
+ * in the sequence an order reads.
+ *
+ * **Attendance** is read-only because it is not typed — it is the two checkbox rolls
+ * beside it, in the words the order will use, and editing it here would let the sentence
+ * and the marks disagree. **The items** are the part that is written, and they are the
+ * only part: each one is paragraph *n* of the order, headed by the catalogue's name for
+ * it and holding the standing words it opened on. **Next hearing** closes the order and
+ * is read-only for the same reason attendance is — the purpose and the date are two
+ * controls in the column beside.
+ *
+ * `readOnly` rather than `disabled` on both: the DS primitive gives a read-only field the
+ * muted fill the reference shows, and it stays in the tab order and is still read out,
+ * which a disabled field is not.
+ *
+ * Numbering is not decoration. `sign-order-dialog.tsx` already prints an order as
+ * numbered paragraphs, and for one revision this composer printed unnumbered prose — two
+ * screens in one flow disagreeing about the shape of the same artefact. The number here,
+ * in the well's heading, is the same number the paper prints.
+ *
+ * Each item takes the app's one editor — `RichTextField`, the same one the applications
  * forms use, DS chrome around the one part the design system cannot supply. Its list
- * controls are what carry (a), (b), (c) inside an item. The markup is the editor's own
- * and nothing else's: it blocks pasted HTML, so the order can only hold what this
- * toolbar produced.
+ * controls are what carry (a), (b), (c) *inside* a single item. The markup is the
+ * editor's own and nothing else's: it blocks pasted HTML, so the order can only hold what
+ * this toolbar produced.
  */
 function OrderTextPanel({
   attendanceBody,
-  itemText,
+  items,
+  entries,
+  nextBody,
   onItemText,
 }: {
   attendanceBody: string;
-  itemText: ItemText;
-  onItemText: (value: RichTextValue) => void;
+  items: readonly OrderItemDraft[];
+  entries: OrderItemEntry[];
+  nextBody: string;
+  onItemText: (id: string, value: RichTextValue) => void;
 }) {
-  const itemLabelId = React.useId();
   return (
     <Card
       className={cn(PANEL_CLASS, "min-w-0 gap-6 p-6")}
@@ -637,18 +876,81 @@ function OrderTextPanel({
         />
       </Field>
 
-      <div className="flex min-w-0 flex-col gap-2">
-        <span id={itemLabelId} className="text-body w-fit font-medium">
+      {/* A group rather than a heading: the two fields on either side of it are field
+          labels, and a heading here would out-weigh them for the same rank of thing. */}
+      <div
+        role="group"
+        aria-labelledby="order-item-text"
+        className="flex min-w-0 flex-col gap-4"
+      >
+        <span id="order-item-text" className="text-body w-fit font-medium">
           Item text
         </span>
-        <RichTextField
-          value={itemText}
-          onChange={onItemText}
-          labelId={itemLabelId}
-          className="[&_[data-slot=input-group-control]]:min-h-64"
-        />
+
+        {items.length === 0 ? (
+          <p className="text-body text-muted-foreground">
+            The order has no item yet. Choose one under Order items and its text is
+            written here.
+          </p>
+        ) : (
+          items.map((item, index) => (
+            <OrderItemWell
+              key={item.id}
+              number={entries[index]?.number ?? index + 1}
+              heading={entries[index]?.heading ?? ""}
+              value={item.text}
+              onChange={(value) => onItemText(item.id, value)}
+            />
+          ))
+        )}
       </div>
+
+      <Field className="min-w-0">
+        <FieldLabel htmlFor="order-next-text" className="text-body font-medium">
+          Next hearing
+        </FieldLabel>
+        <Textarea
+          id="order-next-text"
+          readOnly
+          value={nextBody}
+          className="min-h-16"
+        />
+      </Field>
     </Card>
+  );
+}
+
+/**
+ * One numbered paragraph of the order.
+ *
+ * The editor is uncontrolled after it mounts (`rich-text-field.tsx` keeps the markup it
+ * opened on), which is why the caller keys these on the item's id: a key that moved with
+ * position would hand item two's words to item three the moment one above it was removed.
+ */
+function OrderItemWell({
+  number,
+  heading,
+  value,
+  onChange,
+}: {
+  number: number;
+  heading: string;
+  value: RichTextValue;
+  onChange: (value: RichTextValue) => void;
+}) {
+  const labelId = React.useId();
+  return (
+    <div className="flex min-w-0 flex-col gap-2">
+      <span id={labelId} className="text-body w-fit font-medium">
+        <span className="tabular-nums">{number}.</span> {heading}
+      </span>
+      <RichTextField
+        value={value}
+        onChange={onChange}
+        labelId={labelId}
+        className="[&_[data-slot=input-group-control]]:min-h-32"
+      />
+    </div>
   );
 }
 
@@ -730,18 +1032,26 @@ function OrderFacsimile({ document }: { document: OrderDocument }) {
         </div>
       ) : null}
 
-      {document.item.pending ? (
-        /* Undictated: the paper says so in the muted voice the rest of the document
-           uses, rather than printing an empty paragraph. */
+      {document.items.length === 0 ? (
+        /* Nothing added: the paper says so in the muted voice the rest of the document
+           uses, rather than printing an empty list. */
         <p className="text-body text-paper-muted-foreground">
-          {document.item.body}
+          No item has been added.
         </p>
       ) : (
-        <div className="text-body">
-          <RichTextValueView
-            value={{ html: document.item.html, text: document.item.body }}
-          />
-        </div>
+        /* `ps-6` and `list-decimal`, the same as the signing queue's facsimile: the two
+           screens print the same artefact and must not disagree about its shape. */
+        <ol className="flex list-decimal flex-col gap-3 ps-6">
+          {document.items.map((entry) => (
+            <li key={entry.id} className="text-body">
+              {entry.pending ? (
+                <span className="text-paper-muted-foreground">{entry.body}</span>
+              ) : (
+                <RichTextValueView value={{ html: entry.html, text: entry.body }} />
+              )}
+            </li>
+          ))}
+        </ol>
       )}
 
       <p className="text-body">{document.closing}</p>

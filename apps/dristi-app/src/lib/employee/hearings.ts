@@ -117,36 +117,6 @@ export function courtHearingStatusLabel(status: CourtHearingStatus): string {
   );
 }
 
-/**
- * What the typist's one control says at each point of the sitting.
- *
- * Three words for three moments, and the first of them is an invitation rather than a
- * state: a matter nobody has called yet is the one point where there is something to
- * press, so the slot says **To start** and means it. After that the same slot reports —
- * *Hearing started* while it is under way, *Hearing ended* once it is done — and stops
- * taking a press, because nothing is left for this seat to do to the sitting from here.
- *
- * The bench reads the same three moments off Start hearing / End hearing /
- * Hearing ended (disabled). This is the other seat's wording of them, not a
- * second set of states (`court-role.ts`).
- *
- * Everything that is neither under way nor finished offers the start, and that includes
- * a passed-over listing: it was deferred without being heard, so starting it is exactly
- * what is left to do. Which of those it is stays with the status chip, where the day's
- * vocabulary lives — this line must not grow a fourth wording and become a second
- * status column.
- */
-export function hearingProgressLabel(status: CourtHearingStatus): string {
-  switch (status) {
-    case "ongoing":
-      return "Hearing started";
-    case "completed":
-      return "Hearing ended";
-    default:
-      return "To start";
-  }
-}
-
 /** Only a listing that has not yet been called can be started. */
 export function canStartHearing(status: CourtHearingStatus): boolean {
   return status === "scheduled";
@@ -166,9 +136,35 @@ export function canEndHearing(status: CourtHearingStatus): boolean {
  * matter the bench has just heard is the ordinary case, and closing the composer at the
  * end of the sitting would strand a draft written during it. A passed-over listing was
  * never heard, so no order comes out of today's sitting on it.
+ *
+ * **This is the gate for a seat that runs the sitting.** The typist has no start control
+ * to open it with, so that seat reads `canTypeOrder` below.
  */
 export function canDraftOrder(status: CourtHearingStatus): boolean {
   return status === "ongoing" || status === "completed";
+}
+
+/**
+ * Orders on a listing, from the seat that does not call the matter.
+ *
+ * The typist's cause list is the orders column and nothing else — no Start, no End, no
+ * Pass over, and no line about the sitting either, because the row's Status chip already
+ * says where the matter stands and a column repeating it in other words was one column
+ * of nothing (owner, 2026-09-09). Which means the precondition the bench's control
+ * exists to satisfy has nothing left to satisfy it: gated on `canDraftOrder`, every
+ * order on this board would be permanently shut.
+ *
+ * So for this seat the trip into the order **is** the sitting: a listing still on the
+ * day's call opens, and walking in is what marks the matter heard
+ * (`hearings-screen.tsx`). One press per row, which is the whole of this seat's line of
+ * work through the day.
+ *
+ * A listing that was deferred, moved off the day or abandoned is not on the call, so no
+ * order comes out of today's sitting on it — the same reason `canDraftOrder` closes on
+ * those, and the one thing both seats still agree about.
+ */
+export function canTypeOrder(status: CourtHearingStatus): boolean {
+  return status === "scheduled" || canDraftOrder(status);
 }
 
 /**

@@ -334,6 +334,19 @@ export const REGISTER_QUEUE: RegisterCase[] = [
  */
 export const REGISTER_QUEUE_COUNT = REGISTER_QUEUE.length;
 
+/**
+ * One waiting complaint, or nothing — the review screen looks a row up by id, and so
+ * does the trail, which has to know whether a nested segment is a complaint before it
+ * can say the page sits under Register cases.
+ *
+ * The sibling of `hearingById`, and asked the same way for the same reason: a route
+ * that resolves against the queue cannot be fooled by a sibling path that merely looks
+ * like an id.
+ */
+export function registerCaseById(id: string): RegisterCase | undefined {
+  return REGISTER_QUEUE.find((entry) => entry.id === id);
+}
+
 export type RegisterFilters = {
   /**
    * Free text over the cause title, the case number and counsel — the same reach the

@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { CounselCell } from "@/components/employee/counsel-cell";
 import {
   Table,
@@ -29,6 +31,42 @@ const cellClass =
   "border-b border-hairline px-4 py-3 align-middle text-left text-body-compact";
 
 /**
+ * A complaint's cause title, as the way into its file.
+ *
+ * The exact sibling of the cause list's `HearingCaseLink`, and it wears the same
+ * quiet-name dress: the name itself is the control, underlined on hover and focus
+ * rather than painted, so a column of thirty-five of them is not a column of links
+ * shouting. An anchor and not a button — this navigates, and a destination has to
+ * survive a middle click, a new tab and the back button (`ACCESSIBILITY.md` §2).
+ *
+ * The caller supplies the box, because the table wants the cell filled as a 40×40
+ * target and the phone list wants it inline. Only the box is theirs.
+ */
+export function RegisterCaseLink({
+  matter,
+  className,
+}: {
+  matter: RegisterCase;
+  className?: string;
+}) {
+  return (
+    <Link
+      href={`/employee/register-cases/${matter.id}`}
+      className={cn(
+        "rounded-sm text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline",
+        className,
+      )}
+    >
+      {/* Under a column headed "Case name" the cause title is the whole of what a
+          sighted reader needs; out of that column it is a link named after two
+          parties and nothing else. */}
+      <span className="sr-only">Complaint from </span>
+      {causeTitle(matter)}
+    </Link>
+  );
+}
+
+/**
  * The register queue as a table: the cause, its number, who appears, and how long
  * the complaint has been waiting.
  *
@@ -37,11 +75,18 @@ const cellClass =
  * chip: a row in this queue is in exactly one state, waiting, so a column repeating
  * that on every row would carry no information.
  *
- * And there is no actions column. The day's cause list keeps its row menu because the
- * acts it holds are things a bench does to a listed matter. Here there is nothing to
+ * And there is still no actions column. The day's cause list keeps its row menu because
+ * the acts it holds are things a bench does to a listed matter. Here there is nothing to
  * put in one: this build performs no registration act, so a menu would be an empty
  * affordance. Better to leave the column out until registering is real than to draw
- * furniture around a hole.
+ * furniture around a hole. The *decisions* on a complaint live at the foot of its own
+ * file, where the clerk has just read the thing they are deciding about — see
+ * `case-review-screen.tsx`.
+ *
+ * The cause title, though, is now a link. It stopped being one of the reference's
+ * broken promises the moment the file behind it existed
+ * (`/employee/register-cases/<id>`), and a queue whose rows cannot be opened is a
+ * queue that can only be counted.
  *
  * The panel shell (border, fill, shadow) lives on the screen around this, so the
  * table is one panel rather than a box inside a box.
@@ -84,27 +129,25 @@ export function RegisterCasesTable({ rows }: { rows: RegisterCase[] }) {
         <tr aria-hidden="true">
           <td colSpan={4} className="h-2 p-0" />
         </tr>
-        {/* `hover:bg-card`, not `hover:bg-transparent`, and not nothing. The DS
-            TableRow ships `hover:bg-accent`, and `accent` is the transient-hover
-            role — a fill that says something under the pointer is live. Nothing
-            here is: this queue deliberately has no opener, so the row must not
-            light up. `bg-card` on the row does not cancel it (a different merge
-            group), so the hover needs answering in its own group. Transparent
-            would work today only because the body cells paint nothing and the
-            fill sits on the row; state the real colour so this stays a true
-            no-op if the panel fill ever changes. Header rows are the opposite
-            case — their cells paint their own fill, so they use transparent. */}
+        {/* The DS `TableRow` ships `hover:bg-accent`, and `accent` is the
+            transient-hover role — a fill that says something under the pointer is
+            live. Something is: the cause title opens the complaint's file, so the
+            hover is now telling the truth and is left alone. It used to be cancelled
+            back to `bg-card` precisely because this queue had no opener. `bg-card`
+            sits in a different merge group and does not touch it either way. */}
         {rows.map((matter) => (
-          <TableRow key={matter.id} className="bg-card hover:bg-card">
-            {/* The row's one emphasised cell. Not a link: the reference underlines it
-                because it opens the registration flow, and this build has no such
-                flow and no court-side case file to fall back on. Plain text is the
-                honest render — an underline that goes nowhere would promise the
-                clerk a screen that is not there. */}
+          <TableRow key={matter.id} className="bg-card">
             <TableCell
-              className={cn(cellClass, "min-w-64 font-medium whitespace-normal")}
+              className={cn(cellClass, "min-w-64 whitespace-normal")}
             >
-              {causeTitle(matter)}
+              {/* Fills the cell so the target is the row's height rather than the
+                  20px line box the text happens to occupy (`ACCESSIBILITY.md` §8).
+                  `flex`, not `inline-flex`: an inline box would shrink-wrap and
+                  fight the cell's `whitespace-normal` wrapping. */}
+              <RegisterCaseLink
+                matter={matter}
+                className="flex min-h-10 w-full items-center"
+              />
             </TableCell>
             <TableCell className={cn(cellClass, "tabular-nums whitespace-nowrap")}>
               {matter.caseNumber}

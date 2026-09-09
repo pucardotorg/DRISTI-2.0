@@ -13,7 +13,7 @@ describe("initialOrderDraft", () => {
   it("leaves a listing that has not been heard empty", () => {
     for (const status of ["scheduled", "ongoing", "passed-over"] as const) {
       const draft = initialOrderDraft(hearing, status, today);
-      assert.equal(draft.itemText.text, "");
+      assert.deepEqual(draft.items, []);
       assert.deepEqual(draft.marks, {});
       assert.equal(draft.nextDate, null);
     }
@@ -21,8 +21,11 @@ describe("initialOrderDraft", () => {
 
   it("opens a completed listing on a written order", () => {
     const draft = initialOrderDraft(hearing, "completed", today);
-    assert.ok(draft.itemText.text.length > 0);
-    assert.ok(draft.itemText.html.includes(draft.itemText.text));
+    assert.ok(draft.items.length > 0);
+    assert.ok(draft.items.every((item) => item.text.text.length > 0));
+    assert.ok(
+      draft.items.every((item) => item.text.html.includes(item.text.text)),
+    );
     assert.equal(draft.next, "list");
     assert.ok(draft.nextPurpose);
     assert.ok(draft.nextDate);
@@ -44,6 +47,30 @@ describe("initialOrderDraft", () => {
     for (const application of applicationsForListing(withApplications.id)) {
       assert.equal(draft.applications[application.id], "allowed");
     }
+  });
+
+  /* Two items on a cognizance listing — the finding and the process that follows it —
+     because the reference's own Add item says an order can carry more than one, and this
+     is the listing where a court plainly does. */
+  it("gives a cognizance listing the finding and the summons", () => {
+    const cognizance = CAUSE_LIST.find((row) => row.purpose === "cognizance");
+    assert.ok(cognizance);
+    const draft = initialOrderDraft(cognizance, "completed", today);
+    assert.deepEqual(
+      draft.items.map((item) => item.type),
+      ["order-for-taking-cognizance", "summons"],
+    );
+    assert.match(draft.items[1].text.text, /Issue summons to /);
+    assert.match(draft.items[1].text.text, new RegExp(cognizance.parties.accused));
+  });
+
+  it("keeps an item's id stable, so the editor is not remounted under the typist", () => {
+    const first = initialOrderDraft(hearing, "completed", today);
+    const second = initialOrderDraft(hearing, "completed", today);
+    assert.deepEqual(
+      first.items.map((item) => item.id),
+      second.items.map((item) => item.id),
+    );
   });
 
   it("posts a judgement listing to no next date", () => {
