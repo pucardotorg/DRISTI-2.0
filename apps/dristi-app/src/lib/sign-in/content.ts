@@ -135,6 +135,20 @@ export const form = {
     "Enter the 10 digits of your mobile number.",
     "മൊബൈൽ നമ്പറിന്റെ 10 അക്കങ്ങൾ നൽകുക.",
   ),
+  /** The number step's one action — it checks the number before asking for anything
+   *  else, so nobody types a password for an account that does not exist. */
+  continue: t("Continue", "തുടരുക"),
+  /* Said as a fact under the field, the way Google says it. No offer to register here:
+     the standing "Create an account" link is one line down, and a person who mistyped a
+     digit wants to fix the digit, not be sent to a form. */
+  notFound: t(
+    "Couldn't find an account for this number.",
+    "ഈ നമ്പറിൽ ഒരു അക്കൗണ്ടും കണ്ടെത്താനായില്ല.",
+  ),
+
+  /** The second step's headline — the number is known, now prove it is yours. */
+  credentialTitle: t("Welcome back", "വീണ്ടും സ്വാഗതം"),
+  changeNumber: t("Change number", "നമ്പർ മാറ്റുക"),
 
   methodLegend: t("Sign in with", "പ്രവേശിക്കാൻ"),
 

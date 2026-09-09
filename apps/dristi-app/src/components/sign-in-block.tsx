@@ -61,18 +61,19 @@ import {
 /**
  * The page under the onboarding modal.
  *
- * Three structural decisions, all load-bearing:
+ * Four structural decisions, all load-bearing:
  *
- * 1. **The role question moved onto this screen.** It used to be its own step ("Tell us
- *    a bit about yourself"), which cost a full screen to collect one bit. It is a tab
- *    strip now. Role is submitted with every attempt rather than inferred from the
- *    number, because the same person can be a litigant one year and an advocate the
- *    next — so the number alone does not settle it.
+ * 1. **The number goes first, alone.** One field and Continue. The number is checked
+ *    before anything else is asked, so nobody types a password for an account that does
+ *    not exist and nobody is told "wrong password" when the truth is "no account". An
+ *    unknown number is stated as a fact under the field — no redirect, no offer; the
+ *    standing "Create an account" link is one line down for the person who meant it.
+ *    A known number slides the second step in from the right (the Google pattern the
+ *    owner attached), with the number shown locked at the top and a way back beside it.
  *
- * 2. **Only one segmented control is full width.** Role and sign-in method are both
- *    choices, and two identical strips stacked on top of each other is how people end up
- *    changing the wrong one. Role is the wide strip at the top; method is a small
- *    labelled toggle next to the credential it governs.
+ * 2. **Method is chosen on the second step, next to the credential it governs.** A
+ *    small labelled toggle, not a full-width strip — the number field above it is the
+ *    only wide control, so there is nothing to confuse it with.
  *
  * 3. **The page is a grid, not two stacked flex columns.** The canvas has to run the
  *    full height of the viewport while the footer stays a slim bar under the form
@@ -86,6 +87,14 @@ import {
 const DIGITS = /\D/g;
 const OTP_LENGTH = 6;
 const RESEND_SECONDS = 30;
+
+/* Each step mounts fresh and slides in the way the person is travelling: forward from
+   the right, back from the left. Enter only — an exit animation would need both panels
+   in the tree at once, and `motion-reduce` turns the whole thing off. */
+const SLIDE_FORWARD =
+  "animate-in fade-in-0 slide-in-from-right-8 duration-200 motion-reduce:animate-none";
+const SLIDE_BACK =
+  "animate-in fade-in-0 slide-in-from-left-8 duration-200 motion-reduce:animate-none";
 
 
 /**
@@ -187,7 +196,13 @@ export function SignInBlock({
      again, and this is where signing in lands them. */
   const [resubmission, setResubmission] =
     React.useState<RejectedRegistration | null>(null);
-  const [step, setStep] = React.useState<"credentials" | "code">("credentials");
+  /* number → credential → code. The number is settled before a credential is asked
+     for; the code step exists only on the OTP path. */
+  const [step, setStep] = React.useState<"number" | "credential" | "code">(
+    "number",
+  );
+  // Which way the last step change went, so the incoming panel slides from that side.
+  const [direction, setDirection] = React.useState<"forward" | "back">("forward");
   const [method, setMethod] = React.useState<Method>("password");
   const [mobile, setMobile] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -199,6 +214,8 @@ export function SignInBlock({
   // would freeze it in whichever language was selected when the person pressed submit,
   // and this screen is switched between languages mid-form all the time.
   const [touched, setTouched] = React.useState(false);
+  // The number was checked and no account holds it. Cleared the moment a digit changes.
+  const [notFound, setNotFound] = React.useState(false);
 
   const methodLabelId = React.useId();
 
@@ -206,12 +223,13 @@ export function SignInBlock({
   const badPassword = touched && method === "password" && !password;
   const badCode = touched && code.length !== OTP_LENGTH;
 
-  // Any change to what is being submitted invalidates the last answer. A stale "this
-  // number is registered as an advocate" sitting above a number someone has already
-  // started correcting is how people conclude the site is broken.
+  // Any change to what is being submitted invalidates the last answer. A stale "no
+  // account for this number" sitting above a number someone has already started
+  // correcting is how people conclude the site is broken.
   const invalidate = React.useCallback(() => {
     setTouched(false);
     setAccepted(false);
+    setNotFound(false);
   }, []);
 
   React.useEffect(() => {
@@ -220,20 +238,38 @@ export function SignInBlock({
     return () => window.clearTimeout(timer);
   }, [resendIn]);
 
-  function submitCredentials(event: React.FormEvent<HTMLFormElement>) {
+  function goTo(next: "number" | "credential" | "code", dir: "forward" | "back") {
+    setDirection(dir);
+    setStep(next);
+    setTouched(false);
+  }
+
+  function submitNumber(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setTouched(true);
     if (mobile.length !== 10) return;
+
+    /* A rejected registration counts as a known number: the account does not exist
+       yet, but the person was told to sign in to fix it, and the credential step is
+       where that correction round begins. */
+    const known = rejectedRegistrationFor(mobile) || registeredRole(mobile);
+    if (!known) {
+      setNotFound(true);
+      return;
+    }
+    setNotFound(false);
+    goTo("credential", "forward");
+  }
+
+  function submitCredential(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setTouched(true);
     if (method === "password" && !password) return;
 
-    /* A rejected registration outranks "not registered": the account does
-       not exist yet, but the number is known — and the person was told to
-       sign in to fix it. */
     const rejected = rejectedRegistrationFor(mobile);
     if (rejected) {
       if (method === "otp") {
-        setStep("code");
-        setTouched(false);
+        goTo("code", "forward");
         setResendIn(RESEND_SECONDS);
         return;
       }
@@ -241,21 +277,10 @@ export function SignInBlock({
       return;
     }
 
-    /* No account for this number, so there is nothing to sign in to. Saying so and
-       waiting is a dead end dressed as a message: either the number has an account and
-       this person is signing in, or it does not and they are creating one. The number
-       they just typed is carried into the flow, so the fork costs them nothing —
-       whichever branch they were on, the next screen is the one they needed. */
-    const registered = registeredRole(mobile);
-    if (!registered) {
-      setRegistrationOpen(true);
-      onRegister?.();
-      return;
-    }
-
+    // The number step already established this number is registered.
+    const registered = registeredRole(mobile) ?? "litigant";
     if (method === "otp") {
-      setStep("code");
-      setTouched(false);
+      goTo("code", "forward");
       setResendIn(RESEND_SECONDS);
       return;
     }
@@ -273,22 +298,23 @@ export function SignInBlock({
     const rejected = rejectedRegistrationFor(mobile);
     if (rejected) {
       setResubmission(rejected);
-      setStep("credentials");
+      goTo("number", "back");
       return;
     }
     if (onSignedIn) {
-      // The credentials step verified this number is registered before sending a code.
       onSignedIn(registeredRole(mobile) ?? "litigant");
       return;
     }
     setAccepted(true);
   }
 
+  /** Back to the number, from either later step. Clears what those steps collected. */
   function changeNumber() {
-    setStep("credentials");
     setCode("");
+    setPassword("");
     setResendIn(0);
     invalidate();
+    goTo("number", "back");
   }
 
   return (
@@ -395,8 +421,13 @@ export function SignInBlock({
             />
           ) : (
           <div className="mx-auto flex w-full max-w-100 flex-col gap-6 lg:-translate-y-2">
-            {step === "credentials" ? (
-              <>
+            {step === "number" ? (
+              <div
+                className={cn(
+                  "flex flex-col gap-6",
+                  direction === "back" && SLIDE_BACK,
+                )}
+              >
                 {/* One token down the scale on phones — `title-s` and `body-compact`.
                     Type steps; controls do not, because 40px is the touch-target floor
                     and shrinking a field to buy air is how a form becomes unusable in
@@ -412,12 +443,12 @@ export function SignInBlock({
 
                 <div className="flex flex-col gap-4">
                   <form
-                    onSubmit={submitCredentials}
+                    onSubmit={submitNumber}
                     noValidate
                     aria-label={pick(form.title, locale)}
                     className="flex flex-col gap-4"
                   >
-                    <Field data-invalid={badMobile}>
+                    <Field data-invalid={badMobile || notFound}>
                       <FieldLabel>{pick(form.mobileLabel, locale)}</FieldLabel>
                       <InputGroup>
                         <InputGroupAddon variant="field">
@@ -439,12 +470,103 @@ export function SignInBlock({
                         />
                       </InputGroup>
                       <FieldError>
-                        {badMobile ? pick(form.mobileError, locale) : null}
+                        {badMobile
+                          ? pick(form.mobileError, locale)
+                          : notFound
+                            ? pick(form.notFound, locale)
+                            : null}
                       </FieldError>
                     </Field>
 
+                    <Button type="submit" size="lg" className="w-full">
+                      {pick(form.continue, locale)}
+                    </Button>
+                  </form>
+
+                  <div className="flex flex-wrap items-center justify-center gap-2 text-body-compact text-muted-foreground">
+                    {pick(form.registerPrompt, locale)}
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="h-auto p-0"
+                      onClick={() => {
+                        setRegistrationOpen(true);
+                        onRegister?.();
+                      }}
+                    >
+                      {pick(form.registerAction, locale)}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* The phone half of the explainer. Same content, page type, a rule
+                    instead of a gradient plate. Only one of the two is ever in the
+                    accessibility tree — the other is `display:none`. */}
+                {summoned ? (
+                  <div className="mt-2 flex flex-col gap-10 lg:hidden">
+                    <Separator />
+                    <HelpEntry
+                      locale={locale}
+                      entry={help.summoned}
+                      onSeekHelp={onSeekHelp}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            ) : step === "credential" ? (
+              <div
+                className={cn(
+                  "flex flex-col gap-6",
+                  direction === "forward" ? SLIDE_FORWARD : SLIDE_BACK,
+                )}
+              >
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <h1 className="text-title-s text-balance font-semibold sm:text-title">
+                    {pick(form.credentialTitle, locale)}
+                  </h1>
+                </div>
+
+                <form
+                  onSubmit={submitCredential}
+                  noValidate
+                  aria-label={pick(form.credentialTitle, locale)}
+                  className="flex flex-col gap-4"
+                >
+                  {/* The number stays on screen, locked — the same frame the registration
+                      contact step uses once a code is out — with the way back beside it.
+                      The DS disabled look minus the 50% dim on the value, since the number
+                      is the one fact this step is about. */}
+                  <Field>
+                    <FieldLabel htmlFor="sign-in-number">
+                      {pick(form.mobileLabel, locale)}
+                    </FieldLabel>
+                    <div className="flex gap-2">
+                      <InputGroup className="flex-1 has-disabled:bg-surface-sunken has-disabled:opacity-100 dark:has-disabled:bg-surface-sunken">
+                        <InputGroupAddon variant="field">
+                          <InputGroupText>+91</InputGroupText>
+                        </InputGroupAddon>
+                        <InputGroupInput
+                          id="sign-in-number"
+                          type="tel"
+                          value={mobile}
+                          disabled
+                          readOnly
+                          className="disabled:text-foreground disabled:opacity-100 disabled:[-webkit-text-fill-color:currentcolor]"
+                        />
+                      </InputGroup>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="shrink-0"
+                        onClick={changeNumber}
+                      >
+                        {pick(form.changeNumber, locale)}
+                      </Button>
+                    </div>
+                  </Field>
+
                     {/* Directly under the number, because the number is the one thing
-                        both methods share: you give it, then you say how you will prove
+                        both methods share: you gave it, now you say how you will prove
                         it is yours. Both options stay visible — recall is the wrong
                         thing to ask of someone who signs in twice a year. */}
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -494,6 +616,7 @@ export function SignInBlock({
                           <InputGroupInput
                             type={revealed ? "text" : "password"}
                             autoComplete="current-password"
+                            autoFocus
                             placeholder={pick(form.passwordPlaceholder, locale)}
                             value={password}
                             onChange={(event) => {
@@ -551,40 +674,10 @@ export function SignInBlock({
                       mobile={mobile}
                       method={method}
                     />
-                  </form>
-
-                  <div className="flex flex-wrap items-center justify-center gap-2 text-body-compact text-muted-foreground">
-                    {pick(form.registerPrompt, locale)}
-                    <Button
-                      type="button"
-                      variant="link"
-                      className="h-auto p-0"
-                      onClick={() => {
-                        setRegistrationOpen(true);
-                        onRegister?.();
-                      }}
-                    >
-                      {pick(form.registerAction, locale)}
-                    </Button>
-                  </div>
-                </div>
-
-                {/* The phone half of the explainer. Same content, page type, a rule
-                    instead of a gradient plate. Only one of the two is ever in the
-                    accessibility tree — the other is `display:none`. */}
-                {summoned ? (
-                  <div className="mt-2 flex flex-col gap-10 lg:hidden">
-                    <Separator />
-                    <HelpEntry
-                      locale={locale}
-                      entry={help.summoned}
-                      onSeekHelp={onSeekHelp}
-                    />
-                  </div>
-                ) : null}
-              </>
+                </form>
+              </div>
             ) : (
-              <>
+              <div className={cn("flex flex-col gap-6", SLIDE_FORWARD)}>
                 <div className="flex flex-col items-center gap-2 text-center">
                   <h1 className="text-title text-balance font-semibold">
                     {pick(otp.title, locale)}
@@ -666,7 +759,7 @@ export function SignInBlock({
                     </Button>
                   </div>
                 </form>
-              </>
+              </div>
             )}
           </div>
           )}

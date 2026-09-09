@@ -79,8 +79,10 @@ export const contactStep = {
  * Creating the password the account signs in with.
  *
  * Sign-in offers a password as well as a one-time code, so registration has to produce
- * one — the flow used to reach the end without ever asking. What the password has to
- * clear is stated once, under the field, in the same words the error uses.
+ * one — the flow used to reach the end without ever asking. The policy (REG-40 to 44,
+ * `lib/registration/password-policy.ts`) is stated once under the field at rest; while
+ * the person types, that line becomes the one rule they are currently failing, or the
+ * confirmation that the password works. One sentence at a time, never a checklist.
  */
 export const passwordStep = {
   title: t("Create a password", "ഒരു പാസ്‌വേഡ് ഉണ്ടാക്കുക"),
@@ -91,14 +93,23 @@ export const passwordStep = {
   confirmPlaceholder: t("Enter it again", "വീണ്ടും നൽകുക"),
   show: t("Show password", "പാസ്‌വേഡ് കാണിക്കുക"),
   hide: t("Hide password", "പാസ്‌വേഡ് മറയ്ക്കുക"),
+  /** At rest, before anything is typed. The whole policy in two short sentences. */
   rules: t(
-    "At least 8 characters, with a letter, a number and a symbol.",
-    "കുറഞ്ഞത് 8 പ്രതീകങ്ങൾ, ഒരു അക്ഷരവും ഒരു അക്കവും ഒരു ചിഹ്നവും ഉൾപ്പെടെ.",
+    "At least 8 characters. Not your name, mobile number or email, and nothing too common.",
+    "കുറഞ്ഞത് 8 പ്രതീകങ്ങൾ. നിങ്ങളുടെ പേരോ മൊബൈൽ നമ്പറോ ഇമെയിലോ ആകരുത്; സാധാരണമായവയും പാടില്ല.",
   ),
-  error: t(
-    "Use at least 8 characters, with a letter, a number and a symbol.",
-    "കുറഞ്ഞത് 8 പ്രതീകങ്ങൾ ഉപയോഗിക്കുക — ഒരു അക്ഷരവും ഒരു അക്കവും ഒരു ചിഹ്നവും ഉൾപ്പെടെ.",
-  ),
+  /** Live, while typing — the first rule the password is failing. */
+  problem: {
+    length: t("Use at least 8 characters.", "കുറഞ്ഞത് 8 പ്രതീകങ്ങൾ ഉപയോഗിക്കുക."),
+    mobile: t("Your mobile number cannot be the password.", "നിങ്ങളുടെ മൊബൈൽ നമ്പർ പാസ്‌വേഡാക്കാൻ കഴിയില്ല."),
+    name: t("Your name cannot be the password.", "നിങ്ങളുടെ പേര് പാസ്‌വേഡാക്കാൻ കഴിയില്ല."),
+    email: t("Your email cannot be the password.", "നിങ്ങളുടെ ഇമെയിൽ പാസ്‌വേഡാക്കാൻ കഴിയില്ല."),
+    common: t("Too easy to guess. Pick something less common.", "ഊഹിക്കാൻ എളുപ്പമാണ്. അത്ര സാധാരണമല്ലാത്തത് തിരഞ്ഞെടുക്കുക."),
+  },
+  /** Live, once every rule passes. */
+  ok: t("This password works.", "ഈ പാസ്‌വേഡ് ഉപയോഗിക്കാം."),
+  /** Read out beside the tick in the confirm box; sighted people see the tick. */
+  confirmMatch: t("Passwords match", "പാസ്‌വേഡുകൾ ഒരുപോലെയാണ്"),
   confirmError: t("Both passwords must match.", "രണ്ട് പാസ്‌വേഡുകളും ഒരുപോലെ ആയിരിക്കണം."),
 } as const;
 
