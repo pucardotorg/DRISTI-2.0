@@ -69,7 +69,10 @@ export const contactStep = {
   otpShow: t("Show the code", "കോഡ് കാണിക്കുക"),
   otpHide: t("Hide the code", "കോഡ് മറയ്ക്കുക"),
   otpResend: t("Send the code again", "കോഡ് വീണ്ടും അയയ്ക്കുക"),
-  otpResendIn: t("You can ask for a new code in {seconds} seconds.", "{seconds} സെക്കൻഡിനുള്ളിൽ പുതിയ കോഡ് ചോദിക്കാം."),
+  /* Short on purpose: it sits in the slot the resend link takes over when the timer
+     ends, so the two must be about one width — a sentence there wrapped under the
+     reveal and then jumped to the right (owner, Sept 9). */
+  otpResendIn: t("Send again in {seconds}s", "{seconds}സെ. കഴിഞ്ഞ് വീണ്ടും അയയ്ക്കാം"),
   verified: t("Mobile number verified", "മൊബൈൽ നമ്പർ പരിശോധിച്ചു"),
   changeNumber: t("Change number", "നമ്പർ മാറ്റുക"),
   verifyFirst: t("Verify your mobile number to continue.", "തുടരാൻ നിങ്ങളുടെ മൊബൈൽ നമ്പർ പരിശോധിക്കുക."),

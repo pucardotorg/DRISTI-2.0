@@ -67,7 +67,7 @@ export function CasesTableColumnsMenu({
               <li key={column.id}>
                 <Label
                   htmlFor={checkboxId}
-                  className="flex min-h-10 cursor-pointer items-center gap-3 rounded-md px-2 text-body font-normal hover:bg-accent has-disabled:cursor-default has-disabled:hover:bg-transparent"
+                  className="flex min-h-10 cursor-pointer items-center gap-3 rounded-md px-2 text-body-compact font-normal hover:bg-accent has-disabled:cursor-default has-disabled:hover:bg-transparent"
                 >
                   <Checkbox
                     id={checkboxId}
@@ -92,7 +92,6 @@ export function CasesTableColumnsMenu({
             variant="ghost"
             disabled={isAllVisible}
             onClick={() => showAll()}
-            className="text-body"
           >
             Show all
           </Button>
@@ -101,7 +100,6 @@ export function CasesTableColumnsMenu({
             variant="ghost"
             disabled={isDefault}
             onClick={() => reset()}
-            className="text-body"
           >
             Reset to default
           </Button>

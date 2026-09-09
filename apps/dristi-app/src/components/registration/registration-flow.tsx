@@ -279,7 +279,7 @@ export function RegistrationFlow({ locale, summoned, initialMobile = "", onFinis
                     {pick(otpRevealed ? contactStep.otpHide : contactStep.otpShow, locale)}
                   </Button>
                   {resendIn > 0 ? (
-                    <p className="text-body-compact text-muted-foreground">{pick(contactStep.otpResendIn, locale).replace("{seconds}", String(resendIn))}</p>
+                    <p className="text-body-compact whitespace-nowrap text-muted-foreground tabular-nums">{pick(contactStep.otpResendIn, locale).replace("{seconds}", String(resendIn))}</p>
                   ) : (
                     <Button type="button" variant="link" size="sm" className="h-auto p-0" onClick={() => { setResendIn(RESEND_SECONDS); setOtpCode(""); }}>{pick(contactStep.otpResend, locale)}</Button>
                   )}

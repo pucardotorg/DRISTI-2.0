@@ -686,7 +686,7 @@ export function SignInBlock({
                         {pick(codeRevealed ? otp.hide : otp.show, locale)}
                       </Button>
                       {resendIn > 0 ? (
-                        <p className="text-body-compact text-muted-foreground">
+                        <p className="text-body-compact whitespace-nowrap text-muted-foreground tabular-nums">
                           {pick(otp.resendIn, locale).replace(
                             "{seconds}",
                             String(resendIn),

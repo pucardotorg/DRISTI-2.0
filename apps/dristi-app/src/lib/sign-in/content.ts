@@ -235,11 +235,10 @@ export const otp = {
   hide: t("Hide the code", "കോഡ് മറയ്ക്കുക"),
   verify: t("Verify and sign in", "പരിശോധിച്ച് പ്രവേശിക്കുക"),
   resend: t("Send the code again", "കോഡ് വീണ്ടും അയയ്ക്കുക"),
-  /** `{seconds}` counts down. Saying when beats greying a button out silently. */
-  resendIn: t(
-    "You can ask for a new code in {seconds} seconds.",
-    "{seconds} സെക്കൻഡിനുള്ളിൽ പുതിയ കോഡ് ചോദിക്കാം.",
-  ),
+  /** `{seconds}` counts down. Saying when beats greying a button out silently. Short
+   *  on purpose: it shares a slot with the resend link that replaces it, so the two
+   *  must be about one width or the line hops when the timer ends. */
+  resendIn: t("Send again in {seconds}s", "{seconds}സെ. കഴിഞ്ഞ് വീണ്ടും അയയ്ക്കാം"),
   changeNumber: t("Use a different number", "മറ്റൊരു നമ്പർ ഉപയോഗിക്കുക"),
 } satisfies Record<string, Copy>;
 

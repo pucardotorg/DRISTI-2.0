@@ -114,7 +114,9 @@ function CheckGroup<T extends string>({
               <Label
                 htmlFor={checkboxId}
                 className={cn(
-                  "flex min-h-10 items-center gap-3 rounded-md px-2 text-body font-normal",
+                  /* Option labels at the button-label size (14px), so the sheet reads
+                     as controls beside the list, not as body copy. */
+                  "flex min-h-10 items-center gap-3 rounded-md px-2 text-body-compact font-normal",
                   locked ? "cursor-default" : "cursor-pointer hover:bg-accent"
                 )}
               >
