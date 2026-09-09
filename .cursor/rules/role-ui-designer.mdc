@@ -95,10 +95,16 @@ every Critical before touching anything else.
 ## Done means
 
 ```bash
-npm run check:tokens && npm run check:typography && npm run check:ui-sync
+npm run check:tokens && npm run check:typography && npm run check:ui-sync && npm run check:spacing
 ```
 
-All three pass — or `npm run lint -w @pucar/dristi-app`, same gate. Then say plainly what
-you built, what you couldn't, and anything you escalated. If a check fails and you
-couldn't fix it, report the failure and its output rather than narrowing scope until it
-passes. Hand off to `ui-reviewer` when the user wants a review before calling it shipped.
+All four pass — or `npm run lint -w @pucar/dristi-app`, same gate. `check:spacing`
+tolerates a recorded baseline of pre-existing off-ladder values and fails only on a new
+one — so if it fails, you wrote it. Snap to the nearest rung. Never run it with
+`--update` to make your own failure go away; that flag records a cleanup, it does not
+excuse one.
+
+Then say plainly what you built, what you couldn't, and anything you escalated. If a
+check fails and you couldn't fix it, report the failure and its output rather than
+narrowing scope until it passes. Hand off to `ui-reviewer` when the user wants a review
+before calling it shipped.

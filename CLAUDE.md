@@ -19,8 +19,8 @@ layered on top of identical national law.
 checks it out. Run `npm run check:ds-fresh` first — the other gates compare us to
 whatever is in `vendor/`, so the wrong version passes them all. Bump the pin only
 with `npm run ds:bump`, on main.
-Gates: `npm run check:ds-fresh`, `npm run check:tokens`, `npm run check:typography`, `npm run check:ui-sync`, and
-`npm run check:rails`. See [docs/design/design-system.md](docs/design/design-system.md).
+Gates: `npm run check:ds-fresh`, `npm run check:tokens`, `npm run check:typography`, `npm run check:ui-sync`,
+`npm run check:spacing`, and `npm run check:rails`. See [docs/design/design-system.md](docs/design/design-system.md).
 **Craft (mandatory, every iteration):** also load the `ui-craft` skill for any UI build,
 change, or polish — layering (canvas → chrome → panel → well), strokes, type, elevation —
 and run its pre-flight checklist on the render before reporting done.

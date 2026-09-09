@@ -55,6 +55,7 @@ single highest-value thing you do that no script can.
 npm run check:tokens
 npm run check:typography
 npm run check:ui-sync
+npm run check:spacing
 ```
 
 (or `npm run lint -w @pucar/dristi-app`). Any failure here is automatically **Critical**
@@ -84,7 +85,7 @@ npm run check:ui-sync
 ## Checklist
 
 ```
-- [ ] check:tokens / check:typography / check:ui-sync all pass (actually run)
+- [ ] check:tokens / check:typography / check:ui-sync / check:spacing all pass (actually run)
 - [ ] No hand-written or invented controls — synced via `npm run sync:ui -- <name>`
 - [ ] No local edits to a synced primitive (would be destroyed on next sync)
 - [ ] Semantic tokens only (no hex, arbitrary oklch, raw neutral-N, white/black)

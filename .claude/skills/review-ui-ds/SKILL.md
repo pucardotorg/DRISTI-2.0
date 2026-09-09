@@ -35,6 +35,7 @@ From repo root:
 npm run check:tokens
 npm run check:typography
 npm run check:ui-sync
+npm run check:spacing
 ```
 
 Or `npm run lint -w @pucar/dristi-app` (includes both). Failures are **Critical**.
@@ -46,6 +47,7 @@ Review:
 - [ ] check:tokens passed
 - [ ] check:typography passed
 - [ ] check:ui-sync passed (primitives match DS; globals.css matches)
+- [ ] check:spacing passed (no NEW off-ladder value; baseline not grown to hide one)
 - [ ] No hand-written / invented controls — synced via `npm run sync:ui -- <name>`
 - [ ] Semantic tokens only (no hex, oklch arbitrary, raw neutral-N, white/black)
 - [ ] Status uses solid / muted / ink — no alpha fakes (`bg-destructive/10`)
