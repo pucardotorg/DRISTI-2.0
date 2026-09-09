@@ -1,11 +1,13 @@
 "use client";
 
-import { SlidersHorizontalIcon, XIcon } from "lucide-react";
+import * as React from "react";
+import { SearchIcon, SlidersHorizontalIcon, XIcon } from "lucide-react";
 
 import { AppliedChip } from "@/components/shell/applied-chip";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FieldLegend, FieldSet } from "@/components/ui/field";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import {
   Sheet,
@@ -55,6 +57,7 @@ function CheckGroup<T extends string>({
   onChange,
   locked = false,
   note,
+  searchable = false,
 }: {
   id: string;
   legend: string;
@@ -64,14 +67,47 @@ function CheckGroup<T extends string>({
   /** Every option ticked and none of them changeable — a statement, not a choice. */
   locked?: boolean;
   note?: string;
+  /** A long list gets a small type-to-narrow box beside its legend. */
+  searchable?: boolean;
 }) {
+  const [needle, setNeedle] = React.useState("");
+  const shown = searchable && needle.trim()
+    ? options.filter((option) =>
+        option.label.toLowerCase().includes(needle.trim().toLowerCase())
+      )
+    : options;
   return (
     <FieldSet className="gap-1">
-      <FieldLegend variant="label" className="mb-1 text-body-compact text-muted-foreground">
-        {legend}
-      </FieldLegend>
+      <div className="mb-1 flex items-center justify-between gap-3">
+        <FieldLegend variant="label" className="mb-0 text-body-compact text-muted-foreground">
+          {legend}
+        </FieldLegend>
+        {searchable ? (
+          /* The narrow box sits on the legend's line, at the 36px step of the control
+             ladder — a full-height field would read as a form inside the sheet. */
+          <InputGroup className="h-9 w-40">
+            <InputGroupAddon>
+              <SearchIcon aria-hidden />
+            </InputGroupAddon>
+            <InputGroupInput
+              type="search"
+              value={needle}
+              onChange={(event) => setNeedle(event.target.value)}
+              placeholder="Find a name"
+              aria-label={`Find in ${legend.toLowerCase()}`}
+              autoComplete="off"
+              className="h-full text-body-compact"
+            />
+          </InputGroup>
+        ) : null}
+      </div>
+      {searchable && shown.length === 0 ? (
+        <p className="px-2 py-2 text-body-compact text-muted-foreground">
+          No names match.
+        </p>
+      ) : null}
       <ul className="flex flex-col">
-        {options.map((option) => {
+        {shown.map((option) => {
           const checkboxId = `${id}-${option.value}`;
           return (
             <li key={option.value}>
@@ -193,6 +229,7 @@ export function CasesFiltersButton({
             options={advocateOptions(cases).map((name) => ({ value: name, label: name }))}
             value={query.advocates}
             onChange={(advocates) => onChange({ advocates })}
+            searchable
           />
         </div>
 

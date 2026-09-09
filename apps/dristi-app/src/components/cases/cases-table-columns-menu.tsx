@@ -47,11 +47,7 @@ export function CasesTableColumnsMenu({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          className="shrink-0 text-body"
-        >
+        <Button type="button" variant="outline" className="shrink-0">
           <Columns3Icon data-icon="inline-start" aria-hidden />
           Columns
         </Button>

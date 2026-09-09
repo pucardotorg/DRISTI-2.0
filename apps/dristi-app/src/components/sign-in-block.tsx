@@ -190,17 +190,19 @@ export function SignInBlock({
      again, and this is where signing in lands them. */
   const [resubmission, setResubmission] =
     React.useState<RejectedRegistration | null>(null);
-  /* number → credential → code. The number is settled before a credential is asked
-     for; the code step exists only on the OTP path. */
-  const [step, setStep] = React.useState<"number" | "credential" | "code">(
-    "number",
-  );
+  /* number → credential. The number is settled before a credential is asked for. On
+     the OTP path the code is asked for on the credential step itself, in a panel that
+     opens under the method toggle once the code is sent — the same shape as the
+     registration contact step, so there is no third screen to come back from. */
+  const [step, setStep] = React.useState<"number" | "credential">("number");
   // Which way the last step change went, so the incoming panel slides from that side.
   const [direction, setDirection] = React.useState<"forward" | "back">("forward");
   const [method, setMethod] = React.useState<Method>("password");
   const [mobile, setMobile] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [code, setCode] = React.useState("");
+  // Whether the one-time code has been sent for this number; opens the code panel.
+  const [codeSent, setCodeSent] = React.useState(false);
   const [revealed, setRevealed] = React.useState(false);
   // The code is masked at rest for the same reason the password is.
   const [codeRevealed, setCodeRevealed] = React.useState(false);
@@ -217,7 +219,7 @@ export function SignInBlock({
 
   const badMobile = touched && mobile.length !== 10;
   const badPassword = touched && method === "password" && !password;
-  const badCode = touched && code.length !== OTP_LENGTH;
+  const badCode = touched && method === "otp" && codeSent && code.length !== OTP_LENGTH;
 
   // Any change to what is being submitted invalidates the last answer. A stale "no
   // account for this number" sitting above a number someone has already started
@@ -234,10 +236,18 @@ export function SignInBlock({
     return () => window.clearTimeout(timer);
   }, [resendIn]);
 
-  function goTo(next: "number" | "credential" | "code", dir: "forward" | "back") {
+  function goTo(next: "number" | "credential", dir: "forward" | "back") {
     setDirection(dir);
     setStep(next);
     setTouched(false);
+  }
+
+  /** The code panel closes and forgets its code — on a method switch or a new number. */
+  function resetCode() {
+    setCodeSent(false);
+    setCode("");
+    setCodeRevealed(false);
+    setResendIn(0);
   }
 
   function submitNumber(event: React.FormEvent<HTMLFormElement>) {
@@ -257,46 +267,33 @@ export function SignInBlock({
     goTo("credential", "forward");
   }
 
+  /**
+   * One submit for the credential step, whichever method and whichever state:
+   * password → sign in; OTP before a code is out → send it and open the code panel;
+   * OTP with a code out → verify it and sign in.
+   */
   function submitCredential(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setTouched(true);
-    if (method === "password" && !password) return;
 
+    if (method === "otp" && !codeSent) {
+      setTouched(false);
+      setCodeSent(true);
+      setResendIn(RESEND_SECONDS);
+      return;
+    }
+    if (method === "password" && !password) return;
+    if (method === "otp" && code.length !== OTP_LENGTH) return;
+
+    /* A rejected registration lands in its correction round once the person has
+       proved the number — by either method. */
     const rejected = rejectedRegistrationFor(mobile);
     if (rejected) {
-      if (method === "otp") {
-        goTo("code", "forward");
-        setResendIn(RESEND_SECONDS);
-        return;
-      }
       setResubmission(rejected);
       return;
     }
 
     // The number step already established this number is registered.
-    const registered = registeredRole(mobile) ?? "litigant";
-    if (method === "otp") {
-      goTo("code", "forward");
-      setResendIn(RESEND_SECONDS);
-      return;
-    }
-    if (onSignedIn) {
-      onSignedIn(registered);
-      return;
-    }
-    setAccepted(true);
-  }
-
-  function submitCode(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setTouched(true);
-    if (code.length !== OTP_LENGTH) return;
-    const rejected = rejectedRegistrationFor(mobile);
-    if (rejected) {
-      setResubmission(rejected);
-      goTo("number", "back");
-      return;
-    }
     if (onSignedIn) {
       onSignedIn(registeredRole(mobile) ?? "litigant");
       return;
@@ -304,11 +301,10 @@ export function SignInBlock({
     setAccepted(true);
   }
 
-  /** Back to the number, from either later step. Clears what those steps collected. */
+  /** Back to the number. Clears what the credential step collected. */
   function changeNumber() {
-    setCode("");
+    resetCode();
     setPassword("");
-    setResendIn(0);
     invalidate();
     goTo("number", "back");
   }
@@ -509,7 +505,7 @@ export function SignInBlock({
                   </div>
                 ) : null}
               </div>
-            ) : step === "credential" ? (
+            ) : (
               <div
                 className={cn(
                   "flex flex-col gap-6",
@@ -578,6 +574,7 @@ export function SignInBlock({
                         onValueChange={(value) => {
                           if (!value) return;
                           setMethod(value as Method);
+                          resetCode();
                           invalidate();
                         }}
                         aria-labelledby={methodLabelId}
@@ -646,67 +643,33 @@ export function SignInBlock({
                       </Field>
                     ) : null}
 
-                    {/* The hint belongs to the button, not to the field above it. Left
-                        in the form's own rhythm it sat equidistant between the two and
-                        read as a caption on the wrong element. */}
-                    <div className="flex flex-col gap-2">
-                      {method === "otp" ? (
+                    {/* OTP, once the code is out: the same panel the registration contact
+                        step shows — a sunken well with the code field, masked at rest,
+                        the reveal under the boxes on the left and the countdown / resend
+                        on the right. It opens in place, so the number, the method toggle
+                        and Change number all stay where they were. */}
+                    {method === "otp" && codeSent ? (
+                      <Field
+                        data-invalid={badCode}
+                        className={cn("rounded-lg bg-surface-sunken p-4", SLIDE_FORWARD)}
+                      >
+                        <FieldLabel>{pick(otp.label, locale)}</FieldLabel>
                         <FieldDescription>
-                          {pick(form.otpHint, locale)}
+                          {pick(otp.subtitle, locale).replace("{number}", mobile)}
                         </FieldDescription>
-                      ) : null}
-                      <Button type="submit" size="lg" className="w-full">
-                        {pick(
-                          method === "password"
-                            ? form.submitPassword
-                            : form.submitOtp,
-                          locale,
-                        )}
-                      </Button>
-                    </div>
-
-                    <PrototypeNotice
-                      show={accepted}
-                      mobile={mobile}
-                      method={method}
-                    />
-                </form>
-              </div>
-            ) : (
-              <div className={cn("flex flex-col gap-6", SLIDE_FORWARD)}>
-                <div className="flex flex-col items-center gap-2 text-center">
-                  <h1 className="text-title text-balance font-semibold">
-                    {pick(otp.title, locale)}
-                  </h1>
-                  {/* The number is shown, not assumed. Someone who mistyped a digit two
-                      taps ago finds out here rather than after the code never arrives. */}
-                  <p className="text-body text-muted-foreground">
-                    {pick(otp.subtitle, locale).replace("{number}", mobile)}
-                  </p>
-                </div>
-
-                <form
-                  onSubmit={submitCode}
-                  noValidate
-                  className="flex flex-col gap-4"
-                >
-                  {/* The same code field registration uses: masked at rest, the reveal
-                      under the boxes on the left, the countdown / resend on the right. */}
-                  <Field data-invalid={badCode}>
-                    <FieldLabel>{pick(otp.label, locale)}</FieldLabel>
-                    <MaskedOtp
-                      value={code}
-                      revealed={codeRevealed}
-                      onChange={(value) => {
-                        setCode(value);
-                        setTouched(false);
-                        setAccepted(false);
-                      }}
-                    />
-                    <FieldError>
-                      {badCode ? pick(otp.error, locale) : null}
-                    </FieldError>
-                    <div className="flex min-h-8 flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                        <MaskedOtp
+                          value={code}
+                          revealed={codeRevealed}
+                          onChange={(value) => {
+                            setCode(value);
+                            setTouched(false);
+                            setAccepted(false);
+                          }}
+                        />
+                        <FieldError>
+                          {badCode ? pick(otp.error, locale) : null}
+                        </FieldError>
+                        <div className="flex min-h-8 flex-wrap items-center justify-between gap-x-4 gap-y-1">
                       <Button
                         type="button"
                         variant="link"
@@ -744,24 +707,36 @@ export function SignInBlock({
                         </Button>
                       )}
                     </div>
-                  </Field>
+                      </Field>
+                    ) : null}
 
-                  <Button type="submit" size="lg" className="w-full">
-                    {pick(otp.verify, locale)}
-                  </Button>
+                    {/* The hint belongs to the button, not to the field above it. Left
+                        in the form's own rhythm it sat equidistant between the two and
+                        read as a caption on the wrong element. Once the code is out the
+                        hint is gone and the button verifies. */}
+                    <div className="flex flex-col gap-2">
+                      {method === "otp" && !codeSent ? (
+                        <FieldDescription>
+                          {pick(form.otpHint, locale)}
+                        </FieldDescription>
+                      ) : null}
+                      <Button type="submit" size="lg" className="w-full">
+                        {pick(
+                          method === "password"
+                            ? form.submitPassword
+                            : codeSent
+                              ? otp.verify
+                              : form.submitOtp,
+                          locale,
+                        )}
+                      </Button>
+                    </div>
 
-                  <PrototypeNotice
-                    show={accepted}
-                    mobile={mobile}
-                    method={method}
-                  />
-
-                  <div className="flex flex-col items-center gap-2">
-                    <Button type="button" variant="ghost" onClick={changeNumber}>
-                      <ArrowLeftIcon data-icon="inline-start" aria-hidden />
-                      {pick(otp.changeNumber, locale)}
-                    </Button>
-                  </div>
+                    <PrototypeNotice
+                      show={accepted}
+                      mobile={mobile}
+                      method={method}
+                    />
                 </form>
               </div>
             )}

@@ -387,7 +387,10 @@ export function CasesScreen({
               pressed={effective.bookmarked}
               onPressedChange={(bookmarked) => go({ bookmarked })}
               aria-label={`Bookmarked cases, ${totals.bookmarked}`}
-              className="h-10 gap-1.5 px-3 text-body font-medium"
+              /* Same metric and type as the buttons beside it: h-10, the DS button
+                 label size. The Toggle's own text is that size already; only the
+                 height and padding are lifted to the control floor. */
+              className="h-10 gap-1.5 px-4"
             >
               <BookmarkIcon
                 aria-hidden
