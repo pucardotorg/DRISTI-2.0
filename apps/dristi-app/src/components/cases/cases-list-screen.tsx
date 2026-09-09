@@ -28,6 +28,7 @@ import {
   type CasesQuery,
 } from "@/lib/cases/query";
 import { bucketLabel, type CaseRecord } from "@/lib/cases/types";
+import { Breadcrumbs } from "@/components/shell/chrome";
 
 import { CasePeekSurface } from "./case-peek";
 import { CasesListResults } from "./cases-list-results";
@@ -91,6 +92,8 @@ export function CasesListScreen({
 
   return (
     <div className="flex flex-1 flex-col gap-8 p-6 md:p-8">
+      {/* Cases › the folder. Publishing the crumb is what links the root back. */}
+      <Breadcrumbs crumbs={[{ label: title }]} />
       <div>
         <Button variant="ghost" className="w-fit" asChild>
           <Link href={backHref}>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { CaseBreadcrumbs } from "@/components/cases/case-breadcrumbs";
 import { SubmitDocumentsForm } from "@/components/cases/submit-documents-form";
 import { CASES } from "@/lib/cases/fixtures";
 
@@ -31,6 +32,11 @@ export default async function SubmitDocumentsPage({
 
   return (
     <main className="flex flex-1 flex-col p-6 md:p-8">
+      <CaseBreadcrumbs
+        caseId={record.id}
+        caseNumber={record.caseNumber}
+        trail={[{ label: "Submit documents" }]}
+      />
       <SubmitDocumentsForm caseId={record.id} />
     </main>
   );

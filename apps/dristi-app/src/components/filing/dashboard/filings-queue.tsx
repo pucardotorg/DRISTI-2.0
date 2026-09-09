@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { withOrigin } from "@/lib/nav/origin";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Empty,
   EmptyContent,
@@ -47,6 +48,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PANEL_CLASS } from "@/components/filing/form-card";
+
+import { CompletionRing } from "./completion-ring";
 
 /** The tone words, so a colour is never the only thing saying "this one is late". */
 const TONE_CLASS: Record<QueueRow["info"]["tone"], string> = {
@@ -115,14 +118,41 @@ export function FilingsQueue({
 }: {
   data: QueueData;
   ready: boolean;
-  /** Throwing a draft away is the one destructive act here; the screen owns the
-      confirmation, the row only asks for it. */
-  onDiscard: (id: string) => void;
+  /** Throwing drafts away is the one destructive act here; the screen owns the
+      confirmation, the row (or the selection) only asks for it. */
+  onDiscard: (ids: string[]) => void;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const view = readView(new URLSearchParams(searchParams.toString()));
+
+  /* Drafts can be ticked and discarded together. The selection is this screen's, not
+     the URL's, and it empties when the tab changes — a row ticked on Drafts means
+     nothing on Registered. Only drafts are discardable, so only Drafts selects. */
+  const selectable = view.tab === "drafts";
+  const [selected, setSelected] = React.useState<ReadonlySet<string>>(() => new Set());
+  const [selectedTab, setSelectedTab] = React.useState(view.tab);
+  if (selectedTab !== view.tab) {
+    setSelectedTab(view.tab);
+    setSelected(new Set());
+  }
+  const toggleSelected = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const setManySelected = (ids: string[], on: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (on) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
 
   const go = React.useCallback(
     (next: Partial<View>) => {
@@ -159,9 +189,31 @@ export function FilingsQueue({
   const start = (page - 1) * view.size;
   const slice = filtered.slice(start, start + view.size);
 
+  /* Rows that were ticked and then filtered or paged away still count — the discard
+     button names how many, and the confirmation names them again. */
+  const selectedIds = rows.filter((row) => selected.has(row.id)).map((row) => row.id);
+  const pageIds = slice.map((row) => row.id);
+  const selectedOnPage = pageIds.filter((id) => selected.has(id)).length;
+  const pageState: boolean | "indeterminate" =
+    selectedOnPage === 0
+      ? false
+      : selectedOnPage === pageIds.length
+        ? true
+        : "indeterminate";
+
   const body = (
     <>
       <div className="flex flex-wrap items-center gap-3 px-6 py-4">
+        {selectable && selectedIds.length > 0 ? (
+          <Button
+            variant="destructive"
+            onClick={() => onDiscard(selectedIds)}
+            className="shrink-0"
+          >
+            <Trash2Icon data-icon="inline-start" aria-hidden />
+            Discard {selectedIds.length} {selectedIds.length === 1 ? "draft" : "drafts"}
+          </Button>
+        ) : null}
         <div className="relative min-w-60 flex-1">
           <SearchIcon
             aria-hidden
@@ -248,11 +300,24 @@ export function FilingsQueue({
             <Table aria-label={layout.label}>
               <TableHeader>
                 <TableRow className="border-hairline">
+                  {selectable ? (
+                    <TableHead className="w-10 pl-6">
+                      <Checkbox
+                        checked={pageState}
+                        onCheckedChange={(checked) => setManySelected(pageIds, checked === true)}
+                        aria-label={
+                          pageState === true
+                            ? "Clear the selection on this page"
+                            : "Select every draft on this page"
+                        }
+                      />
+                    </TableHead>
+                  ) : null}
                   {layout.columns.map((column) => (
                     <TableHead
                       key={column}
                       className={cn(
-                        column === layout.columns[0] && "pl-6",
+                        column === layout.columns[0] && !selectable && "pl-6",
                         column === "action" && "pr-6 text-right"
                       )}
                     >
@@ -263,12 +328,29 @@ export function FilingsQueue({
               </TableHeader>
               <TableBody>
                 {slice.map((row) => (
-                  <TableRow key={row.id} className="relative border-hairline">
+                  <TableRow
+                    key={row.id}
+                    className="relative border-hairline"
+                    data-state={selected.has(row.id) ? "selected" : undefined}
+                  >
+                    {selectable ? (
+                      <TableCell className="w-10 pl-6">
+                        {/* z-10 lifts the box above the row's stretched action link, so a
+                            click ticks the row instead of opening it. */}
+                        <div className="relative z-10 flex items-center">
+                          <Checkbox
+                            checked={selected.has(row.id)}
+                            onCheckedChange={() => toggleSelected(row.id)}
+                            aria-label={`Select ${row.parties}`}
+                          />
+                        </div>
+                      </TableCell>
+                    ) : null}
                     {layout.columns.map((column) => (
                       <TableCell
                         key={column}
                         className={cn(
-                          column === layout.columns[0] && "pl-6",
+                          column === layout.columns[0] && !selectable && "pl-6",
                           column === "action" && "pr-6",
                           column === "parties" && "font-medium",
                           column === "court" && "text-muted-foreground"
@@ -409,6 +491,8 @@ function headingFor(column: ColumnId, layout: (typeof TAB_LAYOUT)[QueueTab]): Re
       return "Court";
     case "info":
       return layout.info;
+    case "progress":
+      return "Completed";
     case "action":
       return <span className="sr-only">Action</span>;
   }
@@ -417,7 +501,7 @@ function headingFor(column: ColumnId, layout: (typeof TAB_LAYOUT)[QueueTab]): Re
 function renderCell(
   column: ColumnId,
   row: QueueRow,
-  onDiscard: (id: string) => void,
+  onDiscard: (ids: string[]) => void,
   here: string
 ): React.ReactNode {
   switch (column) {
@@ -430,13 +514,37 @@ function renderCell(
     case "info":
       return (
         <>
-          <span className="block tabular-nums">{row.info.lead}</span>
+          {/* The date takes the tone too: inside the last two days it is the date that
+              is urgent, not the caption. An NA reads muted — nothing to act on yet. */}
+          <span
+            className={cn(
+              "block tabular-nums",
+              row.info.lead === "NA" && "text-muted-foreground",
+              row.info.tone !== "default" && TONE_CLASS[row.info.tone]
+            )}
+          >
+            {row.info.lead}
+          </span>
           {row.info.sub ? (
             <span className={cn("block text-caption", TONE_CLASS[row.info.tone])}>
               {row.info.sub}
             </span>
           ) : null}
         </>
+      );
+    case "progress":
+      return row.progress ? (
+        <>
+          <span className="flex items-center gap-2 tabular-nums">
+            <CompletionRing percent={row.progress.percent} />
+            {row.progress.percent}% complete
+          </span>
+          <span className="block text-caption text-muted-foreground">
+            Last saved {row.progress.savedOn}
+          </span>
+        </>
+      ) : (
+        "—"
       );
     case "action":
       return (
@@ -455,7 +563,7 @@ function renderCell(
               variant="ghost"
               size="icon-sm"
               className="relative z-10 text-muted-foreground hover:text-destructive"
-              onClick={() => onDiscard(row.id)}
+              onClick={() => onDiscard([row.id])}
               aria-label={`Discard draft ${row.parties}`}
             >
               <Trash2Icon aria-hidden />
