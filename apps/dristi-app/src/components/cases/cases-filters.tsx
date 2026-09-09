@@ -30,6 +30,7 @@ import {
   type CasesQuery,
 } from "@/lib/cases/query";
 import { bucketLabel, type BucketKey, type CaseRecord } from "@/lib/cases/types";
+import { cn } from "@/lib/utils";
 
 type FilterPatch = Partial<
   Pick<CasesQuery, "status" | "bookmarked" | "type" | "stage" | "advocates" | "search" | "filed">
@@ -52,12 +53,17 @@ function CheckGroup<T extends string>({
   options,
   value,
   onChange,
+  locked = false,
+  note,
 }: {
   id: string;
   legend: string;
   options: { value: T; label: string; count?: number }[];
   value: readonly T[];
   onChange: (next: T[]) => void;
+  /** Every option ticked and none of them changeable — a statement, not a choice. */
+  locked?: boolean;
+  note?: string;
 }) {
   return (
     <FieldSet className="gap-1">
@@ -71,11 +77,15 @@ function CheckGroup<T extends string>({
             <li key={option.value}>
               <Label
                 htmlFor={checkboxId}
-                className="flex min-h-10 cursor-pointer items-center gap-3 rounded-md px-2 text-body font-normal hover:bg-accent"
+                className={cn(
+                  "flex min-h-10 items-center gap-3 rounded-md px-2 text-body font-normal",
+                  locked ? "cursor-default" : "cursor-pointer hover:bg-accent"
+                )}
               >
                 <Checkbox
                   id={checkboxId}
-                  checked={value.includes(option.value)}
+                  checked={locked || value.includes(option.value)}
+                  disabled={locked}
                   onCheckedChange={(checked) =>
                     onChange(toggleIn(value, option.value, checked === true))
                   }
@@ -91,6 +101,9 @@ function CheckGroup<T extends string>({
           );
         })}
       </ul>
+      {note ? (
+        <p className="px-2 text-caption text-muted-foreground">{note}</p>
+      ) : null}
     </FieldSet>
   );
 }
@@ -151,12 +164,21 @@ export function CasesFiltersButton({
             value={query.status}
             onChange={(status) => onChange({ status })}
           />
+          {/* One case type today, so the box is ticked and locked: every case on
+              the list is this kind, and a box that could be unticked would promise
+              a second kind that does not exist yet. */}
           <CheckGroup
             id="cases-filter-type"
             legend="Case type"
             options={CASE_TYPES}
             value={query.type}
             onChange={(type) => onChange({ type })}
+            locked={CASE_TYPES.length === 1}
+            note={
+              CASE_TYPES.length === 1
+                ? "The only case type this court files, for now."
+                : undefined
+            }
           />
           <CheckGroup<BucketKey>
             id="cases-filter-stage"

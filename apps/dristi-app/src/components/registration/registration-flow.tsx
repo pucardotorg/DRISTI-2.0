@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { REGEXP_ONLY_DIGITS } from "input-otp";
 import {
   ArrowLeftIcon,
   CheckCircle2Icon,
@@ -21,7 +20,6 @@ import { UploadedDocField } from "@/components/cases/uploaded-doc-field";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Stepper, StepperItem } from "@/components/ui/stepper";
@@ -43,11 +41,12 @@ import {
 import { passwordProblem } from "@/lib/registration/password-policy";
 import { cn } from "@/lib/utils";
 
+import { MaskedOtp, OTP_LENGTH } from "./masked-otp";
+
 type Step = "role" | "name" | "contact" | "password" | "verification" | "terms" | "success" | "application";
 type AccountRole = "litigant" | "advocate" | "advocateClerk" | "poa" | "";
 const DIGITS = /\D/g;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const OTP_LENGTH = 6;
 const RESEND_SECONDS = 30;
 
 /** Which roles the court must approve before the account works. */
@@ -257,34 +256,7 @@ export function RegistrationFlow({ locale, summoned, initialMobile = "", onFinis
                 <FieldLabel>{pick(contactStep.otpLabel, locale)}</FieldLabel>
                 <FieldDescription>{pick(contactStep.otpSent, locale).replace("{number}", mobile)}</FieldDescription>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                  <InputOTP maxLength={OTP_LENGTH} pattern={REGEXP_ONLY_DIGITS} inputMode="numeric" autoComplete="one-time-code" value={otpCode} onChange={(value) => { setOtpCode(value); setOtpTouched(false); }} containerClassName="flex-1">
-                    {/* Masking, without touching the primitive. `InputOTPSlot` renders the
-                        character it reads off the OTP context and takes no children, so
-                        the digits are made transparent and a matching row of dots is laid
-                        over the group — same six equal cells, so they land dead centre.
-                        The caret is drawn separately and survives, and the real value is
-                        never re-encoded, so paste and SMS autofill still work. The dot is
-                        a drawn disc, not a bullet glyph: a 48px box wants a mark that
-                        reads at arm's length, and a glyph's size is the font's decision. */}
-                    <InputOTPGroup className="relative w-full">
-                      {Array.from({ length: OTP_LENGTH }, (_, index) => (
-                        <InputOTPSlot
-                          key={index}
-                          index={index}
-                          className={cn("h-12 w-auto flex-1 text-body font-semibold", !otpRevealed && "text-transparent")}
-                        />
-                      ))}
-                      {!otpRevealed ? (
-                        <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center">
-                          {Array.from({ length: OTP_LENGTH }, (_, index) => (
-                            <span key={index} className="flex flex-1 items-center justify-center">
-                              {index < otpCode.length ? <span className="size-2.5 rounded-full bg-foreground" /> : null}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-                    </InputOTPGroup>
-                  </InputOTP>
+                  <MaskedOtp value={otpCode} revealed={otpRevealed} onChange={(value) => { setOtpCode(value); setOtpTouched(false); }} />
                   <Button type="button" className="sm:h-12" onClick={() => { setOtpTouched(true); if (otpCode.length !== OTP_LENGTH) return; setOtpVerified(true); setOtpTouched(false); setTouched(false); }}>
                     {pick(contactStep.otpVerify, locale)}
                   </Button>

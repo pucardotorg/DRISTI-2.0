@@ -146,8 +146,8 @@ export const form = {
     "ഈ നമ്പറിൽ ഒരു അക്കൗണ്ടും കണ്ടെത്താനായില്ല.",
   ),
 
-  /** The second step's headline — the number is known, now prove it is yours. */
-  credentialTitle: t("Welcome back", "വീണ്ടും സ്വാഗതം"),
+  /* The second step keeps the same headline as the first. A "Welcome back" to someone
+     with a case on them reads as odd, not warm (owner, Sept 9). */
   changeNumber: t("Change number", "നമ്പർ മാറ്റുക"),
 
   methodLegend: t("Sign in with", "പ്രവേശിക്കാൻ"),
@@ -231,6 +231,8 @@ export const otp = {
   ),
   label: t("6-digit code", "6 അക്ക കോഡ്"),
   error: t("Enter all 6 digits.", "6 അക്കങ്ങളും നൽകുക."),
+  show: t("Show the code", "കോഡ് കാണിക്കുക"),
+  hide: t("Hide the code", "കോഡ് മറയ്ക്കുക"),
   verify: t("Verify and sign in", "പരിശോധിച്ച് പ്രവേശിക്കുക"),
   resend: t("Send the code again", "കോഡ് വീണ്ടും അയയ്ക്കുക"),
   /** `{seconds}` counts down. Saying when beats greying a button out silently. */

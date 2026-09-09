@@ -41,7 +41,6 @@ import { partiesLabel } from "@/lib/cases/types";
 import { parseSelectedId } from "@/lib/cases/parties";
 import {
   CASE_SECTIONS,
-  DEFAULT_CASE_SECTION,
   parseCaseOrigin,
   parseCaseSection,
 } from "@/lib/cases/sections";
@@ -98,18 +97,12 @@ export default async function CaseDetailPage(
     nextHearing: record.nextHearing?.on ?? "—",
   };
 
-  const sectionLabel =
-    CASE_SECTIONS.find((item) => item.value === section)?.label ?? section;
-
   return (
     <CaseBailProvider accessCase={accessCase}>
-      {/* The trail reads Cases › the number, and › the section once one is open —
-          the overview is the case itself, not a place under it. */}
-      <CaseBreadcrumbs
-        caseId={record.id}
-        caseNumber={record.caseNumber}
-        trail={section === DEFAULT_CASE_SECTION ? [] : [{ label: sectionLabel }]}
-      />
+      {/* The trail reads Cases › the number and stops there. The section tabs switch
+          views of this one page, and a breadcrumb names pages, not tabs — moving
+          between tabs must not move the trail (owner, Sept 9). */}
+      <CaseBreadcrumbs caseId={record.id} caseNumber={record.caseNumber} />
       <div className="flex min-w-0 flex-1 flex-col gap-8 p-6 md:p-8">
         <div>
           <Button variant="ghost" asChild>

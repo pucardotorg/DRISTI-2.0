@@ -297,6 +297,7 @@ export function CasesScreen({
                   {selectedCases.size ? ` (${selectedCases.size})` : ""}
                 </Button>
               ) : null}
+              {showing === "list" ? <CasesTableColumnsMenu /> : null}
               <CasesFiltersButton
                 query={effective}
                 cases={cases}
@@ -345,36 +346,16 @@ export function CasesScreen({
       }}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-8 p-6 md:p-8">
-        {/* The page's one bg-primary action (Laws: ration teal). */}
+        {/* One plane above the panel: the title, then on the right the page-level
+            controls — how the book is shown (Folders / List), the Bookmarked lens,
+            and the page's one bg-primary action (Laws: ration teal). Bookmarked sits
+            here rather than in the panel because it is about the person, not the
+            case, and beside Join a case because that is the other thing on this
+            page that is theirs to do. Column choice moved into the panel, beside
+            Filters, with the rest of what shapes the table. */}
         <header className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-title-l font-semibold">Cases</h1>
-          <Button size="lg" onClick={joinCase} className="shrink-0">
-            <UserPlusIcon data-icon="inline-start" aria-hidden />
-            {pick(advJoinPage.cta, locale)}
-          </Button>
-        </header>
-
-        {/* Lens on the left, presentation on the right. The Bookmarked toggle is
-            a pressed state, not a filter chip: it is the one narrowing that is about
-            the person rather than the case, and it wants to be one press away. */}
-        <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
-          <Toggle
-            variant="outline"
-            pressed={effective.bookmarked}
-            onPressedChange={(bookmarked) => go({ bookmarked })}
-            aria-label={`Bookmarked cases, ${totals.bookmarked}`}
-            className="h-10 gap-1.5 px-3 text-body font-medium"
-          >
-            <BookmarkIcon
-              aria-hidden
-              className={effective.bookmarked ? "fill-current" : undefined}
-            />
-            Bookmarked
-            <span className="text-muted-foreground tabular-nums">
-              {totals.bookmarked}
-            </span>
-          </Toggle>
-          <div className="flex min-w-0 flex-wrap items-center justify-end gap-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
             <ToggleGroup
               type="single"
               variant="outline"
@@ -401,9 +382,28 @@ export function CasesScreen({
                 <span className="sr-only">List</span>
               </ToggleGroupItem>
             </ToggleGroup>
-            {showing === "list" ? <CasesTableColumnsMenu /> : null}
+            <Toggle
+              variant="outline"
+              pressed={effective.bookmarked}
+              onPressedChange={(bookmarked) => go({ bookmarked })}
+              aria-label={`Bookmarked cases, ${totals.bookmarked}`}
+              className="h-10 gap-1.5 px-3 text-body font-medium"
+            >
+              <BookmarkIcon
+                aria-hidden
+                className={effective.bookmarked ? "fill-current" : undefined}
+              />
+              Bookmarked
+              <span className="text-muted-foreground tabular-nums">
+                {totals.bookmarked}
+              </span>
+            </Toggle>
+            <Button size="lg" onClick={joinCase} className="shrink-0">
+              <UserPlusIcon data-icon="inline-start" aria-hidden />
+              {pick(advJoinPage.cta, locale)}
+            </Button>
           </div>
-        </div>
+        </header>
 
         {panel}
       </div>

@@ -51,6 +51,8 @@ export type QueueRow = {
   /** Empty while no court applies; the column is dropped on tabs where none ever does. */
   court: string;
   info: { lead: string; sub?: string; tone: InfoTone };
+  /** A count the info column shows as a chip instead of `info.lead`. Returned rows. */
+  count?: number;
   /** How much of the form is filled in, and when it was last touched. Drafts only. */
   progress?: { percent: number; savedOn: string };
   action: { label: string; href: string };
@@ -290,12 +292,13 @@ export function returnedRows(tasks: Task[], cases: TaskCase[]): QueueRow[] {
         ref: c?.stNumber || c?.cnr || task.id.toUpperCase(),
         parties,
         court: c?.court ?? "",
-        // The column is headed Defects, so the cell is the number alone.
+        // The column is headed Defects, so the cell is the number alone, as a chip.
         info: {
           lead: String(count),
           sub: due ? `Cure by ${toDisplayDate(due)}` : undefined,
           tone: "danger" as InfoTone,
         },
+        count,
         action: { label: "Cure defects", href: fixHref(task.id) },
         urgencyAt: due || NO_URGENCY,
         recencyAt: task.returned?.at.slice(0, 10) ?? task.createdAt.slice(0, 10),

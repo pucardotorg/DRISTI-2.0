@@ -213,25 +213,33 @@ function showInDisplay(
   return isVisible(id);
 }
 
+export type DropSide = "before" | "after";
+
 /**
  * Reorder among columns currently on screen. Hidden columns keep their
  * place in the stored order so showing them again does not jump them.
+ *
+ * `side` says which edge of `to` the column lands on — the edge the drop
+ * indicator was drawn on. Left unsaid, it is the edge the column would pass
+ * first: after `to` when moving right, before it when moving left.
  */
 export function moveVisibleColumn(
   order: readonly TableColumnId[],
   from: TableColumnId,
   to: TableColumnId,
   isVisible: (id: TableColumnId) => boolean,
-  hideStage?: boolean
+  hideStage?: boolean,
+  side?: DropSide
 ): TableColumnId[] {
   const full = canonicalOrder(order);
   const visible = full.filter((id) => showInDisplay(id, isVisible, hideStage));
   const fromIndex = visible.indexOf(from);
   const toIndex = visible.indexOf(to);
   if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return full;
-  const nextVisible = [...visible];
-  nextVisible.splice(fromIndex, 1);
-  nextVisible.splice(toIndex, 0, from);
+  const place: DropSide = side ?? (fromIndex < toIndex ? "after" : "before");
+  const nextVisible = visible.filter((id) => id !== from);
+  const insertAt = nextVisible.indexOf(to) + (place === "after" ? 1 : 0);
+  nextVisible.splice(insertAt, 0, from);
   let index = 0;
   return full.map((id) =>
     showInDisplay(id, isVisible, hideStage) ? nextVisible[index++] : id

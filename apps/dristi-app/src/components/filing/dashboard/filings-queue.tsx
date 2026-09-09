@@ -22,6 +22,7 @@ import {
 import { NEW_FILING } from "@/lib/filing/steps";
 import { cn } from "@/lib/utils";
 import { withOrigin } from "@/lib/nav/origin";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -512,6 +513,23 @@ function renderCell(
     case "court":
       return row.court || "—";
     case "info":
+      if (row.count !== undefined) {
+        /* A lone number reads as a badge rather than a stray digit. The chip is
+           neutral — the count is a fact; the cure date under it is the status,
+           and it keeps the destructive ink (ui-craft: one status cue per row). */
+        return (
+          <>
+            <Badge variant="secondary" className="tabular-nums">
+              {row.count}
+            </Badge>
+            {row.info.sub ? (
+              <span className={cn("mt-1 block text-caption", TONE_CLASS[row.info.tone])}>
+                {row.info.sub}
+              </span>
+            ) : null}
+          </>
+        );
+      }
       return (
         <>
           {/* The date takes the tone too: inside the last two days it is the date that

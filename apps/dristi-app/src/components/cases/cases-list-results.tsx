@@ -80,6 +80,7 @@ export function CasesListResults({
         <div className="hidden md:block">
           <CasesTable
             rows={selection.rows}
+            allIds={selection.ids}
             bookmarks={bookmarks}
             onToggleBookmark={onToggleBookmark}
             hideStage={hideStage}

@@ -28,13 +28,28 @@ import {
   type CaseRecord,
 } from "./types";
 
+/** The offered row counts. Any other whole number is a custom size; `"all"` is every row on one page. */
 export const PAGE_SIZES = [10, 15, 20, 25, 30] as const;
-export type CasesPageSize = (typeof PAGE_SIZES)[number];
+export type CasesPageSize = number | "all";
 /** Default rows on a list page. Other sizes are a URL `size` param. */
 export const PAGE_SIZE: CasesPageSize = 10;
+/** A custom size larger than this is a typo, not a preference. */
+export const MAX_PAGE_SIZE = 500;
 
-export function isCasesPageSize(value: number): value is CasesPageSize {
-  return (PAGE_SIZES as readonly number[]).includes(value);
+export function isCasesPageSize(value: unknown): value is CasesPageSize {
+  if (value === "all") return true;
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 1 &&
+    value <= MAX_PAGE_SIZE
+  );
+}
+
+function parsePageSize(raw: string): CasesPageSize {
+  if (raw === "all") return "all";
+  const size = Number.parseInt(raw, 10);
+  return isCasesPageSize(size) ? size : PAGE_SIZE;
 }
 
 export type FiledPeriod = "30d" | "6m" | "1y" | "older";
@@ -228,7 +243,6 @@ export function parseCasesQuery(
   const bucket = bucketKeysFor(scope).includes(candidate) ? candidate : null;
 
   const page = Number.parseInt(first(params.page), 10);
-  const size = Number.parseInt(first(params.size), 10);
   const filed = first(params.filed) as FiledPeriod;
   const demo = first(params.demo) as CasesDemoState;
 
@@ -242,7 +256,7 @@ export function parseCasesQuery(
     /** A folder *is* the stage selection — don't stack a second one. */
     stage: bucket ? [] : normalizeStageFilter(scope, multi(params.stage)),
     advocates: normalizeAdvocates(multi(params.adv)),
-    pageSize: isCasesPageSize(size) ? size : PAGE_SIZE,
+    pageSize: parsePageSize(first(params.size)),
     page: Number.isFinite(page) && page > 1 ? page : 1,
     demo: demo === "empty" || demo === "error" ? demo : null,
   };
@@ -269,6 +283,7 @@ export function buildCasesHref(
   next.stage = normalizeStageFilter(next, next.stage);
   next.type = normalizeTypes(next.type);
   next.advocates = normalizeAdvocates(next.advocates);
+  if (!isCasesPageSize(next.pageSize)) next.pageSize = PAGE_SIZE;
 
   const params = new URLSearchParams();
   for (const status of next.status) params.append("status", status);
@@ -295,7 +310,9 @@ export function countAppliedFilters(
 ): number {
   return (
     query.status.length +
-    query.type.length +
+    /* With one case type the box is shown ticked and locked; it is a statement about
+       the list, not a filter the person applied, so it never counts. */
+    (CASE_TYPES.length > 1 ? query.type.length : 0) +
     query.stage.length +
     query.advocates.length
   );
@@ -430,6 +447,8 @@ function compare(a: CaseRecord, b: CaseRecord): number {
 export type CasesSelection = {
   /** Rows for the current page. */
   rows: CaseRecord[];
+  /** Every matched case, in list order, across all pages — what "select all" selects. */
+  ids: string[];
   total: number;
   page: number;
   pageCount: number;
@@ -461,7 +480,9 @@ export function selectCases(options: {
   );
 
   const sorted = [...matched].sort(compare);
-  const pageSize = query.pageSize;
+  /* "All" is one page holding everything, so the pagination has nothing to show. */
+  const pageSize =
+    query.pageSize === "all" ? Math.max(1, sorted.length) : query.pageSize;
   const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize));
   const page = Math.min(query.page, pageCount);
   const start = (page - 1) * pageSize;
@@ -469,6 +490,7 @@ export function selectCases(options: {
 
   return {
     rows,
+    ids: sorted.map((record) => record.id),
     total: sorted.length,
     page,
     pageCount,

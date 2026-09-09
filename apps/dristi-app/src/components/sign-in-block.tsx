@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { REGEXP_ONLY_DIGITS } from "input-otp";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -10,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { BrandLockup } from "@/components/brand-lockup";
+import { MaskedOtp, OTP_LENGTH } from "@/components/registration/masked-otp";
 import { RegistrationFlow } from "@/components/registration/registration-flow";
 import { ResubmissionFlow } from "@/components/registration/resubmission-flow";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -31,11 +31,6 @@ import {
   InputGroupInput,
   InputGroupText,
 } from "@/components/ui/input-group";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
 import { Separator } from "@/components/ui/separator";
 import { LOCALES, pick, ui, type Locale } from "@/lib/onboarding/content";
 import { registrationUi } from "@/lib/registration/content";
@@ -85,7 +80,6 @@ import {
  */
 
 const DIGITS = /\D/g;
-const OTP_LENGTH = 6;
 const RESEND_SECONDS = 30;
 
 /* Each step mounts fresh and slides in the way the person is travelling: forward from
@@ -208,6 +202,8 @@ export function SignInBlock({
   const [password, setPassword] = React.useState("");
   const [code, setCode] = React.useState("");
   const [revealed, setRevealed] = React.useState(false);
+  // The code is masked at rest for the same reason the password is.
+  const [codeRevealed, setCodeRevealed] = React.useState(false);
   const [accepted, setAccepted] = React.useState(false);
   const [resendIn, setResendIn] = React.useState(0);
   // Which fields failed, not what the failure reads as. Storing the resolved sentence
@@ -522,14 +518,14 @@ export function SignInBlock({
               >
                 <div className="flex flex-col items-center gap-2 text-center">
                   <h1 className="text-title-s text-balance font-semibold sm:text-title">
-                    {pick(form.credentialTitle, locale)}
+                    {pick(form.title, locale)}
                   </h1>
                 </div>
 
                 <form
                   onSubmit={submitCredential}
                   noValidate
-                  aria-label={pick(form.credentialTitle, locale)}
+                  aria-label={pick(form.title, locale)}
                   className="flex flex-col gap-4"
                 >
                   {/* The number stays on screen, locked — the same frame the registration
@@ -694,36 +690,60 @@ export function SignInBlock({
                   noValidate
                   className="flex flex-col gap-4"
                 >
+                  {/* The same code field registration uses: masked at rest, the reveal
+                      under the boxes on the left, the countdown / resend on the right. */}
                   <Field data-invalid={badCode}>
                     <FieldLabel>{pick(otp.label, locale)}</FieldLabel>
-                    <InputOTP
-                      maxLength={OTP_LENGTH}
-                      pattern={REGEXP_ONLY_DIGITS}
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
+                    <MaskedOtp
                       value={code}
+                      revealed={codeRevealed}
                       onChange={(value) => {
                         setCode(value);
                         setTouched(false);
                         setAccepted(false);
                       }}
-                    >
-                      {/* The system ships slots at 32px — under its own 40×40 floor,
-                          and a third narrower than every other control on the page.
-                          Widened to fill and matched to the tab strip's height. */}
-                      <InputOTPGroup className="w-full">
-                        {Array.from({ length: OTP_LENGTH }, (_, index) => (
-                          <InputOTPSlot
-                            key={index}
-                            index={index}
-                            className="h-12 w-auto flex-1 text-body font-semibold"
-                          />
-                        ))}
-                      </InputOTPGroup>
-                    </InputOTP>
+                    />
                     <FieldError>
                       {badCode ? pick(otp.error, locale) : null}
                     </FieldError>
+                    <div className="flex min-h-8 flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0"
+                        aria-pressed={codeRevealed}
+                        onClick={() => setCodeRevealed((value) => !value)}
+                      >
+                        {codeRevealed ? (
+                          <EyeOffIcon data-icon="inline-start" aria-hidden />
+                        ) : (
+                          <EyeIcon data-icon="inline-start" aria-hidden />
+                        )}
+                        {pick(codeRevealed ? otp.hide : otp.show, locale)}
+                      </Button>
+                      {resendIn > 0 ? (
+                        <p className="text-body-compact text-muted-foreground">
+                          {pick(otp.resendIn, locale).replace(
+                            "{seconds}",
+                            String(resendIn),
+                          )}
+                        </p>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="link"
+                          size="sm"
+                          className="h-auto p-0"
+                          onClick={() => {
+                            setResendIn(RESEND_SECONDS);
+                            setCode("");
+                          }}
+                        >
+                          {pick(otp.resend, locale)}
+                        </Button>
+                      )}
+                    </div>
                   </Field>
 
                   <Button type="submit" size="lg" className="w-full">
@@ -737,22 +757,6 @@ export function SignInBlock({
                   />
 
                   <div className="flex flex-col items-center gap-2">
-                    {resendIn > 0 ? (
-                      <p className="text-body-compact text-muted-foreground">
-                        {pick(otp.resendIn, locale).replace(
-                          "{seconds}",
-                          String(resendIn),
-                        )}
-                      </p>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="link"
-                        onClick={() => setResendIn(RESEND_SECONDS)}
-                      >
-                        {pick(otp.resend, locale)}
-                      </Button>
-                    )}
                     <Button type="button" variant="ghost" onClick={changeNumber}>
                       <ArrowLeftIcon data-icon="inline-start" aria-hidden />
                       {pick(otp.changeNumber, locale)}

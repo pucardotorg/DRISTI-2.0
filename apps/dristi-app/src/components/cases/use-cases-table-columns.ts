@@ -13,6 +13,7 @@ import {
   migrateStoredColumnOrder,
   moveVisibleColumn,
   shiftVisibleColumn,
+  type DropSide,
   type TableColumnId,
   type ToggleableTableColumnId,
 } from "@/lib/cases/table-columns";
@@ -107,7 +108,7 @@ export function useCasesTableColumns(): {
   reorder: (
     from: TableColumnId,
     to: TableColumnId,
-    options?: { hideStage?: boolean }
+    options?: { hideStage?: boolean; side?: DropSide }
   ) => void;
   shift: (
     id: TableColumnId,
@@ -147,7 +148,7 @@ export function useCasesTableColumns(): {
     (
       from: TableColumnId,
       to: TableColumnId,
-      options?: { hideStage?: boolean }
+      options?: { hideStage?: boolean; side?: DropSide }
     ) => {
       const now = current();
       const visible = (id: TableColumnId) =>
@@ -161,7 +162,8 @@ export function useCasesTableColumns(): {
           from,
           to,
           visible,
-          options?.hideStage
+          options?.hideStage,
+          options?.side
         ),
       });
     },
