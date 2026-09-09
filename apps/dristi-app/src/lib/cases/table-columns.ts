@@ -79,6 +79,11 @@ export const DEFAULT_TOGGLEABLE_VISIBLE: readonly ToggleableTableColumnId[] = [
   "nextHearing",
 ];
 
+/** Every column that can be shown — what "Show all" turns on. */
+export const ALL_TOGGLEABLE: readonly ToggleableTableColumnId[] = TABLE_COLUMNS.filter(
+  (column) => !column.locked
+).map((column) => column.id as ToggleableTableColumnId);
+
 /** Advocates sat before Stage. Same columns, old sequence — treat as default. */
 const LEGACY_DEFAULT_COLUMN_ORDER: readonly TableColumnId[] = [
   "caseNumber",
@@ -247,17 +252,4 @@ export function shiftVisibleColumn(
   const to = visible[fromIndex + delta];
   if (fromIndex < 0 || !to) return canonicalOrder(order);
   return moveVisibleColumn(order, id, to, isVisible, hideStage);
-}
-
-/**
- * Reorder in the columns menu — every listed column, including hidden ones,
- * so showing a column later puts it where the user placed it.
- */
-export function shiftListedColumn(
-  order: readonly TableColumnId[],
-  id: TableColumnId,
-  delta: -1 | 1,
-  hideStage?: boolean
-): TableColumnId[] {
-  return shiftVisibleColumn(order, id, delta, () => true, hideStage);
 }

@@ -59,12 +59,14 @@ export function CasesListScreen({
     source: cases,
   });
   const title = query.bucket ? bucketLabel(query.bucket) : "Search results";
-  const backLabel = allBucketsLabel(query.view);
+  const backLabel = allBucketsLabel(query);
   const backHref = buildCasesHref(query, {
     bucket: null,
     search: "",
     stage: [],
   });
+  const onlyLongPending =
+    query.status.length === 1 && query.status[0] === "long-pending";
 
   function pageLink(page: number) {
     const href = buildCasesHref(effective, { page });
@@ -104,9 +106,11 @@ export function CasesListScreen({
 
       <CasePeekProvider now={now}>
         <CasePeekSurface className="flex flex-col gap-6 rounded-xl border border-hairline bg-card shadow-raised p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div className="flex w-full max-w-lg flex-col gap-2">
-            <Label htmlFor="cases-search" className="w-fit text-body">
+        {/* Same header grammar as the landing panel: what narrows the list on the
+            right, no visible "Search cases" heading over the box. */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-end">
+          <div className="w-full min-w-0 sm:w-72">
+            <Label htmlFor="cases-search" className="sr-only">
               Search cases
             </Label>
             <InputGroup>
@@ -119,7 +123,7 @@ export function CasesListScreen({
                 autoComplete="off"
                 value={search}
                 onChange={(event) => onSearchChange(event.target.value)}
-                placeholder="case name or number"
+                placeholder="Search by case name or number"
               />
             </InputGroup>
           </div>
@@ -176,7 +180,7 @@ export function CasesListScreen({
             pageLink={pageLink}
             framed={false}
             hideStage
-            hideLongPendingFlag={query.view === "long-pending"}
+            hideLongPendingFlag={onlyLongPending}
           />
         )}
         </CasePeekSurface>

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDownIcon, ChevronUpIcon, SlidersHorizontalIcon } from "lucide-react";
+import { Columns3Icon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,7 +13,6 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
   canonicalOrder,
@@ -24,18 +23,22 @@ import {
 import { useCasesTableColumns } from "./use-cases-table-columns";
 
 /**
- * Column visibility and order. Lives with Folders/List, not in the table
- * header — a sticky cell there reads as the end of the row. Case number is
- * locked (row link). Bookmark is an action and is not listed. A folder omits
- * Stage — offering it here would put the folder's own category back on every
- * row. Reset restores order and visibility.
+ * Which columns show. Only that: a tick per column, Show all, Reset. Order is
+ * not decided here — the arrows this menu used to carry made a visibility list
+ * read as a sorting puzzle, and order already has a better home: the grip on
+ * each column heading, which drags. The list runs in the table's current order,
+ * so it also reads as a map of what is on screen.
+ *
+ * Case number is locked (row link). Bookmark is an action and is not listed. A
+ * folder omits Stage — offering it here would put the folder's own category back
+ * on every row. Reset restores order and visibility both.
  */
 export function CasesTableColumnsMenu({
   hideStage = false,
 }: {
   hideStage?: boolean;
 }) {
-  const { isVisible, toggle, reset, isDefault, order, shiftListed } =
+  const { isVisible, toggle, showAll, reset, isDefault, isAllVisible, order } =
     useCasesTableColumns();
   const columns = canonicalOrder(order)
     .map((id) => TABLE_COLUMNS.find((column) => column.id === id)!)
@@ -49,7 +52,7 @@ export function CasesTableColumnsMenu({
           variant="outline"
           className="shrink-0 text-body"
         >
-          <SlidersHorizontalIcon data-icon="inline-start" aria-hidden />
+          <Columns3Icon data-icon="inline-start" aria-hidden />
           Columns
         </Button>
       </PopoverTrigger>
@@ -57,68 +60,56 @@ export function CasesTableColumnsMenu({
         <PopoverHeader>
           <PopoverTitle className="text-body font-medium">Columns</PopoverTitle>
           <PopoverDescription className="text-caption">
-            Tick to show a column. Use the arrows to change its order.
+            Tick a column to show it. To reorder, drag a column by the handle on
+            its heading.
           </PopoverDescription>
         </PopoverHeader>
-        <ScrollArea className="h-64">
-          <ul className="flex flex-col gap-1">
-            {columns.map((column, index) => {
-              const checkboxId = `cases-column-${column.id}`;
-              const shown = isVisible(column.id);
-              return (
-                <li
-                  key={column.id}
-                  className="flex items-center gap-1"
+        <ul className="flex flex-col">
+          {columns.map((column) => {
+            const checkboxId = `cases-column-${column.id}`;
+            return (
+              <li key={column.id}>
+                <Label
+                  htmlFor={checkboxId}
+                  className="flex min-h-10 cursor-pointer items-center gap-3 rounded-md px-2 text-body font-normal hover:bg-accent has-disabled:cursor-default has-disabled:hover:bg-transparent"
                 >
-                  <Label
-                    htmlFor={checkboxId}
-                    className="min-h-10 min-w-0 flex-1 font-normal text-body"
-                  >
-                    <Checkbox
-                      id={checkboxId}
-                      checked={shown}
-                      disabled={column.locked}
-                      onCheckedChange={() => {
-                        if (isToggleableTableColumn(column.id)) toggle(column.id);
-                      }}
-                    />
-                    {column.label}
-                  </Label>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    disabled={index === 0}
-                    aria-label={`Move ${column.label} up`}
-                    onClick={() => shiftListed(column.id, -1, { hideStage })}
-                  >
-                    <ChevronUpIcon aria-hidden />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    disabled={index === columns.length - 1}
-                    aria-label={`Move ${column.label} down`}
-                    onClick={() => shiftListed(column.id, 1, { hideStage })}
-                  >
-                    <ChevronDownIcon aria-hidden />
-                  </Button>
-                </li>
-              );
-            })}
-          </ul>
-        </ScrollArea>
+                  <Checkbox
+                    id={checkboxId}
+                    checked={isVisible(column.id)}
+                    disabled={column.locked}
+                    onCheckedChange={() => {
+                      if (isToggleableTableColumn(column.id)) toggle(column.id);
+                    }}
+                  />
+                  {column.label}
+                </Label>
+              </li>
+            );
+          })}
+        </ul>
         <Separator />
-        <Button
-          type="button"
-          variant="ghost"
-          disabled={isDefault}
-          onClick={() => reset()}
-          className="w-full justify-start text-body"
-        >
-          Reset to default
-        </Button>
+        {/* Show all turns every column on; there is deliberately no "hide all" —
+            a table with only the case number is not a state anyone asks for. */}
+        <div className="flex items-center justify-between gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={isAllVisible}
+            onClick={() => showAll()}
+            className="text-body"
+          >
+            Show all
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={isDefault}
+            onClick={() => reset()}
+            className="text-body"
+          >
+            Reset to default
+          </Button>
+        </div>
       </PopoverContent>
     </Popover>
   );

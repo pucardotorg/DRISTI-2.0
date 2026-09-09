@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import {
+  ALL_TOGGLEABLE,
   canonicalOrder,
   canonicalToggleable,
   DEFAULT_COLUMN_ORDER,
@@ -11,7 +12,6 @@ import {
   isDefaultToggleableVisible,
   migrateStoredColumnOrder,
   moveVisibleColumn,
-  shiftListedColumn,
   shiftVisibleColumn,
   type TableColumnId,
   type ToggleableTableColumnId,
@@ -114,13 +114,11 @@ export function useCasesTableColumns(): {
     delta: -1 | 1,
     options?: { hideStage?: boolean }
   ) => void;
-  shiftListed: (
-    id: TableColumnId,
-    delta: -1 | 1,
-    options?: { hideStage?: boolean }
-  ) => void;
+  /** Every column on, order untouched. */
+  showAll: () => void;
   reset: () => void;
   isDefault: boolean;
+  isAllVisible: boolean;
 } {
   const snapshot = React.useSyncExternalStore(
     subscribe,
@@ -195,25 +193,10 @@ export function useCasesTableColumns(): {
     []
   );
 
-  const shiftListed = React.useCallback(
-    (
-      id: TableColumnId,
-      delta: -1 | 1,
-      options?: { hideStage?: boolean }
-    ) => {
-      const now = current();
-      write({
-        ...now,
-        order: shiftListedColumn(
-          now.order,
-          id,
-          delta,
-          options?.hideStage
-        ),
-      });
-    },
-    []
-  );
+  const showAll = React.useCallback(() => {
+    const now = current();
+    write({ ...now, visible: ALL_TOGGLEABLE });
+  }, []);
 
   const reset = React.useCallback(() => {
     try {
@@ -230,10 +213,11 @@ export function useCasesTableColumns(): {
     toggle,
     reorder,
     shift,
-    shiftListed,
+    showAll,
     reset,
     isDefault:
       isDefaultToggleableVisible(stored.visible) &&
       isDefaultColumnOrder(canonicalOrder(stored.order)),
+    isAllVisible: stored.visible.length === ALL_TOGGLEABLE.length,
   };
 }
