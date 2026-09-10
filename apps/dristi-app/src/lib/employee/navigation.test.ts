@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { COURT_HOME, courtTrail } from "./navigation";
+import { COURT_HOME, courtTrail, isCourtNavActive } from "./navigation";
 
 const HOME = { label: "Court home", href: "/employee" };
 
@@ -64,6 +64,35 @@ describe("courtTrail", () => {
     ]);
   });
 
+  it("on the complaint's full file, names the view and links back to the glance", () => {
+    /* The complaint has two views since 2026-09-11 (brief D17): the glance at `/<id>`
+       and the whole file at `/<id>/file`. A trail that ended at the case number on both
+       could not tell a magistrate which one he was on, and gave him no way to the other
+       — so the identifier becomes the way back and the current step names the view. */
+    assert.deepEqual(courtTrail("/employee/register-cases/r-1840/file"), [
+      HOME,
+      { label: "Actions", href: "/employee/register-cases" },
+      { label: "Register cases", href: "/employee/register-cases" },
+      { label: "CMP/1840/2025", href: "/employee/register-cases/r-1840" },
+      { label: "Full file" },
+    ]);
+  });
+
+  it("keeps the rail on Register cases while the full file is open", () => {
+    /* The row a nested route lights up is the queue the record came from. Without the
+       `/file` branch the rail went dark on the deepest screen in the feature. */
+    assert.ok(
+      isCourtNavActive(
+        "/employee/register-cases/r-1840/file",
+        "/employee/register-cases",
+      ),
+    );
+  });
+
+  it("does not treat a full file of an unknown complaint as nested", () => {
+    assert.deepEqual(courtTrail("/employee/register-cases/r-nope/file"), [HOME]);
+  });
+
   it("on a scrutiny workbench, ends with the filing number it decoded", () => {
     /* A filing number carries slashes, so the segment arrives percent-encoded and the
        crumb has to be the decoded form the queue holds — not the escape sequence. */
@@ -111,6 +140,7 @@ describe("courtTrail", () => {
       "/employee/sign-orders",
       "/employee/register-cases",
       "/employee/register-cases/r-1840",
+      "/employee/register-cases/r-1840/file",
       "/employee/hearings/h-241/order",
       `/employee/scrutiny/${encodeURIComponent("F/AHM/2026/00341")}`,
     ]) {

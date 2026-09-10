@@ -14,6 +14,8 @@ import {
   daysBetween,
   type CaseFact,
   type CaseGroup,
+  type CaseReview,
+  type CaseSection,
 } from "./case-review";
 import { REGISTER_QUEUE, registerCaseById } from "./register-cases";
 
@@ -23,6 +25,12 @@ const TODAY = "2026-09-09";
 function review(id: string) {
   const found = caseReviewFor(id, TODAY);
   assert.ok(found, `no file for ${id}`);
+  return found;
+}
+
+function sectionById(file: CaseReview, sectionId: string): CaseSection {
+  const found = file.sections.find((section) => section.id === sectionId);
+  assert.ok(found, `no section "${sectionId}"`);
   return found;
 }
 
@@ -87,15 +95,27 @@ describe("caseReviewFor", () => {
     assert.deepEqual(caseReviewFor("r-1654", TODAY), caseReviewFor("r-1654", TODAY));
   });
 
-  it("is the four numbered sections, in reading order", () => {
+  it("is the four numbered sections, in the statute's order", () => {
     /* Four, not five. "Submissions from the accused" was cut by the owner on
        2026-09-11: the accused cannot file anything before the complaint is registered,
        so the section answered its own question the same way on every file in the queue
-       and forever. It belongs on whatever screen shows a case *after* registration. */
+       and forever. It belongs on whatever screen shows a case *after* registration.
+
+       The cheque and the notice lead (brief D4). The order used to be the e-filing
+       form's own, which put ten rows of contact details in front of the instrument the
+       complaint is about — on a screen whose reader is deciding whether to take
+       cognizance. */
     assert.deepEqual(
       review("r-1840").sections.map((section) => section.id),
-      ["litigants", "case-specific", "additional", "payment"],
+      ["case-specific", "litigants", "additional", "payment"],
     );
+  });
+
+  it("names the first section after the fact, not after the form's step", () => {
+    /* §5a.4a applied to a heading: "Case specific details" is the e-filing form's label
+       for its own second step. **Brief D4 proposes this; the owner has not ruled.** */
+    const [first] = review("r-1840").sections;
+    assert.equal(first.title, "The cheque and the notice");
   });
 
   it("holds no head for submissions the accused cannot yet have made", () => {
@@ -151,22 +171,55 @@ describe("terms are attributes the file names", () => {
     }
   });
 
-  it("leaves no term string in the screen", () => {
-    /* Read rather than rendered: the claim is about the source, not about one render.
-       `CaseFactRows` is the only thing that may write a `DescriptionTerm`, and the only
-       thing it may put inside one is the term the file handed it. A term typed into the
-       screen would be an attribute invented outside the model, which is exactly the
-       defect this file's §5a census found. */
-    const screen = readFileSync(
-      new URL(
-        "../../components/employee/case-review-screen.tsx",
-        import.meta.url,
-      ),
+  it("leaves no term string in either screen", () => {
+    /* Read rather than rendered: the claim is about the source, not about one render. A
+       term typed into a screen would be an attribute invented outside the model, which
+       is exactly the defect this file's §5a census found.
+
+       **Two places may write a term now, not one** (brief D13, 2026-09-11). The file
+       view's fact rows are the original; the glance's finding detail is the second — it
+       lists the entered values a check compared, and those are the file's own attributes
+       or the header's, never words composed for the finding. Both are asserted the same
+       way: whatever is inside a `<DescriptionTerm>` must be an interpolation, so a
+       literal cannot get in unnoticed at either. A third rendering site is a deliberate
+       change and should arrive with a reason. */
+    const files = [
+      "../../components/employee/case-file-screen.tsx",
+      "../../components/employee/case-review-screen.tsx",
+      "../../components/employee/case-review-shared.tsx",
+    ];
+    let rendered = 0;
+    for (const path of files) {
+      const screen = readFileSync(new URL(path, import.meta.url), "utf8");
+      const terms = [
+        ...screen.matchAll(/<DescriptionTerm\b[^>]*>([\s\S]*?)<\/DescriptionTerm>/g),
+      ];
+      for (const term of terms) {
+        rendered += 1;
+        assert.match(
+          term[1].trim(),
+          /^\{[A-Za-z]+\.term\}$/,
+          `${path} writes a term rather than printing one: ${term[1].trim()}`,
+        );
+      }
+    }
+    assert.equal(rendered, 2, "the fact rows and a finding's values, and nothing else");
+  });
+
+  it("leaves no header term string in the screen either", () => {
+    /* The four cells above the file are the page's own context rather than the
+       complaint's attributes, so they are a second, smaller vocabulary — and the same
+       rule reaches them. "Court" typed into the header is how a fifth cell nobody
+       sourced gets added. */
+    const shared = readFileSync(
+      new URL("../../components/employee/case-review-shared.tsx", import.meta.url),
       "utf8",
     );
-    const opens = screen.match(/<DescriptionTerm\b/g) ?? [];
-    assert.equal(opens.length, 1, "only CaseFactRows may render a term");
-    assert.match(screen, /<DescriptionTerm[^>]*>\s*\{fact\.term\}\s*<\/DescriptionTerm>/);
+    const cells = [...shared.matchAll(/<CaseHeaderCell\s+term=\{([^}]+)\}/g)];
+    assert.equal(cells.length, 4, "Court · Amount · Submitted · Waiting");
+    for (const cell of cells) {
+      assert.match(cell[1].trim(), /^CASE_HEADER_TERMS\./, cell[1]);
+    }
   });
 });
 
@@ -577,7 +630,9 @@ describe("derived numbers", () => {
        mobile number, which is the tell that the whole file is generated. */
     for (const complaint of REGISTER_QUEUE) {
       const file = review(complaint.id);
-      const parties = file.sections[0].groups.flatMap(
+      /* Looked up by id rather than by position: the sections were reordered by D4,
+         and a test that indexes them asserts the order twice — once here by accident. */
+      const parties = sectionById(file, "litigants").groups.flatMap(
         (group) => group.records ?? [],
       );
       /* Matched rather than stripped: `replace(/\D/g, "")` swallows the country
@@ -591,8 +646,9 @@ describe("derived numbers", () => {
           return `${match[1]}${match[2]}`;
         });
       const cheque = (
-        file.sections[1].groups.find((group) => group.id === "cheque")
-          ?.records?.[0].heading ?? ""
+        sectionById(file, "case-specific").groups.find(
+          (group) => group.id === "cheque",
+        )?.records?.[0].heading ?? ""
       ).replace(/\D/g, "");
 
       assert.ok(cheque.length === 6, cheque);
@@ -610,8 +666,9 @@ describe("derived numbers", () => {
          IFSC ended in the last six digits of the complainant's mobile. The mix now
          takes the length as well as the salt. */
       const ifscs = (
-        file.sections[1].groups.find((group) => group.id === "cheque")?.records?.[0]
-          .facts ?? []
+        sectionById(file, "case-specific").groups.find(
+          (group) => group.id === "cheque",
+        )?.records?.[0].facts ?? []
       )
         .filter(
           (fact) =>

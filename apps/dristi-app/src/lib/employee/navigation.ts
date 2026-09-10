@@ -347,6 +347,21 @@ const NESTED_ROUTES: {
   queue: string;
   pattern: RegExp;
   identify: (segment: string) => string | undefined;
+  /**
+   * A step *past* the record, for a route that is a second view of it.
+   *
+   * Only Register cases has one. Its complaint splits in two — the glance at
+   * `/<id>` and the whole file at `/<id>/file` — and a trail that ended at the
+   * case number on both would be a trail that cannot tell a magistrate which of
+   * the two he is on, and no way back to the other. The record's crumb becomes a
+   * link to the glance and the leaf names the view (owner, 2026-09-11: every trail
+   * ends with the current step).
+   *
+   * The order composer under a hearing deliberately does *not* get one: it is the
+   * same view of the listing with a composer in it, not a second view of the same
+   * record, and nobody has asked for it. A leaf is added when a route earns one.
+   */
+  leaf?: (pathname: string) => { label: string; recordHref: string } | undefined;
 }[] = [
   {
     queue: "/employee/hearings",
@@ -360,8 +375,16 @@ const NESTED_ROUTES: {
   },
   {
     queue: "/employee/register-cases",
-    pattern: /^\/employee\/register-cases\/([^/]+)\/?$/,
+    pattern: /^\/employee\/register-cases\/([^/]+)(?:\/file)?\/?$/,
     identify: (id) => registerCaseById(id)?.caseNumber,
+    leaf: (pathname) => {
+      const file = /^\/employee\/register-cases\/([^/]+)\/file\/?$/.exec(pathname);
+      if (!file) return undefined;
+      return {
+        label: "Full file",
+        recordHref: `/employee/register-cases/${file[1]}`,
+      };
+    },
   },
 ];
 
@@ -447,11 +470,17 @@ export function courtTrail(pathname: string): CourtCrumb[] {
       if (record === undefined) {
         return [home, { label: group.label }, { label: item.label }];
       }
+      const leaf = NESTED_ROUTES.find(
+        (entry) => entry.queue === item.href,
+      )?.leaf?.(pathname);
       return [
         home,
         { label: group.label, href: item.href },
         { label: item.label, href: item.href },
-        { label: record },
+        /* On a second view of the record the identifier becomes the way back to the
+           first one, and the current step names the view. */
+        leaf ? { label: record, href: leaf.recordHref } : { label: record },
+        ...(leaf ? [{ label: leaf.label }] : []),
       ];
     }
   }
