@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { TaskActPage } from "@/components/tasks/act/act-page";
 
 /**
@@ -5,5 +7,9 @@ import { TaskActPage } from "@/components/tasks/act/act-page";
  * experience by kind: a sign-kind draft signs, everything else files.
  */
 export default function Page() {
-  return <TaskActPage action="continue" />;
+  return (
+    <Suspense>
+      <TaskActPage action="continue" />
+    </Suspense>
+  );
 }

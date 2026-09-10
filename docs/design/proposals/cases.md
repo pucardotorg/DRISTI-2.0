@@ -6,7 +6,7 @@ Source: docs/product/product-foundation.md · docs/product/domain/journey.md ·
 docs/product/domain/practice-notes.md · docs/product/open-questions.md ·
 docs/product/standards/adherence.md
 DS read: `vendor/pucar-design-system` (origin verified
-`neer-ideasbeforenoon/pucar-design-system`) — `AGENTS.md`, `ACCESSIBILITY.md`,
+`pucardotorg/dristi-design-system`) — `AGENTS.md`, `ACCESSIBILITY.md`,
 `RESPONSIVE.md`, foundations `laws` / `typography` / `spacing` / `colors`,
 table / tabs / badge / pagination / empty / sheet / toggle-group / marker /
 input-group registry and source.

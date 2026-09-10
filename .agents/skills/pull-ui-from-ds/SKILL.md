@@ -17,7 +17,7 @@ Do not invent UI. Read the DS, sync primitives, then compose screens in Dristi A
 2. `PUCAR_DS_ROOT` only if the user set it
 
 Verify with `git -C "$DS" remote get-url origin` — must contain
-`neer-ideasbeforenoon/pucar-design-system` (or `.pucar-ds-id` with that string).
+`pucardotorg/dristi-design-system` (or `.pucar-ds-id` with that string).
 
 If unavailable or wrong org: stop and ask the user to run `npm install`. Never search
 Desktop/home for other `pucar-design-system` folders. Do not freestyle.

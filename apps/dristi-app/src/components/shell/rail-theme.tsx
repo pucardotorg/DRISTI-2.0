@@ -2,6 +2,11 @@
 
 import * as React from "react";
 
+import {
+  useLocalStorageValue,
+  writeLocalStorageValue,
+} from "@/hooks/use-local-storage-value";
+
 /**
  * EXPERIMENT — selectable grounds for the navigation rail.
  *
@@ -213,23 +218,17 @@ type RailThemeValue = {
 const RailThemeContext = React.createContext<RailThemeValue | null>(null);
 
 export function RailThemeProvider({ children }: { children: React.ReactNode }) {
-  // Server render and first client render agree on the default; the stored choice is
-  // applied after mount so hydration never mismatches.
-  const [id, setId] = React.useState(DEFAULT_ID);
-
-  React.useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored && RAIL_THEMES.some((t) => t.id === stored)) setId(stored);
-  }, []);
+  // Server render and hydration agree on the default (the store's server snapshot
+  // is null); the stored choice takes over right after, with no effect and no
+  // second setState pass. In private mode the hook keeps the choice in memory —
+  // it applies, it just does not persist.
+  const stored = useLocalStorageValue(STORAGE_KEY);
+  const id =
+    stored && RAIL_THEMES.some((t) => t.id === stored) ? stored : DEFAULT_ID;
 
   const setThemeId = React.useCallback((next: string) => {
     if (!RAIL_THEMES.some((t) => t.id === next)) return;
-    setId(next);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      /* private mode — the choice just does not persist */
-    }
+    writeLocalStorageValue(STORAGE_KEY, next);
   }, []);
 
   const theme = RAIL_THEMES.find((t) => t.id === id) ?? RAIL_THEMES[2];

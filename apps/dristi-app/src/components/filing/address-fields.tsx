@@ -17,7 +17,7 @@ const PIN_DEBOUNCE_MS = 400;
 type PinFill = { pin: string; district: boolean; state: boolean };
 
 /**
- * Address line · city · pincode · district · state. When `prefilled`, the address was
+ * Address line · pincode · city · district · state. When `prefilled`, the address was
  * read from a document: fields carry the amber fill and open the source on click.
  *
  * The pincode is the fast path: once six digits are in, the postal service is asked for
@@ -117,17 +117,9 @@ export function AddressFields({
           autoComplete="address-line1"
         />
       </FormField>
+      {/* PIN first: it is the field that fills the two below it, so it comes before the
+          ones it answers rather than after them. */}
       <FormRow>
-        <FormField label="City / town" required>
-          <TextField
-            value={value.city}
-            onChange={set("city")}
-            placeholder="City or town"
-            prefilled={pf(value.city)}
-            onViewSource={src}
-            autoComplete="address-level2"
-          />
-        </FormField>
         <FormField label="Pincode" required>
           <TextField
             value={value.pin}
@@ -138,6 +130,16 @@ export function AddressFields({
             prefilled={pf(value.pin)}
             onViewSource={src}
             autoComplete="postal-code"
+          />
+        </FormField>
+        <FormField label="City / town" required>
+          <TextField
+            value={value.city}
+            onChange={set("city")}
+            placeholder="City or town"
+            prefilled={pf(value.city)}
+            onViewSource={src}
+            autoComplete="address-level2"
           />
         </FormField>
       </FormRow>

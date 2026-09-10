@@ -81,6 +81,20 @@ describe("viewOf — viewer-dependent tabs", () => {
     }
   });
 
+  it("review tasks: Respond for the addressee, Waiting for everyone else", () => {
+    const t = makeTask({ kind: "review", review: { requestedBy: senior2.id, of: senior.id } });
+    assert.equal(verbFor(senior, t, kase), "Respond");
+    assert.equal(viewOf(t, senior, kase), "needs-action");
+    assert.equal(verbFor(senior2, t, kase), "View");
+    assert.equal(viewOf(t, senior2, kase), "waiting");
+    assert.equal(verbFor(junior, t, kase), "View");
+    assert.equal(waitingOnOf(t, kase, PEOPLE), `${senior.name} — decision`);
+    // Actors-only visibility narrows a review task to its addressee.
+    const actorsOnly = { ...t, visibility: "actors" as const };
+    assert.equal(canViewTask(senior, actorsOnly, kase), true);
+    assert.equal(canViewTask(junior, actorsOnly, kase), false);
+  });
+
   it("drafts and hearing tasks: Needs action for anyone on the case", () => {
     const draft = makeTask({ kind: "file", status: "draft", draft: { by: junior.id, savedAt: at(-1) } });
     assert.equal(viewOf(draft, junior, kase), "needs-action");

@@ -15,7 +15,8 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
-import { TASKS_HOME } from "@/lib/tasks/routes";
+import { taskHref } from "@/lib/tasks/routes";
+import { areaOf } from "@/lib/nav/origin";
 import { caseOf, tasksInView } from "@/lib/tasks/selectors";
 import { compareUrgency, daysUntil, isOverdue } from "@/lib/tasks/urgency";
 import { useChrome } from "@/components/shell/chrome";
@@ -36,23 +37,16 @@ import { LOCALES, pick, ui, type Locale } from "@/lib/onboarding/content";
  * crumb is a link back to the list with that task open; the action is text.
  */
 function ChromeBreadcrumb() {
-  const { crumbs } = useChrome();
+  const { crumbs, crumbRoot } = useChrome();
   const pathname = usePathname();
   const last = crumbs.length - 1;
-  // The trail's root names the area. Tasks is the default; areas the shell hosts
-  // without their own bar add themselves here.
-  const AREA_ROOTS: { prefix: string; label: string; href?: string }[] = [
-    { prefix: "/join-case", label: "Join a case" },
-    { prefix: "/home", label: "Home" },
-    { prefix: "/advocate", label: "Home" },
-    { prefix: "/cases", label: "Your Cases", href: "/cases" },
-    { prefix: "/people", label: "People", href: "/people" },
-    { prefix: "/settings", label: "Settings" },
-  ];
-  const match = AREA_ROOTS.find((area) => pathname.startsWith(area.prefix));
-  const root = match
-    ? { label: match.label, href: match.href }
-    : { label: "Tasks", href: TASKS_HOME };
+  /*
+   * The trail's root. A screen that knows which door it was reached through publishes
+   * that door and it wins — the way back is where the person actually was, down to the
+   * tab and the search they had running. Everything else names its area from the path,
+   * which is what a screen reached directly deserves.
+   */
+  const root = crumbRoot ?? areaOf(pathname);
 
   return (
     <Breadcrumb className="min-w-0 flex-1">
@@ -148,7 +142,8 @@ function useTaskNotifications() {
     if (state !== "ready") return [];
     const now = new Date();
     const w = { people, cases, tasks, user, now };
-    return tasksInView(w, "needs-action")
+    const pending = tasksInView(w, "needs-action");
+    const overdue: ShellNotification[] = pending
       .filter((t) => isOverdue(t, now))
       .sort((a, b) => compareUrgency(a, b, now))
       .slice(0, 8)
@@ -164,8 +159,28 @@ function useTaskNotifications() {
           unread: !readIds.has(t.id),
           tone: "warning" as const,
           persistent: true,
+          // Every task notification opens the task itself — the row is a
+          // doorway to the action, not a status readout.
+          href: taskHref(t.id),
         };
       });
+    // A request addressed to this person is a thing that needs attention the moment it
+    // arrives, deadline or none — still a restatement of their own data, not a feed.
+    const requests: ShellNotification[] = pending
+      .filter((t) => t.kind === "review" && !isOverdue(t, now))
+      .map((t) => {
+        const kase = caseOf(w, t);
+        return {
+          id: t.id,
+          title: t.title,
+          body: `Awaiting your decision${kase ? ` · ${kase.parties}` : ""}`,
+          unread: !readIds.has(t.id),
+          tone: "info" as const,
+          persistent: true,
+          href: taskHref(t.id),
+        };
+      });
+    return [...requests, ...overdue];
   }, [state, people, cases, tasks, user, readIds]);
 
   const markAllRead = React.useCallback(() => {

@@ -59,6 +59,7 @@ export function PersonRow({
   grant,
   locale,
   onRemove,
+  onRemoveVakalat,
 }: {
   person: AccessPerson;
   /** The person's grant on the case this list is scoped to. */
@@ -66,6 +67,12 @@ export function PersonRow({
   locale: Locale;
   /** Omit to render the row without a remove affordance (read-only contexts). */
   onRemove?: () => void;
+  /**
+   * Makes Remove live on on-nama rows, opening the formal removal flow
+   * (3a/3b) instead of the locked-button explanation. Contexts without the
+   * flow wired keep the locked button.
+   */
+  onRemoveVakalat?: () => void;
 }) {
   const isVakalat = grant.role === "vakalat";
   const grantInviter = grant.addedBy ?? person.addedBy;
@@ -102,7 +109,18 @@ export function PersonRow({
           <span className="text-caption text-muted-foreground">
             {pick(roleCopy.vakalat, locale)}
           </span>
-          <LockedRemove locale={locale} />
+          {onRemoveVakalat ? (
+            <Button
+              type="button"
+              variant="destructive-ghost"
+              size="sm"
+              onClick={onRemoveVakalat}
+            >
+              {pick(listCopy.remove, locale)}
+            </Button>
+          ) : (
+            <LockedRemove locale={locale} />
+          )}
         </div>
       ) : onRemove ? (
         <Button type="button" variant="destructive-ghost" size="sm" onClick={onRemove}>
@@ -114,7 +132,19 @@ export function PersonRow({
 }
 
 /** The signed-in advocate, pinned atop per-case lists — never removable. */
-export function SelfRow({ locale }: { locale: Locale }) {
+export function SelfRow({
+  locale,
+  accessLabel,
+}: {
+  locale: Locale;
+  /**
+   * How the viewer holds THIS case — "Through Vakalatnama" by default, or
+   * the office-access label where the case only reached them by a share.
+   * The fixed vakalat label used to claim a nama on every case (owner,
+   * Sept 2).
+   */
+  accessLabel?: string;
+}) {
   return (
     <div className="flex items-center gap-3 py-2.5">
       <Avatar className="size-9 shrink-0">
@@ -127,7 +157,7 @@ export function SelfRow({ locale }: { locale: Locale }) {
         <p className="truncate text-caption text-muted-foreground tabular-nums">{SELF.phone}</p>
       </div>
       <span className="shrink-0 text-caption text-muted-foreground">
-        {pick(roleCopy.vakalat, locale)}
+        {accessLabel ?? pick(roleCopy.vakalat, locale)}
       </span>
     </div>
   );
@@ -143,12 +173,18 @@ export function CaseAccessList({
   locale,
   query = "",
   onRemove,
+  onRemoveVakalat,
+  selfAccessLabel,
 }: {
   caseId: string;
   people: AccessPerson[];
   locale: Locale;
   query?: string;
   onRemove?: (personId: string) => void;
+  /** See PersonRow — makes Remove live on on-nama rows. */
+  onRemoveVakalat?: (person: AccessPerson) => void;
+  /** See SelfRow. */
+  selfAccessLabel?: string;
 }) {
   const q = query.trim().toLowerCase();
   const phoneQ = q.replace(/\D/g, "");
@@ -173,7 +209,7 @@ export function CaseAccessList({
 
   return (
     <div className="flex flex-col divide-y divide-hairline">
-      {showSelf ? <SelfRow locale={locale} /> : null}
+      {showSelf ? <SelfRow locale={locale} accessLabel={selfAccessLabel} /> : null}
       {withGrants.map(({ person, grant }) => (
         <PersonRow
           key={person.id}
@@ -181,6 +217,9 @@ export function CaseAccessList({
           grant={grant}
           locale={locale}
           onRemove={onRemove ? () => onRemove(person.id) : undefined}
+          onRemoveVakalat={
+            onRemoveVakalat ? () => onRemoveVakalat(person) : undefined
+          }
         />
       ))}
     </div>

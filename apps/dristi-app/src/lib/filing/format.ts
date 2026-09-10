@@ -55,6 +55,21 @@ export function rupees(value: string | number): string {
   return f ? `₹${f}` : "";
 }
 
+/**
+ * Money that may carry paise — court fees do (₹12.50), typed cheque amounts do not.
+ *
+ * `rupees()` above throws away everything that is not a digit, which turns 12.5 into
+ * "₹125". Anything derived from the fee schedule has to come through here instead.
+ */
+export function money(value: number): string {
+  if (!Number.isFinite(value)) return "";
+  const rounded = Math.round(value * 100) / 100;
+  const whole = Math.trunc(Math.abs(rounded));
+  const paise = Math.round((Math.abs(rounded) - whole) * 100);
+  const grouped = formatINR(whole) || "0";
+  return `₹${grouped}${paise ? `.${String(paise).padStart(2, "0")}` : ""}`;
+}
+
 export function addressToString(a: Address | undefined): string {
   if (!a) return "";
   return [a.line1, a.city, a.district, a.state, a.pin].filter(Boolean).join(", ");

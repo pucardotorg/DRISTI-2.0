@@ -14,7 +14,7 @@ Run this after building or changing UI. Catch inventing before it ships.
 ## 1. Resolve and read DS (exact files)
 
 DS root (first match): `vendor/pucar-design-system`, then `PUCAR_DS_ROOT` if set.
-Verify origin contains `neer-ideasbeforenoon/pucar-design-system` (or `.pucar-ds-id`).
+Verify origin contains `pucardotorg/dristi-design-system` (or `.pucar-ds-id`).
 If missing or wrong org: stop and ask the user to run `npm install`. Never search
 Desktop/home for other clones by name.
 

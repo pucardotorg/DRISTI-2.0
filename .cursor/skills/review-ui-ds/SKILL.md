@@ -14,7 +14,7 @@ Run this after building or changing UI. Catch inventing before it ships.
 ## 1. Resolve and read DS (exact files)
 
 DS root (first match): `vendor/pucar-design-system`, then `PUCAR_DS_ROOT` if set.
-Verify origin contains `neer-ideasbeforenoon/pucar-design-system` (or `.pucar-ds-id`).
+Verify origin contains `pucardotorg/dristi-design-system` (or `.pucar-ds-id`).
 If missing or wrong org: stop and ask the user to run `npm install`. Never search
 Desktop/home for other clones by name.
 
@@ -35,6 +35,7 @@ From repo root:
 npm run check:tokens
 npm run check:typography
 npm run check:ui-sync
+npm run check:spacing
 ```
 
 Or `npm run lint -w @pucar/dristi-app` (includes both). Failures are **Critical**.
@@ -46,6 +47,7 @@ Review:
 - [ ] check:tokens passed
 - [ ] check:typography passed
 - [ ] check:ui-sync passed (primitives match DS; globals.css matches)
+- [ ] check:spacing passed (no NEW off-ladder value; baseline not grown to hide one)
 - [ ] No hand-written / invented controls — synced via `npm run sync:ui -- <name>`
 - [ ] Semantic tokens only (no hex, oklch arbitrary, raw neutral-N, white/black)
 - [ ] Status uses solid / muted / ink — no alpha fakes (`bg-destructive/10`)

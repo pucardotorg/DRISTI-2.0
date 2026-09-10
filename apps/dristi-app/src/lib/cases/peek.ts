@@ -481,6 +481,38 @@ const PEEK_EXTRAS: Partial<Record<string, CasePeekExtras>> = {
   "c-2002": {
     altCaseNumber: "ST 88/2024",
   },
+  /* The ON Court demo cases sit at the top of Your Cases (newest updatedOn),
+     so the first screens a demo opens carry authored pending work beyond the
+     seeded bond task. */
+  "tw-c-412": {
+    chequeAmount: 240000,
+    appearingFor: "complainant",
+    tasks: [
+      {
+        id: "t-tw412-1",
+        title: "Produce the original cheque and return memo",
+        dueOn: "2026-09-01",
+        note: "To be produced during the next hearing",
+        consequence:
+          "If they are not produced, the copies on record may remain provisional, subject to the court's direction.",
+        action: { label: "Upload production memo", section: "documents" },
+      },
+    ],
+  },
+  "tw-c-88": {
+    chequeAmount: 130000,
+    appearingFor: "complainant",
+    tasks: [
+      {
+        id: "t-tw88-1",
+        title: "File proof of service of the demand notice",
+        dueOn: "2026-08-30",
+        consequence:
+          "If it is not filed, the plea cannot be recorded on the next posting, subject to the court's direction.",
+        action: { label: "Upload proof", section: "documents" },
+      },
+    ],
+  },
   "c-1002": { chequeAmount: 620000 },
   "c-1006": { chequeAmount: 150000 },
   "c-1008": { chequeAmount: 340000 },

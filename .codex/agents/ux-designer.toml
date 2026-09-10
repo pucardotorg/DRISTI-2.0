@@ -113,7 +113,7 @@ skill is the workflow. Where they overlap, they agree; where this file goes furt
 2. `PUCAR_DS_ROOT` only if the user set it
 
 Verify with `git -C "$DS" remote get-url origin` — must contain
-`neer-ideasbeforenoon/pucar-design-system` (or `.pucar-ds-id` with that string).
+`pucardotorg/dristi-design-system` (or `.pucar-ds-id` with that string).
 
 If none resolve or wrong org, stop and say so — ask for `npm install`. Never search
 Desktop/home for other `pucar-design-system` folders. Do not propose UI blind.

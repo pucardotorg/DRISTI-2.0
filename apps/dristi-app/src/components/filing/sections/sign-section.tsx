@@ -35,22 +35,28 @@ import {
   UploadIcon,
 } from "lucide-react";
 
-import { ChromeDialogContent } from "@/components/chrome/app-chrome";
-
 import { getRepository, storeUpload } from "@/lib/filing/data";
 import { forgetFile, formatBytes } from "@/lib/filing/files";
-import { addressToString, rupees, toLongDate } from "@/lib/filing/format";
-import { COURT, DELIVERY_CHANNELS, PROCESS_TYPES } from "@/lib/filing/options";
+import { money, toLongDate } from "@/lib/filing/format";
+import {
+  CHANNEL_FEE,
+  COURT,
+  DELIVERY_CHANNEL,
+  DELIVERY_MIN_ROUNDS,
+  PROCESS_OPTIONS,
+} from "@/lib/filing/options";
 import { useProfile } from "@/lib/filing/profile";
 import {
-  accusedLabel,
   feeBill,
+  phoneConfirmers,
+  processPlan,
   signatories,
+  type AccusedPlan,
   type BilledLine,
 } from "@/lib/filing/selectors";
 import { FILINGS_HOME, neighbours } from "@/lib/filing/steps";
 import { useFiling } from "@/lib/filing/store";
-import type { Signatory, StoredFileRef } from "@/lib/filing/types";
+import type { PhoneConfirmer, Signatory, StoredFileRef } from "@/lib/filing/types";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -75,7 +81,6 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
-import { Switch } from "@/components/ui/switch";
 import { useSourceDock } from "@/hooks/use-min-width";
 import { TOP_BAR_HEIGHT } from "@/components/filing/chrome";
 import { ConfirmDialog } from "@/components/filing/confirm-dialog";
@@ -87,6 +92,7 @@ import { useLeaveGuard } from "@/components/filing/leave-guard";
 import { SectionNotice } from "@/components/filing/notices";
 import { CourtDocument } from "@/components/filing/sections/preview/court-document";
 import { pickErrorMessage, useFilePicker } from "@/components/filing/use-file-picker";
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
 
 type ModalKey =
   | "choose"
@@ -217,28 +223,19 @@ function FeeGroup({
   caption,
   lines,
   total,
-  deferred = false,
 }: {
   title: React.ReactNode;
   caption?: string;
   lines: BilledLine[];
   total: number;
-  /**
-   * Being paid later. The group stays fully legible and says so instead — what you are
-   * putting off is exactly what you need to be able to read.
-   */
-  deferred?: boolean;
 }) {
   if (!lines.length) return null;
   return (
-    <div className="flex flex-col gap-3 rounded-lg bg-surface-sunken p-4">
+    <div className="flex shrink-0 flex-col gap-3 rounded-lg bg-surface-sunken p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-body-compact font-semibold text-foreground">{title}</h3>
-          {deferred ? <Badge variant="secondary">Paying later</Badge> : null}
-        </div>
+        <h3 className="text-body-compact font-semibold text-foreground">{title}</h3>
         <span className="text-body-compact font-semibold tabular-nums">
-          {rupees(total)}
+          {money(total)}
         </span>
       </div>
       {caption ? <p className="text-caption text-muted-foreground">{caption}</p> : null}
@@ -247,17 +244,175 @@ function FeeGroup({
           <div key={line.key} className="flex items-baseline justify-between gap-4 py-2">
             <dt className="min-w-0 text-body-compact text-muted-foreground">
               {line.label}
-              {line.units > 1 ? (
-                <span className="tabular-nums"> · {rupees(line.rate)} × {line.units}</span>
+              {line.unitNote ? (
+                <span className="tabular-nums">
+                  {" "}
+                  · {money(line.rate)} × {line.unitNote}
+                </span>
               ) : null}
             </dt>
             <dd className="shrink-0 text-body-compact font-medium tabular-nums">
-              {rupees(line.amount)}
+              {money(line.amount)}
             </dd>
           </div>
         ))}
       </dl>
     </div>
+  );
+}
+
+/* ──────────────────── Phone confirmation (upload path) ─────────────── */
+
+/** The tail of a number, for display — the row never repeats the whole thing back. */
+function mobileTailOf(mobile: string): string {
+  return mobile.replace(/\D/g, "").slice(-4);
+}
+
+/**
+ * One party on the uploaded copy, and the OTP that turns "someone says they all signed"
+ * into that person's own confirmation. The OTP only proves the handset; the sentence
+ * above it is what the person is actually answering, so the two never appear apart.
+ *
+ * There is no link here on purpose — every confirmation happens in this sitting. Upload
+ * is the path we would rather people did not take, so its friction is left in place
+ * (owner, 2026-08-19).
+ */
+function ConfirmRow({
+  person,
+  index,
+  confirmed,
+  open,
+  otp,
+  resent,
+  onOpen,
+  onOtp,
+  onResend,
+  onConfirm,
+  onAddNumber,
+}: {
+  person: PhoneConfirmer;
+  index: number;
+  confirmed: boolean;
+  open: boolean;
+  otp: string;
+  resent: boolean;
+  onOpen: () => void;
+  onOtp: (value: string) => void;
+  onResend: () => void;
+  onConfirm: () => void;
+  onAddNumber: () => void;
+}) {
+  const tail = mobileTailOf(person.mobile);
+  const otpId = `confirm-otp-${person.id}`;
+
+  return (
+    <li className="border-b border-hairline py-3 last:border-b-0">
+      <div className="flex items-center gap-3">
+        <span
+          aria-hidden
+          className="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-caption font-medium text-secondary-foreground tabular-nums"
+        >
+          {index + 1}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-body-compact font-semibold text-foreground">
+            {person.name}
+          </p>
+          <p className="text-caption font-medium text-muted-foreground">
+            {person.role} ·{" "}
+            {tail ? (
+              <span className="tabular-nums">•••• {tail}</span>
+            ) : (
+              "No mobile number"
+            )}
+          </p>
+        </div>
+        {/* One action or one status per row, never both — the action replaces the cue. */}
+        {confirmed ? (
+          <Badge variant="success">
+            <CheckIcon aria-hidden />
+            Confirmed
+          </Badge>
+        ) : !tail ? (
+          <Button
+            type="button"
+            variant="link"
+            className="h-auto p-0 underline"
+            onClick={onAddNumber}
+          >
+            Add number
+          </Button>
+        ) : open ? null : (
+          <Button type="button" variant="outline" size="sm" onClick={onOpen}>
+            Send OTP
+          </Button>
+        )}
+      </div>
+
+      {open && !confirmed && tail ? (
+        <div className="mt-3 flex flex-col gap-3 rounded-lg bg-surface-sunken p-4">
+          <p className="text-body-compact text-muted-foreground">
+            In the live service, a 6-digit OTP goes to{" "}
+            <strong className="font-semibold text-foreground tabular-nums">
+              •••• {tail}
+            </strong>
+            . Entering it confirms that{" "}
+            <strong className="font-semibold text-foreground">
+              {person.name}
+            </strong>{" "}
+            has signed this complaint.
+          </p>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={otpId} className="text-body-compact">
+              Enter OTP
+            </Label>
+            <InputOTP
+              id={otpId}
+              maxLength={6}
+              value={otp}
+              onChange={onOtp}
+              containerClassName="gap-2"
+              // Opening a row reveals the field below the fold; focus follows the action
+              // so it scrolls into view and a keyboard user lands on it.
+              autoFocus
+            >
+              <InputOTPGroup className="gap-2">
+                {[0, 1, 2, 3, 4, 5].map((i) => (
+                  <InputOTPSlot
+                    key={i}
+                    index={i}
+                    className="size-10 rounded-lg border border-input"
+                  />
+                ))}
+              </InputOTPGroup>
+            </InputOTP>
+            <p className="text-caption text-muted-foreground">
+              Sandbox — any 6-digit code is accepted here.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto p-0 underline"
+              onClick={onResend}
+            >
+              {resent ? "Sent again" : "Resend OTP"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={otp.length < 6}
+              onClick={onConfirm}
+            >
+              Confirm
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </li>
   );
 }
 
@@ -279,15 +434,21 @@ export function SignSection() {
   const [resent, setResent] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
+  /** The one confirmation row open for its OTP — one at a time, so the list stays a list. */
+  const [otpFor, setOtpFor] = React.useState<string | null>(null);
+  const [rowOtp, setRowOtp] = React.useState("");
+  const [rowResent, setRowResent] = React.useState<string | null>(null);
 
   const payTimer = React.useRef<number | null>(null);
   const copyTimer = React.useRef<number | null>(null);
   const resendTimer = React.useRef<number | null>(null);
+  const rowResendTimer = React.useRef<number | null>(null);
   React.useEffect(
     () => () => {
       if (payTimer.current) window.clearTimeout(payTimer.current);
       if (copyTimer.current) window.clearTimeout(copyTimer.current);
       if (resendTimer.current) window.clearTimeout(resendTimer.current);
+      if (rowResendTimer.current) window.clearTimeout(rowResendTimer.current);
     },
     []
   );
@@ -297,8 +458,22 @@ export function SignSection() {
 
   /** The bill, derived from this draft — see `feeBill` for what makes it specific. */
   const bill = React.useMemo(() => feeBill(draft), [draft]);
-  const deferProcess = sign.deferProcessFees;
-  const payableNow = bill.courtTotal + (deferProcess ? 0 : bill.processTotal);
+  /** What each accused is having served — defaults applied, floors held (`PAY-10/11/15`). */
+  const plans = React.useMemo(() => processPlan(draft), [draft]);
+  /** What the process group is for, in one sentence: rounds, per accused, and where. */
+  const processCaption = React.useMemo(() => {
+    const each = plans.map((plan) => {
+      const rounds = PROCESS_OPTIONS.filter((o) => (plan.rounds[o.key] ?? 0) > 0)
+        .map((o) => `${plan.rounds[o.key]} × ${o.label.toLowerCase()}`)
+        .join(", ");
+      const where =
+        plan.selected.length === 1 ? "1 address" : `${plan.selected.length} addresses`;
+      return plans.length > 1
+        ? `${plan.label}: ${rounds} at ${where}`
+        : `${rounds}, served at ${where}`;
+    });
+    return `${each.join(" · ")}.`;
+  }, [plans]);
 
   // Who signs is derived from the parties, never stored: editing a party changes this list.
   const { complainants, advocates } = React.useMemo(
@@ -319,6 +494,30 @@ export function SignSection() {
   const pending = everyone.filter((s) => s.status === "pending").length;
   /** Everyone the E-Sign path hands a link to, once "you" have signed your own rows. */
   const otherSigners = Math.max(0, everyone.length - yous.length);
+
+  /*
+   * Everyone who has to sign the uploaded copy and has a number of their own: each
+   * complainant, or their PoA holder in their place, or the representative who answers
+   * for an institution. Advocates cannot appear — the Advocate section collects a name
+   * and a bar number and no phone.
+   */
+  const confirmRows = React.useMemo(() => phoneConfirmers(draft), [draft]);
+  /**
+   * A confirmation belongs to the number it was given for. Editing a party's mobile
+   * afterwards voids it rather than carrying the record to a different handset — which
+   * is why this is derived from the draft each render instead of a stored flag.
+   */
+  const isConfirmed = React.useCallback(
+    (person: PhoneConfirmer) => {
+      const record = sign.confirmed[person.id];
+      const tail = person.mobile.replace(/\D/g, "").slice(-4);
+      return !!record && !!tail && record.mobileTail === tail;
+    },
+    [sign.confirmed]
+  );
+  const confirmedCount = confirmRows.filter(isConfirmed).length;
+  const allConfirmed =
+    confirmRows.length > 0 && confirmedCount === confirmRows.length;
 
   /**
    * Every signature on this screen belongs to *this* version of the complaint. Going back
@@ -341,6 +540,9 @@ export function SignSection() {
       d.sign.signed = {};
       d.sign.mode = null;
       d.sign.signedCopy = null;
+      // Each party confirmed they had signed *this* sheet. A sheet that no longer
+      // exists takes its confirmations with it.
+      d.sign.confirmed = {};
     });
     if (copy) {
       forgetFile(copy.id);
@@ -362,28 +564,6 @@ export function SignSection() {
 
   const mobileTail = (profile?.mobile ?? "").replace(/\D/g, "").slice(-4);
 
-  /** Every address the court could serve process at, across all accused. */
-  const addressOptions = React.useMemo(
-    () =>
-      draft.accused.flatMap((a, ai) =>
-        a.addresses.flatMap((block, i) => {
-          const text = addressToString(block.addr);
-          if (!text.trim()) return [];
-          // Several addresses for one accused need telling apart in the list.
-          const label =
-            a.addresses.length > 1
-              ? `${accusedLabel(a, ai)} · Address ${i + 1}`
-              : accusedLabel(a, ai);
-          return [{ key: `${a.id}:${i}`, label, text }];
-        })
-      ),
-    [draft.accused]
-  );
-  // Nothing chosen yet means "everywhere we know of" — the choice persists on first edit.
-  const selectedAddresses = sign.processAddresses.length
-    ? sign.processAddresses
-    : addressOptions.map((o) => o.key);
-
   const printFile = () => {
     if (typeof window !== "undefined") window.print();
   };
@@ -403,12 +583,14 @@ export function SignSection() {
 
   /**
    * An uploaded copy is the complaint *after* every party has signed it — that is what
-   * the upload asks for and what the person confirms by submitting it. So it settles the
-   * whole sheet, not the uploader's own row: no one is asked to sign again for a
-   * signature already on the page in front of them.
+   * the upload asks for. So it settles the whole sheet, not the uploader's own row: no
+   * one is asked to sign again for a signature already on the page in front of them.
+   *
+   * What used to be one person's word for all of it is now each complainant's own
+   * confirmation by OTP, collected before this button can be pressed.
    */
   const submitSignedCopy = () => {
-    if (!sign.signedCopy) return;
+    if (!sign.signedCopy || !allConfirmed) return;
     update((d) => {
       for (const s of everyone) d.sign.signed[s.id] = true;
       d.sign.mode = "upload";
@@ -446,38 +628,99 @@ export function SignSection() {
     });
   };
 
+  /** Open a row's OTP — in the live service this is where the message would go out. */
+  const sendRowOtp = (id: string) => {
+    setOtpFor(id);
+    setRowOtp("");
+    setRowResent(null);
+  };
+
+  const resendRowOtp = (id: string) => {
+    setRowResent(id);
+    if (rowResendTimer.current) window.clearTimeout(rowResendTimer.current);
+    rowResendTimer.current = window.setTimeout(() => setRowResent(null), 2500);
+  };
+
+  /** Record one party's confirmation against the number it was given for. */
+  const confirmRow = (person: PhoneConfirmer) => {
+    const tail = person.mobile.replace(/\D/g, "").slice(-4);
+    if (rowOtp.length < 6 || !tail) return;
+    update((d) => {
+      d.sign.confirmed[person.id] = {
+        mobileTail: tail,
+        at: new Date().toISOString(),
+      };
+    });
+    setOtpFor(null);
+    setRowOtp("");
+    setRowResent(null);
+  };
+
+  /** No number on file is a gap in the party's own section, so that is where it is fixed. */
+  const addMissingNumber = () => {
+    setModal(null);
+    router.push(hrefFor("complainant"));
+  };
+
   const resendOtp = () => {
     setResent(true);
     if (resendTimer.current) window.clearTimeout(resendTimer.current);
     resendTimer.current = window.setTimeout(() => setResent(false), 2500);
   };
 
-  const toggleProcess = (key: string) =>
+  /**
+   * Write one accused's choice. Only the difference from the court's defaults is
+   * stored — writing the resolved plan back would freeze the notice round at whatever
+   * the delay looked like on the day, which is exactly what `PAY-11` forbids.
+   */
+  const editPlan = (
+    plan: AccusedPlan,
+    change: (draft: { rounds: Record<string, number>; delivery: number; addresses: number[] }) => void
+  ) =>
     update((d) => {
-      const chosen = new Set(d.sign.processTypes);
-      if (chosen.has(key)) chosen.delete(key);
-      else chosen.add(key);
-      // Keep the option order, and keep the processes that always issue.
-      d.sign.processTypes = PROCESS_TYPES.filter(
-        (p) => chosen.has(p.key) || !p.optional
-      ).map((p) => p.key);
+      const next = {
+        rounds: { ...plan.rounds },
+        delivery: plan.delivery,
+        addresses: [...plan.selected],
+      };
+      change(next);
+      d.sign.process = { ...d.sign.process, [plan.accusedId]: next };
     });
 
-  const toggleAddress = (key: string) =>
-    update((d) => {
-      const current = d.sign.processAddresses.length
-        ? d.sign.processAddresses
-        : addressOptions.map((o) => o.key);
-      const next = current.includes(key)
-        ? current.filter((k) => k !== key)
-        : [...current, key];
-      // Process has to go somewhere — the last selected address stays selected.
-      if (next.length) d.sign.processAddresses = next;
+  /**
+   * How many rounds of one process this accused prepays. The floors are held here as
+   * well as in the plan: the mandatory summons round is never offered as declinable,
+   * and cutting summons rounds cuts the e-post that delivers them with it.
+   */
+  const setRounds = (plan: AccusedPlan, key: string, value: number) =>
+    editPlan(plan, (next) => {
+      const option = PROCESS_OPTIONS.find((p) => p.key === key);
+      if (!option) return;
+      next.rounds[key] = Math.min(option.maxRounds, Math.max(option.minRounds, value));
+      if (key === "summons") {
+        next.delivery = Math.min(
+          next.rounds.summons,
+          Math.max(DELIVERY_MIN_ROUNDS, next.delivery)
+        );
+      }
     });
 
-  const setChannel = (value: string) =>
-    update((d) => {
-      d.sign.deliveryChannel = value;
+  /** How many of this accused's summons rounds go by e-post — separately chosen. */
+  const setDelivery = (plan: AccusedPlan, value: number) =>
+    editPlan(plan, (next) => {
+      next.delivery = Math.min(
+        next.rounds.summons,
+        Math.max(DELIVERY_MIN_ROUNDS, value)
+      );
+    });
+
+  /** Where this accused's summons goes — at least one address stays selected. */
+  const toggleAddress = (plan: AccusedPlan, index: number) =>
+    editPlan(plan, (next) => {
+      const chosen = next.addresses.includes(index)
+        ? next.addresses.filter((i) => i !== index)
+        : [...next.addresses, index].sort((a, b) => a - b);
+      if (chosen.length) next.addresses = chosen;
     });
 
   const payNow = () => {
@@ -490,15 +733,12 @@ export function SignSection() {
       update((d) => {
         d.sign.paid = true;
         d.sign.paidAt = now;
-        d.sign.paidAmount = payableNow;
+        d.sign.paidAmount = bill.total;
         d.sign.paymentRef = ref;
         d.sign.caseFileNumber = caseNumber;
         d.status = "filed";
         d.filedAt = now;
-        if (!d.sign.processAddresses.length) {
-          d.sign.processAddresses = addressOptions.map((o) => o.key);
-        }
-        if (!d.sign.deliveryChannel) d.sign.deliveryChannel = DELIVERY_CHANNELS[0];
+        d.sign.deliveryChannel = DELIVERY_CHANNEL;
       });
       setModal("success");
     }, 2600);
@@ -551,7 +791,7 @@ export function SignSection() {
         <div className="flex flex-col gap-0.5">
           <dt className="text-caption font-medium text-muted-foreground">Amount paid</dt>
           <dd className="text-body-compact font-medium tabular-nums">
-            {rupees(sign.paidAmount ?? payableNow)}
+            {money(sign.paidAmount ?? bill.total)}
           </dd>
         </div>
         <div className="flex flex-col gap-0.5">
@@ -805,7 +1045,8 @@ export function SignSection() {
                 <span className="text-body-compact text-muted-foreground">
                   One file that already carries{" "}
                   {everyone.length > 1 ? `all ${everyone.length} signatures` : "the signature"}
-                  , on paper or by DSC.
+                  , on paper or by DSC. Everyone on the complaint then confirms by
+                  OTP.
                 </span>
               </span>
               <ChevronRightIcon
@@ -915,11 +1156,17 @@ export function SignSection() {
         onOpenChange={(open) => {
           if (!open) {
             setUploadError(null);
+            setOtpFor(null);
+            setRowOtp("");
             closeModal();
           }
         }}
       >
-        <ChromeDialogContent className="sm:max-w-xl">
+        {/*
+          The roster grows with the parties, so the body scrolls and the two fixed points
+          stay on screen: the title, and the button the whole list gates.
+        */}
+        <ChromeDialogContent className="grid-rows-[auto_minmax(0,1fr)_auto] max-h-[calc(100svh-2rem)] sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Upload signed complaint</DialogTitle>
             <DialogDescription>
@@ -927,75 +1174,362 @@ export function SignSection() {
             </DialogDescription>
           </DialogHeader>
 
-          <SectionNotice variant="warning" title="This settles every signature">
-            Submitting records{" "}
-            <strong className="font-semibold">all {everyone.length} signatures</strong> as
-            collected. Upload only once everyone has signed — on paper or with a Digital
-            Signature Certificate.
-          </SectionNotice>
-
-          {sign.signedCopy ? (
-            <div className="flex flex-wrap items-center gap-3 rounded-lg bg-surface-sunken p-4">
-              <FileTextIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-body-compact font-medium">
-                  {sign.signedCopy.name}
-                </p>
-                <p className="text-caption text-muted-foreground tabular-nums">
-                  {sign.signedCopy.ext}
-                  {formatBytes(sign.signedCopy.size)
-                    ? ` · ${formatBytes(sign.signedCopy.size)}`
-                    : ""}
-                </p>
-              </div>
-              <Button type="button" variant="ghost" onClick={chooseSignedCopy}>
-                Replace
-              </Button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={chooseSignedCopy}
-              className="flex w-full flex-col items-center gap-3 rounded-xl border border-dashed border-input p-6 text-center outline-none transition-colors hover:bg-accent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            >
-              <UploadIcon className="size-8 text-muted-foreground" aria-hidden />
-              <span className="text-body-compact text-muted-foreground">
-                Choose the signed file from{" "}
-                <span className="font-medium text-primary underline underline-offset-2">
-                  my files
-                </span>
-              </span>
-            </button>
-          )}
-
-          {uploadError ? (
-            <SectionNotice
-              variant="destructive"
-              announce="assertive"
-              title="That file wasn’t added"
-            >
-              {uploadError}
+          {/* `pe-2` keeps the row’s status badge clear of the scrollbar, which overlays
+              the content edge rather than reserving space for itself. */}
+          <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pe-2">
+            <SectionNotice variant="warning" title="Ensure all parties have signed">
+              Each complainant, and one advocate for each complainant, must sign
+              this document. The file may be signed on paper or with a{" "}
+              <strong className="font-semibold">
+                Digital Signature Certificate (DSC)
+              </strong>
+              .
             </SectionNotice>
-          ) : null}
 
-          <p className="text-body-compact text-muted-foreground">
-            Upload .jpg, .png, .jpeg, .webp or .pdf. Maximum upload size of 15 MB.
-          </p>
-          <p className="flex flex-wrap items-center gap-1 text-body-compact">
-            Need the unsigned document to sign on paper?
-            <Button
-              type="button"
-              variant="link"
-              className="h-auto p-0 underline"
-              onClick={printFile}
-            >
-              Print or save as PDF
-            </Button>
-          </p>
+            {sign.signedCopy ? (
+              <div className="flex flex-wrap items-center gap-3 rounded-lg bg-surface-sunken p-4">
+                <FileTextIcon
+                  className="size-5 shrink-0 text-muted-foreground"
+                  aria-hidden
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-body-compact font-medium">
+                    {sign.signedCopy.name}
+                  </p>
+                  <p className="text-caption text-muted-foreground tabular-nums">
+                    {sign.signedCopy.ext}
+                    {formatBytes(sign.signedCopy.size)
+                      ? ` · ${formatBytes(sign.signedCopy.size)}`
+                      : ""}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={chooseSignedCopy}
+                >
+                  Replace
+                </Button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={chooseSignedCopy}
+                className="flex w-full flex-col items-center gap-3 rounded-xl border border-dashed border-input p-6 text-center outline-none transition-colors hover:bg-accent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <UploadIcon
+                  className="size-8 text-muted-foreground"
+                  aria-hidden
+                />
+                <span className="text-body-compact text-muted-foreground">
+                  Choose the signed file from{" "}
+                  <span className="font-medium text-primary underline underline-offset-2">
+                    my files
+                  </span>
+                </span>
+              </button>
+            )}
+
+            {uploadError ? (
+              <SectionNotice
+                variant="destructive"
+                announce="assertive"
+                title="That file wasn’t added"
+              >
+                {uploadError}
+              </SectionNotice>
+            ) : null}
+
+            <p className="text-body-compact text-muted-foreground">
+              Upload .jpg, .png, .jpeg, .webp or .pdf. Maximum upload size of 15
+              MB.
+            </p>
+
+            {/*
+            Who signed, in their own words. The list is the gate on the button below it:
+            one OTP per complainant, taken here and now, because this path has no link
+            and is not meant to be the comfortable one.
+          */}
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-body font-semibold">Verify phone numbers</h3>
+                <span className="text-caption font-medium text-muted-foreground tabular-nums">
+                  {confirmedCount} of {confirmRows.length} confirmed
+                </span>
+              </div>
+              <p className="text-body-compact text-muted-foreground">
+                This ensures the litigant has access to their case file.
+              </p>
+              <ul>
+                {confirmRows.map((person, i) => (
+                  <ConfirmRow
+                    key={person.id}
+                    person={person}
+                    index={i}
+                    confirmed={isConfirmed(person)}
+                    open={otpFor === person.id}
+                    otp={otpFor === person.id ? rowOtp : ""}
+                    resent={rowResent === person.id}
+                    onOpen={() => sendRowOtp(person.id)}
+                    onOtp={setRowOtp}
+                    onResend={() => resendRowOtp(person.id)}
+                    onConfirm={() => confirmRow(person)}
+                    onAddNumber={addMissingNumber}
+                  />
+                ))}
+              </ul>
+            </div>
+            <p className="flex flex-wrap items-center gap-1 text-body-compact">
+              Need the unsigned document to sign on paper?
+              <Button
+                type="button"
+                variant="link"
+                className="h-auto p-0 underline"
+                onClick={printFile}
+              >
+                Print or save as PDF
+              </Button>
+            </p>
+          </div>
 
           <DialogFooter>
-            <Button type="button" disabled={!sign.signedCopy} onClick={submitSignedCopy}>
+            <Button
+              type="button"
+              disabled={!sign.signedCopy || !allConfirmed}
+              onClick={submitSignedCopy}
+            >
               Submit as fully signed
+            </Button>
+          </DialogFooter>
+        </ChromeDialogContent>
+      </Dialog>
+
+      {/* ── Choose process & address ── */}
+      {/*
+        This comes *before* the bill, because it is what the bill adds up. The court's
+        rule is not one blanket opt-out but a floor and a ceiling per process (handover
+        §19.3): one round of summons is mandatory, its delivery included; warrants and
+        further summons rounds go up to four; notice is a single optional round. So the
+        choice is offered per process, and the round the court insists on is simply not
+        offered as declinable rather than offered and then refused.
+      */}
+      <Dialog open={modal === "procaddr"} onOpenChange={(open) => !open && closeModal()}>
+        <ChromeDialogContent className="grid-rows-[auto_minmax(0,1fr)_auto] max-h-[calc(100svh-2rem)] sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Change process &amp; address</DialogTitle>
+            <DialogDescription>
+              What the court issues to the accused, how it is delivered, and where it
+              goes. The total moves as you change it.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex min-h-0 flex-col gap-6 overflow-y-auto">
+            {plans.map((plan) => {
+              const rounds = plan.rounds;
+              const line = bill.delivery.find((l) =>
+                l.key.startsWith(`${plan.accusedId}:`)
+              );
+              /** 1 … summons rounds — e-post never falls below the mandatory round. */
+              const deliveryChoices = Array.from(
+                { length: Math.max(0, rounds.summons - DELIVERY_MIN_ROUNDS + 1) },
+                (_, i) => DELIVERY_MIN_ROUNDS + i
+              );
+              return (
+                <section
+                  key={plan.accusedId}
+                  className={cn(
+                    "flex flex-col gap-4",
+                    // One accused needs no dividing from itself; several do.
+                    plans.length > 1 && "border-t border-hairline pt-6 first:border-t-0 first:pt-0"
+                  )}
+                >
+                  <h3 className="text-body font-semibold text-foreground">
+                    {plan.label}
+                  </h3>
+
+                  {/* Addresses first: they multiply the summons, so where comes before
+                      how many — a round cannot be priced until you know how far it
+                      travels. */}
+                  <FieldSet className="gap-3">
+                    <FieldLegend className="text-body-compact font-medium">
+                      Where summons is served
+                    </FieldLegend>
+                    {plan.addresses.length ? (
+                      <>
+                        {plan.addresses.map((address) => {
+                          const id = `addr-${plan.accusedId}-${address.index}`;
+                          return (
+                            <Field key={address.index} orientation="horizontal">
+                              <Checkbox
+                                id={id}
+                                checked={plan.selected.includes(address.index)}
+                                onCheckedChange={() =>
+                                  toggleAddress(plan, address.index)
+                                }
+                              />
+                              <FieldContent>
+                                <Label
+                                  htmlFor={id}
+                                  className="text-body-compact font-medium"
+                                >
+                                  {address.label}
+                                </Label>
+                                <FieldDescription className="text-caption">
+                                  {address.text}
+                                </FieldDescription>
+                              </FieldContent>
+                            </Field>
+                          );
+                        })}
+                        <p className="text-caption text-muted-foreground">
+                          Summons is charged for each address selected, every round.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-body-compact text-muted-foreground">
+                        Add this accused’s address in the{" "}
+                        <Link
+                          href={hrefFor("accused")}
+                          className="font-medium text-primary underline underline-offset-2"
+                        >
+                          Accused section
+                        </Link>{" "}
+                        to choose where summons is served.
+                      </p>
+                    )}
+                  </FieldSet>
+
+                  <FieldSet className="gap-3">
+                    <FieldLegend className="text-body-compact font-medium">
+                      Process to pay for now
+                    </FieldLegend>
+                    <div className="flex flex-col divide-y divide-hairline">
+                      {PROCESS_OPTIONS.map((option) => {
+                        const id = `process-${plan.accusedId}-${option.key}`;
+                        const chosen = rounds[option.key] ?? option.minRounds;
+                        const choices = Array.from(
+                          { length: option.maxRounds - option.minRounds + 1 },
+                          (_, i) => option.minRounds + i
+                        );
+                        const amount = bill.process
+                          .filter((l) => l.key === `${plan.accusedId}:${option.key}`)
+                          .reduce((t, l) => t + l.amount, 0);
+                        return (
+                          <div
+                            key={option.key}
+                            className="flex flex-wrap items-start justify-between gap-4 py-3 first:pt-0"
+                          >
+                            <div className="flex min-w-56 flex-1 flex-col gap-0.5">
+                              <Label
+                                htmlFor={id}
+                                className="text-body-compact font-medium"
+                              >
+                                {option.label}
+                                {option.minRounds > 0 ? (
+                                  <span className="text-muted-foreground">
+                                    {" "}
+                                    · required
+                                  </span>
+                                ) : null}
+                              </Label>
+                              <p className="text-caption text-muted-foreground">
+                                {option.note}
+                              </p>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-4">
+                              <NativeSelect
+                                id={id}
+                                className="w-40"
+                                value={String(chosen)}
+                                onChange={(e) =>
+                                  setRounds(plan, option.key, Number(e.target.value))
+                                }
+                              >
+                                {choices.map((n) => (
+                                  <NativeSelectOption key={n} value={String(n)}>
+                                    {n === 0
+                                      ? "Not now"
+                                      : n === 1
+                                        ? "1 round"
+                                        : `${n} rounds`}
+                                  </NativeSelectOption>
+                                ))}
+                              </NativeSelect>
+                              <span className="min-w-16 text-right text-body-compact font-medium tabular-nums">
+                                {amount ? money(amount) : "—"}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/*
+                        E-post is its own decision (`PAY-15`), not a consequence of the
+                        summons count — you may prepay three rounds of summons and the
+                        delivery of one. It only cannot go below the mandatory first
+                        round, which is why "Not now" is absent here as it is above.
+                      */}
+                      <div className="flex flex-wrap items-start justify-between gap-4 py-3">
+                        <div className="flex min-w-56 flex-1 flex-col gap-0.5">
+                          <Label
+                            htmlFor={`delivery-${plan.accusedId}`}
+                            className="text-body-compact font-medium"
+                          >
+                            {CHANNEL_FEE.label}
+                            <span className="text-muted-foreground"> · required</span>
+                          </Label>
+                          <p className="text-caption text-muted-foreground tabular-nums">
+                            {money(CHANNEL_FEE.amount)} for each address, every round —
+                            charged by the post office, not by the court.
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-4">
+                          <NativeSelect
+                            id={`delivery-${plan.accusedId}`}
+                            className="w-40"
+                            value={String(plan.delivery)}
+                            onChange={(e) =>
+                              setDelivery(plan, Number(e.target.value))
+                            }
+                          >
+                            {deliveryChoices.map((n) => (
+                              <NativeSelectOption key={n} value={String(n)}>
+                                {n === 1 ? "1 round" : `${n} rounds`}
+                              </NativeSelectOption>
+                            ))}
+                          </NativeSelect>
+                          <span className="min-w-16 text-right text-body-compact font-medium tabular-nums">
+                            {line ? money(line.amount) : "—"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </FieldSet>
+                </section>
+              );
+            })}
+
+            <p className="text-caption text-muted-foreground">
+              Anything you leave out now is paid for later, if and when the court orders
+              it. What you pay for now is issued without a second payment step.
+            </p>
+          </div>
+
+          {/*
+            The number the choices above are moving, kept in sight while they move —
+            outside the scrolling list, so it cannot be scrolled past, and outside the
+            footer, which stacks on a narrow screen and would carry it off the bottom.
+          */}
+          <div className="flex items-baseline justify-between gap-4 border-t border-hairline pt-4">
+            <span className="text-body font-semibold">Payable now</span>
+            <span className="text-title-s font-semibold tabular-nums">
+              {money(bill.total)}
+            </span>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" onClick={() => setModal("payment")}>
+              Back to fees
             </Button>
           </DialogFooter>
         </ChromeDialogContent>
@@ -1003,15 +1537,16 @@ export function SignSection() {
 
       {/* ── Pay court fees ── */}
       {/*
-        ── Pay court fees ──
         A bill, not a price tag. Two groups because the court treats them differently:
         court fees decide whether the complaint is registered at all, process fees buy
-        delivery to the accused and may be paid later. Every line shows its rate and how
-        many times it is charged, because the per-address ones move with the case and a
-        total nobody can account for is a total nobody should be asked to pay.
+        delivery to the accused. Every line shows its rate and how many times it is
+        charged, because the per-round and per-address ones move with the case and a
+        total nobody can account for is a total nobody should be asked to pay. There is
+        no switch here any more: what is being paid for was decided on the step before,
+        process by process, and this screen only adds it up.
       */}
       <Dialog open={modal === "payment"} onOpenChange={(open) => !open && closeModal()}>
-        <ChromeDialogContent className="sm:max-w-xl">
+        <ChromeDialogContent className="grid-rows-[auto_minmax(0,1fr)_auto] max-h-[calc(100svh-2rem)] sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Pay court fees</DialogTitle>
             <DialogDescription>
@@ -1019,7 +1554,7 @@ export function SignSection() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex max-h-[40vh] flex-col gap-4 overflow-y-auto">
+          <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
             <FeeGroup
               title="Court fees"
               caption="Due before the complaint is registered."
@@ -1028,63 +1563,29 @@ export function SignSection() {
             />
 
             <FeeGroup
-              title="Process &amp; delivery"
-              caption={
-                bill.addresses === 1
-                  ? "Serving the accused at 1 address."
-                  : `Serving the accused at ${bill.addresses} addresses.`
-              }
+              title="Process fees"
+              caption={processCaption}
               lines={bill.process}
               total={bill.processTotal}
-              deferred={deferProcess}
             />
-          </div>
 
-          {/*
-            The choice the reference put behind a second button. As a switch it can show
-            its own consequence — the total moves the moment it is flipped, which a button
-            that closes the dialog cannot do. It sits outside the scrolling bill, because
-            a control that changes the total must not be something you can scroll past.
-          */}
-          <div className="flex flex-col gap-3 rounded-lg bg-surface-sunken p-4">
-              <div className="flex items-start justify-between gap-4">
-                <Label
-                  htmlFor="defer-process"
-                  className="text-body-compact font-medium text-foreground"
-                >
-                  Pay process fees later
-                </Label>
-                <Switch
-                  id="defer-process"
-                  checked={deferProcess}
-                  onCheckedChange={(on) =>
-                    update((d) => {
-                      d.sign.deferProcessFees = on;
-                    })
-                  }
-                />
-              </div>
-              <p className="text-caption text-muted-foreground">
-                {deferProcess
-                  ? "The complaint is registered, but nothing is served on the accused until these are paid."
-                  : "Pay now and the accused is served without a second step."}
-              </p>
+            <FeeGroup
+              title={`Delivery of summons · ${DELIVERY_CHANNEL}`}
+              caption="Charged for each address, every round of summons — by the post office, not by the court."
+              lines={bill.delivery}
+              total={bill.deliveryTotal}
+            />
           </div>
 
           <div className="flex items-baseline justify-between gap-4 border-t border-hairline pt-4">
             <span className="text-body font-semibold">Payable now</span>
             <span className="text-title-s font-semibold tabular-nums">
-              {rupees(payableNow)}
+              {money(bill.total)}
             </span>
           </div>
 
-          <Button
-            type="button"
-            size="lg"
-            className="w-full"
-            onClick={() => setModal("procaddr")}
-          >
-            Pay {rupees(payableNow)} online
+          <Button type="button" size="lg" className="w-full" onClick={payNow}>
+            Pay {money(bill.total)} online
           </Button>
 
           <p className="text-caption text-muted-foreground">
@@ -1092,123 +1593,12 @@ export function SignSection() {
           </p>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={closeModal}>
-              Go back
-            </Button>
-          </DialogFooter>
-        </ChromeDialogContent>
-      </Dialog>
-
-      {/* ── Select process & address ── */}
-      <Dialog open={modal === "procaddr"} onOpenChange={(open) => !open && closeModal()}>
-        <ChromeDialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Select process &amp; address</DialogTitle>
-            <DialogDescription>
-              Choose what the court issues, how it is delivered, and where it goes.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex max-h-[60vh] flex-col gap-8 overflow-y-auto">
-            {/* Process */}
-            <FieldSet className="gap-3">
-              <FieldLegend className="text-body font-semibold">
-                Process to issue
-              </FieldLegend>
-              {PROCESS_TYPES.map((p) => {
-                const id = `process-${p.key}`;
-                const checked = sign.processTypes.includes(p.key) || !p.optional;
-                return (
-                  <Field key={p.key} orientation="horizontal">
-                    <Checkbox
-                      id={id}
-                      checked={checked}
-                      disabled={!p.optional}
-                      onCheckedChange={() => toggleProcess(p.key)}
-                    />
-                    <FieldContent>
-                      <Label htmlFor={id} className="text-body-compact font-medium">
-                        {p.label}
-                      </Label>
-                      <FieldDescription className="text-caption">
-                        {p.optional
-                          ? "Optional — ask for this only if your case needs it"
-                          : "Always issued with a new complaint"}
-                      </FieldDescription>
-                    </FieldContent>
-                  </Field>
-                );
-              })}
-            </FieldSet>
-
-            {/* Delivery channel */}
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="delivery-channel" className="text-body font-semibold">
-                Delivery channel
-              </Label>
-              <NativeSelect
-                id="delivery-channel"
-                className="w-full sm:max-w-xs"
-                value={sign.deliveryChannel || DELIVERY_CHANNELS[0]}
-                onChange={(e) => setChannel(e.target.value)}
-              >
-                {DELIVERY_CHANNELS.map((c) => (
-                  <NativeSelectOption key={c} value={c}>
-                    {c}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-            </div>
-
-            {/* Addresses */}
-            <FieldSet className="gap-3">
-              <FieldLegend className="text-body font-semibold">
-                Where process is served
-              </FieldLegend>
-              {addressOptions.length ? (
-                <>
-                  {addressOptions.map((option) => {
-                    const id = `addr-${option.key.replace(/[^a-zA-Z0-9-]/g, "-")}`;
-                    return (
-                      <Field key={option.key} orientation="horizontal">
-                        <Checkbox
-                          id={id}
-                          checked={selectedAddresses.includes(option.key)}
-                          onCheckedChange={() => toggleAddress(option.key)}
-                        />
-                        <FieldContent>
-                          <Label htmlFor={id} className="text-body-compact font-medium">
-                            {option.label}
-                          </Label>
-                          <FieldDescription className="text-caption">
-                            {option.text}
-                          </FieldDescription>
-                        </FieldContent>
-                      </Field>
-                    );
-                  })}
-                  <p className="text-caption text-muted-foreground">
-                    Process goes to at least one address.
-                  </p>
-                </>
-              ) : (
-                <p className="text-body-compact text-muted-foreground">
-                  Add the accused’s address in the{" "}
-                  <Link
-                    href={hrefFor("accused")}
-                    className="font-medium text-primary underline underline-offset-2"
-                  >
-                    Accused section
-                  </Link>{" "}
-                  to choose where process is served.
-                </p>
-              )}
-            </FieldSet>
-          </div>
-
-          <DialogFooter>
-            <Button type="button" onClick={payNow}>
-              Save &amp; next
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setModal("procaddr")}
+            >
+              Change process &amp; address
             </Button>
           </DialogFooter>
         </ChromeDialogContent>
@@ -1275,7 +1665,7 @@ export function SignSection() {
             <div className="flex items-center justify-between gap-4 text-body-compact">
               <span className="text-muted-foreground">Amount paid</span>
               <span className="font-semibold text-foreground tabular-nums">
-                {rupees(sign.paidAmount ?? payableNow)}
+                {money(sign.paidAmount ?? bill.total)}
               </span>
             </div>
             <div className="flex items-center justify-between gap-4 text-body-compact">

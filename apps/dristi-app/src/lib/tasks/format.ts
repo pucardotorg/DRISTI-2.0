@@ -104,6 +104,8 @@ export function secondLineOf(task: Task, user: Person | PersonId, people: Person
 export function waitingOnOf(task: Task, kase: Case, people: Person[]): string {
   if (task.status === "awaiting-court") return "The court — scrutiny";
   if (task.status === "payment-confirming") return "Payment confirming";
+  // A request waits on its addressee's decision.
+  if (task.kind === "review") return `${nameOf(people, task.review?.of)} — decision`;
   // An open or ready item that needs a vakalatnama holder the viewer is not.
   return `${nameOf(people, mainAdvocateOf(kase))} — ${needOf(task.kind)}`;
 }

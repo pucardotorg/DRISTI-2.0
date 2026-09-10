@@ -70,7 +70,10 @@ export function FormRow({
   className?: string;
 }) {
   return (
-    <div className={cn("grid grid-cols-1 items-start gap-4 md:grid-cols-2", className)}>
+    /* 24px between the columns, not 16. A card already puts 24px between its rows, so a
+       tighter gutter than that made two fields read as one crowded pair rather than two
+       (owner, Sept 8, on the cheque leaf). Stacked, the rows keep the 16px they had. */
+    <div className={cn("grid grid-cols-1 items-start gap-4 md:grid-cols-2 md:gap-x-6", className)}>
       {children}
     </div>
   );

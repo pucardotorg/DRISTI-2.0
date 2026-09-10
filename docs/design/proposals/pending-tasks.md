@@ -5,7 +5,7 @@ Updated: 2026-08-20
 Source: docs/design/research/pending-tasks-ask.md (the owner's words, 18 Aug + 19 Aug) ·
 docs/design/research/pending-tasks-ux.md (research memo) · docs/product/product-foundation.md ·
 docs/product/domain/journey.md · docs/product/open-questions.md · docs/design/proposals/cases.md
-DS read: `vendor/pucar-design-system` (origin verified `neer-ideasbeforenoon/pucar-design-system`) —
+DS read: `vendor/pucar-design-system` (origin verified `pucardotorg/dristi-design-system`) —
 `AGENTS.md`, `ACCESSIBILITY.md`, `RESPONSIVE.md`, foundations `laws` / `typography` / `spacing` /
 `colors` / `elevation`; `table`, `tabs`, `card`, `select`, `sheet`, `empty`, `timeline`,
 `description-list`, `input-otp`, `alert-dialog`, `banner`, `avatar` source.

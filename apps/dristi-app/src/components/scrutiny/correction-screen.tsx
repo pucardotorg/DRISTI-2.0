@@ -95,6 +95,7 @@ import {
   type FilingChromeValue,
 } from "@/components/filing/chrome";
 import { Breadcrumbs } from "@/components/shell/chrome";
+import { useOrigin } from "@/components/shell/origin";
 import { CorrectionProvider, type CorrectionValue } from "@/components/filing/posture";
 import { DefectCard, type DefectActions } from "@/components/scrutiny/defect-card";
 import {
@@ -505,7 +506,13 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
 
   /* ── Submitting ──────────────────────────────────────────────────── */
 
-  const back = `/tasks?task=${encodeURIComponent(task.id)}`;
+  /*
+   * The way back is the door, when one was recorded — the filings queue on the tab and
+   * page the advocate left it on, say. The task's own detail is the fallback, which is
+   * right for someone who arrived from the task list and wrong for everyone else.
+   */
+  const origin = useOrigin();
+  const back = origin?.href ?? `/tasks?task=${encodeURIComponent(task.id)}`;
   /**
    * Anything still uncommitted goes in *with* the re-filing, in one transition: `refile`
    * reads the resolutions off the task, so a reason typed a second before the click has to
@@ -700,9 +707,19 @@ export function CorrectionScreen({ task, kase }: { task: Task; kase: Case }) {
   return (
     <FilingChromeContext.Provider value={chrome}>
     <CorrectionProvider value={correction}>
-      {/* The way back lives in the top bar: Tasks › the task › here (act-page's pattern). */}
+      {/*
+       * The way back lives in the top bar. Reached from the task list it reads
+       * Tasks › the task › here; reached through a door in another area it reads that
+       * area › here, and the task crumb goes — it is a place this person never stood,
+       * and offering it as the step back would move them rather than return them.
+       */}
       <Breadcrumbs
-        crumbs={[{ label: task.title, href: back }, { label: "Scrutiny return" }]}
+        root={origin}
+        crumbs={
+          origin
+            ? [{ label: "Scrutiny return" }]
+            : [{ label: task.title, href: back }, { label: "Scrutiny return" }]
+        }
       />
       {/*
        * With room for the queue, the screen holds the viewport and each pane scrolls

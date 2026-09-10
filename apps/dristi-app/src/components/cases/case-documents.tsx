@@ -5,9 +5,11 @@ import {
   CircleAlertIcon,
   FileSearchIcon,
   FileTextIcon,
+  SearchIcon,
 } from "lucide-react";
 
 import { DocumentRecordDialog } from "@/components/cases/document-record-dialog";
+import { DownloadFilingButton } from "@/components/cases/download-filing-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,6 +39,7 @@ import {
   ItemGroup,
   ItemTitle,
 } from "@/components/ui/item";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Pagination,
@@ -77,6 +80,7 @@ import {
   DOCUMENT_GROUPS,
   DOCUMENT_TYPES,
   documentKind,
+  documentSrc,
   documentKindTitle,
   documentPageWindow,
   documentSourceLabel,
@@ -184,6 +188,7 @@ function DocumentsReady({ file }: { file: DocumentsFile }) {
   const [kind, setKind] = useState<DocumentKind>("documents");
   const [typeId, setTypeId] = useState<DocumentTypeId | null>(null);
   const [submittedById, setSubmittedById] = useState<string | null>(null);
+  const [filingQuery, setFilingQuery] = useState("");
   const [pageSize, setPageSize] = useState<DocumentsPageSize>(
     DOCUMENTS_PAGE_SIZE
   );
@@ -218,11 +223,13 @@ function DocumentsReady({ file }: { file: DocumentsFile }) {
     kind,
     typeId,
     submittedById,
+    filingQuery,
     pageSize,
     page,
   });
 
-  const filtered = typeId !== null || submittedById !== null;
+  const filtered =
+    typeId !== null || submittedById !== null || filingQuery.trim() !== "";
   const showTypeFilter = kind === "documents";
 
   function resetPage() {
@@ -232,6 +239,7 @@ function DocumentsReady({ file }: { file: DocumentsFile }) {
   function clearFilters() {
     setTypeId(null);
     setSubmittedById(null);
+    setFilingQuery("");
     resetPage();
   }
 
@@ -259,6 +267,29 @@ function DocumentsReady({ file }: { file: DocumentsFile }) {
     />
   );
 
+  /* Sits at the switcher row's right corner — the register-wide search the
+     legacy screens keep beside Type, reduced to the one field the filter bar
+     does not already cover. */
+  const search = (
+    <div className="relative w-full md:w-64">
+      <SearchIcon
+        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+        aria-hidden
+      />
+      <Input
+        type="search"
+        aria-label="Search filing ID"
+        placeholder="Search filing ID"
+        className="pl-9"
+        value={filingQuery}
+        onChange={(event) => {
+          setFilingQuery(event.target.value);
+          resetPage();
+        }}
+      />
+    </div>
+  );
+
   if (file.documents.length === 0) {
     return (
       <DocumentsPanel switcher={switcher}>
@@ -273,7 +304,7 @@ function DocumentsReady({ file }: { file: DocumentsFile }) {
 
   return (
     <>
-      <DocumentsPanel switcher={switcher}>
+      <DocumentsPanel switcher={switcher} search={search}>
         <div className={filterBarClass}>
           {showTypeFilter ? (
             <Field className={filterFieldClass}>
@@ -489,10 +520,13 @@ function uniqueSubmitters(
 function DocumentsPanel({
   children,
   switcher,
+  search,
   busy = false,
 }: {
   children: ReactNode;
   switcher?: ReactNode;
+  /** Filing-id search, seated at the switcher row's right corner. */
+  search?: ReactNode;
   busy?: boolean;
 }) {
   return (
@@ -501,7 +535,14 @@ function DocumentsPanel({
         <CardHeader>
           <div className="flex flex-col gap-3">
             <h2 className="text-title-s font-semibold">Documents</h2>
-            {switcher}
+            {search ? (
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                {switcher}
+                {search}
+              </div>
+            ) : (
+              switcher
+            )}
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">{children}</CardContent>
@@ -737,7 +778,7 @@ function DocumentsTable({
             Submission status
           </TableHead>
           <TableHead className={cn(headClass, "w-36")}>Evidence</TableHead>
-          <TableHead className={cn(headClass, "w-32")}>Action</TableHead>
+          <TableHead className={cn(headClass, "w-32")}>Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -751,6 +792,12 @@ function DocumentsTable({
               <p className="font-medium text-foreground">{document.title}</p>
               <p className="text-caption font-medium text-muted-foreground">
                 {documentSourceLabel(document.source)}
+                <span aria-hidden> · </span>
+                {/* The id the register's search matches — shown so a found
+                    row identifies itself. */}
+                <span className="font-mono tabular-nums">
+                  {document.filingId}
+                </span>
               </p>
             </TableCell>
             <TableCell className={cn(cellClass, "min-w-0 whitespace-normal")}>
@@ -774,17 +821,15 @@ function DocumentsTable({
               <EvidenceValue document={document} />
             </TableCell>
             <TableCell className={cellClass}>
-              <Button
-                type="button"
-                variant="outline"
-                aria-label={`Open ${document.title}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onOpenRecord(document);
-                }}
-              >
-                Open
-              </Button>
+              {/* The row itself opens the record; the one column action is the
+                  download. Icon-only with the label on hover/focus, per the
+                  Aug 31 correction round (legacy's three-dot menu held only
+                  Download). */}
+              <DownloadFilingButton
+                label={`Download filing: ${document.title}`}
+                tooltip="Download filing"
+                href={documentSrc(document)}
+              />
             </TableCell>
           </TableRow>
         ))}

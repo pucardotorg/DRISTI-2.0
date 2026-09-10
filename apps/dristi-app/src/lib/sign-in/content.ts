@@ -46,14 +46,16 @@ export const brand = {
   wordmark: t("ON Courts", "ON Courts"),
   wordmarkSub: t("Kerala district courts", "കേരള ജില്ലാ കോടതികൾ"),
   headline: t(
-    "File and follow your case, from anywhere.",
-    "എവിടെ നിന്നും കേസ് ഫയൽ ചെയ്യാം, പിന്തുടരാം.",
+    "File and follow your case, from anywhere, anytime.",
+    "എവിടെ നിന്നും, എപ്പോൾ വേണമെങ്കിലും കേസ് ഫയൽ ചെയ്യാം, പിന്തുടരാം.",
   ),
   /* Names what is on the right, in the order the three audiences will scan for
-     themselves. The headline gives the promise; this gives the address. */
+     themselves. The headline gives the promise; this gives the address.
+     PM-approved copy (Sept 3). The court name is per-deployment — each court
+     gets its own build of this line; Kollam is this demo's court. */
   subline: t(
-    "Secure access for advocates, clerks and litigants to the district courts' e-filing system.",
-    "അഭിഭാഷകർക്കും ക്ലർക്കുമാർക്കും കക്ഷികൾക്കും ജില്ലാ കോടതികളുടെ ഇ-ഫയലിംഗ് സംവിധാനത്തിലേക്കുള്ള സുരക്ഷിത പ്രവേശനം.",
+    "Secure access for litigants, advocates and clerks to the end-to-end case management system of the Kollam District Court.",
+    "കൊല്ലം ജില്ലാ കോടതിയുടെ സമ്പൂർണ്ണ കേസ് മാനേജ്മെന്റ് സംവിധാനത്തിലേക്ക് കക്ഷികൾക്കും അഭിഭാഷകർക്കും ക്ലർക്കുമാർക്കും സുരക്ഷിത പ്രവേശനം.",
   ),
   attribution: t(
     "A Government of India digital courts initiative.",
@@ -259,18 +261,6 @@ export const mismatch: Record<Role, { title: Copy; body: Copy; action: Copy }> =
     action: t("Sign in as a litigant", "കക്ഷിയായി പ്രവേശിക്കുക"),
   },
 };
-
-export const unregistered = {
-  title: t(
-    "We could not find an account for this number",
-    "ഈ നമ്പറിന് ഒരു അക്കൗണ്ട് കണ്ടെത്താനായില്ല",
-  ),
-  body: t(
-    "Check the mobile number, or create an account if you are new here.",
-    "മൊബൈൽ നമ്പർ പരിശോധിക്കുക. ഇവിടെ പുതുതാണെങ്കിൽ ഒരു അക്കൗണ്ട് ഉണ്ടാക്കുക.",
-  ),
-  action: t("Create an account", "അക്കൗണ്ട് ഉണ്ടാക്കുക"),
-} satisfies Record<string, Copy>;
 
 /* ------------------------------------------------------------------------ footer */
 

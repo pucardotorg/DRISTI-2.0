@@ -9,12 +9,14 @@
 import { newId } from "./data";
 import {
   AFFIDAVIT_PIP_TEMPLATE,
+  DELIVERY_CHANNEL,
   FINAL_RELIEF_TEMPLATE,
   INTERIM_RELIEF_TEMPLATE,
 } from "./options";
 import type {
   Accused,
   Address,
+  AdrPrayer,
   AddressBlock,
   Advocate,
   CaseDocument,
@@ -57,6 +59,8 @@ export const blankRepresentative = (): Representative => ({
   designation: "",
   email: "",
   addr: blankAddress(),
+  gender: "",
+  differentlyAbled: "",
 });
 
 export const blankAddressBlock = (): AddressBlock => ({
@@ -74,6 +78,8 @@ export function blankComplainant(): Complainant {
     fetched: false,
     name: "",
     age: "",
+    gender: "",
+    differentlyAbled: "",
     email: "",
     res: blankAddress(),
     permSame: "yes",
@@ -409,7 +415,7 @@ export function buildDocumentGroups(draft: FilingDraft): DocumentGroup[] {
 export function createBlankDraft(id: string, profile?: UserProfile | null): FilingDraft {
   const now = new Date().toISOString();
   const draft: FilingDraft = {
-    version: 3,
+    version: 5,
     id,
     caseType: "s138",
     status: "draft",
@@ -425,12 +431,7 @@ export function createBlankDraft(id: string, profile?: UserProfile | null): Fili
     cheques: [blankCheque()],
     notices: [blankNotice()],
     jurisdiction: blankJurisdiction(),
-    adr: {
-      adr: "yes",
-      otherDetails: "",
-      interimRelief: INTERIM_RELIEF_TEMPLATE,
-      finalRelief: FINAL_RELIEF_TEMPLATE,
-    },
+    adr: blankAdr(),
     witnesses: [blankWitness()],
     affidavit: "",
     documents: [],
@@ -438,10 +439,9 @@ export function createBlankDraft(id: string, profile?: UserProfile | null): Fili
       mode: null,
       signed: {},
       signedCopy: null,
-      deliveryChannel: "",
-      processTypes: ["notice"],
-      processAddresses: [],
-      deferProcessFees: false,
+      confirmed: {},
+      deliveryChannel: DELIVERY_CHANNEL,
+      process: {},
       paid: false,
       paidAt: null,
       paidAmount: null,
@@ -471,14 +471,75 @@ const LEGACY_ACCUSED_ENTITY: Record<string, string> = {
 };
 
 /**
+ * The ADR block under the name a sibling branch gave it.
+ *
+ * `feature/settlement-options` renamed `adr` to `settlement` (willing / otherDetails /
+ * interimRelief / finalRelief, plus the offer ladder) and deleted `adr` outright. Both
+ * lineages write to the same IndexedDB on the same origin, and both bumped `version`
+ * independently — settlement to 4, this one to 5 — so the number cannot tell them apart.
+ * A draft written over there is read back here, and the prayer text the filer typed is
+ * still in it under the other name.
+ */
+type SettlementShaped = {
+  willing?: AdrPrayer["adr"];
+  otherDetails?: string;
+  interimRelief?: string;
+  finalRelief?: string;
+};
+
+/** The ADR block as it stands when nothing on disk has one. */
+const blankAdr = (): AdrPrayer => ({
+  adr: "yes",
+  otherDetails: "",
+  interimRelief: INTERIM_RELIEF_TEMPLATE,
+  finalRelief: FINAL_RELIEF_TEMPLATE,
+});
+
+/**
  * Bring a stored draft up to the current shape.
  *
  * Drafts live in the browser, so a person who was mid-filing when the form changed still
  * has the old one on disk. Fields that were dropped are simply ignored; the accused's
  * kind is the one value that moved, so it is carried across rather than reset to
  * "Individual" — silently changing who someone is suing would be worse than any of this.
+ *
+ * Every block is defaulted before it is read. A draft can reach this function from a
+ * branch this one has never seen — the settlement rename is the case that actually
+ * happened — and a missing block used to throw somewhere deep in a selector, which took
+ * the whole filings screen down over one unreadable row. Ignorance of a field is
+ * survivable; a blank screen is not.
  */
 export function migrateDraft(draft: FilingDraft): FilingDraft {
+  migrateAdr(draft);
+
+  draft.intake ??= {
+    cheques: [intakeChequeGroup(1)],
+    parties: [intakePartyGroup(1)],
+    supporting: intakeSupporting(),
+  };
+  draft.complainants ??= [blankComplainant()];
+  draft.advocates ??= [blankAdvocate()];
+  draft.accused ??= [blankAccused()];
+  draft.cheques ??= [blankCheque()];
+  draft.notices ??= [blankNotice()];
+  draft.jurisdiction ??= blankJurisdiction();
+  draft.witnesses ??= [blankWitness()];
+  draft.documents ??= [];
+  draft.sign ??= {
+    mode: null,
+    signed: {},
+    signedCopy: null,
+    confirmed: {},
+    deliveryChannel: DELIVERY_CHANNEL,
+    process: {},
+    paid: false,
+    paidAt: null,
+    paidAmount: null,
+    paymentRef: null,
+    caseFileNumber: null,
+  };
+  draft.dismissed ??= { advocateInfo: false, accusedAddress: false };
+
   for (const a of draft.accused as (Accused & { type: string })[]) {
     if (a.type === "individual" || a.type === "institution") {
       a.entType ??= "";
@@ -487,15 +548,61 @@ export function migrateDraft(draft: FilingDraft): FilingDraft {
       a.type = "institution";
     }
     a.reps ??= [blankRepresentative()];
-    for (const r of a.reps) r.designation ??= "";
+    for (const r of a.reps) {
+      r.designation ??= "";
+      r.gender ??= "";
+      r.differentlyAbled ??= "";
+    }
   }
   for (const c of draft.complainants) {
     c.fetched ??= false;
     c.rep.designation ??= "";
+    c.gender ??= "";
+    c.differentlyAbled ??= "";
+    c.rep.gender ??= "";
+    c.rep.differentlyAbled ??= "";
   }
-  draft.sign.deferProcessFees ??= false;
+  // The upfront choice used to be one set of rounds for the whole case; it is now made
+  // per accused (§19.3). Nothing is carried across: an old draft's single choice cannot
+  // say which accused it was for, and the defaults it falls back to are the court's.
+  draft.sign.process ??= {};
   draft.sign.paidAmount ??= null;
   draft.affidavit ??= "";
-  draft.version = 3;
+  // Phone confirmation on the upload path is newer than these drafts.
+  draft.sign.confirmed ??= {};
+  draft.version = 5;
   return draft;
+}
+
+/**
+ * Give the draft its `adr` block back, whatever shape it arrived in.
+ *
+ * A draft last written by the settlement lineage carries the same four answers under
+ * `settlement`, so they are moved across rather than replaced with the templates — the
+ * prayer especially, which the filer may have rewritten line by line. `settlement` is
+ * left on the object untouched: this branch does not read it, and deleting it would
+ * throw away the offer ladder if the draft goes back to that branch.
+ */
+function migrateAdr(draft: FilingDraft) {
+  if (draft.adr) {
+    const a = draft.adr;
+    a.adr ??= "yes";
+    a.otherDetails ??= "";
+    a.interimRelief ??= INTERIM_RELIEF_TEMPLATE;
+    a.finalRelief ??= FINAL_RELIEF_TEMPLATE;
+    return;
+  }
+
+  const settlement = (draft as unknown as { settlement?: SettlementShaped }).settlement;
+  draft.adr = settlement
+    ? {
+        adr: settlement.willing ?? "yes",
+        otherDetails: settlement.otherDetails ?? "",
+        interimRelief: settlement.interimRelief ?? INTERIM_RELIEF_TEMPLATE,
+        finalRelief: settlement.finalRelief ?? FINAL_RELIEF_TEMPLATE,
+      }
+    : blankAdr();
+
+  /* The step it was last on may be an id this branch's router does not have. */
+  if ((draft.lastStep as string) === "settlement") draft.lastStep = "adr-prayer";
 }

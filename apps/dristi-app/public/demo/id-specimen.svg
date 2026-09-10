@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" font-family="Helvetica, Arial, sans-serif">
+  <!-- Demo stand-in for an ID on record. Deliberately a SPECIMEN: no real
+       name, number, photo or address may ever ship in this asset. -->
+  <rect width="480" height="300" rx="16" fill="#ffffff"/>
+  <rect x="0.5" y="0.5" width="479" height="299" rx="15.5" fill="none" stroke="#d4d4d8"/>
+
+  <!-- tricolour band -->
+  <rect x="24" y="24" width="432" height="10" rx="5" fill="#f59e0b"/>
+  <rect x="24" y="38" width="432" height="10" rx="5" fill="#16a34a"/>
+
+  <text x="240" y="74" text-anchor="middle" font-size="16" font-weight="bold" fill="#52525b" letter-spacing="2">GOVERNMENT OF INDIA</text>
+
+  <!-- photo placeholder -->
+  <rect x="24" y="96" width="110" height="132" rx="8" fill="#f4f4f5" stroke="#e4e4e7"/>
+  <circle cx="79" cy="140" r="22" fill="#d4d4d8"/>
+  <path d="M43 214 q36 -44 72 0 z" fill="#d4d4d8"/>
+
+  <!-- detail bars: shapes, not words -->
+  <rect x="158" y="104" width="180" height="14" rx="7" fill="#e4e4e7"/>
+  <rect x="158" y="130" width="240" height="12" rx="6" fill="#f4f4f5"/>
+  <rect x="158" y="152" width="210" height="12" rx="6" fill="#f4f4f5"/>
+  <rect x="158" y="174" width="150" height="12" rx="6" fill="#f4f4f5"/>
+
+  <text x="240" y="252" text-anchor="middle" font-size="24" font-weight="bold" fill="#3f3f46" letter-spacing="4" font-family="Courier New, monospace">XXXX XXXX 0000</text>
+  <rect x="24" y="266" width="432" height="4" rx="2" fill="#dc2626" opacity="0.7"/>
+
+  <!-- watermark -->
+  <text x="240" y="176" text-anchor="middle" font-size="52" font-weight="bold" fill="#a1a1aa" opacity="0.28" transform="rotate(-18 240 160)" letter-spacing="8">SPECIMEN</text>
+</svg>

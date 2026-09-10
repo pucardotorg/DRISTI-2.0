@@ -16,6 +16,7 @@ Orientation for this repo. Docs describe the product and how we design; they are
 | **Design → explorations** | Standalone interactive HTML prototypes for trying a direction before it is app code. **Untracked on purpose** — working material, not product; the decisions they settle go into the brief | [design/explorations/README.md](design/explorations/README.md) |
 | **Principles** | Cross-cutting PUCAR design principles — convictions that resolve conflicts between good outcomes. Org-wide, not DRISTI-specific | [principles/](principles/) |
 | **Feedback** | How reviewers comment on the running app; feedback → GitHub issues | [feedback-widget.md](feedback-widget.md) |
+| **Design mode** | Invoke-only design review, two lanes: the in-app overlay (tweak live, pin comments, report to the agent) and the Pencil lane (edit screens in the Pencil app; the agent anchors every change to the DS and audits it back). Off by default | [design-mode.md](design-mode.md) |
 
 ## Repo layers (outside `docs/`)
 
@@ -32,7 +33,7 @@ Orientation for this repo. Docs describe the product and how we design; they are
 
 - Full statutory text and growing datasets — pull from the domain site / its `data/`.
 - The design-system **code** (tokens, components) — lives in
-  [pucar-design-system](https://github.com/neer-ideasbeforenoon/pucar-design-system);
+  [pucar-design-system](https://github.com/pucardotorg/dristi-design-system);
   this repo **consumes** it (agents always pull from there into Dristi App).
 - A bespoke docs-only `agents/` folder for orchestration prose — tool-native paths
   above (`.claude/agents/`, `.claude/rules/`, `.claude/skills/`) are the agent layer;

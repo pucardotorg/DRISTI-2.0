@@ -17,7 +17,7 @@ Do not invent UI. Read the DS, sync primitives, then compose screens in Dristi A
 2. `PUCAR_DS_ROOT` only if the user set it
 
 Verify with `git -C "$DS" remote get-url origin` — must contain
-`neer-ideasbeforenoon/pucar-design-system` (or `.pucar-ds-id` with that string).
+`pucardotorg/dristi-design-system` (or `.pucar-ds-id` with that string).
 
 If unavailable or wrong org: stop and ask the user to run `npm install`. Never search
 Desktop/home for other `pucar-design-system` folders. Do not freestyle.
@@ -68,7 +68,7 @@ Progress:
 - [ ] DS root resolved; AGENTS + ACCESSIBILITY (+ Laws/RESPONSIVE) read
 - [ ] Missing controls synced via npm run sync:ui -- <name>
 - [ ] Screen composed in apps/dristi-app only
-- [ ] npm run check:tokens && npm run check:typography && npm run check:ui-sync
+- [ ] npm run check:tokens && npm run check:typography && npm run check:ui-sync && npm run check:spacing
 ```
 
 Product meaning from `docs/product/` — do not invent personas.
@@ -76,5 +76,5 @@ Product meaning from `docs/product/` — do not invent personas.
 ## Done means
 
 - Rules came from DS files; primitives match DS byte-for-byte (gate)
-- `check:tokens`, `check:typography`, and `check:ui-sync` pass
+- `check:tokens`, `check:typography`, `check:ui-sync`, and `check:spacing` pass
 - After shipping UI, run **review-ui-ds** if asked to review

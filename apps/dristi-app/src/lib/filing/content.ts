@@ -77,6 +77,8 @@ export const BOND_AMOUNT = "₹50,000";
 /** The magistrate asked for one surety more than the application carried. */
 export const BOND_REQUIRED_SURETIES = 3;
 export const BOND_TASK_DUE = "28 Aug 2026";
+/** The same deadline as an ISO date, for the ranked due-status line. */
+export const BOND_TASK_DUE_ON = "2026-08-28";
 /** The link the litigant and sureties receive by SMS/email. The demo route serves it. */
 export const BOND_SIGN_LINK = "https://dristi-kerala.pucar.org/bond?code=na5An";
 export const BOND_SIGN_PATH = "/bond";

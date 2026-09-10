@@ -1,8 +1,22 @@
 # Dristi local dev server
 
-`npm run dev` starts Next.js **detached** on `http://127.0.0.1:3000`. The
-process is supposed to outlive agent shells and terminal tabs. Chrome `-102`
-happens when agents kill that process or start a second `next dev`.
+`npm run dev` is `next dev` in the **foreground** (root → `-w @pucar/dristi-app`).
+It is not detached and there is no `dev:stop`: the server lives and dies with the
+shell that started it. A server started from an agent shell, a task runner, or a
+terminal tab that later closes will be gone — that is the process ending normally,
+not a crash, and not something to investigate.
+
+**Always use `http://localhost:3000`.** Next.js blocks cross-origin dev requests, so
+`http://127.0.0.1:3000` used to serve a page whose client never hydrated: it rendered,
+but nothing was interactive and no effect ran. `allowedDevOrigins: ["127.0.0.1"]` in
+`apps/dristi-app/next.config.ts` now permits that host too, but `localhost` stays the
+address to reach for — everything else in the project assumes it.
+
+Symptom worth knowing, because it looks like a broken screen and is not: the page
+renders, tabs do not switch, lists sit on their loading state forever, and the console
+shows only failed `webpack-hmr` websocket attempts. That is the hydration failure above,
+or a dev server that has stopped — check the origin first, then whether the process is
+alive, before reading any application code.
 
 ## Do not
 
@@ -12,6 +26,9 @@ happens when agents kill that process or start a second `next dev`.
 
 ## Do
 
-- If `http://127.0.0.1:3000` responds: use it. Do not restart it.
-- If it does not respond: tell the user to run `npm run dev` in **their**
-  Terminal panel (not via the agent). Stop is `npm run dev:stop`.
+- If `http://localhost:3000` responds: use it. Do not restart it.
+- If it does not respond, say so plainly and ask the user to run `npm run dev` in
+  **their own** Terminal — one they will keep open — never through the agent. Stopping
+  it is Ctrl-C in that terminal.
+- Before reporting "the app is broken", confirm you were on `localhost` and that a
+  `next dev` process is actually running (`pgrep -fl "next dev"`).

@@ -2,6 +2,11 @@
 
 import * as React from "react";
 
+import {
+  useLocalStorageValue,
+  writeLocalStorageValue,
+} from "@/hooks/use-local-storage-value";
+
 /**
  * Which profile the person is currently acting as.
  *
@@ -49,39 +54,33 @@ export function ProfileProvider({
   advocateProfileAvailable?: boolean;
   initialRole?: ProfileRole;
 }) {
-  const [profileRole, setProfileRole] =
-    React.useState<ProfileRole>(initialRole);
-  const [advocateAvailable, setAdvocateAvailable] = React.useState(
-    advocateProfileAvailable,
-  );
-  const [accountName, setAccountName] = React.useState("Anjali Nair");
+  // Session-lite: the role + advocate-availability + name the sign-in stashed.
+  // Read via `useSyncExternalStore`, so SSR and the hydration render agree on the
+  // defaults and the stored value takes over right after — no effect, no second
+  // setState pass. A base litigant has no advocate profile until elevated.
+  const storedRole = useLocalStorageValue(PROFILE_ROLE_KEY);
+  const profileRole: ProfileRole =
+    storedRole === "litigant" || storedRole === "advocate"
+      ? storedRole
+      : initialRole;
 
-  // Session-lite: read the role + advocate-availability + name the sign-in stashed, after
-  // mount (avoids a hydration mismatch). A base litigant has no advocate profile until elevated.
-  React.useEffect(() => {
-    const storedRole = window.localStorage.getItem(PROFILE_ROLE_KEY);
-    if (storedRole === "litigant" || storedRole === "advocate") {
-      setProfileRole(storedRole);
-    }
-    const storedAvail = window.localStorage.getItem(ADVOCATE_AVAILABLE_KEY);
-    if (storedAvail === "true" || storedAvail === "false") {
-      setAdvocateAvailable(storedAvail === "true");
-    }
-    const storedName = window.localStorage.getItem(ACCOUNT_NAME_KEY);
-    if (storedName) setAccountName(storedName);
-  }, []);
+  const storedAvail = useLocalStorageValue(ADVOCATE_AVAILABLE_KEY);
+  const advocateAvailable =
+    storedAvail === "true" || storedAvail === "false"
+      ? storedAvail === "true"
+      : advocateProfileAvailable;
+
+  const accountName = useLocalStorageValue(ACCOUNT_NAME_KEY) || "Anjali Nair";
 
   const switchProfile = React.useCallback(() => {
-    setProfileRole((r) => {
-      const next = r === "advocate" ? "litigant" : "advocate";
-      window.localStorage.setItem(PROFILE_ROLE_KEY, next);
-      return next;
-    });
-  }, []);
+    writeLocalStorageValue(
+      PROFILE_ROLE_KEY,
+      profileRole === "advocate" ? "litigant" : "advocate",
+    );
+  }, [profileRole]);
 
   const enableAdvocateProfile = React.useCallback(() => {
-    setAdvocateAvailable(true);
-    window.localStorage.setItem(ADVOCATE_AVAILABLE_KEY, "true");
+    writeLocalStorageValue(ADVOCATE_AVAILABLE_KEY, "true");
   }, []);
 
   const value = React.useMemo<ProfileValue>(

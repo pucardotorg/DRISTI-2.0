@@ -254,6 +254,6 @@ floor, a specimen missing tracking — do **not** hack around it locally (no opa
 modifiers, no shadowing variables, no per-screen overrides). Use the tokens as they
 are, and record the issue as **"Upstream DS feedback"** in your build report: token,
 measured value, where it shows, and the premium alternative. The owner controls
-`neer-ideasbeforenoon/pucar-design-system` and retunes values there; one knob change
+`pucardotorg/dristi-design-system` and retunes values there; one knob change
 then fixes every screen at once. This skill governs how tokens are used with taste —
 it never invents, forks, or locally adjusts one.

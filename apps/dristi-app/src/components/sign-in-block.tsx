@@ -11,6 +11,7 @@ import {
 
 import { BrandLockup } from "@/components/brand-lockup";
 import { RegistrationFlow } from "@/components/registration/registration-flow";
+import { ResubmissionFlow } from "@/components/registration/resubmission-flow";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,11 +49,14 @@ import {
   METHOD_ORDER,
   methods,
   otp,
-  unregistered,
   type Method,
   type Role,
 } from "@/lib/sign-in/content";
 import { registeredRole } from "@/lib/sign-in/demo-accounts";
+import {
+  rejectedRegistrationFor,
+  type RejectedRegistration,
+} from "@/lib/registration/rejection";
 
 /**
  * The page under the onboarding modal.
@@ -178,13 +182,17 @@ export function SignInBlock({
   summoned?: boolean;
 }) {
   const [registrationOpen, setRegistrationOpen] = React.useState(false);
+  /* A rejected registration on the signed-in number routes into its
+     correction round instead of the portal — the SMS told them to sign in
+     again, and this is where signing in lands them. */
+  const [resubmission, setResubmission] =
+    React.useState<RejectedRegistration | null>(null);
   const [step, setStep] = React.useState<"credentials" | "code">("credentials");
   const [method, setMethod] = React.useState<Method>("password");
   const [mobile, setMobile] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [code, setCode] = React.useState("");
   const [revealed, setRevealed] = React.useState(false);
-  const [notRegistered, setNotRegistered] = React.useState(false);
   const [accepted, setAccepted] = React.useState(false);
   const [resendIn, setResendIn] = React.useState(0);
   // Which fields failed, not what the failure reads as. Storing the resolved sentence
@@ -203,7 +211,6 @@ export function SignInBlock({
   // started correcting is how people conclude the site is broken.
   const invalidate = React.useCallback(() => {
     setTouched(false);
-    setNotRegistered(false);
     setAccepted(false);
   }, []);
 
@@ -219,12 +226,32 @@ export function SignInBlock({
     if (mobile.length !== 10) return;
     if (method === "password" && !password) return;
 
-    const registered = registeredRole(mobile);
-    if (!registered) {
-      setNotRegistered(true);
+    /* A rejected registration outranks "not registered": the account does
+       not exist yet, but the number is known — and the person was told to
+       sign in to fix it. */
+    const rejected = rejectedRegistrationFor(mobile);
+    if (rejected) {
+      if (method === "otp") {
+        setStep("code");
+        setTouched(false);
+        setResendIn(RESEND_SECONDS);
+        return;
+      }
+      setResubmission(rejected);
       return;
     }
-    setNotRegistered(false);
+
+    /* No account for this number, so there is nothing to sign in to. Saying so and
+       waiting is a dead end dressed as a message: either the number has an account and
+       this person is signing in, or it does not and they are creating one. The number
+       they just typed is carried into the flow, so the fork costs them nothing —
+       whichever branch they were on, the next screen is the one they needed. */
+    const registered = registeredRole(mobile);
+    if (!registered) {
+      setRegistrationOpen(true);
+      onRegister?.();
+      return;
+    }
 
     if (method === "otp") {
       setStep("code");
@@ -243,6 +270,12 @@ export function SignInBlock({
     event.preventDefault();
     setTouched(true);
     if (code.length !== OTP_LENGTH) return;
+    const rejected = rejectedRegistrationFor(mobile);
+    if (rejected) {
+      setResubmission(rejected);
+      setStep("credentials");
+      return;
+    }
     if (onSignedIn) {
       // The credentials step verified this number is registered before sending a code.
       onSignedIn(registeredRole(mobile) ?? "litigant");
@@ -305,12 +338,15 @@ export function SignInBlock({
             sacrificing the 40px touch-target floor. The court subline already drops
             below `sm`, leaving the full lockup in the desktop canvas. */}
         <header className="sticky top-0 z-30 flex shrink-0 items-center justify-between gap-4 border-b border-hairline bg-background px-6 py-5 lg:absolute lg:inset-x-0 lg:top-0 lg:border-b-0 lg:px-12 lg:pt-10 lg:pb-0">
-          {registrationOpen ? (
+          {registrationOpen || resubmission ? (
             <Button
               type="button"
               variant="ghost"
               className="-ml-2 lg:ml-0"
-              onClick={() => setRegistrationOpen(false)}
+              onClick={() => {
+                setRegistrationOpen(false);
+                setResubmission(null);
+              }}
             >
               <ArrowLeftIcon data-icon="inline-start" aria-hidden />
               {pick(registrationUi.backToSignIn, locale)}
@@ -343,12 +379,14 @@ export function SignInBlock({
         <main
           className={cn(
             "flex flex-1 items-start justify-center overflow-y-auto px-6 pb-10 lg:min-h-0 lg:px-12",
-            registrationOpen
+            registrationOpen || resubmission
               ? "pt-4 md:pt-8 lg:pt-32 lg:pb-12"
               : "pt-8 lg:items-center lg:py-12",
           )}
         >
-          {registrationOpen ? (
+          {resubmission ? (
+            <ResubmissionFlow locale={locale} rejection={resubmission} />
+          ) : registrationOpen ? (
             <RegistrationFlow
               locale={locale}
               summoned={summoned}
@@ -379,26 +417,6 @@ export function SignInBlock({
                     aria-label={pick(form.title, locale)}
                     className="flex flex-col gap-4"
                   >
-                    {notRegistered ? (
-                      <Alert variant="info">
-                        <AlertTitle>{pick(unregistered.title, locale)}</AlertTitle>
-                        <AlertDescription className="flex flex-col items-start gap-2">
-                          {pick(unregistered.body, locale)}
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setRegistrationOpen(true);
-                              onRegister?.();
-                            }}
-                          >
-                            {pick(unregistered.action, locale)}
-                          </Button>
-                        </AlertDescription>
-                      </Alert>
-                    ) : null}
-
                     <Field data-invalid={badMobile}>
                       <FieldLabel>{pick(form.mobileLabel, locale)}</FieldLabel>
                       <InputGroup>

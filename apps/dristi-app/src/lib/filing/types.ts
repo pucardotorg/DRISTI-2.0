@@ -136,6 +136,10 @@ export type PoaHolder = {
   perm: Address;
 };
 
+/** Optional demographic fields — asked for the complainant and the legal representative. */
+export type Gender = "male" | "female" | "other" | "";
+export type DifferentlyAbled = YesNo | "";
+
 export type Representative = {
   mobile: string;
   name: string;
@@ -144,6 +148,10 @@ export type Representative = {
   designation: string;
   email: string;
   addr: Address;
+  /** Optional. */
+  gender: Gender;
+  /** Optional. */
+  differentlyAbled: DifferentlyAbled;
 };
 
 /** Field keys that document reading can machine-fill on a complainant. */
@@ -160,6 +168,10 @@ export type Complainant = {
   fetched: boolean;
   name: string;
   age: string;
+  /** Optional. */
+  gender: Gender;
+  /** Optional. */
+  differentlyAbled: DifferentlyAbled;
   email: string;
   res: Address;
   permSame: YesNo;
@@ -341,24 +353,78 @@ export type Signatory = {
   you?: boolean;
 };
 
+/**
+ * One person who verifies, by OTP on their own number, that they signed a copy being
+ * uploaded — the point being that the litigant themselves has reach into their own case
+ * file, not only whoever is at the keyboard.
+ *
+ * Only people who have to sign appear: a complainant acting through a PoA holder signs
+ * through the holder, so the holder is listed and the complainant is not (owner,
+ * 2026-08-19). Advocates cannot appear — the Advocate section collects no phone.
+ */
+export type PhoneConfirmer = {
+  id: string;
+  /** The person who receives the code. */
+  name: string;
+  /** The capacity they answer in — "Complainant 1 · Individual", "PoA holder for …". */
+  role: string;
+  mobile: string;
+};
+
+/**
+ * One party's confirmation that they signed the copy being uploaded, authenticated by an
+ * OTP to their own number. The OTP proves control of the handset; the declaration the
+ * person answers is what makes it an attestation, so the two are shown together.
+ *
+ * Only the upload path collects these. Links were considered and dropped: the friction is
+ * the point on a path we do not want to encourage (owner, 2026-08-19).
+ */
+export type PhoneConfirmation = {
+  /**
+   * The last four digits that were confirmed. Editing the party's number after the fact
+   * voids the record rather than silently carrying it to a different handset.
+   */
+  mobileTail: string;
+  /** When it was confirmed — IST in the live service. */
+  at: string;
+};
+
+/**
+ * One accused's upfront choice. Every field is optional because the stored record is
+ * an override of the defaults, not a snapshot of them.
+ */
+export type AccusedProcessChoice = {
+  /** Rounds prepaid, by `PROCESS_OPTIONS` key. */
+  rounds?: Record<string, number>;
+  /** Rounds of e-post prepaid — 1 … summons rounds (`PAY-15`). */
+  delivery?: number;
+  /** Address indices of *this* accused that summons is served at; at least one. */
+  addresses?: number[];
+};
+
 export type SignState = {
   mode: "esign" | "upload" | null;
   /** Signatory id → signed. Signatories themselves are derived, not stored. */
   signed: Record<string, boolean>;
   /** The signed copy, when signing by upload. */
   signedCopy: StoredFileRef | null;
-  deliveryChannel: string;
-  processTypes: string[];
-  /** `${accusedId}:${addressIndex}` for each address process goes to. */
-  processAddresses: string[];
   /**
-   * Process fees deferred to later. The court allows it; the complaint is still
-   * registered, but nothing is served until they are paid.
+   * Signatory id → phone confirmation, for the upload path only. Every complainant row
+   * has to be confirmed before an uploaded copy can be submitted.
    */
-  deferProcessFees: boolean;
+  confirmed: Record<string, PhoneConfirmation>;
+  deliveryChannel: string;
+  /**
+   * The upfront process choice, per accused (`sign.process[accusedId]`) — handover
+   * §19.3. Only what the filer has explicitly changed is stored; anything absent
+   * follows the defaults, which is what lets the notice round track the Delay
+   * Condonation section instead of freezing at draft creation (`PAY-11`). Resolve it
+   * with `processPlan()` rather than reading it raw.
+   */
+  process: Record<string, AccusedProcessChoice>;
   paid: boolean;
   paidAt: string | null;
-  /** Rupees actually taken — court fees alone when process fees were deferred. */
+  /** Rupees actually taken — the court fees plus every prepaid process round. */
   paidAmount: number | null;
   paymentRef: string | null;
   caseFileNumber: string | null;
@@ -373,7 +439,7 @@ export type DismissedNotices = {
 };
 
 export type FilingDraft = {
-  version: 3;
+  version: 5;
   id: string;
   caseType: "s138";
   status: "draft" | "filed";

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { ExternalLinkIcon, XIcon } from "lucide-react";
@@ -80,13 +80,19 @@ export function CasePeekSurface({
  * another case number or name stays the switcher. Overlay elevation.
  * Not the Card primitive: that hover fill would wash the whole panel.
  */
+/** A subscription with nothing to report — the mount state never changes back. */
+const emptySubscribe = () => () => {};
+
 export function CasePeek() {
   const { record, now, hideLongPendingFlag, close } = useCasePeek();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Portal guard: the server (and the hydration render) has no document.body to
+  // portal into, so both report unmounted; the client re-renders once after
+  // hydration. The store shape of the old mounted-flag effect.
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 
   if (!record || !mounted) return null;
 

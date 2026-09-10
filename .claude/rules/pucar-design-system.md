@@ -11,12 +11,12 @@ Dristi does **not** own UI rules. Before writing or changing any UI
 If `vendor/pucar-design-system` is missing, tell the user to run `npm install` from the
 Dristi repo root. Do not invent paths and do not search the disk.
 
-**Authoritative remote only:** `neer-ideasbeforenoon/pucar-design-system`.
+**Authoritative remote only:** `pucardotorg/dristi-design-system`.
 Before using a candidate, verify:
 
 ```bash
 git -C "$DS" remote get-url origin
-# must contain: neer-ideasbeforenoon/pucar-design-system
+# must contain: pucardotorg/dristi-design-system
 ```
 
 Or the folder must contain `.pucar-ds-id` with that exact org/repo string.
@@ -81,7 +81,7 @@ Micro steps inside controls only. No `p-5` / `gap-10` / arbitrary px. Controls `
 npm run check:ds-fresh             # first — am I on the pinned DS?
 npm run sync:ui -- <component>     # copy from local DS
 npm run sync:ui -- --tokens-only   # refresh globals.css
-npm run check:tokens && npm run check:typography && npm run check:ui-sync
+npm run check:tokens && npm run check:typography && npm run check:ui-sync && npm run check:spacing
 ```
 
 Screens/flows only in `apps/dristi-app`. DS wins over invent-visual preferences.

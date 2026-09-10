@@ -35,11 +35,11 @@ export function OverviewCards({
     <div
       role="group"
       aria-label="Kinds of work"
-      /* Five kinds, five columns — the grid was still sized for six after Drafts left,
-         which parked a permanent hole at the row's end and stretched every card to
-         cover for it (owner, 2026-08-24). Capped so ultrawide screens deepen the
-         gutter, not the cards. */
-      className="grid max-w-5xl grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5"
+      /* One column per kind, and only as many columns as kinds — a grid sized for
+         more parks a permanent hole at the row's end and stretches every card to
+         cover for it (owner, 2026-08-24). Six kinds since "To review" joined.
+         Capped so ultrawide screens deepen the gutter, not the cards. */
+      className="grid max-w-6xl grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6"
     >
       {CARD_ORDER.map((kind) => {
         const c = counts?.[kind];

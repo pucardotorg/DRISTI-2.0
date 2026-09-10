@@ -9,6 +9,11 @@ import {
   DueStatusLine,
   RestingCard,
 } from "@/components/cases/case-overview-card";
+import {
+  BondTaskRow,
+  useBondTaskVisible,
+} from "@/components/cases/case-bail-flow";
+import { useRemovalConsentTask } from "@/components/cases/removal-consent-task";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CardContent } from "@/components/ui/card";
@@ -97,6 +102,18 @@ export function CaseOverview({
   now: number;
 }) {
   const model = caseOverviewModel(record, now);
+  /* The bond lifecycle joins the Pending-tasks card as one of its rows
+     rather than standing as a card of its own (Aug 31 correction round).
+     Resolved here so the card renders — and counts right — even when the
+     bond row is the only pending work. */
+  const bondVisible = useBondTaskVisible();
+  const bondTask = bondVisible ? (
+    <BondTaskRow nextHearingOn={record.nextHearing?.on ?? null} now={now} />
+  ) : null;
+  /* A live removal-by-consent request against the signed-in advocate joins
+     the same card (scenario 3b's receiving side); it disappears once
+     decided. */
+  const removalConsent = useRemovalConsentTask(record.id);
 
   /* Resolved here rather than inside each block, because the row has to know
      before it allocates anything: a card that renders nothing still leaves a
@@ -112,8 +129,13 @@ export function CaseOverview({
       <CaseUpdatesBlock updates={model.updates} />
     ) : null;
   const tasks =
-    model.tasks.length > 0 ? (
-      <PendingTasksBlock tasks={model.tasks} caption={model.tasksCaption} />
+    model.tasks.length > 0 || bondTask || removalConsent.visible ? (
+      <PendingTasksBlock
+        tasks={model.tasks}
+        caption={model.tasksCaption}
+        bondTask={bondTask}
+        consentTask={removalConsent.row}
+      />
     ) : null;
   const standing = hearing ?? updates;
 
@@ -415,10 +437,17 @@ function NextHearingLabel() {
 function PendingTasksBlock({
   tasks,
   caption,
+  bondTask,
+  consentTask,
 }: {
   tasks: OverviewTask[];
   caption: string | null;
+  /** The bond lifecycle's row — last, matching its later due date. */
+  bondTask?: ReactNode;
+  /** A removal-consent request — first: another person is waiting on it. */
+  consentTask?: ReactNode;
 }) {
+  const count = tasks.length + (bondTask ? 1 : 0) + (consentTask ? 1 : 0);
   return (
     <section
       aria-labelledby={PENDING_TASKS_HEADING}
@@ -435,7 +464,7 @@ function PendingTasksBlock({
         >
           Pending tasks
         </h2>
-        <Badge variant="secondary">{tasks.length}</Badge>
+        <Badge variant="secondary">{count}</Badge>
       </div>
       {caption ? (
         <p className="text-body text-muted-foreground">{caption}</p>
@@ -446,12 +475,23 @@ function PendingTasksBlock({
           is named for what it holds so that a reader who jumps into the list
           hears the same words the heading shows (ACCESSIBILITY 9). */}
       <ItemGroup aria-label="Pending tasks">
+        {consentTask}
         {tasks.map((task, index) => (
           <Fragment key={task.id}>
-            {index > 0 ? <ItemSeparator className="my-0" /> : null}
+            {index > 0 || consentTask ? (
+              <ItemSeparator className="my-0" />
+            ) : null}
             <TaskRow task={task} />
           </Fragment>
         ))}
+        {bondTask ? (
+          <>
+            {tasks.length > 0 || consentTask ? (
+              <ItemSeparator className="my-0" />
+            ) : null}
+            {bondTask}
+          </>
+        ) : null}
       </ItemGroup>
     </section>
   );

@@ -33,10 +33,17 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { PANEL_CLASS } from "@/components/shell/panel";
 import { CorrectionScreen } from "@/components/scrutiny/correction-screen";
+import { Breadcrumbs, type Crumb } from "@/components/shell/chrome";
+import { useOrigin } from "@/components/shell/origin";
 
-function Frame({ children }: { children: React.ReactNode }) {
+/**
+ * Every state of this route, dead ends included, sits under the same trail — rooted at
+ * the door it was reached through when the link recorded one.
+ */
+function Frame({ children, root }: { children: React.ReactNode; root?: Crumb | null }) {
   return (
     <main className="flex min-w-0 flex-1 flex-col">
+      <Breadcrumbs root={root} crumbs={[{ label: "Scrutiny return" }]} />
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-6 lg:px-8">
         {children}
       </div>
@@ -48,14 +55,18 @@ function Dead({
   title,
   description,
   taskId,
+  origin,
 }: {
   title: string;
   description: string;
   taskId?: string;
+  origin?: Crumb | null;
 }) {
-  const back = taskId ? `/tasks?task=${encodeURIComponent(taskId)}` : "/tasks";
+  // The way out is the door, when one was recorded — a dead end is the worst place to
+  // put someone down in an area they did not come from.
+  const back = origin?.href ?? (taskId ? `/tasks?task=${encodeURIComponent(taskId)}` : "/tasks");
   return (
-    <Frame>
+    <Frame root={origin}>
       <Card className={cn(PANEL_CLASS, "py-0")}>
         <Empty className="py-12">
           <EmptyHeader>
@@ -67,7 +78,7 @@ function Dead({
           </EmptyHeader>
           <EmptyContent>
             <Button asChild variant="outline">
-              <Link href={back}>Back to tasks</Link>
+              <Link href={back}>{origin ? `Back to ${origin.label}` : "Back to tasks"}</Link>
             </Button>
           </EmptyContent>
         </Empty>
@@ -76,9 +87,9 @@ function Dead({
   );
 }
 
-function Loading() {
+function Loading({ root }: { root?: Crumb | null }) {
   return (
-    <Frame>
+    <Frame root={root}>
       <Skeleton className="h-8 w-96" />
       <Skeleton className="h-4 w-64" />
       <Skeleton className="h-64 w-full rounded-xl" />
@@ -88,6 +99,7 @@ function Loading() {
 
 export function ScrutinyReturnPage() {
   const params = useParams<{ taskId: string }>();
+  const origin = useOrigin();
   const { state, tasks, cases, user } = useTasks();
   const id = decodeURIComponent(params.taskId);
   const task = tasks.find((t) => t.id === id) ?? null;
@@ -107,13 +119,14 @@ export function ScrutinyReturnPage() {
     };
   }, [draftId]);
 
-  if (state !== "ready") return <Loading />;
+  if (state !== "ready") return <Loading root={origin} />;
 
   if (!task || !kase) {
     return (
       <Dead
         title="This task is not here"
         description="It may have been reset with the sandbox, or the link is wrong."
+        origin={origin}
       />
     );
   }
@@ -123,6 +136,7 @@ export function ScrutinyReturnPage() {
         title="Not on your access"
         description="You are not on this case's vakalatnama or its access list."
         taskId={task.id}
+        origin={origin}
       />
     );
   }
@@ -132,6 +146,7 @@ export function ScrutinyReturnPage() {
         title="Nothing was returned for correction"
         description="This task carries no scrutiny defects, so there is nothing to correct here."
         taskId={task.id}
+        origin={origin}
       />
     );
   }
@@ -143,7 +158,7 @@ export function ScrutinyReturnPage() {
    */
   if (!draftId) {
     return (
-      <Frame>
+      <Frame root={origin}>
         <Card className={cn(PANEL_CLASS, "py-0")}>
           <Empty className="py-12">
             <EmptyHeader>
@@ -169,7 +184,7 @@ export function ScrutinyReturnPage() {
     );
   }
 
-  if (!seeded) return <Loading />;
+  if (!seeded) return <Loading root={origin} />;
 
   return (
     <FilingProvider
@@ -180,6 +195,7 @@ export function ScrutinyReturnPage() {
           title="We couldn't open the filing"
           description="The returned filing is not in this browser's storage, so it cannot be corrected here."
           taskId={task.id}
+          origin={origin}
         />
       }
     >

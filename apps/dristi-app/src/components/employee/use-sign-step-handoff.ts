@@ -27,21 +27,26 @@ export function useSignStepHandoff(isOpen: boolean) {
   const [readOpen, setReadOpen] = React.useState(false);
   const [signOpen, setSignOpen] = React.useState(false);
   const pending = React.useRef<Handoff>(null);
-  const signOpenRef = React.useRef(false);
-  const readOpenRef = React.useRef(false);
-  signOpenRef.current = signOpen;
-  readOpenRef.current = readOpen;
 
-  React.useEffect(() => {
-    if (isOpen) {
-      pending.current = null;
-      setReadOpen(true);
-      setSignOpen(false);
-      return;
-    }
-    pending.current = null;
-    setReadOpen(false);
+  /*
+   * Opening and closing the pair follows `isOpen` during render rather than in an
+   * effect. As an effect it ran a second pass after the first overlay had already
+   * painted closed, and `react-hooks/set-state-in-effect` fails the lint gate on it;
+   * this is React's "adjusting state when a prop changes" pattern, so the sequence
+   * starts before anything is shown. The handoff itself is unchanged.
+   */
+  const [wasOpen, setWasOpen] = React.useState(isOpen);
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
+    setReadOpen(isOpen);
     setSignOpen(false);
+  }
+
+  /* A half-finished handoff does not survive the pair opening or closing. The ref is
+     cleared after commit rather than during render — nothing reads it in between, since
+     every read is in an event handler. */
+  React.useEffect(() => {
+    pending.current = null;
   }, [isOpen]);
 
   const goToSign = React.useCallback(() => {
@@ -85,11 +90,11 @@ export function useSignStepHandoff(isOpen: boolean) {
         return;
       }
       /* The next overlay is already up — do not send focus back to the page. */
-      if (signOpenRef.current) return;
+      if (signOpen) return;
       pending.current = null;
       onReturnFocus();
     },
-    [],
+    [signOpen],
   );
 
   const onSignCloseAutoFocus = React.useCallback(
@@ -100,11 +105,11 @@ export function useSignStepHandoff(isOpen: boolean) {
         setReadOpen(true);
         return;
       }
-      if (readOpenRef.current) return;
+      if (readOpen) return;
       pending.current = null;
       onReturnFocus();
     },
-    [],
+    [readOpen],
   );
 
   return {
@@ -124,7 +129,7 @@ export function useSignStepHandoff(isOpen: boolean) {
  * closing dialog still has something to render through its exit animation.
  */
 export function useHeld<T>(value: T | null): T | null {
-  const ref = React.useRef(value);
-  if (value !== null) ref.current = value;
-  return value ?? ref.current;
+  const [held, setHeld] = React.useState(value);
+  if (value !== null && value !== held) setHeld(value);
+  return value ?? held;
 }

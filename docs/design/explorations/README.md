@@ -24,7 +24,7 @@ and what was rejected. If a finding from an exploration matters, write it into t
 not point a reader at a file they will not have.
 
 If a colour or token change survives exploration, it is **upstream DS feedback** — raise it
-against `neer-ideasbeforenoon/pucar-design-system`, per `.claude/rules/pucar-design-system.md`.
+against `pucardotorg/dristi-design-system`, per `.claude/rules/pucar-design-system.md`.
 
 ## Working here
 

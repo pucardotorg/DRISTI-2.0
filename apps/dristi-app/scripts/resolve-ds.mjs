@@ -17,7 +17,7 @@ const APP_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const REPO_ROOT = join(APP_ROOT, "../..");
 
 /** GitHub path that must appear in origin (or in `.pucar-ds-id`). */
-export const EXPECTED_DS_REMOTE = "neer-ideasbeforenoon/pucar-design-system";
+export const EXPECTED_DS_REMOTE = "pucardotorg/dristi-design-system";
 
 const MARKER_FILE = ".pucar-ds-id";
 

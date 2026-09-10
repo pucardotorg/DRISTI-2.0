@@ -298,7 +298,12 @@ export function ComboField({
         className="w-full"
         autoComplete="off"
       />
-      <ComboboxContent>
+      {/* pointer-events-auto: a Radix modal dialog puts pointer-events:none
+          on the body, which swallowed this portalled popup when the field
+          is used inside one (the witness dialog) — the same fix the
+          advocate join dialog's combobox carries. No effect on the filing
+          pages, which have no modal. */}
+      <ComboboxContent className="pointer-events-auto">
         <ComboboxEmpty>{emptyLabel}</ComboboxEmpty>
         <ComboboxList>
           {(item: unknown) => (

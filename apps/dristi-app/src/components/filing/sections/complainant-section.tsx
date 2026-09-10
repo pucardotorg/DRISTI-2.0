@@ -14,7 +14,7 @@ import { CheckIcon } from "lucide-react";
 import { ChromeDialogContent } from "@/components/chrome/app-chrome";
 
 import { blankComplainant } from "@/lib/filing/blank";
-import { ENTITY_TYPES } from "@/lib/filing/options";
+import { ENTITY_TYPES, GENDER_OPTIONS } from "@/lib/filing/options";
 import { fetchOnCourtRecord } from "@/lib/filing/registry";
 import { complainantLabel, partySourceSlot } from "@/lib/filing/selectors";
 import { neighbours } from "@/lib/filing/steps";
@@ -59,6 +59,7 @@ import { PrefillNotice } from "@/components/filing/prefill-notice";
 import { RichTextEditor } from "@/components/filing/rich-text-editor";
 import { SectionTabs } from "@/components/filing/section-tabs";
 import { Segmented, YesNoSegmented } from "@/components/filing/segmented";
+import { YesNoChoice } from "@/components/filing/yes-no-choice";
 import {
   SourcePanel,
   ViewSourceButton,
@@ -356,9 +357,11 @@ export function ComplainantSection() {
             {/* Contact */}
             <FormCard
               title="Contact"
-              description="Use the complainant's own number, not the advocate's."
+              description="How the court reaches the complainant. Use their own number and email, not the advocate's."
             >
-              <HalfWidth>
+              {/* Email sat under Basic details, two cards from the number it belongs
+                  beside. Both are how this person is reached; they are asked together. */}
+              <FormRow>
                 <FormField label="Mobile number" required>
                   <PrefixInput
                     prefix="+91"
@@ -369,53 +372,25 @@ export function ComplainantSection() {
                     autoComplete="tel-national"
                   />
                 </FormField>
-              </HalfWidth>
-
-              {/*
-                Verification used to stand on its own, next to a field that asked for the
-                same number twice — two chores with nothing offered back. Re-typing catches
-                nothing an OTP doesn't catch better, so it is gone, and the OTP now leads
-                with what it is for: the register fills the rest of this screen in.
-              */}
-              {c.verified ? (
-                <InfoWell className="text-foreground">
-                  <CheckIcon
-                    className="size-5 shrink-0 text-success-ink"
-                    aria-hidden
+                <FormField label="Email address" name="email" optional>
+                  <TextField
+                    type="email"
+                    value={c.email}
+                    onChange={(v) => setRead("email", v)}
+                    placeholder="optional@example.com"
+                    autoComplete="email"
+                    prefilled={emailPrefilled}
+                    onViewSource={() => openSource("email")}
                   />
-                  <p className="min-w-0 flex-1 text-body-compact">
-                    {c.fetched
-                      ? "Number verified, and the saved details below came from the ON Court register. Edit anything that has changed."
-                      : "Number verified. No saved record is held against it, so the details below are yours to fill in."}
-                  </p>
-                </InfoWell>
-              ) : (
-                <InfoWell>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setOtp("");
-                      setOtpOpen(true);
-                    }}
-                    disabled={!canVerify}
-                  >
-                    Verify &amp; fetch details
-                  </Button>
-                  <p className="min-w-0 flex-1 text-body-compact">
-                    Already registered with ON Court? Verify this number and we will fill
-                    in the name and address held against it.
-                  </p>
-                </InfoWell>
-              )}
+                </FormField>
+              </FormRow>
+
+              {/* Verify & fetch details removed — the phone number is collected as
+                 contact information, not as a lookup key. */}
             </FormCard>
 
             {/* Basic details */}
-            {/*
-              Name beside age, then email — the same order the PoA holder and the
-              authorised representative are asked for further down this screen. Asking
-              for one person three ways on one screen is what made the form feel loose.
-            */}
+            {/* Who this person is; how to reach them is the card above. */}
             <FormCard title="Basic details">
               <FormRow>
                 <FormField label="Full name" name="name" required>
@@ -439,19 +414,28 @@ export function ComplainantSection() {
                   />
                 </FormField>
               </FormRow>
-              <HalfWidth>
-                <FormField label="Email address" name="email" optional>
-                  <TextField
-                    type="email"
-                    value={c.email}
-                    onChange={(v) => setRead("email", v)}
-                    placeholder="optional@example.com"
-                    autoComplete="email"
-                    prefilled={emailPrefilled}
-                    onViewSource={() => openSource("email")}
+              <FormRow>
+                <FormField label="Gender" name="gender" optional>
+                  <OptionSelect
+                    value={c.gender}
+                    onValueChange={(v) => set("gender", v as Complainant["gender"])}
+                    options={GENDER_OPTIONS}
+                    placeholder="Select"
                   />
                 </FormField>
-              </HalfWidth>
+                <FormField
+                  asGroup
+                  label="Differently abled?"
+                  optional
+                >
+                  <YesNoChoice
+                    value={c.differentlyAbled}
+                    onValueChange={(v) => set("differentlyAbled", v as Complainant["differentlyAbled"])}
+                    ariaLabel="Is the complainant differently abled?"
+                    name={`complainant-${c.id}-differently-abled`}
+                  />
+                </FormField>
+              </FormRow>
             </FormCard>
 
             {/* Residential address */}
@@ -656,6 +640,28 @@ export function ComplainantSection() {
                   />
                 </FormField>
               </HalfWidth>
+              <FormRow>
+                <FormField label="Gender" name="repGender" optional>
+                  <OptionSelect
+                    value={c.rep.gender}
+                    onValueChange={(v) => setRep("gender", v as Representative["gender"])}
+                    options={GENDER_OPTIONS}
+                    placeholder="Select"
+                  />
+                </FormField>
+                <FormField
+                  asGroup
+                  label="Differently abled?"
+                  optional
+                >
+                  <YesNoChoice
+                    value={c.rep.differentlyAbled}
+                    onValueChange={(v) => setRep("differentlyAbled", v as Representative["differentlyAbled"])}
+                    ariaLabel="Is the representative differently abled?"
+                    name={`complainant-${c.id}-rep-differently-abled`}
+                  />
+                </FormField>
+              </FormRow>
               <FormSubhead>Representative&apos;s address</FormSubhead>
               <AddressFields
                 value={c.rep.addr}

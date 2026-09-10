@@ -28,14 +28,17 @@ import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Breadcrumbs, useChrome } from "@/components/shell/chrome";
+import { useHereHref } from "@/components/shell/origin";
+import { withOrigin } from "@/lib/nav/origin";
 import { ConfirmDialog } from "@/components/shell/confirm-dialog";
 import { TaskActModal } from "@/components/tasks/act/act-modal";
+import { TaskRespondDialog } from "@/components/tasks/act/respond-dialog";
 import { FilterRow } from "@/components/tasks/filter-row";
 import { useFilters } from "@/components/tasks/filters";
 import { OverviewCards } from "@/components/tasks/overview-cards";
 import { TaskDetailPanel } from "@/components/tasks/task-detail-panel";
 import { TasksTable, TasksTableSkeleton } from "@/components/tasks/tasks-table";
-import { type ActMode, actModeOf, actPathOf, useTaskActions } from "@/components/tasks/use-task-actions";
+import { type ActMode, type Flow, actModeOf, actPathOf, draftFlowOf, FLOW_DIALOG, flowPathOf, useTaskActions } from "@/components/tasks/use-task-actions";
 
 const VIEWS: TaskView[] = ["needs-action", "waiting", "completed", "archived"];
 
@@ -57,45 +60,6 @@ function useNow(): Date {
   return now;
 }
 
-/**
- * The flows that leave this screen for their own page, each behind a dialog that says
- * so. Signing and the scrutiny correction round are both built and live in their own
- * flows; e-filing (drafts) is not built yet, so its page is still interim.
- */
-type Flow = "sign" | "scrutiny" | "filing";
-
-const FLOW_DIALOG: Record<Flow, { title: string; description: string }> = {
-  sign: {
-    title: "Continuing in the signing flow",
-    description: "Signing happens in its own flow. We'll bring you back here when it's done.",
-  },
-  scrutiny: {
-    title: "Continuing in the scrutiny flow",
-    description:
-      "Correcting the defects happens in the scrutiny flow, on the filing itself. We'll bring you back here when the corrections have gone to the Registry.",
-  },
-  filing: {
-    title: "Continuing in the filing flow",
-    description:
-      "Drafting and filing happens in the e-filing flow, which is not built yet — this is an interim screen. We'll bring you back here when it's done.",
-  },
-};
-
-/** Where each flow's page lives for a task. */
-function flowPathOf(flow: Flow, task: Task): string {
-  const id = encodeURIComponent(task.id);
-  if (flow === "sign") return `/tasks/${id}/sign`;
-  if (flow === "scrutiny") return `/tasks/${id}/fix`;
-  return `/tasks/${id}/continue`;
-}
-
-/** The flow a Continue verb hands its draft to — by the kind the draft will become. */
-function draftFlowOf(task: Task): Flow | null {
-  if (task.kind === "sign") return "sign";
-  if (task.kind === "returned") return "scrutiny";
-  if (task.kind === "pay") return null; // paying acts in place — the modal
-  return "filing";
-}
 
 /**
  * Pending tasks — the command centre. A dated header, four ability-based tabs, then the
@@ -111,6 +75,8 @@ export function TasksScreen() {
   const { state, error, people, cases, tasks, user, online, reload, requestHighlight } = store;
   const { act, busy } = useTaskActions();
   const router = useRouter();
+  // This list, with the open task and the filters on it — where a flow should return to.
+  const here = useHereHref();
   const { filters, setFilters, taskId, setTaskId } = useFilters();
   const now = useNow();
   const { navOpen, foldNav, unfoldNav } = useChrome();
@@ -138,6 +104,8 @@ export function TasksScreen() {
   const [flowNotice, setFlowNotice] = React.useState<{ task: Task; flow: Flow } | null>(null);
   /** The act modal — pay and file only (the owner's rule). */
   const [acting, setActing] = React.useState<{ taskId: TaskId; mode: ActMode } | null>(null);
+  /** The respond dialog — a review task's decision acts in place. */
+  const [responding, setResponding] = React.useState<Task | null>(null);
   const actingTask = React.useMemo(
     () => (acting ? (tasks.find((t) => t.id === acting.taskId) ?? null) : null),
     [acting, tasks]
@@ -245,6 +213,9 @@ export function TasksScreen() {
           else openAct(task, actModeOf(task));
           return;
         }
+        case "Respond":
+          setResponding(task);
+          return;
         case "Mark done":
           setConfirmDone([task]);
           return;
@@ -488,7 +459,7 @@ export function TasksScreen() {
           // Waiting and closed items open their flow to look, not to act: pay and file
           // live in the modal; sign and returned tasks live on their own pages.
           const path = actPathOf(openTask);
-          if (path) router.push(path);
+          if (path) router.push(withOrigin(path, here));
           else openAct(openTask, actModeOf(openTask));
         }}
         onMarkDone={() => openTask && setConfirmDone([openTask])}
@@ -509,6 +480,19 @@ export function TasksScreen() {
         }}
       />
 
+      <TaskRespondDialog
+        task={responding}
+        kase={responding ? (cases.find((c) => c.id === responding.caseId) ?? null) : null}
+        open={!!responding}
+        onOpenChange={(open) => {
+          if (!open) setResponding(null);
+        }}
+        onFinished={(id) => {
+          requestHighlight(id);
+          focusRow(id);
+        }}
+      />
+
       {/* Signing, fixing a return and continuing a draft leave this screen for their
           own pages — the dialog says so before anything moves. */}
       <ConfirmDialog
@@ -521,7 +505,7 @@ export function TasksScreen() {
         onConfirm={() => {
           const notice = flowNotice;
           setFlowNotice(null);
-          if (notice) router.push(flowPathOf(notice.flow, notice.task));
+          if (notice) router.push(withOrigin(flowPathOf(notice.flow, notice.task), here));
         }}
       />
 

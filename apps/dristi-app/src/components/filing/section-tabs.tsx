@@ -45,17 +45,57 @@ export function SectionTabs({
   /* Adding a cheque or removing a complainant is an edit, not a correction (brief D3). */
   const inCorrection = useInCorrection();
   const canEditList = !inCorrection;
+
+  /* One row that scrolls sideways, never a wrapping block: past a handful of
+     entries a wrapped strip overran the form beneath it, so the tabs stay on a
+     single scrollable line and Add stays pinned outside the scroll (owner,
+     Sept 2). The active tab is kept in view as it changes. */
+  const listRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    const list = listRef.current;
+    const active = list?.querySelector<HTMLElement>('[data-state="active"]');
+    if (!list || !active) return;
+    // Adjust only this strip's horizontal scroll — never scrollIntoView, which
+    // would also nudge the dialog body vertically. The measured element is the
+    // tab's wrapper (trigger + its remove button), not the trigger alone: the
+    // trigger-only rect left the X clipped and the strip visibly short of the
+    // tab's true edge. First and last tab snap the strip home instead of
+    // stopping a rect-adjustment shy of the end.
+    const cell = active.parentElement ?? active;
+    if (cell === list.firstElementChild) {
+      list.scrollLeft = 0;
+      return;
+    }
+    if (cell === list.lastElementChild) {
+      list.scrollLeft = list.scrollWidth;
+      return;
+    }
+    const l = list.getBoundingClientRect();
+    const a = cell.getBoundingClientRect();
+    if (a.left < l.left) list.scrollLeft -= l.left - a.left + 8;
+    else if (a.right > l.right) list.scrollLeft += a.right - l.right + 8;
+  }, [activeId]);
+
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-x-2 gap-y-2 border-b border-hairline",
+        "flex items-center gap-2 border-b border-hairline",
         className
       )}
     >
-      <Tabs value={activeId} onValueChange={onSelect} className="min-w-0">
-        <TabsList variant="line" className="flex-wrap gap-1 p-0 group-data-horizontal/tabs:h-10">
+      <Tabs value={activeId} onValueChange={onSelect} className="min-w-0 flex-1">
+        <TabsList
+          ref={listRef}
+          variant="line"
+          // w-full overrides the primitive's w-fit so the strip is bounded by
+          // the row and its overflow scrolls, instead of stretching the modal.
+          // justify-start overrides the primitive's centering: a strip with one
+          // or two tabs otherwise floats them mid-row, orphaned from the form
+          // below (owner, Sept 3).
+          className="w-full min-w-0 flex-nowrap justify-start gap-1 overflow-x-auto p-0 group-data-horizontal/tabs:h-10"
+        >
           {tabs.map((t) => (
-            <div key={t.id} className="flex items-center">
+            <div key={t.id} className="flex shrink-0 items-center">
               <TabsTrigger
                 value={t.id}
                 className="h-10 flex-none gap-2 rounded-b-none px-3 text-body-compact group-data-horizontal/tabs:after:-bottom-px"
@@ -92,7 +132,13 @@ export function SectionTabs({
         </TabsList>
       </Tabs>
       {addLabel && onAdd && canEditList ? (
-        <Button type="button" variant="ghost" size="sm" onClick={onAdd} className="text-primary">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onAdd}
+          className="shrink-0 text-primary"
+        >
           <PlusIcon data-icon="inline-start" aria-hidden />
           {addLabel}
         </Button>

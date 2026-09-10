@@ -48,6 +48,7 @@ export function ContactList({
   emailLabel = "Email address",
   mobilePlaceholder = "10-digit number",
   emailPlaceholder = "name@example.com",
+  optional = false,
 }: {
   contacts: Contact[];
   onChange: (next: Contact[]) => void;
@@ -55,6 +56,9 @@ export function ContactList({
   emailLabel?: string;
   mobilePlaceholder?: string;
   emailPlaceholder?: string;
+  /** Marks the mobile and email labels optional — the marker sits on the fields,
+      not on the section heading (owner, Sept 2). */
+  optional?: boolean;
 }) {
   const setAt = (i: number, patch: Partial<Contact>) =>
     onChange(contacts.map((c, k) => (k === i ? { ...c, ...patch } : c)));
@@ -63,17 +67,22 @@ export function ContactList({
       {contacts.map((c, i) => (
         <div key={i} className="flex items-end gap-3">
           <FormRow className="flex-1">
-            <FormField label="Mobile number">
+            <FormField label="Mobile number" optional={optional}>
               <PrefixInput
                 prefix="+91"
                 value={c.mobile}
-                onChange={(v) => setAt(i, { mobile: v })}
+                // A +91 mobile is ten digits; keep only digits and cap the length
+                // so the field can never overflow (owner, Sept 2).
+                onChange={(v) =>
+                  setAt(i, { mobile: v.replace(/\D/g, "").slice(0, 10) })
+                }
                 placeholder={mobilePlaceholder}
                 inputMode="numeric"
+                maxLength={10}
                 autoComplete="tel-national"
               />
             </FormField>
-            <FormField label={emailLabel}>
+            <FormField label={emailLabel} optional={optional}>
               <TextField
                 type="email"
                 value={c.email}

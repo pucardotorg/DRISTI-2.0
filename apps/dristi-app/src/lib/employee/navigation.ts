@@ -13,6 +13,7 @@ import { DELAY_CONDONATION_QUEUE_COUNT } from "./delay-condonation";
 import { hearingById, TODAYS_HEARING_COUNT } from "./hearings";
 import { OTHER_APPLICATIONS_QUEUE_COUNT } from "./other-applications";
 import { registerCaseById, REGISTER_QUEUE_COUNT } from "./register-cases";
+import { findFiling, SCRUTINY_QUEUE_COUNT } from "./scrutiny/queue";
 import { RESCHEDULING_QUEUE_COUNT } from "./rescheduling-request";
 import { SCHEDULING_QUEUE_COUNT } from "./schedule";
 import { A_DIARY_PENDING_COUNT } from "./sign-a-diary";
@@ -151,6 +152,16 @@ export const COURT_NAV_GROUPS: CourtNavGroup[] = [
     label: "Actions",
     icon: ListChecksIcon,
     items: [
+      /* Scrutiny comes first because it comes first: a complaint an advocate files
+         lands here, and only what survives scrutiny reaches the register below it.
+         The row's count is the registry's own half of the queue — see
+         `lib/employee/scrutiny/queue.ts`. */
+      {
+        id: "scrutiny",
+        label: "Scrutinise submitted cases",
+        href: "/employee/scrutiny",
+        count: SCRUTINY_QUEUE_COUNT,
+      },
       {
         id: "register-cases",
         label: "Register cases",
@@ -267,9 +278,10 @@ export const COURT_HOME = { href: "/employee", label: "Court home" } as const;
  * from a sibling that merely looks like one.
  *
  * Today's hearings owns a listing's case overview (`/employee/hearings/<id>`) and the
- * order composer under it (`/employee/hearings/<id>/order`). Register cases owns one
- * waiting complaint's file (`/employee/register-cases/<id>`). None of them is a new
- * destination — each is its queue seen closer up.
+ * order composer under it (`/employee/hearings/<id>/order`). Scrutiny owns one filing's
+ * workbench (`/employee/scrutiny/<filing no.>`). Register cases owns one waiting
+ * complaint's file (`/employee/register-cases/<id>`). None of them is a new destination
+ * — each is its queue seen closer up.
  *
  * The nested segment is resolved against the queue's own data rather than matched as a
  * bare `[^/]+`, which would steal `/employee/hearings/schedule` and
@@ -286,6 +298,25 @@ export const COURT_HOME = { href: "/employee", label: "Court home" } as const;
  * disagree — about these routes first, since they are the ones whose answer is not
  * simply their own href.
  */
+/**
+ * Whether the scrutiny queue holds the filing a path names.
+ *
+ * A filing number carries slashes (`F/AHM/2026/00341`), so the segment is percent-encoded
+ * in the path and has to be decoded before the queue is asked about it. Every other
+ * nested segment is an id that survives a path intact, which is why this is the one row
+ * below that names a guard rather than asking its queue in a line.
+ */
+function scrutinyHolds(segment: string): boolean {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(segment);
+  } catch {
+    // A malformed escape is not a filing number.
+    return false;
+  }
+  return findFiling(decoded) !== undefined;
+}
+
 const NESTED_ROUTES: {
   queue: string;
   pattern: RegExp;
@@ -295,6 +326,11 @@ const NESTED_ROUTES: {
     queue: "/employee/hearings",
     pattern: /^\/employee\/hearings\/([^/]+)(?:\/order)?\/?$/,
     holds: (id) => hearingById(id) !== undefined,
+  },
+  {
+    queue: "/employee/scrutiny",
+    pattern: /^\/employee\/scrutiny\/([^/]+)\/?$/,
+    holds: scrutinyHolds,
   },
   {
     queue: "/employee/register-cases",
