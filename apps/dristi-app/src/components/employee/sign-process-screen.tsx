@@ -168,11 +168,16 @@ export function SignProcessScreen() {
   const selected = stageRows.filter((process) => selectedIds.has(process.id));
 
   /* The same selection counted the way the clerk counts it — by envelope. One cover per
-     case, so a case is an envelope however much process is inside it. */
-  const selectedCases = React.useMemo(
-    () => groupSelectionByCase(stageRows, selectedIds),
-    [stageRows, selectedIds],
-  );
+     case, so a case is an envelope however much process is inside it.
+
+     Derived plainly, the way `rows` and `selected` above it are. A `useMemo` here is
+     refused whatever its body does — `stageRows` comes back from an imported call and is
+     handed to more of them, so the compiler can never establish that nothing mutates it,
+     and a dependency it cannot call immutable makes the memo unpreservable. It then
+     declines to optimise the whole component rather than this one line, which is what
+     `react-hooks/preserve-manual-memoization` reports. Grouping is one Map over a single
+     stage's rows: the order of work those two lines already do on every render. */
+  const selectedCases = groupSelectionByCase(stageRows, selectedIds);
 
   /**
    * What a list that moves as you type sounds like.
