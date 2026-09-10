@@ -479,8 +479,8 @@ export const advDialog = {
     "ഈ കക്ഷികൾക്ക് വേണ്ടി പ്രവർത്തിക്കാൻ അധികാരം നൽകുന്ന വക്കാലത്ത് ചേർക്കുക.",
   ),
   vkAnotherLegend: t(
-    "Has another advocate already uploaded a vakalatnama that you are a part of?",
-    "നിങ്ങൾ ഉൾപ്പെടുന്ന ഒരു വക്കാലത്ത് മറ്റൊരു അഭിഭാഷകൻ ഇതിനകം അപ്‌ലോഡ് ചെയ്തിട്ടുണ്ടോ?",
+    "Has another advocate already uploaded and paid for this vakalatnama?",
+    "മറ്റൊരു അഭിഭാഷകൻ ഈ വക്കാലത്ത് ഇതിനകം അപ്‌ലോഡ് ചെയ്ത് പണമടച്ചിട്ടുണ്ടോ?",
   ),
   vkAnotherError: t("Choose yes or no.", "അതെ അല്ലെങ്കിൽ അല്ല തിരഞ്ഞെടുക്കുക."),
   vkFeeNote: t(
