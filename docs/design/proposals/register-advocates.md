@@ -703,6 +703,11 @@ The photo region becomes **the well and nothing above it**:
   reader — only to the eye, which did not need it.
 - **No upload date.** "Uploaded 31 August 2026" is the submitted date, and the Request
   group now carries it once (pass 7: one fact, one treatment).
+- **A title strip returns, 2026-09-11 (D26).** The heading and the date stay gone; what
+  came back is a rule with the document's name at caption weight on the left and the two
+  icons on the right, because on a white card the icons alone read as floating over an
+  empty sheet. The band this decision deleted was a *second title bar*; a strip that
+  anchors the actions is not that.
 - **Two icon affordances on the well, not two text buttons in a header band.** Download and
   Full view become `Button variant="ghost" size="icon"` (`size-10` = the 40×40 floor, DS
   Laws), clustered top-right **inside** the well's padding, each with an `aria-label` that
@@ -889,11 +894,10 @@ Three rules fall out of it, and they are the point:
   the overlay wears, not a grid composed here. That answers the other half of the note:
   *"everywhere I am seeing a new unique way of this being implemented… UI should be
   scalable."* The fix for a new unique way is the shared one, not a better new one.
-- **The same two values are never tabled twice.** On an edited pre-created account the
-  account was created *from* the Bar Council record, so the value before the edit is the
-  value the register still holds — both tables would print the same pair under two
-  headings. The edit wins, because it says *why* the register disagrees; the finding itself
-  is still stated once, in the Request row.
+- ~~**The same two values are never tabled twice.**~~ **Reversed by D23** the following
+  round. It was the right rule while both tables sat open in one column; once each moved
+  behind the row that announces it, they answer two different questions and are never on
+  screen together unless the officer opens both.
 
 *Rule:* owner 2026-09-11; DS Laws (grouped content; description list role); `table-plate`.
 *Rejected:* a third shape for "one value with an annotation" — that is the thing being
@@ -947,6 +951,97 @@ one ground and the white panel is the only lifted thing on the screen — the ar
 overlay's own stage just adopted. Top bar stays `bg-card`; dark stays `bg-background`.
 
 **Revert is deleting two utilities** on the screen's root element. Nothing depends on them.
+
+### D23 — **New.** A finding opens where it is stated
+
+Owner, 2026-09-11: *"Can you provide the information of what is not matching if I click
+here? Or a drop-down interaction… so that I can actually see what is on the system records
+versus what is not matching."*
+
+The comparison tables (D20) leave the column and become the **detail of the row that
+announces them**. `FactRow` gains a `detail`, and a row that has one renders its value as a
+disclosure with a chevron; the table opens underneath, spanning the card rather than the
+value column.
+
+- **Bar Council check → Some details do not match** opens `Submitted | Bar Council of
+  Kerala`.
+- **Request type → Edited Bar Council account** opens `Before | Now`.
+
+Two consequences worth naming. First, the fact column on an ordinary request is now two
+groups and a photograph — every exception is folded away until asked for, which is what a
+queue read forty times a day should look like. Second, **D20's "never table the same pair
+twice" is void**: on an edited account the pre-edit value *is* what the register still
+holds, and both disclosures are legitimate answers to different questions asked from
+different rows. The duplication that was a defect was two tables stacked in one column.
+
+*Rule:* owner 2026-09-11; DS `Collapsible`; ACCESSIBILITY §8 (`min-h-10` on the trigger).
+*Rejected:* a "view more" link that scrolls to a section — a link that moves you somewhere
+else to answer a question asked here; keeping the tables inline and collapsing the *rows*
+instead.
+*Given up:* seeing an exception without a click. Accepted: the row states the exception in
+warning ink, so nothing is hidden — only the detail is.
+
+### D24 — **New.** The lookup row is named for the act, not the institution
+
+Owner, same round: *"I don't understand what 'Bar Council of Kerala' here is trying to
+convey… what does this heading mean is not very clear."* Correct: an institution's name in
+a term column is a label with no verb. It does not say the court looked anything up.
+
+The term becomes **"Bar Council check"** (`"Clerk register check"` on the clerk queue,
+read off `registrantKind` like every other term). The specific register still names
+itself — in the **column header of the table the row opens**, over the values it is
+claiming, which is exactly where an attribution belongs and is what makes "what is on the
+system records" legible.
+
+### D25 — **New.** The focused stages carry typography, not caption labels
+
+Three notes, one cause. *"'You are approving' is too small, and this looks like a plain
+table"*; *"take a call on if we need these kind of subheadings for small sections — it's
+not needed, very redundant"*; *"these kind of subheadings is making this entire rejection
+and approval thing feel very cheap."*
+
+The cause is that a `text-caption` label above a card holding two rows is scaffolding
+around something too small to need it, and three of them stacked is scaffolding pretending
+to be structure. So on every stage past Review:
+
+- **No group labels at all.** Hierarchy separates the parts.
+- **The person is the heading.** `IdentityCard` puts the name at `text-title-s
+  font-semibold` with the registration number under it in mono, and whatever else the flow
+  collected in a quiet list under a rule. `compact` drops it to `text-body` where the
+  identity is context rather than subject.
+- **The settled state is one card**, not three: outcome, rule, who, rule, what was
+  written.
+- **The reject stage is composed as a rejection** (the note that asked for it: *"it's not
+  feeling like one… bring attention to the fact that you are rejecting and you're leaving a
+  comment, not through text exposition"*). Identity quiet at the top; the question at
+  `text-title-s` in `destructive-ink` with the DS's destructive mark beside it; a box deep
+  enough (`min-h-40`) to invite a paragraph.
+- **The confirming button says what it confirms** — "Confirm approval" / "Confirm
+  rejection", not the same word as the button that opened the stage: *"maybe the copy here
+  should become confirm approval so that it doesn't look like nothing changed in terms of
+  CTA."*
+
+**Review keeps its two group labels** ("Request", "Identity"), and that is a deliberate
+split rather than an oversight: there the labels distinguish two groups of four values that
+would otherwise run together as eight rows in one card. The rule is *a label earns its
+place by separating things that would be confused without it*, which is true on Review and
+false on a stage holding one card.
+
+### D26 — **New.** The evidence gets a frame, so its actions stop floating
+
+Owner: *"I'm slightly concerned with how empty this section is looking… the download and
+enlarge icon also looks like it's floating. Maybe it should have a slight line to separate
+those as action items of the section, so that it's scalable for different kinds of
+uploads."*
+
+`DocumentPreview`'s quiet variant on a `card` surface now renders a frame: a strip with the
+document's name at caption weight and the two icon actions in it, a `border-hairline`
+under the strip, and the document filling everything below. The scaling half of the note is
+answered by that structure — the frame is fixed, the content area is what varies, so a tall
+card scan and a short one produce the same object.
+
+Still not the default variant's header, which sits *above* the well and restates a date
+(D15's objection stands). This one is inside the frame and carries no second heading.
 
 ## 6. What I cut (and why)
 
@@ -1296,6 +1391,7 @@ dependency here. Request #9 stands on its own merits for the screens that raised
 | **2026-09-10 (evening)** | **D16 added.** Request metadata is its own attribute group, not header prose; the application number stays in the header description and is not repeated; the advocate's name **leaves** the header, because printing a value under verification as the record's title asserts it. | ux-designer |
 | **2026-09-10 (evening)** | **D9 and D11 corrected for two parallel cross-cutting changes** — search filters as you type (the Search button goes away app-wide) and the whole table row becomes the click target. The queue page therefore has **no page-level primary**, which is what D9 argued was correct all along; the "teal on the queue page is Search" line is void, and two code comments asserting it must change with the rebuild. | orchestrator / ux-designer |
 | **2026-09-10 (evening)** | **§6 clarified** so the brief cannot be read as rejecting structure wholesale: the officer's rejection reason stays free text (`REG-22`) because it is *user data in a consistent slot*; what was rejected is *product copy narrating machine results*. Reason chips remain cut; a per-attribute rejection is filed as §12.10 for the owner to decide. | ux-designer |
+| **2026-09-11 (design-mode round 3)** | **Eight render comments.** Comparison tables moved behind the row that announces them, as disclosures spanning the card (D23) — which voids D20's no-duplicate-pairs rule; the lookup row renamed for the act, with the register naming itself in the column header (D24); caption group labels removed from every focused stage, the person made the heading, the settled state collapsed to one card, the reject stage recomposed in destructive ink at title size, and the confirming CTAs renamed to "Confirm approval" / "Confirm rejection" (D25); the evidence well given a framed title strip so its icons stop floating (D26). D15 amended. | owner (direction) / orchestrator |
 | **2026-09-11 (design-mode round 2)** | **Nine render comments.** The overlay's fact model rebuilt around **two shapes** — a term/value row and a comparison table on the product's own `table-plate` (D20); strikethroughs and the `Differs`/`Changed` chips deleted; the register reduced to one Request row that speaks only when it disagrees, `matches` and `OTP: verified` deleted (D19); Reject, Approve and both settled states became focused single-column stages, the settled outcome a heading rather than a sentence with a name in it, the next request moved out of the card and its number dropped, approved/rejected now green/red (D21); explanatory copy removed from the reject label and the approve stage (D8, D21); the review split widened to 3:2 and the overlay to `max-w-5xl`; the beige page built as a reversible iteration (D22). D5 superseded; §12.11 opened on whether the Bar Council lookup exists at all. | owner (direction) / orchestrator |
 | **2026-09-10 (design-mode round)** | Four render comments implemented. (1) Request-type chips colour-coded — `info` Edited, `warning` Resubmitted (D7). (2) Search placeholder sentence-cased — at the owning layer, all fourteen court-side queue placeholders. (3) Overlay body is a tinted stage with white hairline cards and a white photo well, hover-lifted (D18; `DocumentPreview surface="card"`). (4) Decision is a staged slide inside one overlay, with settled end states and "View next application" (D17; supersedes D9's `AlertDialog` and rejected conveyor, and D10's "no success dialog"). Brief D9, D10, D15 revised accordingly. | owner (direction) / orchestrator |
 | **2026-09-10 (evening)** | **§13**: no DS request filed — the attribute row composes from `DescriptionList` + `Badge`. Recorded that deleting the lookup `Alert` retires this screen's dependence on open DS request #9 (no quiet standing notice). | ux-designer |

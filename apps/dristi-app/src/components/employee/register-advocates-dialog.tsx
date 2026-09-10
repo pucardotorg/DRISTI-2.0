@@ -7,7 +7,6 @@ import {
   CircleCheckIcon,
   CircleXIcon,
   ImageOffIcon,
-  TriangleAlertIcon,
 } from "lucide-react";
 
 import { ChromeDialogContent } from "@/components/chrome/app-chrome";
@@ -49,7 +48,6 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  comparisonBlocks,
   identityRows,
   idPhotoLabel,
   registrantNoun,
@@ -327,10 +325,7 @@ function RequestBody({
             />
           ) : stage === "approve" ? (
             <FocusedStage>
-              <FactGroup
-                label="You are approving"
-                rows={identityRows(request)}
-              />
+              <IdentityCard request={request} eyebrow="You are approving" />
             </FocusedStage>
           ) : (
             <SettledStage
@@ -371,6 +366,9 @@ function RequestBody({
             <Button type="button" variant="ghost" onClick={() => go("review")}>
               Back
             </Button>
+            {/* "Confirm rejection", not "Reject" again: a second button with the same
+                word as the one that got you here reads as nothing having happened
+                (owner, 2026-09-11, on the approve pair). */}
             <Button
               type="button"
               variant="destructive"
@@ -380,7 +378,7 @@ function RequestBody({
                 go("rejected");
               }}
             >
-              Reject request
+              Confirm rejection
             </Button>
           </>
         ) : stage === "approve" ? (
@@ -395,7 +393,7 @@ function RequestBody({
                 go("approved");
               }}
             >
-              Approve
+              Confirm approval
             </Button>
           </>
         ) : (
@@ -466,14 +464,12 @@ function ReviewStage({
         tabIndex={-1}
         className="flex min-w-0 flex-col gap-6 outline-none md:min-h-0 md:overflow-y-auto"
       >
+        {/* Two groups and, on a request that has been sent back, a third. Every
+            comparison is behind the row that announces it (D23), so an ordinary request
+            is eight values and a photograph — and an exceptional one is eight values, a
+            photograph, and a row worth clicking. */}
         <FactGroup label="Request" rows={requestRows(request)} />
         <FactGroup label="Identity" rows={identityRows(request)} />
-
-        {/* Nothing at all on an ordinary request: four values, a photograph, and no
-            table. Everything that disagrees is here, and only what disagrees. */}
-        {comparisonBlocks(request).map((block) => (
-          <ComparisonGroup key={block.id} block={block} />
-        ))}
 
         {rounds.length > 0 ? <EarlierRejections rounds={rounds} /> : null}
       </div>
@@ -527,18 +523,22 @@ function EvidenceColumn({ request }: { request: AdvocateRegistration }) {
 /* ───────────────────────────── stage: reject ────────────────────────────── */
 
 /**
- * One question, and who it is about.
+ * One question, asked at the size of the act.
  *
- * The header asks it — "Reject this registration?" — so the field asks the only thing
- * left: why. **No copy explains that the advocate will read it.** Of course they will;
- * that is what a reason is, and the officer writing it does this daily (owner,
- * 2026-09-11: *"avoid unnecessary exposition in the product"*). The one sentence the
- * screen keeps is the officer's own — `REG-22` says the reason is their words, which is
- * user data in a fixed slot.
+ * The owner's note on the first build of this stage: *"the typography and UX design of
+ * this text box and how this is a rejection workflow — it's not feeling like one… bring
+ * attention to the fact that you are rejecting and you're leaving a comment. Not through
+ * text exposition again, but through better layout and typography"* (2026-09-11).
  *
- * Rejecting stays a two-beat act: arm it, then write why. The reason *is* the friction,
- * and a confirmation on top of a typed sentence would be a double gate on the recoverable
- * half of the decision.
+ * So the hierarchy does the telling. Who is being rejected sits at the top, quiet — a
+ * `compact` identity card, because the officer has just read all of it on the previous
+ * stage and needs only to know they are still on the same person. Under it the question
+ * is a title-s heading in destructive ink with the DS's own destructive mark
+ * beside it, and the box under *that* is deep enough to invite a paragraph rather than
+ * a word. Nothing explains what a reason is for.
+ *
+ * The ink is the DS's third status treatment, and it is carried by a heading that says
+ * "rejecting" — never colour alone.
  */
 function RejectStage({
   request,
@@ -554,32 +554,39 @@ function RejectStage({
   onChange: (value: string) => void;
 }) {
   const empty = reason.trim() === "";
+  const id = `reject-${request.id}`;
 
   return (
     <FocusedStage>
-      <StageCard>
+      <IdentityCard request={request} compact />
+
+      <StageCard className="gap-3">
         <Field data-invalid={touched && empty}>
-          <FieldLabel htmlFor={`reject-${request.id}`} className="text-body">
-            Why are you rejecting this?
+          <FieldLabel htmlFor={id} className="gap-2">
+            <CircleXIcon
+              aria-hidden
+              className="size-5 shrink-0 text-destructive-ink"
+            />
+            <span className="text-title-s font-semibold text-destructive-ink">
+              Why are you rejecting this?
+            </span>
           </FieldLabel>
           <Textarea
-            id={`reject-${request.id}`}
+            id={id}
             ref={reasonRef}
-            className="max-h-64 min-h-32"
+            className="min-h-40 text-body"
             placeholder="e.g. The name on the Bar ID card is different from the name you typed. Please check and submit again."
             value={reason}
             onChange={(event) => onChange(event.target.value)}
           />
           {/* The gate, only once it has been tripped. Red on a box nobody has attempted
               yet reads as a scolding, and a line stating the rule before it is broken is
-              the exposition this stage just removed. */}
+              the exposition this stage exists without. */}
           {touched && empty ? (
             <FieldError>Write a reason first.</FieldError>
           ) : null}
         </Field>
       </StageCard>
-
-      <FactGroup label="You are rejecting" rows={identityRows(request)} />
     </FocusedStage>
   );
 }
@@ -587,19 +594,22 @@ function RejectStage({
 /* ───────────────────────────── stage: settled ───────────────────────────── */
 
 /**
- * The end of the request: the decision in the DS's own green and red, and the record it
- * was about.
+ * The end of the request: one card, and nothing stacked beside it.
+ *
+ * The first build made this three cards under three caption labels — "Identity", "What
+ * you wrote" — and the owner read the labels as the thing making it cheap: *"these kind
+ * of subheadings is making this entire rejection and approval thing feel very cheap"*
+ * (2026-09-11). They were right in a way worth writing down: a caption above a card
+ * holding two rows is scaffolding around something too small to need it, and three of
+ * them in a column is scaffolding pretending to be structure.
+ *
+ * So the settled state is **one object**: the outcome, a rule, who it was about, a rule,
+ * and what was written. Hierarchy separates them, not headings.
  *
  * **The outcome is a heading, not a sentence with a name in it.** "Account created" and
  * "Reason sent to the advocate" are the same strings on every request; who it happened to
- * is the Identity table underneath, where a name is a value in a labelled slot and can be
- * scanned in the same place every time. Interpolating the name into the sentence is the
- * thing the owner asked about directly — *"calling out each name, is that scalable UI?"*
- * (2026-09-11) — and it is the same defect as narrating a machine result: a fact dressed
- * as prose.
- *
- * There is no illustration pack yet, so the mark is a DS icon in the status's own muted
- * disc, with that status's ink on the heading beside it.
+ * is the identity beneath, where a name is a value and can be scanned in the same place
+ * every time (owner: *"calling out each name, is that scalable UI?"*).
  */
 function SettledStage({
   stage,
@@ -616,54 +626,59 @@ function SettledStage({
 
   return (
     <FocusedStage>
-      <StageCard className="items-center gap-3 text-center">
-        <span
-          aria-hidden
-          className={cn(
-            "flex size-12 items-center justify-center rounded-full",
-            approved
-              ? "bg-success-muted text-success-muted-foreground"
-              : "bg-destructive-muted text-destructive-muted-foreground",
-          )}
-        >
-          {approved ? (
-            <CircleCheckIcon className="size-6" />
-          ) : (
-            <CircleXIcon className="size-6" />
-          )}
-        </span>
-        {/* `role="status"` gets the outcome spoken: focus lands on the header title,
-            which announces itself and nothing below it. */}
-        <p
-          role="status"
-          className={cn(
-            "text-body font-medium",
-            approved ? "text-success-ink" : "text-destructive-ink",
-          )}
-        >
-          {approved ? "Account created" : `Reason sent to the ${noun}`}
-        </p>
+      <StageCard flush>
+        <div className="flex flex-col items-center gap-3 px-6 py-8 text-center">
+          <span
+            aria-hidden
+            className={cn(
+              "flex size-12 items-center justify-center rounded-full",
+              approved
+                ? "bg-success-muted text-success-muted-foreground"
+                : "bg-destructive-muted text-destructive-muted-foreground",
+            )}
+          >
+            {approved ? (
+              <CircleCheckIcon className="size-6" />
+            ) : (
+              <CircleXIcon className="size-6" />
+            )}
+          </span>
+          {/* `role="status"` gets the outcome spoken: focus lands on the header title,
+              which announces itself and nothing below it. */}
+          <p
+            role="status"
+            className={cn(
+              "text-title-s font-semibold text-balance",
+              approved ? "text-success-ink" : "text-destructive-ink",
+            )}
+          >
+            {approved ? "Account created" : `Reason sent to the ${noun}`}
+          </p>
+        </div>
+
+        {/* Who it was about. Two facts, unlabelled, because a name and a registration
+            number under an outcome need no caption to be read as the subject of it. */}
+        <div className="flex flex-col gap-0.5 border-t border-hairline px-6 py-4">
+          <p
+            lang={request.fullNameLang}
+            className="text-body font-semibold text-balance"
+          >
+            {request.fullName}
+          </p>
+          <p className="font-mono text-body-compact tabular-nums text-muted-foreground">
+            {request.barRegistrationId}
+          </p>
+        </div>
+
+        {approved ? null : (
+          <blockquote className="border-t border-hairline px-6 py-4 text-body-compact whitespace-pre-line text-pretty">
+            {reason}
+          </blockquote>
+        )}
       </StageCard>
 
-      {/* Who it was about — the two rows that identify a person, so the settled state can
-          be read on its own once the list behind it has moved on. The mobile and the
-          email were contact details for a decision that has now been taken. */}
-      <FactGroup label="Identity" rows={identityRows(request).slice(0, 2)} />
-
-      {approved ? null : (
-        /* "What you wrote", not "Reason sent to the …" — the line above the card already
-           says where it went, and a group label that restates its own heading is the
-           duplication this rebuild keeps removing. */
-        <FactGroup
-          label="What you wrote"
-          rows={[
-            { id: "reason", term: "Reason", value: reason, format: "text" },
-          ]}
-        />
-      )}
-
       {/* The court has not built the act, so the screen does not mime it — said once, at
-          the end, outside the cards that carry the record's own facts. */}
+          the end, outside the card that carries the record's own facts. */}
       <p className="text-caption text-center text-pretty text-muted-foreground">
         {approved
           ? "Not part of this build — no account is opened and nobody is told."
@@ -704,20 +719,90 @@ function FocusedStage({ children }: { children: React.ReactNode }) {
  */
 function StageCard({
   className,
+  flush = false,
   children,
 }: {
   className?: string;
+  /** The card's own padding is off; the children draw their own rules edge to edge. */
+  flush?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <Card
       size="sm"
-      className="border-hairline transition-shadow hover:shadow-raised has-focus-visible:shadow-raised"
+      className={cn(
+        "border-hairline transition-shadow hover:shadow-raised has-focus-visible:shadow-raised",
+        flush && "gap-0 py-0",
+      )}
     >
-      <CardContent className={cn("flex flex-col gap-4", className)}>
-        {children}
-      </CardContent>
+      {flush ? (
+        children
+      ) : (
+        <CardContent className={cn("flex flex-col gap-4", className)}>
+          {children}
+        </CardContent>
+      )}
     </Card>
+  );
+}
+
+/**
+ * Who this request is about, as the thing on the stage rather than a labelled table.
+ *
+ * The owner on the first build of the approve stage: *"this looks too timid. The whole
+ * 'you are approving' is too small, and this looks like a plain table… better typography
+ * to bring attention to what you are approving"* (2026-09-11). The answer is not a bigger
+ * label — it is that **the person is the heading**. The name takes the title-s role, the
+ * registration number sits under it in mono, and the contact details the officer may
+ * still want are a quiet list under a rule.
+ *
+ * `compact` is the same object at reading weight, for a stage where the identity is
+ * context rather than subject — the rejection composer, where the act is the focus.
+ */
+function IdentityCard({
+  request,
+  eyebrow,
+  compact = false,
+}: {
+  request: AdvocateRegistration;
+  /** A caption above the name, where the stage does not already say what it is doing. */
+  eyebrow?: string;
+  compact?: boolean;
+}) {
+  /* Name and number are the heading; whatever else the flow collected is the list. */
+  const [, , ...rest] = identityRows(request);
+
+  return (
+    <StageCard flush>
+      <div className="flex flex-col gap-1 px-4 py-4">
+        {eyebrow ? (
+          <p className="text-caption font-semibold text-muted-foreground">
+            {eyebrow}
+          </p>
+        ) : null}
+        <p
+          lang={request.fullNameLang}
+          className={cn(
+            "text-balance",
+            compact ? "text-body font-semibold" : "text-title-s font-semibold",
+          )}
+        >
+          {request.fullName}
+        </p>
+        <p className="font-mono text-body-compact tabular-nums text-muted-foreground">
+          {request.barRegistrationId}
+        </p>
+      </div>
+      {compact || rest.length === 0 ? null : (
+        <div className="border-t border-hairline px-4">
+          <DescriptionList>
+            {rest.map((row) => (
+              <FactRowView key={row.id} row={row} />
+            ))}
+          </DescriptionList>
+        </div>
+      )}
+    </StageCard>
   );
 }
 
@@ -730,23 +815,9 @@ function StageCard({
  * column: the DS gives status three treatments and this is the ink one, never colour
  * without the words.
  */
-function GroupHeading({
-  label,
-  tone = "plain",
-}: {
-  label: string;
-  tone?: "plain" | "warning";
-}) {
+function GroupHeading({ label }: { label: string }) {
   return (
-    <h3
-      className={cn(
-        "flex items-center gap-1.5 text-caption font-semibold",
-        tone === "warning" ? "text-warning-ink" : "text-muted-foreground",
-      )}
-    >
-      {tone === "warning" ? (
-        <TriangleAlertIcon aria-hidden className="size-3.5 shrink-0" />
-      ) : null}
+    <h3 className="text-caption font-semibold text-muted-foreground">
       {label}
     </h3>
   );
@@ -800,24 +871,58 @@ const formatClass: Record<RowFormat, string> = {
  * One fact.
  *
  * A term, a value, and — on a rejection round — the date it belongs to. Nothing else
- * attaches here: a comparison goes in a `ComparisonGroup`, which is the whole point of
+ * attaches here beyond a `detail` the row opens (D23); the comparison itself is a
+ * `ComparisonTable`, which is the whole point of
  * having two shapes instead of one row that grows a treatment per scenario.
  */
 function FactRowView({ row }: { row: FactRow }) {
+  const value = (
+    <span
+      lang={row.valueLang}
+      className={cn(
+        "block min-w-0 whitespace-pre-line",
+        formatClass[row.format],
+        row.tone && toneClass[row.tone],
+      )}
+    >
+      {row.value}
+    </span>
+  );
+
+  if (row.detail) {
+    /* The finding opens where it is stated (D23) — and the table it opens takes the
+       **card's** width, not the value column's. Nested inside the `dd` it was 200px wide
+       and clipped its own second column on the render, which is the shape of a table
+       being treated as an annotation again. So the disclosure wraps the row: the term and
+       the value keep the grid every other row uses, and the panel below them spans both
+       tracks. A `div` around a `dt`/`dd` pair is what `DescriptionRow` already is, so the
+       list stays a list. */
+    return (
+      <Collapsible className="border-b border-hairline last:border-b-0">
+        <ReviewRow term={row.term} className="border-0">
+          {/* `min-h-10` keeps the DS's 40px floor on a target an officer reaches on a
+              tablet; `w-fit` keeps the chevron against the words rather than parked at
+              the far edge of the column. */}
+          <CollapsibleTrigger className="group/detail flex min-h-10 w-fit items-center gap-1.5 rounded-lg text-left outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-focus-ring">
+            {value}
+            <ChevronDownIcon
+              aria-hidden
+              className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]/detail:rotate-180"
+            />
+          </CollapsibleTrigger>
+        </ReviewRow>
+        <CollapsibleContent className="pb-3">
+          <ComparisonTable block={row.detail} />
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  }
+
   return (
     /* Hairline, not the DS row default: `border-border` between rows inside a card would
        be the loudest mark in the overlay (ui-craft §1.1). */
     <ReviewRow term={row.term} className="border-hairline">
-      <span
-        lang={row.valueLang}
-        className={cn(
-          "block min-w-0 whitespace-pre-line",
-          formatClass[row.format],
-          row.tone && toneClass[row.tone],
-        )}
-      >
-        {row.value}
-      </span>
+      {value}
       {row.note ? (
         <span className="mt-1 block text-caption tabular-nums text-muted-foreground">
           {row.note}
@@ -845,79 +950,73 @@ function FactRowView({ row }: { row: FactRow }) {
  * `hover: false`: nothing in these rows is live, and a fill that lights under the pointer
  * promises an act the row does not perform (`table-plate`).
  */
-function ComparisonGroup({ block }: { block: ComparisonBlock }) {
+function ComparisonTable({ block }: { block: ComparisonBlock }) {
   const span = block.columns.length + 1;
 
   return (
-    <section className="flex flex-col gap-2">
-      <GroupHeading label={block.label} tone={block.tone} />
-      <StageCard className="gap-0">
-        {/* Two values plus a term do not fit 375px, and the `Card` clips what overflows
-            it — measured on the render, the register's answer was cut off the right edge
-            and unreachable. So the table scrolls inside its own container, the way the
-            queue's does, and the page never scrolls sideways. */}
-        <div className="min-w-0 overflow-x-auto">
-          <Table className="w-full border-separate border-spacing-0 text-body-compact">
-            <TableHeader>
-              {/* The card insets this table, so the header strip is a well and rounds
+    <>
+      {/* Two values plus a term do not fit 375px, and the `Card` clips what overflows
+          it — measured on the render, the register's answer was cut off the right edge
+          and unreachable. So the table scrolls inside its own container, the way the
+          queue's does, and the page never scrolls sideways. */}
+      <div className="min-w-0 overflow-x-auto">
+        <Table className="w-full border-separate border-spacing-0 text-body-compact">
+          <TableHeader>
+            {/* The card insets this table, so the header strip is a well and rounds
                 itself rather than running edge to edge (`TABLE_HEAD_ROW`, ui-craft §4). */}
-              <TableRow className={TABLE_HEAD_ROW}>
-                <TableHead className={cn(TABLE_HEAD, "w-28")}>
-                  {/* The corner cell of a comparison table names nothing — the row's own
+            <TableRow className={TABLE_HEAD_ROW}>
+              <TableHead className={cn(TABLE_HEAD, "w-28")}>
+                {/* The corner cell of a comparison table names nothing — the row's own
                     term is the label. Named for a screen reader, which reads a header
                     cell for every column it announces. */}
-                  <span className="sr-only">Detail</span>
-                </TableHead>
-                {block.columns.map((column) => (
-                  <TableHead
-                    key={column}
-                    className={cn(TABLE_HEAD, "whitespace-nowrap")}
-                  >
-                    {column}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody className={tableBodyClass({ hover: false })}>
-              {/* `border-separate` has no per-edge row gap, so the gap under the header
-                well is one inert row held out of the accessibility tree. */}
-              <tr aria-hidden="true">
-                <td colSpan={span} className="h-2 p-0" />
-              </tr>
-              {block.rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  className={tableRowClass({ hover: false })}
+                <span className="sr-only">Detail</span>
+              </TableHead>
+              {block.columns.map((column) => (
+                <TableHead
+                  key={column}
+                  className={cn(TABLE_HEAD, "whitespace-nowrap")}
                 >
+                  {column}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody className={tableBodyClass({ hover: false })}>
+            {/* `border-separate` has no per-edge row gap, so the gap under the header
+                well is one inert row held out of the accessibility tree. */}
+            <tr aria-hidden="true">
+              <td colSpan={span} className="h-2 p-0" />
+            </tr>
+            {block.rows.map((row) => (
+              <TableRow
+                key={row.id}
+                className={tableRowClass({ hover: false })}
+              >
+                <TableCell
+                  className={cn(TABLE_CELL, "align-top text-muted-foreground")}
+                >
+                  {row.term}
+                </TableCell>
+                {row.values.map((value, index) => (
                   <TableCell
+                    key={block.columns[index]}
+                    lang={value.lang}
                     className={cn(
                       TABLE_CELL,
-                      "align-top text-muted-foreground",
+                      "align-top",
+                      formatClass[value.format],
+                      value.absent && "text-muted-foreground",
                     )}
                   >
-                    {row.term}
+                    {value.text}
                   </TableCell>
-                  {row.values.map((value, index) => (
-                    <TableCell
-                      key={block.columns[index]}
-                      lang={value.lang}
-                      className={cn(
-                        TABLE_CELL,
-                        "align-top",
-                        formatClass[value.format],
-                        value.absent && "text-muted-foreground",
-                      )}
-                    >
-                      {value.text}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </StageCard>
-    </section>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </>
   );
 }
 
@@ -999,7 +1098,10 @@ function IdCardPhoto({
   );
 
   return (
-    <div className="flex min-h-64 flex-col justify-center">
+    /* `flex-1` so the card scan takes the height the frame gives it rather than sitting
+       small in the middle of a tall white column — the other half of the owner's note
+       about the evidence section looking empty (2026-09-11). */
+    <div className="flex min-h-64 flex-1 flex-col justify-center">
       {status === "failed" ? (
         <div className="m-auto flex flex-col items-center gap-3 py-8 text-center">
           <ImageOffIcon className="size-10 text-muted-foreground" aria-hidden />
@@ -1025,7 +1127,7 @@ function IdCardPhoto({
         onLoad={() => setStatus("ready")}
         onError={() => setStatus("failed")}
         className={cn(
-          "m-auto block h-auto max-w-full rounded-md",
+          "m-auto block h-auto max-h-full w-auto max-w-full rounded-md object-contain",
           status !== "ready" && "hidden",
         )}
       />
