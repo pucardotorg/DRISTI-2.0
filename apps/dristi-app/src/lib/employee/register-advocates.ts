@@ -261,6 +261,29 @@ export function requestKindLabel(request: AdvocateRegistration): string | null {
 }
 
 /**
+ * The colour the row's mark takes, beside its words.
+ *
+ * Owner ruling 2026-09-10 (design-mode round): the two kinds are told apart by colour as
+ * well as by their label. `edited` is `info` — a fact about where the account came from,
+ * nothing the officer has to answer for. `resubmission` is `warning` — this request has
+ * been in front of the office before and was sent back, and the question it asks ("did
+ * they fix what I said") is one the officer has to go looking for. Neither is
+ * `destructive`: the DS reserves that for a failure, and a request that came back is the
+ * `REG-23` loop working as designed.
+ *
+ * The words stay on the chip, so the kind is never colour alone (ACCESSIBILITY §3).
+ */
+export type RequestKindVariant = "info" | "warning";
+
+export function requestKindVariant(
+  request: AdvocateRegistration,
+): RequestKindVariant | null {
+  if (request.requestKind === "edited") return "info";
+  if (request.requestKind === "resubmission") return "warning";
+  return null;
+}
+
+/**
  * Which round the request in front of the officer is on.
  *
  * One past the number of rejections behind it: a request that has been refused four times
@@ -1018,6 +1041,38 @@ export function sortByLongestWait(
 /** The registrations this court has not yet decided, longest wait first. */
 export const REGISTER_ADVOCATES_QUEUE: AdvocateRegistration[] =
   sortByLongestWait(PENDING);
+
+/**
+ * The request to look at after this one — so an officer clearing the queue can stay in
+ * the overlay rather than come back to the list for every row.
+ *
+ * "Next" is read off the *remaining* list, in its own order, which is how the officer
+ * would have reached it by hand: the first row that sits below the one just decided;
+ * if that was the last row, the top of what is left. `rows` is the list as the screen
+ * shows it — already filtered and already without the decided request — so a search
+ * narrowed to four requests offers the next of those four, not the next of thirty-nine.
+ * `null` when the list is empty, which is the queue being cleared.
+ *
+ * Position is the queue's own order (`sortByLongestWait`), not the array index of a row
+ * that is no longer in the array — the decided request has left `rows` by the time this
+ * is asked.
+ */
+export function nextInQueue(
+  rows: AdvocateRegistration[],
+  decided: AdvocateRegistration,
+): AdvocateRegistration | null {
+  const after = rows.find((row) => comesAfter(row, decided));
+  return after ?? rows.find((row) => row.id !== decided.id) ?? null;
+}
+
+/** `a` sits below `b` in the queue's longest-wait-first order. */
+function comesAfter(a: AdvocateRegistration, b: AdvocateRegistration): boolean {
+  return (
+    a.daysWaiting < b.daysWaiting ||
+    (a.daysWaiting === b.daysWaiting &&
+      a.applicationNumber.localeCompare(b.applicationNumber) > 0)
+  );
+}
 
 /**
  * How many registrations are waiting — the number the rail carries beside "Register

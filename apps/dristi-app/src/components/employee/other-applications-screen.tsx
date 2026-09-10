@@ -267,7 +267,7 @@ function OtherApplicationFiltersForm({
         ref={searchRef}
         value={filters.query}
         onChange={(query) => onChange({ ...filters, query })}
-        placeholder="case name, number or advocate"
+        placeholder="Case name, number or advocate"
       />
 
       <div className="flex min-w-0 flex-col gap-2">

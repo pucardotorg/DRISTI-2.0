@@ -389,7 +389,7 @@ function SignEvidenceFilters({
         ref={searchRef}
         value={filters.query}
         onChange={(query) => onChange({ ...filters, query })}
-        placeholder="case name, number, document or exhibit"
+        placeholder="Case name, number, document or exhibit"
       />
     </form>
   );

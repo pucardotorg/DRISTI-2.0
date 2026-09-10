@@ -128,6 +128,7 @@ export function DocumentPreview({
   height = "default",
   actions,
   variant = "default",
+  surface = "sunken",
   className,
 }: {
   /** The document's own name. Heads the section and names both actions. */
@@ -141,6 +142,13 @@ export function DocumentPreview({
   actions?: ReactNode;
   /** `quiet` drops the header band and puts the actions on the well as icons. */
   variant?: "default" | "quiet";
+  /**
+   * What the well is painted on. `sunken` is the Laws' nested media well and the default
+   * everywhere. `card` is for a well that sits on a tinted stage rather than on a white
+   * panel — there a sunken fill is the same tone as the stage and the well has no edge,
+   * so it becomes a white sheet with a hairline instead (the stage's own card recipe).
+   */
+  surface?: WellSurface;
   className?: string;
 }) {
   if (variant === "quiet") {
@@ -156,6 +164,7 @@ export function DocumentPreview({
         <DocumentWell
           title={title}
           source={source}
+          surface={surface}
           /*
             A sticky child pins to the nearest scrollport, and the well is one:
             fine above `md`, where the well is what scrolls and the actions stay
@@ -222,6 +231,7 @@ export function DocumentPreview({
       <DocumentWell
         title={title}
         source={source}
+        surface={surface}
         className={wellHeight[height]}
       />
     </section>
@@ -442,14 +452,28 @@ function FullViewDialog({
  * preview is the nested media well the Laws name, and depth here is fill
  * (Elevation: the box-in-box ban).
  */
+type WellSurface = "sunken" | "card";
+
+/**
+ * The two fills a well can take, and the sticky strip that has to match whichever one
+ * is under it. `card` carries a hairline because a white sheet on a tinted stage has no
+ * other edge; the sunken well has none, because its fill is its edge (the box-in-box ban).
+ */
+const wellSurface: Record<WellSurface, { well: string; strip: string }> = {
+  sunken: { well: "bg-surface-sunken", strip: "bg-surface-sunken" },
+  card: { well: "border border-hairline bg-card", strip: "bg-card" },
+};
+
 function DocumentWell({
   title,
   source,
   toolbar,
+  surface = "sunken",
   className,
 }: {
   title: string;
   source: DocumentPreviewSource;
+  surface?: WellSurface;
   /**
    * Controls that belong **on** the well rather than above it — the quiet
    * variant's two icons. In flow at the well's top-right, so they sit on the
@@ -459,11 +483,14 @@ function DocumentWell({
   toolbar?: ReactNode;
   className?: string;
 }) {
+  const fill = wellSurface[surface];
+
   if (source.kind === "src") {
     return (
       <div
         className={cn(
-          "relative overflow-hidden rounded-xl bg-surface-sunken",
+          "relative overflow-hidden rounded-xl",
+          fill.well,
           className
         )}
       >
@@ -487,7 +514,8 @@ function DocumentWell({
   // A well the browser does not scroll for us has to be focusable, or its
   // content is unreachable without a pointer.
   const scrollableWell = cn(
-    "flex overflow-auto overscroll-contain rounded-xl bg-surface-sunken p-4 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+    "flex overflow-auto overscroll-contain rounded-xl p-4 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+    fill.well,
     toolbar && "flex-col gap-2",
     className
   );
@@ -508,7 +536,7 @@ function DocumentWell({
           document passes under it; a ghost icon over a pale card scan is fill
           on fill, and this is the surface that answers it.
         */
-        <div className="sticky top-0 z-10 flex justify-end bg-surface-sunken">
+        <div className={cn("sticky top-0 z-10 flex justify-end", fill.strip)}>
           {toolbar}
         </div>
       ) : null}
@@ -537,7 +565,7 @@ function DocumentWell({
           document passes under it; a ghost icon over a pale card scan is fill
           on fill, and this is the surface that answers it.
         */
-        <div className="sticky top-0 z-10 flex justify-end bg-surface-sunken">
+        <div className={cn("sticky top-0 z-10 flex justify-end", fill.strip)}>
           {toolbar}
         </div>
       ) : null}

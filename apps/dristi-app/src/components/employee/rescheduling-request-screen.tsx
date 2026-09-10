@@ -205,7 +205,7 @@ function ReschedulingFiltersRow({
         ref={searchRef}
         value={filters.query}
         onChange={(query) => onChange({ ...filters, query })}
-        placeholder="case name, number or advocate"
+        placeholder="Case name, number or advocate"
       />
     </form>
   );

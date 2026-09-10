@@ -20,6 +20,7 @@ import {
   formatDaysWaiting,
   registrationWaitTone,
   requestKindLabel,
+  requestKindVariant,
   type AdvocateRegistration,
   type WaitTone,
 } from "@/lib/employee/register-advocates";
@@ -152,15 +153,20 @@ export function RegisterAdvocatesTable({
               >
                 {request.barRegistrationId}
               </TableCell>
-              {/* Empty on the norm, and `secondary` on both exceptions — a neutral chip,
-                  not a status one. A first pass gave the resubmission `warning`, and on
-                  the render the oldest row then carried an amber chip beside a
-                  `destructive-ink` wait: two status cues in one row, which is the thing
-                  ui-craft §4 rations. The row already has exactly one status cue, the
-                  wait, and what these chips carry is a *kind* — the words tell the two
-                  apart without a second colour. */}
+              {/* Empty on the norm; the two exceptions are told apart by colour as well as
+                  by their words — `info` for an edited account, `warning` for a
+                  resubmission (`requestKindVariant`, owner ruling 2026-09-10). This
+                  spends a second colour on the row whose wait is already `destructive`
+                  ink, which ui-craft §4 rations; the owner asked for the trade, and the
+                  case for it is that "came back a fifth time" is a fact the officer has to
+                  act on differently, not decoration. The words stay, so it is never colour
+                  alone. */}
               <TableCell className={cn(TABLE_CELL, "whitespace-nowrap")}>
-                {kind ? <Badge variant="secondary">{kind}</Badge> : null}
+                {kind ? (
+                  <Badge variant={requestKindVariant(request) ?? "secondary"}>
+                    {kind}
+                  </Badge>
+                ) : null}
               </TableCell>
               {/* The wait is the column's fact, and the number is the encoding — the
                   colour only agrees with it (ACCESSIBILITY §3). Right-aligned because it

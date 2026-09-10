@@ -217,7 +217,7 @@ function ScheduleFiltersRow({
         className="sm:w-72"
         value={filters.query}
         onChange={(query) => onChange({ ...filters, query })}
-        placeholder="case name, number or advocate"
+        placeholder="Case name, number or advocate"
       />
 
       {/* The only button left on the row. It stays because it undoes more than the

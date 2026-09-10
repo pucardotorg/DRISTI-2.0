@@ -516,8 +516,12 @@ The three kinds are real and stay: **first registration** (the norm), **edited p
 account** (`REG-18`), **resubmission** (`REG-23`). What changes is that each is now a
 **value**, not a sentence.
 
-- **In the queue** — unchanged: silent on the norm, `Badge secondary` on the two
-  exceptions ("Edited", "Resubmitted · round 3").
+- **In the queue** — silent on the norm; the two exceptions carry a chip **and a colour**
+  (owner, design-mode round 2026-09-10): `info` for "Edited", `warning` for
+  "Resubmitted · round 3" (`requestKindVariant`). The first build made both `secondary`
+  to keep the row to one status cue — the wait — and the owner asked for the colour back.
+  The trade is logged: the oldest row now carries an amber chip beside a destructive-ink
+  wait. The words stay on the chip, so the kind is never colour alone.
 - **In the overlay** — a `Request type` row in the Request group, whose value is one of a
   closed set: `New registration` · `Edited Bar Council account` · `Resubmitted · round 5`.
   The paragraph "This account was created from the Bar Council record. The advocate changed
@@ -569,12 +573,14 @@ Laws accessibility floor).
 *Given up:* an officer in a hurry cannot reject in one click. Intended.
 *Fixes problems 7, 8.*
 
-### D9 — Approve is the guarded act: one `AlertDialog`, no bulk path — and the queue page has **no** teal
+### D9 — Approve is the guarded act, no bulk path — and the queue page has **no** teal
 
-Approve is the **overlay's** single teal action. It opens one `AlertDialog`
-(`ChromeAlertDialogContent`) stating what approval does: the advocate gets access to their
-advocate account. Whether it is *irreversible* is **not asserted** until product confirms
-(§12.2).
+**Revised 2026-09-10 (design-mode round) — see D17.** Approve is the **overlay's** single
+teal action. It used to open one `AlertDialog` over the overlay; it now advances the
+overlay to its own confirmation stage (D17), stating what approval does: the advocate gets
+access to their advocate account. Whether it is *irreversible* is **not asserted** until
+product confirms (§12.2). The "next request" conveyor this decision rejected below is now
+**accepted** on the owner's direction, and lives on the settled stage only — D17.
 
 **No bulk approve, no checkbox column.** This deliberately breaks from the nearest sibling,
 `ApproveCopyApplicationScreen`. On that queue the evidence is a document the court itself
@@ -604,8 +610,12 @@ re-openable if product tells us the real daily volume (§12.5).
 
 ### D10 — After a decision the officer stays put
 
-*(Unchanged.)* The row leaves the list, an `aria-live` region announces what happened, focus
-returns to the search box, and the header count drops. The rail count does **not** — it is
+**Revised 2026-09-10 (design-mode round).** The row leaves the list, an `aria-live` region
+announces what happened, and the header count drops — unchanged. What changed: the overlay
+no longer closes on the act. It settles on an end state (D17) and closes on **Close** or
+moves to the next request; focus returns to the search box when it finally closes. "No
+success dialog" below is superseded — the success state is a stage of the same overlay,
+not a dialog on top of it. The rail count does **not** — it is
 a module constant read at load, and every court-side sibling behaves the same way. A shared
 queue store would fix all of them at once; logged in §11. No success dialog, no "Go To
 Home".
@@ -617,7 +627,7 @@ Home".
 ### D11 — **Revised.** One search box, filtering as you type; no second filter axis at this size
 
 A single labelled search reaching **name, Bar registration ID and application number**.
-Visible label "Search requests"; placeholder "name, Bar registration ID or application
+Visible label "Search requests"; placeholder "Name, Bar registration ID or application
 number". Default sort: **longest wait first**.
 
 **What changed:** the court side is moving to filter-as-you-type and the Search button is
@@ -686,8 +696,10 @@ The photo region becomes **the well and nothing above it**:
   Laws), clustered top-right **inside** the well's padding, each with an `aria-label` that
   names the document ("Download photo of Bar ID card") and a DS `Tooltip` carrying the same
   words for sighted users.
-- **The well keeps `bg-surface-sunken rounded-xl`** — DS Laws, "surface-sunken for nested
-  media wells inside a Card" — and the failure and loading states stay as built (§10).
+- **The well is a white sheet with a hairline on the tinted stage** (`surface="card"`,
+  revised 2026-09-10 with D18). The first build kept `bg-surface-sunken`; once the
+  overlay body became a `bg-muted` stage the sunken fill was the stage's own tone with no
+  edge. The failure and loading states stay as built (§10).
 
 **How it is built matters as much as what it looks like.** `DocumentPreview`
 (`components/cases/document-preview.tsx`) is an **app** component, not DS, and its own doc
@@ -746,6 +758,64 @@ independently and Identity is above the fold at every width in §10.
 *Fixes problems 9, 10.*
 
 ---
+
+### D17 — **New.** One overlay, five stages: the decision progresses in place, no dialog on a dialog
+
+Owner, design-mode round 2026-09-10: *"instead of a modal-on-modal interaction, can you do
+a slide motion animation to show the modal that they were in, it's progressing to the next
+state."* The overlay is one object with five stages —
+**Review → Reject | Approve → Rejected | Approved** — and every stage change slides the
+body in from the right (forward) or the left (Back). The header stays: title says the
+stage, the `Badge` says the request's state (`Pending approval` until the act, then
+`Approved` / `Rejected`), the application number stays put.
+
+- **Reject** takes the attribute column's place with the reason composer (D8, unchanged)
+  and the identity rows under it; the photograph stays, because the sentence is usually
+  about the card. **Approve** is what approval grants plus the identity rows being vouched
+  for, and the build caveat.
+- **Settled stages** say what happened in words, mark it with an icon in a tinted disc
+  (`success-muted` + `UserCheck` for approved; `info-muted` + `Send` for a rejection sent
+  — a message on its way, not a failure), recap the two identifying rows, echo the
+  reason on a rejection, and carry the build caveat inside the card. No illustration pack
+  exists; icons until one does (owner).
+- **"View next application"** is the settled stage's primary — the conveyor D9 rejected,
+  now accepted on the owner's direction and offered **only once the request in hand is
+  settled**. `nextInQueue` reads the screen's own filtered list, so a narrowed search
+  offers the next match; when the list is empty the footer says "No more requests are
+  waiting." and offers Close alone.
+- Focus: into Reject, the textarea; into every other stage, the header title, which has
+  just changed to say what the stage is. `role="status"` on the outcome sentence gets it
+  spoken. `motion-reduce:animate-none` on the slide.
+
+*Rule:* owner 2026-09-10; DS Laws (one teal per view — Approve, then View next, never
+both on one stage; soft destructive for a reversible act); ACCESSIBILITY §3, §12.
+*Rejected:* a solid `bg-success` panel as the sibling `SignBulkConfirmDialog` uses — on
+this overlay's tinted stage the muted disc reads calmer and keeps the card white like its
+neighbours; a per-stage progress indicator — the badge changing state is the progress.
+*Given up:* D10's "the overlay closes and the officer is back on the list in one click".
+Close is one click; the end state is what makes the act legible.
+
+### D18 — **New.** The overlay body is a tinted stage; every group is a white card
+
+Owner, design-mode round 2026-09-10: *"the background is beige and all the cards with the
+information is white and the image also… a very slight hairline stroke… a slight shadow
+hover, just like how we treat usual cards in the design system."*
+
+- Body: `bg-muted` in light (`neutral-2`, the warm tone the rail and the order screen's
+  work canvas already use), `dark:bg-background` (in dark, `muted` sits *above* `card`
+  and would invert depth). Header and footer stay `bg-card` with hairline seams, so the
+  tint reads as the work surface and not as a grey dialog (ui-craft §1.0, scoped canvas).
+- Groups: DS `Card size="sm"` with `border-hairline`, `hover:shadow-raised` and
+  `has-focus-visible:shadow-raised` on `transition-shadow` — the product's existing card
+  hover (`companion-rail.tsx`). The rows inside keep hairline rules.
+- The photograph well: `DocumentPreview surface="card"` — white, `border-hairline`,
+  sticky toolbar strip on the same white.
+
+*Rule:* owner; ui-craft §1.0 (the one sanctioned tinted canvas: chrome stays white) and
+§4; DS Laws "grouped content gets a border" (hairline, on a tint the fill already
+separates). Not a page-level grey canvas — the dialog body is the scoped surface.
+*Rejected:* `bg-surface-sunken` wells inside the cards (a well needs a white panel between
+it and a tinted ground; here the card *is* on the tint).
 
 ## 6. What I cut (and why)
 
@@ -1081,4 +1151,5 @@ dependency here. Request #9 stands on its own merits for the screens that raised
 | **2026-09-10 (evening)** | **D16 added.** Request metadata is its own attribute group, not header prose; the application number stays in the header description and is not repeated; the advocate's name **leaves** the header, because printing a value under verification as the record's title asserts it. | ux-designer |
 | **2026-09-10 (evening)** | **D9 and D11 corrected for two parallel cross-cutting changes** — search filters as you type (the Search button goes away app-wide) and the whole table row becomes the click target. The queue page therefore has **no page-level primary**, which is what D9 argued was correct all along; the "teal on the queue page is Search" line is void, and two code comments asserting it must change with the rebuild. | orchestrator / ux-designer |
 | **2026-09-10 (evening)** | **§6 clarified** so the brief cannot be read as rejecting structure wholesale: the officer's rejection reason stays free text (`REG-22`) because it is *user data in a consistent slot*; what was rejected is *product copy narrating machine results*. Reason chips remain cut; a per-attribute rejection is filed as §12.10 for the owner to decide. | ux-designer |
+| **2026-09-10 (design-mode round)** | Four render comments implemented. (1) Request-type chips colour-coded — `info` Edited, `warning` Resubmitted (D7). (2) Search placeholder sentence-cased — at the owning layer, all fourteen court-side queue placeholders. (3) Overlay body is a tinted stage with white hairline cards and a white photo well, hover-lifted (D18; `DocumentPreview surface="card"`). (4) Decision is a staged slide inside one overlay, with settled end states and "View next application" (D17; supersedes D9's `AlertDialog` and rejected conveyor, and D10's "no success dialog"). Brief D9, D10, D15 revised accordingly. | owner (direction) / orchestrator |
 | **2026-09-10 (evening)** | **§13**: no DS request filed — the attribute row composes from `DescriptionList` + `Badge`. Recorded that deleting the lookup `Alert` retires this screen's dependence on open DS request #9 (no quiet standing notice). | ux-designer |

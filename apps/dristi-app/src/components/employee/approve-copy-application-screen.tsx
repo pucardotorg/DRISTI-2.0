@@ -422,7 +422,7 @@ function CopyApplicationFilters({
         ref={searchRef}
         value={filters.query}
         onChange={(query) => onChange({ ...filters, query })}
-        placeholder="application number, case number or petitioner"
+        placeholder="Application number, case number or petitioner"
       />
     </form>
   );

@@ -368,7 +368,7 @@ function RangeFilters({
         className="sm:w-64"
         value={filters.query}
         onChange={onQueryChange}
-        placeholder="case name or number"
+        placeholder="Case name or number"
       />
 
       {/* The only button left on the row, and it undoes more than the search box's own

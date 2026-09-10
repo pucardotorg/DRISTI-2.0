@@ -29,8 +29,10 @@ import {
   REGISTER_ADVOCATES_QUEUE,
   filterRegistrations,
   formatDaysWaitingSpoken,
+  nextInQueue,
   registrationWaitTone,
   requestKindLabel,
+  requestKindVariant,
   type AdvocateRegistration,
   type RegisterAdvocatesFilters,
   type WaitTone,
@@ -56,8 +58,9 @@ const waitClass: Record<WaitTone, string> = {
  * was row → Verify → a detail page → Accept → a confirmation → a success dialog → "Go to
  * home": six steps per request and a trip back to a home nobody asked for, at the
  * reference's own count of thirty-nine pending. Here the application number opens an
- * overlay, the officer decides in it, the row leaves, and the search box takes the focus
- * back.
+ * overlay, the officer decides in it, the row leaves, the overlay settles on what happened
+ * and offers the next request — so a queue can be cleared without coming back to the list
+ * — and when it closes the search box takes the focus back.
  *
  * **There is no bulk path, and that is the one place this screen breaks from its nearest
  * sibling.** `ApproveCopyApplicationScreen` clears its queue with checkboxes and a sticky
@@ -116,8 +119,10 @@ export function RegisterAdvocatesScreen() {
     setAnnouncement(spoken);
   }
 
+  /* The overlay stays open through both: it ends on a settled stage that says what
+     happened and offers the next request, and the row has already left the list behind
+     it (`nextInQueue` is read off `rows`, which no longer holds this one). */
   function approveOne(request: AdvocateRegistration) {
-    setOpen(null);
     removeFromQueue(
       request.id,
       `${request.applicationNumber} approved on this screen and removed from the queue. No account was opened and nobody was told.`,
@@ -125,7 +130,6 @@ export function RegisterAdvocatesScreen() {
   }
 
   function rejectOne(request: AdvocateRegistration) {
-    setOpen(null);
     removeFromQueue(
       request.id,
       `${request.applicationNumber} rejected on this screen and removed from the queue. The reason was not sent to anyone.`,
@@ -225,9 +229,11 @@ export function RegisterAdvocatesScreen() {
 
       <RegisterAdvocateDialog
         request={open}
+        next={open ? nextInQueue(rows, open) : null}
         onOpenChange={setOpen}
         onApprove={approveOne}
         onReject={rejectOne}
+        onNext={setOpen}
         onReturnFocus={returnFocus}
       />
     </div>
@@ -281,7 +287,7 @@ function RegistrationFilters({
         ref={searchRef}
         value={filters.query}
         onChange={(query) => onChange({ ...filters, query })}
-        placeholder="name, Bar registration ID or application number"
+        placeholder="Name, Bar registration ID or application number"
       />
     </form>
   );
@@ -387,10 +393,13 @@ function RegistrationItemList({
                 {formatDaysWaitingSpoken(request.daysWaiting)}
               </span>
             </p>
-            {/* Neutral, for the reason `RegisterAdvocatesTable` gives: the row's one
-                status cue is the wait, and the kind is a fact beside it. */}
+            {/* The same colour map as the table (`requestKindVariant`) — one
+                presentation per fact across the two layouts. */}
             {kind ? (
-              <Badge variant="secondary" className="w-fit">
+              <Badge
+                variant={requestKindVariant(request) ?? "secondary"}
+                className="w-fit"
+              >
                 {kind}
               </Badge>
             ) : null}

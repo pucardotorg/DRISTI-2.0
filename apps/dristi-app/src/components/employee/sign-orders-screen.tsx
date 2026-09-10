@@ -396,7 +396,7 @@ function SignOrderFiltersForm({
         ref={searchRef}
         value={filters.query}
         onChange={(query) => onChange({ ...filters, query })}
-        placeholder="case name or number"
+        placeholder="Case name or number"
       />
 
       {/* The only button left on the row. It stays because it undoes more than the

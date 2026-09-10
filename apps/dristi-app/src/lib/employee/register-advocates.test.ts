@@ -20,6 +20,8 @@ import {
   rejectionDay,
   rejectionRows,
   requestKindLabel,
+  requestKindVariant,
+  nextInQueue,
   requestRows,
   requestTypeValue,
   sortByLongestWait,
@@ -363,6 +365,20 @@ describe("what the row and the overlay call things", () => {
     assert.equal(requestKindLabel(back), "Resubmitted · round 5");
   });
 
+  it("colours the two exceptions apart, and leaves the norm uncoloured", () => {
+    const first = REGISTER_ADVOCATES_QUEUE.find(
+      (r) => r.requestKind === "first",
+    );
+    const edited = REGISTER_ADVOCATES_QUEUE.find(
+      (r) => r.requestKind === "edited",
+    );
+    const back = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-118");
+    assert.ok(first && edited && back);
+    assert.equal(requestKindVariant(first), null);
+    assert.equal(requestKindVariant(edited), "info");
+    assert.equal(requestKindVariant(back), "warning");
+  });
+
   it("counts a request with one rejection behind it as round 2", () => {
     const back = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-198");
     assert.ok(back);
@@ -643,6 +659,30 @@ describe("the one row every fact is in", () => {
       identityRows(clerk).map((row) => row.id),
       identityRows(request).map((row) => row.id),
     );
+  });
+});
+
+describe("the next request after a decision", () => {
+  const a = row({ id: "a", daysWaiting: 30, applicationNumber: "KL-ADV-000001-2026" });
+  const b = row({ id: "b", daysWaiting: 20, applicationNumber: "KL-ADV-000002-2026" });
+  const c = row({ id: "c", daysWaiting: 20, applicationNumber: "KL-ADV-000003-2026" });
+  const d = row({ id: "d", daysWaiting: 5, applicationNumber: "KL-ADV-000004-2026" });
+
+  it("offers the row below the one just decided, in queue order", () => {
+    assert.equal(nextInQueue([a, c, d], b)?.id, "c");
+    assert.equal(nextInQueue([a, b, d], c)?.id, "d");
+  });
+
+  it("wraps to the top of what is left when the last row was decided", () => {
+    assert.equal(nextInQueue([a, b, c], d)?.id, "a");
+  });
+
+  it("offers nothing once the list is empty", () => {
+    assert.equal(nextInQueue([], d), null);
+  });
+
+  it("reads the list it is given, so a narrowed search offers the next match", () => {
+    assert.equal(nextInQueue([d], a)?.id, "d");
   });
 });
 
