@@ -1,6 +1,13 @@
 "use client";
 
 import {
+  TABLE_CELL,
+  TABLE_HEAD,
+  TABLE_HEAD_ROW,
+  tableBodyClass,
+  tableRowClass,
+} from "@/components/chrome/table-plate";
+import {
   Table,
   TableBody,
   TableCell,
@@ -14,18 +21,6 @@ import {
   type ReschedulingRequest,
 } from "@/lib/employee/rescheduling-request";
 import { cn } from "@/lib/utils";
-
-/* The same table treatment as the register queue and the scheduling queue —
- * header separated by fill rather than a second stroke, rows by hairline, the
- * panel edge as the only full-strength border on the screen (ui-craft §1.1).
- * The classes are restated rather than exported because when the advocate
- * shell moves onto the shared `components/chrome` frame, this treatment is
- * what belongs there, and the court-side tables should collapse onto it
- * together rather than one of them becoming the other's parent. */
-const headClass =
-  "h-10 bg-surface-sunken px-4 py-3 text-caption font-semibold text-muted-foreground";
-const cellClass =
-  "border-b border-hairline px-4 py-3 align-middle text-left text-body-compact";
 
 /**
  * The rescheduling queue as a table: the cause, its number, when the
@@ -62,29 +57,29 @@ export function ReschedulingRequestTable({
   return (
     <Table className="w-full border-separate border-spacing-0 text-body-compact">
       <TableHeader>
-        <TableRow className="hover:bg-transparent [&>th:first-child]:rounded-l-lg [&>th:last-child]:rounded-r-lg">
-          <TableHead className={cn(headClass, "min-w-64 whitespace-normal")}>
+        <TableRow className={TABLE_HEAD_ROW}>
+          <TableHead className={cn(TABLE_HEAD, "min-w-64 whitespace-normal")}>
             Case name
           </TableHead>
-          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+          <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
             Case number
           </TableHead>
-          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+          <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
             Date of application
           </TableHead>
-          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+          <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
             Date of next hearing
           </TableHead>
         </TableRow>
       </TableHeader>
-      <TableBody className="[&_tr:last-child_td]:border-b-0">
+      <TableBody className={tableBodyClass()}>
         <tr aria-hidden="true">
           <td colSpan={4} className="h-2 p-0" />
         </tr>
         {rows.map((request) => (
-          <TableRow key={request.id} className="bg-card">
+          <TableRow key={request.id} className={tableRowClass()}>
             <TableCell
-              className={cn(cellClass, "min-w-64 font-medium whitespace-normal")}
+              className={cn(TABLE_CELL, "min-w-64 font-medium whitespace-normal")}
             >
               <button
                 type="button"
@@ -95,13 +90,13 @@ export function ReschedulingRequestTable({
                 {causeTitle(request)}
               </button>
             </TableCell>
-            <TableCell className={cn(cellClass, "tabular-nums whitespace-nowrap")}>
+            <TableCell className={cn(TABLE_CELL, "tabular-nums whitespace-nowrap")}>
               {request.caseNumber}
             </TableCell>
-            <TableCell className={cn(cellClass, "tabular-nums whitespace-nowrap")}>
+            <TableCell className={cn(TABLE_CELL, "tabular-nums whitespace-nowrap")}>
               {formatRequestDate(request.appliedOn)}
             </TableCell>
-            <TableCell className={cn(cellClass, "tabular-nums whitespace-nowrap")}>
+            <TableCell className={cn(TABLE_CELL, "tabular-nums whitespace-nowrap")}>
               {formatRequestDate(request.listedOn)}
             </TableCell>
           </TableRow>

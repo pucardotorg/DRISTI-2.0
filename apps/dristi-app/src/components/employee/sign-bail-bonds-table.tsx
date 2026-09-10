@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  TABLE_CELL,
+  TABLE_HEAD,
+  TABLE_HEAD_ROW,
+  tableBodyClass,
+  tableRowClass,
+} from "@/components/chrome/table-plate";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
@@ -12,18 +19,6 @@ import {
 import { causeTitle } from "@/lib/employee/hearings";
 import { type SignBailBond } from "@/lib/employee/sign-bail-bonds";
 import { cn } from "@/lib/utils";
-
-/* The same table treatment as the signing queues for forms and orders, the register
- * queue and the rescheduling queue — header separated by fill rather than a second
- * stroke, rows by hairline, the panel edge as the only full-strength border on the
- * screen (ui-craft §1.1). The classes are restated rather than exported for the reason
- * `SignOrdersTable` restates them: when the court-side tables collapse onto a shared
- * frame they should do it together, rather than one of them quietly becoming the
- * others' parent. */
-const headClass =
-  "h-10 bg-surface-sunken px-4 py-3 text-caption font-semibold text-muted-foreground";
-const cellClass =
-  "border-b border-hairline px-4 py-3 align-middle text-left text-body-compact";
 
 /**
  * The signing queue for bail bonds as a table: which bonds are picked for signature, the
@@ -82,12 +77,8 @@ export function SignBailBondsTable({
   return (
     <Table className="w-full border-separate border-spacing-0 text-body-compact">
       <TableHeader>
-        {/* The panel insets this table by p-6, so the header strip is a well, not a
-            full-bleed band — it rounds itself (ui-craft §4). `border-separate` means each
-            cell paints its own fill, so the radius goes on the end cells rather than the
-            row. */}
-        <TableRow className="hover:bg-transparent [&>th:first-child]:rounded-l-lg [&>th:last-child]:rounded-r-lg">
-          <TableHead className={cn(headClass, "w-12")}>
+        <TableRow className={TABLE_HEAD_ROW}>
+          <TableHead className={cn(TABLE_HEAD, "w-12")}>
             <Checkbox
               checked={
                 allSelected ? true : someSelected ? "indeterminate" : false
@@ -105,23 +96,18 @@ export function SignBailBondsTable({
               }
             />
           </TableHead>
-          <TableHead className={cn(headClass, "min-w-56 whitespace-normal")}>
+          <TableHead className={cn(TABLE_HEAD, "min-w-56 whitespace-normal")}>
             Case name
           </TableHead>
-          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+          <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
             Case number
           </TableHead>
-          <TableHead className={cn(headClass, "min-w-48 whitespace-normal")}>
+          <TableHead className={cn(TABLE_HEAD, "min-w-48 whitespace-normal")}>
             Litigant
           </TableHead>
         </TableRow>
       </TableHeader>
-      {/* `border-separate` stays even without a sticky column — the header well needs each
-          cell to paint its own fill for the end cells to round (above). It puts the row
-          stroke on the cell, so the DS TableBody rule that clears the last row targets
-          the wrong element. Reach the cells directly, or the final row doubles its line
-          against the panel edge. */}
-      <TableBody className="[&_tr:last-child_td]:border-b-0">
+      <TableBody className={tableBodyClass({ selectable: true })}>
         {/* The header is a well, not a band welded to the rows — it needs the panel's fill
             under it or its rounded bottom corners read as cut off (ui-craft §4).
             `border-separate` has no per-edge row gap, so the gap is one inert row held
@@ -135,9 +121,9 @@ export function SignBailBondsTable({
             <TableRow
               key={bond.id}
               data-state={selected ? "selected" : undefined}
-              className="bg-card"
+              className={tableRowClass({ selectable: true })}
             >
-              <TableCell className={cn(cellClass, "w-12")}>
+              <TableCell className={cn(TABLE_CELL, "w-12")}>
                 {/* Named for the bond, not the column: with two bonds to a case, "Select
                     ST/822/2026" would name both rows the same thing. */}
                 <Checkbox
@@ -152,7 +138,7 @@ export function SignBailBondsTable({
                   underlined teal case names is the colour ui-craft §2 spends elsewhere.
                   The underline arrives on hover and focus, where it is an affordance
                   rather than decoration. */}
-              <TableCell className={cn(cellClass, "min-w-56 whitespace-normal")}>
+              <TableCell className={cn(TABLE_CELL, "min-w-56 whitespace-normal")}>
                 <button
                   type="button"
                   onClick={() => onOpen(bond)}
@@ -165,11 +151,11 @@ export function SignBailBondsTable({
                 </button>
               </TableCell>
               <TableCell
-                className={cn(cellClass, "tabular-nums whitespace-nowrap")}
+                className={cn(TABLE_CELL, "tabular-nums whitespace-nowrap")}
               >
                 {bond.caseNumber}
               </TableCell>
-              <TableCell className={cn(cellClass, "min-w-48 whitespace-normal")}>
+              <TableCell className={cn(TABLE_CELL, "min-w-48 whitespace-normal")}>
                 {bond.litigant}
               </TableCell>
             </TableRow>

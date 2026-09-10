@@ -2,6 +2,13 @@
 
 import Link from "next/link";
 
+import {
+  TABLE_CELL,
+  TABLE_HEAD,
+  TABLE_HEAD_ROW,
+  tableBodyClass,
+  tableRowClass,
+} from "@/components/chrome/table-plate";
 import { CounselCell } from "@/components/employee/counsel-cell";
 import {
   Table,
@@ -17,18 +24,6 @@ import {
   type RegisterCase,
 } from "@/lib/employee/register-cases";
 import { cn } from "@/lib/utils";
-
-/* The same table treatment as the day's cause list and the scheduling queue —
- * header separated by fill rather than a second stroke, rows by hairline, the panel
- * edge as the only full-strength border on the screen (ui-craft §1.1). The classes
- * are restated rather than exported because when the advocate shell moves onto the
- * shared `components/chrome` frame, this treatment is what belongs there, and the
- * court-side tables should collapse onto it together rather than one of them becoming
- * the other's parent. */
-const headClass =
-  "h-10 bg-surface-sunken px-4 py-3 text-caption font-semibold text-muted-foreground";
-const cellClass =
-  "border-b border-hairline px-4 py-3 align-middle text-left text-body-compact";
 
 /**
  * A complaint's cause title, as the way into its file.
@@ -95,33 +90,24 @@ export function RegisterCasesTable({ rows }: { rows: RegisterCase[] }) {
   return (
     <Table className="w-full border-separate border-spacing-0 text-body-compact">
       <TableHeader>
-        {/* The panel insets this table by p-6, so the header strip is a well, not a
-            full-bleed band — it rounds itself (ui-craft §4). `border-separate` means
-            each cell paints its own fill, so the radius goes on the end cells rather
-            than the row. */}
-        <TableRow className="hover:bg-transparent [&>th:first-child]:rounded-l-lg [&>th:last-child]:rounded-r-lg">
-          <TableHead className={cn(headClass, "min-w-64 whitespace-normal")}>
+        <TableRow className={TABLE_HEAD_ROW}>
+          <TableHead className={cn(TABLE_HEAD, "min-w-64 whitespace-normal")}>
             Case name
           </TableHead>
-          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+          <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
             Case number
           </TableHead>
-          <TableHead className={cn(headClass, "min-w-48 whitespace-normal")}>
+          <TableHead className={cn(TABLE_HEAD, "min-w-48 whitespace-normal")}>
             Advocates
           </TableHead>
           <TableHead
-            className={cn(headClass, "whitespace-nowrap text-right")}
+            className={cn(TABLE_HEAD, "whitespace-nowrap text-right")}
           >
             Days since submitted
           </TableHead>
         </TableRow>
       </TableHeader>
-      {/* `border-separate` stays even without a sticky column — the header well needs
-          each cell to paint its own fill for the end cells to round (above). It puts
-          the row stroke on the cell, so the DS TableBody rule that clears the last
-          row targets the wrong element. Reach the cells directly, or the final row
-          doubles its line against the panel edge. */}
-      <TableBody className="[&_tr:last-child_td]:border-b-0">
+      <TableBody className={tableBodyClass()}>
         {/* The header is a well, not a band welded to the rows — it needs the panel's
             fill under it or its rounded bottom corners read as cut off (ui-craft §4).
             `border-separate` has no per-edge row gap, so the gap is one inert row held
@@ -129,16 +115,14 @@ export function RegisterCasesTable({ rows }: { rows: RegisterCase[] }) {
         <tr aria-hidden="true">
           <td colSpan={4} className="h-2 p-0" />
         </tr>
-        {/* The DS `TableRow` ships `hover:bg-accent`, and `accent` is the
-            transient-hover role — a fill that says something under the pointer is
-            live. Something is: the cause title opens the complaint's file, so the
-            hover is now telling the truth and is left alone. It used to be cancelled
-            back to `bg-card` precisely because this queue had no opener. `bg-card`
-            sits in a different merge group and does not touch it either way. */}
+        {/* The row's hover is kept, and `accent` is the transient-hover role — a fill
+            that says the thing under the pointer is live. Something is: the cause title
+            opens the complaint's file. It used to be cancelled back to `bg-card`
+            precisely because this queue had no opener. */}
         {rows.map((matter) => (
-          <TableRow key={matter.id} className="bg-card">
+          <TableRow key={matter.id} className={tableRowClass()}>
             <TableCell
-              className={cn(cellClass, "min-w-64 whitespace-normal")}
+              className={cn(TABLE_CELL, "min-w-64 whitespace-normal")}
             >
               {/* Fills the cell so the target is the row's height rather than the
                   20px line box the text happens to occupy (`ACCESSIBILITY.md` §8).
@@ -149,10 +133,10 @@ export function RegisterCasesTable({ rows }: { rows: RegisterCase[] }) {
                 className="flex min-h-10 w-full items-center"
               />
             </TableCell>
-            <TableCell className={cn(cellClass, "tabular-nums whitespace-nowrap")}>
+            <TableCell className={cn(TABLE_CELL, "tabular-nums whitespace-nowrap")}>
               {matter.caseNumber}
             </TableCell>
-            <TableCell className={cn(cellClass, "min-w-48 whitespace-normal")}>
+            <TableCell className={cn(TABLE_CELL, "min-w-48 whitespace-normal")}>
               <CounselCell
                 complainant={counselFor(matter, "complainant").map(
                   (counsel) => counsel.name,
@@ -169,7 +153,7 @@ export function RegisterCasesTable({ rows }: { rows: RegisterCase[] }) {
                 (ACCESSIBILITY §3). Right-aligned because it is a compared number. */}
             <TableCell
               className={cn(
-                cellClass,
+                TABLE_CELL,
                 "text-right tabular-nums whitespace-nowrap text-warning-ink",
               )}
             >

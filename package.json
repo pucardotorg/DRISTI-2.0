@@ -17,6 +17,7 @@
     "check:typography": "npm run check:typography -w @pucar/dristi-app",
     "check:ui-sync": "npm run check:ui-sync -w @pucar/dristi-app",
     "check:spacing": "npm run check:spacing -w @pucar/dristi-app --",
+    "check:table-rows": "npm run check:table-rows -w @pucar/dristi-app",
     "check:rails": "node scripts/check-rails.mjs",
     "sync:ui": "npm run sync:ui -w @pucar/dristi-app --"
   }

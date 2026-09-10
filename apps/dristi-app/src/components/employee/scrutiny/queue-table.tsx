@@ -6,6 +6,13 @@ import { waitTone } from "@/lib/employee/scrutiny/queue";
 import type { Filing } from "@/lib/employee/scrutiny/types";
 import { cn } from "@/lib/utils";
 import {
+  TABLE_CELL,
+  TABLE_HEAD,
+  TABLE_HEAD_ROW,
+  tableBodyClass,
+  tableRowClass,
+} from "@/components/chrome/table-plate";
+import {
   Table,
   TableBody,
   TableCell,
@@ -13,17 +20,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-/* The court-side table treatment, restated from `register-cases-table.tsx` rather than
- * imported: header separated by fill instead of a second stroke, rows by hairline, and
- * the panel edge as the only full-strength border on the screen (ui-craft §1.1). The
- * classes are copied for the reason that file gives — when the court tables collapse
- * onto one shared treatment they should do it together, not by one becoming the
- * other's parent. */
-const headClass =
-  "h-10 bg-surface-sunken px-4 py-3 text-caption font-semibold text-muted-foreground";
-const cellClass =
-  "border-b border-hairline px-4 py-3 align-middle text-left text-body-compact";
 
 /** How many columns the spacer row has to span. */
 const COLUMN_COUNT = 7;
@@ -95,40 +91,33 @@ export function ScrutinyQueueTable({ rows }: { rows: Filing[] }) {
   return (
     <Table className="w-full border-separate border-spacing-0 text-body-compact">
       <TableHeader>
-        {/* The panel insets this table by p-6, so the header strip is a well, not a
-            full-bleed band — it rounds itself (ui-craft §4). `border-separate` means
-            each cell paints its own fill, so the radius goes on the end cells rather
-            than the row. */}
-        <TableRow className="hover:bg-transparent [&>th:first-child]:rounded-l-lg [&>th:last-child]:rounded-r-lg">
-          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+        <TableRow className={TABLE_HEAD_ROW}>
+          <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
             Filing no.
           </TableHead>
-          <TableHead className={cn(headClass, "min-w-64 whitespace-normal")}>
+          <TableHead className={cn(TABLE_HEAD, "min-w-64 whitespace-normal")}>
             Parties
           </TableHead>
-          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+          <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
             Stage
           </TableHead>
-          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+          <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
             Reason
           </TableHead>
-          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+          <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
             Advocate
           </TableHead>
-          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+          <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
             With
           </TableHead>
           <TableHead
-            className={cn(headClass, "text-right whitespace-nowrap")}
+            className={cn(TABLE_HEAD, "text-right whitespace-nowrap")}
           >
             Waiting
           </TableHead>
         </TableRow>
       </TableHeader>
-      {/* `border-separate` puts the row stroke on the cell, so the DS TableBody rule
-          that clears the last row targets the wrong element. Reach the cells directly,
-          or the final row doubles its line against the panel edge. */}
-      <TableBody className="[&_tr:last-child_td]:border-b-0">
+      <TableBody className={tableBodyClass({ hover: false })}>
         {/* The header is a well, not a band welded to the rows — it needs the panel's
             fill under it or its rounded bottom corners read as cut off (ui-craft §4).
             `border-separate` has no per-edge row gap, so the gap is one inert row held
@@ -141,35 +130,35 @@ export function ScrutinyQueueTable({ rows }: { rows: Filing[] }) {
              accent is the transient-hover role — a fill that says something under the
              pointer is live. The row is not; only the filing number is, and it carries
              its own hover. */
-          <TableRow key={filing.no} className="bg-card hover:bg-card">
-            <TableCell className={cn(cellClass, "whitespace-nowrap")}>
+          <TableRow key={filing.no} className={tableRowClass({ hover: false })}>
+            <TableCell className={cn(TABLE_CELL, "whitespace-nowrap")}>
               <FilingNo filing={filing} />
             </TableCell>
             {/* The row's one emphasised cell, with the instrument under it as the
                 quieter second line — two weights, no third. */}
-            <TableCell className={cn(cellClass, "min-w-64 whitespace-normal")}>
+            <TableCell className={cn(TABLE_CELL, "min-w-64 whitespace-normal")}>
               <span className="font-medium">{filing.parties}</span>
               <span className="block text-caption text-muted-foreground">
                 {filing.type}
               </span>
             </TableCell>
-            <TableCell className={cn(cellClass, "whitespace-nowrap")}>
+            <TableCell className={cn(TABLE_CELL, "whitespace-nowrap")}>
               {filing.stage}
             </TableCell>
             <TableCell
               className={cn(
-                cellClass,
+                TABLE_CELL,
                 "max-w-44 truncate text-muted-foreground",
               )}
             >
               {filing.reason}
             </TableCell>
-            <TableCell className={cn(cellClass, "max-w-44 truncate")}>
+            <TableCell className={cn(TABLE_CELL, "max-w-44 truncate")}>
               {filing.advocate}
             </TableCell>
             <TableCell
               className={cn(
-                cellClass,
+                TABLE_CELL,
                 "whitespace-nowrap",
                 filing.self ? "font-medium" : "text-muted-foreground",
               )}
@@ -178,7 +167,7 @@ export function ScrutinyQueueTable({ rows }: { rows: Filing[] }) {
             </TableCell>
             {/* Right-aligned because it is a compared number, and it is the sort key. */}
             <TableCell
-              className={cn(cellClass, "text-right whitespace-nowrap")}
+              className={cn(TABLE_CELL, "text-right whitespace-nowrap")}
             >
               <WaitingCell filing={filing} />
             </TableCell>

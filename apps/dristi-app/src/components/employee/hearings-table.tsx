@@ -3,6 +3,13 @@
 import Link from "next/link";
 import { EllipsisVerticalIcon, FilePlusIcon } from "lucide-react";
 
+import {
+  TABLE_CELL,
+  TABLE_HEAD,
+  TABLE_HEAD_ROW,
+  tableBodyClass,
+  tableRowClass,
+} from "@/components/chrome/table-plate";
 import { CounselCell } from "@/components/employee/counsel-cell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,17 +43,6 @@ import {
   type CourtHearing,
 } from "@/lib/employee/hearings";
 import { cn } from "@/lib/utils";
-
-/* The advocate's cases table is the reference for surface and row state, and this is the
- * same table: header separated by fill rather than a second stroke, rows by hairline, and
- * the panel edge as the only full-strength border on the screen (ui-craft §1.1). The
- * classes are restated rather than imported because `/employee` does not reach into the
- * citizen side (see `lib/employee/content.ts`) — when the advocate shell moves onto the
- * shared `components/chrome` frame, this treatment is the next thing that belongs there. */
-const headClass =
-  "h-10 bg-surface-sunken px-4 py-3 text-caption font-semibold text-muted-foreground";
-const cellClass =
-  "border-b border-hairline px-4 py-3 align-middle text-left text-body-compact";
 
 /**
  * Start hearing and End hearing live in the Action column, as one labelled outline
@@ -474,31 +470,27 @@ export function HearingsTable({
   return (
     <Table className="w-full border-separate border-spacing-0 text-body-compact">
       <TableHeader>
-        {/* The panel insets this table by p-6, so the header strip is a well, not a
-            full-bleed band — it rounds itself (ui-craft §4). `border-separate` means each
-            cell paints its own fill, so the radius goes on the end cells rather than the
-            row. */}
-        <TableRow className="hover:bg-transparent [&>th:first-child]:rounded-l-lg [&>th:last-child]:rounded-r-lg">
-          <TableHead className={cn(headClass, "w-16 whitespace-nowrap")}>
+        <TableRow className={TABLE_HEAD_ROW}>
+          <TableHead className={cn(TABLE_HEAD, "w-16 whitespace-nowrap")}>
             S. no.
           </TableHead>
-          <TableHead className={cn(headClass, "min-w-40 whitespace-normal")}>
+          <TableHead className={cn(TABLE_HEAD, "min-w-40 whitespace-normal")}>
             Case name
           </TableHead>
-          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+          <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
             Case number
           </TableHead>
-          <TableHead className={cn(headClass, "min-w-48 whitespace-nowrap")}>
+          <TableHead className={cn(TABLE_HEAD, "min-w-48 whitespace-nowrap")}>
             Advocates
           </TableHead>
-          <TableHead className={cn(headClass, "min-w-32 whitespace-normal")}>
+          <TableHead className={cn(TABLE_HEAD, "min-w-32 whitespace-normal")}>
             Purpose
           </TableHead>
-          <TableHead className={cn(headClass, "min-w-32 whitespace-nowrap")}>
+          <TableHead className={cn(TABLE_HEAD, "min-w-32 whitespace-nowrap")}>
             Status
           </TableHead>
           <TableHead
-            className={cn(headClass, ORDERS_COLUMN_CLASS, "whitespace-nowrap")}
+            className={cn(TABLE_HEAD, ORDERS_COLUMN_CLASS, "whitespace-nowrap")}
           >
             Orders
           </TableHead>
@@ -506,18 +498,14 @@ export function HearingsTable({
               it, and absent where there is nothing to put in it. */}
           {hasSessionColumn ? (
             <TableHead
-              className={cn(headClass, ACTION_COLUMN_CLASS, "whitespace-nowrap")}
+              className={cn(TABLE_HEAD, ACTION_COLUMN_CLASS, "whitespace-nowrap")}
             >
               Action
             </TableHead>
           ) : null}
         </TableRow>
       </TableHeader>
-      {/* `border-separate` (needed so the header well can round its own end cells) puts
-          the row stroke on the cell, so the DS TableBody rule that clears the last row
-          targets the wrong element. Reach the cells directly, or the final row doubles
-          its line against the panel edge. */}
-      <TableBody className="[&_tr:last-child_td]:border-b-0">
+      <TableBody className={tableBodyClass()}>
         {/* The header is a well, not a band welded to the rows — it needs the panel's
             fill under it or its rounded bottom corners read as cut off (ui-craft §4).
             `border-separate` has no per-edge row gap, so the gap is one inert row held
@@ -526,16 +514,16 @@ export function HearingsTable({
           <td colSpan={columnCount} className="h-2 p-0" />
         </tr>
         {rows.map((hearing) => (
-          <TableRow key={hearing.id} className="bg-card">
+          <TableRow key={hearing.id} className={tableRowClass()}>
             <TableCell
-              className={cn(cellClass, "w-16 tabular-nums text-muted-foreground")}
+              className={cn(TABLE_CELL, "w-16 tabular-nums text-muted-foreground")}
             >
               {hearing.item}
             </TableCell>
             {/* The row's one emphasised cell. Opens this matter's case overview as a
                 page, without calling the matter. */}
             <TableCell
-              className={cn(cellClass, "min-w-40 font-medium whitespace-normal")}
+              className={cn(TABLE_CELL, "min-w-40 font-medium whitespace-normal")}
             >
               {/* Fills the cell so the target is the row's height, not the 20px
                   line box the text happens to occupy (`ACCESSIBILITY.md` §8).
@@ -546,10 +534,10 @@ export function HearingsTable({
                 className="flex min-h-10 w-full items-center"
               />
             </TableCell>
-            <TableCell className={cn(cellClass, "tabular-nums whitespace-nowrap")}>
+            <TableCell className={cn(TABLE_CELL, "tabular-nums whitespace-nowrap")}>
               {hearing.caseNumber}
             </TableCell>
-            <TableCell className={cn(cellClass, "min-w-48 whitespace-nowrap")}>
+            <TableCell className={cn(TABLE_CELL, "min-w-48 whitespace-nowrap")}>
               <CounselCell
                 complainant={counselFor(hearing, "complainant").map(
                   (counsel) => counsel.name,
@@ -560,10 +548,10 @@ export function HearingsTable({
                 dense
               />
             </TableCell>
-            <TableCell className={cn(cellClass, "min-w-32 whitespace-normal")}>
+            <TableCell className={cn(TABLE_CELL, "min-w-32 whitespace-normal")}>
               {courtHearingPurposeLabel(hearing.purpose)}
             </TableCell>
-            <TableCell className={cn(cellClass, "min-w-32 whitespace-nowrap")}>
+            <TableCell className={cn(TABLE_CELL, "min-w-32 whitespace-nowrap")}>
               <Badge
                 variant={courtHearingStatusVariant(hearing.status)}
                 className="w-fit"
@@ -572,7 +560,7 @@ export function HearingsTable({
               </Badge>
             </TableCell>
             <TableCell
-              className={cn(cellClass, ORDERS_COLUMN_CLASS, "whitespace-nowrap")}
+              className={cn(TABLE_CELL, ORDERS_COLUMN_CLASS, "whitespace-nowrap")}
             >
               <div className="flex justify-center">
                 <HearingOrdersButton
@@ -584,7 +572,7 @@ export function HearingsTable({
             </TableCell>
             {hasSessionColumn ? (
               <TableCell
-                className={cn(cellClass, ACTION_COLUMN_CLASS, "whitespace-nowrap")}
+                className={cn(TABLE_CELL, ACTION_COLUMN_CLASS, "whitespace-nowrap")}
               >
                 <div className="flex items-center gap-2">
                   <HearingSessionButton
