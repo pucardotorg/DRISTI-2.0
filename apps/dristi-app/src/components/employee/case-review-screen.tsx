@@ -1,25 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { flushSync } from "react-dom";
 import Link from "next/link";
-import { FileQuestionIcon, FileTextIcon, InfoIcon } from "lucide-react";
+import { FileQuestionIcon, FileTextIcon } from "lucide-react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+import { DocumentPreview } from "@/components/cases/document-preview";
 import { useCourtToday } from "@/components/employee/use-court-today";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  Attachment,
-  AttachmentContent,
-  AttachmentDescription,
-  AttachmentMedia,
-  AttachmentTitle,
-} from "@/components/ui/attachment";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +16,13 @@ import {
   DescriptionTerm,
 } from "@/components/ui/description-list";
 import {
+  Dialog,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { DocumentSlot } from "@/components/ui/document-slot";
+import {
   Empty,
   EmptyContent,
   EmptyDescription,
@@ -37,17 +31,26 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Timeline, TimelineItem } from "@/components/ui/timeline";
+import { ThumbnailButton } from "@/components/filing/upload/thumbnail";
 import {
   CASE_REVIEW_STATUS,
   caseReviewFor,
+  formatDaysWaitingLong,
+  type CaseAbsence,
   type CaseDocument,
   type CaseDocumentKind,
   type CaseFact,
   type CaseGroup,
   type CaseReview,
   type CaseSection,
+  type CaseTimelineDetail,
 } from "@/lib/employee/case-review";
-import { formatDaysSinceSubmitted } from "@/lib/employee/register-cases";
+import { formatCaseDate } from "@/lib/employee/hearing-overview";
+/* The wait as a value beside the term "Waiting" — which is the case the advocate
+   register already exports this for, and the case the header's cell now is. Not a fourth
+   `formatDaysWaiting`: a new function returning a different string under a name two
+   sibling modules already use is how two screens start counting differently. */
+import { formatWaitingDuration } from "@/lib/employee/register-advocates";
 import { cn } from "@/lib/utils";
 
 /**
@@ -58,10 +61,12 @@ import { cn } from "@/lib/utils";
  * conversation): a reading index down the left, the complaint's numbered sections in
  * the middle, the case's progress on the right, and the two decisions pinned at the
  * foot. What the file *contains* is `lib/employee/case-review.ts`; this module is only
- * how it is read.
+ * how it is read. **No term, label or fact string lives here** — every one of them is
+ * an attribute the file names (`FACT_TERMS`), which is what keeps the screen from
+ * quietly inventing a field.
  *
  * **The index is the thing that had to stay put.** On the reference it scrolls away
- * with the page, so by the second section — of five, across a file this long — the
+ * with the page, so by the second section — of four, across a file this long — the
  * clerk has no idea where they are and no way to jump. Here it is `sticky` at the
  * chrome's own resting offset and marks the section being read, which is the whole
  * point of a five-part file. Below `lg` there is no room for a rail, so the index
@@ -69,7 +74,27 @@ import { cn } from "@/lib/utils";
  * is the structural regression `ui-craft` §0 names, and a table of contents is still
  * useful when it is not beside the text.
  *
- * **It reads; it does not decide.** Admitting a complaint is taking cognizance, and
+ * **The sections do not fold** (brief §5a.2a, owner 2026-09-10). Every one of them was
+ * open by default, the index already navigates, and the disclosure's own affordance was
+ * invisible until somebody found it — so it hid what the clerk came to read and bought
+ * nothing. Removing it removed three workarounds with it: the `not-last:border-b-0`
+ * variant reset, the `h-auto` cancellation of Radix's non-remeasured content height, and
+ * the `flushSync` that had to commit an unfold before a scroll could reach it. What did
+ * *not* change is the index's claim / observer / end-of-scroll reasoning below: that is
+ * about where the reader is, not about what is folded.
+ *
+ * **The page is layered, not framed** (owner, 2026-09-11). The reading canvas carries
+ * `bg-muted` in light mode with `dark:bg-background`, which is `FilingMain`'s recipe
+ * verbatim (`components/filing/filing-shell.tsx`) — including the dark fallback, where
+ * `muted` is the *raised* step and tinting the canvas would put the page above its own
+ * panels. The panels are the only white, the bar above and the decision band below stay
+ * `bg-card`, and nothing inside a panel is sunken except a document row and the icon
+ * tile: canvas → panel → record separated by a hairline is three readable tiers, and
+ * canvas → panel → well → record would have been four on a page that is read rather than
+ * filled. `ui-craft` §1.0 reserves the tinted canvas for pages that are *filled*; the
+ * owner has overruled that for this screen and it is logged in the brief.
+ *
+ * **It reads; it does not decide.** Registering a complaint is taking cognizance, and
  * dismissing one ends it — both are judicial acts, neither is connected to anything,
  * and `lib/employee/register-cases.ts` already records that this build performs no
  * registration act. The band is two real controls that stay unbuilt. See
@@ -131,30 +156,36 @@ const PANEL =
 const STICKY = "lg:sticky lg:top-(--chrome-sticky-top) lg:self-start";
 
 /**
- * The line down the viewport at which a section counts as the one being read.
+ * How far down the viewport the reading line sits, past the chrome.
  *
- * Read off the heading itself rather than restated as a number here: the heading
- * carries `scroll-mt-(--chrome-sticky-top)`, so its computed scroll margin *is* where
- * a jump comes to rest. A hard-coded 96 disagreed with that resting place by eight
- * pixels, which put a jumped-to heading just above the band that decides the index —
- * near the foot of the file, where there is no scroll left to correct it, that is the
- * difference between the section the reader asked for and the one after it.
+ * A section used to stay current until its *heading* scrolled under the sticky bar, which
+ * put the switch at the very top of the screen: the reader was two-thirds of the way
+ * through a section before the index agreed they had started it, and the owner read that
+ * as the index firing early. A reading line about a third of the way down is where a
+ * reader's eye actually is, so the current entry becomes the **last** section whose
+ * heading has crossed above it. Measured on the render at 900 and 1200 tall: 0.35 puts
+ * the line at 403px and 508px, which in both cases is the first third of the text
+ * column rather than its top edge.
+ */
+const READING_LINE = 0.35;
+
+/**
+ * That line, in pixels from the top of the viewport.
+ *
+ * The chrome's own resting offset is read off the section rather than restated as a
+ * number here: the section carries `scroll-mt-(--chrome-sticky-top)`, so its computed
+ * scroll margin *is* where a jump comes to rest, and a hard-coded value disagreeing with
+ * it by eight pixels is what once put a jumped-to heading just above the deciding band.
  */
 function readingLine(heading: HTMLElement): number {
   const rest = Number.parseFloat(getComputedStyle(heading).scrollMarginTop);
-  return Number.isFinite(rest) && rest > 0 ? rest : 96;
+  const top = Number.isFinite(rest) && rest > 0 ? rest : 96;
+  return top + READING_LINE * window.innerHeight;
 }
 
 function anchorFor(sectionId: string): string {
   return `case-section-${sectionId}`;
 }
-
-function sectionOf(anchorId: string): string {
-  return anchorId.replace("case-section-", "");
-}
-
-/** The end of the file, watched so the index can tell when the reader has reached it. */
-const FOOT_ANCHOR = "case-file-foot";
 
 function scrollToSection(sectionId: string) {
   document.getElementById(anchorFor(sectionId))?.scrollIntoView({
@@ -164,45 +195,34 @@ function scrollToSection(sectionId: string) {
 }
 
 function CaseReviewPage({ review }: { review: CaseReview }) {
-  /* Every section starts open: a clerk deciding whether to register a complaint is
-     reading the whole file, not choosing a part of it. The disclosures are there to
-     fold away what has been checked, which is the opposite default. */
-  const [open, setOpen] = React.useState(() =>
-    review.sections.map((section) => section.id),
-  );
   const { reading, claim } = useReadingSection(review.sections.map((s) => s.id));
 
-  /* Following the link is three things: the index says where the reader is going
-     before the scroll has taken them there, the section opens if it was folded away,
-     and the page moves.
-
-     The open is flushed before the scroll rather than left for the next commit,
-     because near the foot of the file the document is too short to scroll to a folded
-     heading: the heading's own place does not move as it unfolds, but the room below
-     it to bring that place up to the reading line arrives with the section. Flushing
-     recovers the committed part of that room and no more — the disclosure animates its
-     height, so unfolding the *last* section from the index still lands short of the
-     line. The index is right either way; the scroll is as close as it can get without
-     chasing an animation. */
+  /* Following the link is two things now: the index says where the reader is going
+     before the scroll has taken them there, and the page moves. It used to be three —
+     the third was unfolding a section that had been folded away, which is what needed
+     `flushSync` and what left the last section landing short of the reading line. With
+     nothing folded, a jump is a jump. */
   function jumpTo(sectionId: string) {
     claim(sectionId);
-    if (!open.includes(sectionId)) {
-      flushSync(() => setOpen((current) => [...current, sectionId]));
-    }
     scrollToSection(sectionId);
   }
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    /* The reading canvas. `bg-muted` in light with `dark:bg-background` is
+       `FilingMain`'s recipe verbatim, dark fallback included — see the module note. The
+       decision band below is a sibling and stays `bg-card`, so the tint reads as the
+       page being read and not as grey chrome. */
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-muted dark:bg-background">
       <div className="flex min-w-0 flex-1 flex-col gap-8 p-6 pb-0 md:p-8 md:pb-0">
         <CaseReviewHeader review={review} />
 
-        {/* Three columns at `lg`: the index, the file, the progress. The file takes
-            the free track and the two rails are fixed, so a corporate accused wraps
-            inside the reading column rather than squeezing it. Below `lg` they stack
-            in this order — index, progress, file — because both rails are short and
-            the file is not. */}
-        <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)_minmax(0,17rem)] lg:gap-8">
+        {/* Three columns at `lg`: the index, the file, the progress — 13rem / free /
+            15rem. The rails were 15 and 17, which at 1280 left the document the screen
+            exists to read (368px) narrower than the two rails around it (512px); the
+            file now takes 432px at 1280 and 592px at 1440. Below `lg` they stack in
+            this order — index, progress, file — because both rails are short and the
+            file is not. */}
+        <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,13rem)_minmax(0,1fr)_minmax(0,15rem)] lg:gap-8">
           <CaseFileIndex
             sections={review.sections}
             reading={reading}
@@ -213,28 +233,14 @@ function CaseReviewPage({ review }: { review: CaseReview }) {
             steps={review.timeline}
             className="lg:col-start-3 lg:row-start-1"
           />
-          <div className="relative flex min-w-0 flex-col gap-8 lg:col-start-2 lg:row-start-1">
-            <Accordion
-              type="multiple"
-              value={open}
-              onValueChange={setOpen}
-              className="flex min-w-0 flex-col gap-8"
-            >
-              {review.sections.map((section, index) => (
-                <CaseSectionBlock
-                  key={section.id}
-                  section={section}
-                  number={index + 1}
-                />
-              ))}
-            </Accordion>
-            {/* The end of the file, for the index to watch (`useReadingSection`).
-                Positioned rather than stacked, so it adds no step to the column. */}
-            <div
-              id={FOOT_ANCHOR}
-              aria-hidden
-              className="pointer-events-none absolute bottom-0 h-px w-px"
-            />
+          <div className="flex min-w-0 flex-col gap-8 lg:col-start-2 lg:row-start-1">
+            {review.sections.map((section, index) => (
+              <CaseSectionBlock
+                key={section.id}
+                section={section}
+                number={index + 1}
+              />
+            ))}
           </div>
         </div>
       </div>
@@ -256,28 +262,34 @@ const SCROLL_KEYS = new Set([
 ]);
 
 /**
- * Which section the reader is in — the one they just asked for, or failing that the
- * one their scroll position is inside.
+ * Which section the reader is in — the one they just asked for, or failing that the one
+ * their scroll position says they are reading.
  *
  * Three things decide it, in that order, and the order is the whole point.
  *
  * A click on the index *claims* it: the reader has said where they are going, so the
- * index says so at once and keeps saying so until they scroll somewhere themselves.
- * The claim is not decoration over a working observer — it is the only thing that can
- * be right at the foot of the file, where asking for one of the short last sections
- * scrolls the page as far as it will go and still leaves the reading line *past* that
- * heading, inside the section below it. No band, however placed, can read that
- * position as anything but the later section; the reader's own request can.
+ * index says so at once and keeps saying so until they scroll somewhere themselves. The
+ * claim is not decoration over a working measurement — it is the only thing that can be
+ * right at the foot of the file, where asking for one of the short last sections scrolls
+ * the page as far as it will go and still leaves the reading line *above* that heading.
+ * No line, however placed, can read that position as anything but the earlier section;
+ * the reader's own request can.
  *
- * Under the claim, an observer tracks where the page actually is. An observer rather
- * than a scroll listener: the browser already knows when a heading crosses the reading
- * line, and asking it on every frame instead is how a long page starts to feel heavy.
- * The top margin is negative by the heading's own resting offset so a heading under
- * the bar does not count as read, and the bottom cuts most of the viewport so the
- * section being finished wins over the one just appearing.
+ * Under the claim, the position itself: **the last section whose heading has crossed
+ * above the reading line** (`readingLine`). Measured from the headings' own rects rather
+ * than inferred from an `IntersectionObserver`, which is what this did until 2026-09-11.
+ * An observer answers "is this box inside that band", and the question here is "is this
+ * heading above an arbitrary line" — expressible as a band only when the line is the top
+ * of the viewport, which is exactly the rule the owner asked to change. Reading ≤ a dozen
+ * rects inside one `requestAnimationFrame` is a frame's work at most, and it is measured
+ * at most once per frame however fast the wheel turns.
  *
- * Under both, the end of the scroll — the one position the band cannot describe, so
- * the last section on screen answers for it instead of the first.
+ * Under both, the end of the scroll — the one position no line can describe, because the
+ * last sections are short enough that the page runs out of scroll before their headings
+ * can reach any line. Once there is no scroll left the reader has reached the end of the
+ * file, so the answer becomes the last section *on screen* rather than the last one above
+ * the line. This replaces the foot sentinel the observer needed: the position is already
+ * being read every frame, so asking whether it is the bottom costs nothing extra.
  *
  * The dependency is the joined key, and the ids are read back out of it, so the effect
  * re-runs when the file changes and not when a caller happens to rebuild the array.
@@ -293,84 +305,49 @@ function useReadingSection(ids: string[]): {
   const [claimed, setClaimed] = React.useState<string | undefined>(undefined);
 
   React.useEffect(() => {
-    const sectionIds = key.split("|");
-    const nodes = sectionIds
-      .map((id) => document.getElementById(anchorFor(id)))
-      .filter((node): node is HTMLElement => node !== null);
-    if (nodes.length === 0) return;
+    /* Id and node together, so a section the DOM has not mounted cannot shift the rest
+       of the list out of step with its own ids. */
+    const sections = key
+      .split("|")
+      .map((id) => [id, document.getElementById(anchorFor(id))] as const)
+      .filter((pair): pair is [string, HTMLElement] => pair[1] !== null);
+    if (sections.length === 0) return;
 
-    /* Every section's latest state, kept across callbacks, because a callback is
-       handed only the sections whose state *changed*. Deciding the winner from one
-       batch is what made the index lag and then skip: a batch carrying nothing but a
-       section entering from below outranked the section above it that the reader was
-       still in, purely because that one had stopped changing and so stopped being
-       reported. The winner is the first section in the file that is on screen now,
-       from the whole picture rather than from the last few frames of it. */
-    const onScreen = new Map<string, boolean>();
-
-    /* Whether the page has run out of scroll, which changes which section on screen
-       is the answer. Kept by `readEnd` below. */
-    let ended = false;
+    let frame = 0;
 
     function decide() {
-      const showing = sectionIds.filter((id) => onScreen.get(id));
-      const winner = ended ? showing[showing.length - 1] : showing[0];
-      /* Nothing on screen means the reader is between headings, which is not a reason
-         to forget where they were. */
-      if (winner) setScrolled(winner);
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          onScreen.set(sectionOf(entry.target.id), entry.isIntersecting);
-        }
-        decide();
-      },
-      { rootMargin: `-${readingLine(nodes[0])}px 0px -55% 0px` },
-    );
-
-    for (const node of nodes) observer.observe(node);
-
-    /* The end of the scroll is its own answer, because the last sections are the short
-       ones: the page runs out of scroll before their headings can reach the reading
-       line — on this file the last heading would need 167px more than the document
-       has. No band, wherever it is placed, can read the bottom of a document as
-       anything but the section above the last one. So once there is no scroll left the
-       reader has reached the end of the file, and the answer becomes the *last* section
-       on screen instead of the first.
-
-       The condition is the scroll position and not "the foot is in view": on a narrow
-       viewport the last section is tall enough that the end of the column appears while
-       the reader is still properly inside the section above it, and treating that as
-       the end of the file marked the wrong entry. The sentinel's job is only to say
-       when it is worth watching — the position is read on scroll, but the listener is
-       attached for the last screenful and removed again, so the long part of the page
-       still costs nothing per frame. */
-    function readEnd() {
-      const atEnd =
+      frame = 0;
+      const line = readingLine(sections[0][1]);
+      /* The page has run out of scroll, which changes which section on screen is the
+         answer — see the end-of-scroll paragraph above. */
+      const ended =
         Math.ceil(window.scrollY + window.innerHeight) >=
         document.documentElement.scrollHeight - 2;
-      if (atEnd === ended) return;
-      ended = atEnd;
-      decide();
+      const limit = ended ? window.innerHeight : line;
+
+      /* The *last* heading past the limit. Sections are in reading order, so the loop
+         simply keeps the latest one that qualifies; nothing qualifying means the reader
+         is above the first heading, which is the first section. */
+      let winner = sections[0][0];
+      for (const [id, node] of sections) {
+        if (node.getBoundingClientRect().top <= limit) winner = id;
+      }
+      setScrolled(winner);
     }
 
-    const footObserver = new IntersectionObserver((entries) => {
-      if (entries[entries.length - 1].isIntersecting) {
-        window.addEventListener("scroll", readEnd, { passive: true });
-      } else {
-        window.removeEventListener("scroll", readEnd);
-      }
-      readEnd();
-    });
-    const foot = document.getElementById(FOOT_ANCHOR);
-    if (foot) footObserver.observe(foot);
+    function measure() {
+      if (frame) return;
+      frame = window.requestAnimationFrame(decide);
+    }
 
-    /* The reader moving the page themselves gives the index back to the observer.
+    decide();
+    window.addEventListener("scroll", measure, { passive: true });
+    window.addEventListener("resize", measure);
+
+    /* The reader moving the page themselves gives the index back to the measurement.
        Only their own gestures count: the jump is a scroll too, and releasing on any
-       scroll at all is what let every section a smooth jump passed through flash
-       active on the way. */
+       scroll at all is what let every section a smooth jump passed through flash active
+       on the way. */
     const release = (event: Event) => {
       if (event instanceof KeyboardEvent && !SCROLL_KEYS.has(event.key)) return;
       setClaimed(undefined);
@@ -381,9 +358,9 @@ function useReadingSection(ids: string[]): {
     }
 
     return () => {
-      observer.disconnect();
-      footObserver.disconnect();
-      window.removeEventListener("scroll", readEnd);
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", measure);
       for (const gesture of gestures) {
         window.removeEventListener(gesture, release);
       }
@@ -394,20 +371,37 @@ function useReadingSection(ids: string[]): {
 }
 
 /**
- * Which complaint this is: the number and the wait as an eyebrow, the cause as the
- * page, its one state as a chip, and the four particulars that the eyebrow does not
- * already name.
+ * Which complaint this is: its number, the cause as the page, its one state, and the
+ * three facts about the file itself.
  *
- * The reference keeps all of this inside the reading column, between the two rails.
- * Here it runs the page's full width as **one** lifted sheet: the court side already
- * gives up a rail to its own chrome, and a page title squeezed into a middle track is
- * narrower than the thing it names. The rails begin where the file begins.
+ * The reference keeps all of this inside the reading column. Here it runs the page's
+ * full width as **one** lifted sheet: the court side already gives up a rail to its own
+ * chrome, and a page title squeezed into a middle track is narrower than the thing it
+ * names. The rails begin where the file begins.
  *
- * Title and particulars share the sheet so the facts recede instead of arriving as a
- * second panel of form fields under a title that was already the page. The number
- * stays on the eyebrow — restating it as a labelled field printed the list's own
- * column twice, forty pixels apart. What remains is category, type, court and the
- * calendar date; the wait on the eyebrow is the duration, the date is the day.
+ * **The eyebrow is gone** (owner, 2026-09-11). Four unrelated things strung across one
+ * caption line with `·` between them is a row that reads as one string and sorts as
+ * none, and it put the record's identity at the same weight as how long it had waited.
+ * So the number goes on a line of its own above the title — it is what identifies the
+ * record, and it is the crumb in the bar directly above it — and the three real facts
+ * become label-over-value cells beneath. No separators anywhere: a `·` that lands first
+ * on a wrapped line reads as a bullet, and cells do not need one.
+ *
+ * **The labels here are the page's context, not the file's attributes.** Court, Submitted
+ * and Waiting say where this complaint sits and how long it has sat; none of them is a
+ * row of the complaint, which is why they are not in `FACT_TERMS` and why the rule that
+ * keeps term strings out of this module (`case-review.test.ts`) does not reach them. A
+ * fourth cell that *was* a fact about the complaint would belong in the file.
+ *
+ * **There is no fact grid of case category and case type** (brief §5a.4b, owner
+ * 2026-09-10). Both are the same on every complaint DRISTI will ever hold —
+ * `FilingDraft.caseType` is a one-value union — so they are the constant-column defect
+ * already killed on the queues.
+ *
+ * The wait is not coloured. On the queue an amber wait is a comparison — this row against
+ * the rows above it — and there is nothing here to compare against: one file, one wait
+ * (`ui-craft` §1.4). The one coloured mark this page spends is on the deposit row, and
+ * only on the file where it says no.
  */
 function CaseReviewHeader({ review }: { review: CaseReview }) {
   return (
@@ -416,15 +410,8 @@ function CaseReviewHeader({ review }: { review: CaseReview }) {
       aria-labelledby="case-review-title"
     >
       <div className="flex min-w-0 flex-col gap-2">
-        {/* The wait is the one number this queue is ordered by, so it is stated where
-            the list states it and in the same colour — the number carries the fact and
-            the colour agrees with it. */}
-        <p className="text-caption font-medium text-muted-foreground">
-          <span className="tabular-nums">{review.caseNumber}</span>
-          {" · "}
-          <span className="tabular-nums text-warning-ink">
-            {formatDaysSinceSubmitted(review.daysSinceSubmitted)}
-          </span>
+        <p className="text-caption font-medium tabular-nums text-muted-foreground">
+          {review.caseNumber}
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <h1
@@ -433,73 +420,78 @@ function CaseReviewHeader({ review }: { review: CaseReview }) {
           >
             {review.title}
           </h1>
-          {/* One chip. Every complaint in this queue is in one state, which is why the
-              list has no status column — on a single file it is worth saying once. */}
           <Badge variant="secondary">{CASE_REVIEW_STATUS}</Badge>
         </div>
       </div>
 
-      {/* A real `dl`, term over value: the Laws name Description list for a record's
-          key-value fields, and a 3-column grid of five left a hole on the second row.
-          Four facts take two columns, then five from `lg`, with the statute name —
-          the long cell — spanning two so it is not the squeezed one. Caption labels,
-          compact values, one weight: size and colour do the rest. */}
-      <DescriptionList className="grid min-w-0 grid-cols-2 items-start gap-4 lg:grid-cols-5">
-        <IdentityFact term="Case category" value={review.category} />
-        <IdentityFact
-          term="Case type"
-          value={review.type}
-          className="lg:col-span-2"
-        />
-        <IdentityFact term="Court" value={review.court} />
-        <IdentityFact
-          term="Submitted on"
-          value={review.submittedOnLabel}
+      {/* Three across from `sm`, stacked below it — the DS's own "single column by
+          default, multi-column only when there is room" rule (`RESPONSIVE.md`). The
+          hairline is the only stroke: the cells are separated by the grid, not by rules
+          between them. */}
+      <dl className="grid gap-4 border-t border-hairline pt-4 sm:grid-cols-3">
+        <CaseHeaderCell term="Court" value={review.court} />
+        <CaseHeaderCell term="Submitted" value={review.submittedOnLabel} numeric />
+        <CaseHeaderCell
+          term="Waiting"
+          value={formatWaitingDuration(review.daysSinceSubmitted)}
           numeric
         />
-      </DescriptionList>
+      </dl>
     </header>
   );
 }
 
-/** One particular of the complaint. Label above value, not beside it. */
-function IdentityFact({
+/**
+ * One label-over-value cell.
+ *
+ * Label above rather than beside: three of these across a wide sheet with the terms in a
+ * column of their own would be a `DescriptionList`, and a description list of three rows
+ * that never grows is a grid drawn around nothing. `text-caption` term over
+ * `text-body-compact` value is the same pair the file's own rows use, one size apart, so
+ * the header does not introduce a sixth type role for three strings.
+ *
+ * `<div>` between `<dl>` and `<dt>` is the HTML5 grouping form, which is what lets each
+ * pair be a grid cell without breaking the list semantics.
+ */
+function CaseHeaderCell({
   term,
   value,
-  numeric = false,
-  className,
+  numeric,
 }: {
   term: string;
   value: string;
   numeric?: boolean;
-  className?: string;
 }) {
   return (
-    <DescriptionRow
-      className={cn("grid-cols-1 gap-1 border-b-0 py-0", className)}
-    >
-      <DescriptionTerm className="text-caption font-medium text-muted-foreground">
-        {term}
-      </DescriptionTerm>
-      <DescriptionDetails
+    <div className="flex min-w-0 flex-col gap-1">
+      <dt className="text-caption font-medium text-muted-foreground">{term}</dt>
+      <dd
         className={cn(
-          "min-w-0 wrap-break-word text-body-compact font-medium",
+          "min-w-0 wrap-break-word text-body-compact",
           numeric && "tabular-nums",
         )}
       >
         {value}
-      </DescriptionDetails>
-    </DescriptionRow>
+      </dd>
+    </div>
   );
 }
 
 /**
  * The file's table of contents, and the one thing on this screen that does not move.
  *
- * Every entry is a real control: a jump that also opens the section it lands in, with
- * the section being read carried by `aria-current` as well as a fill, so the position
- * is not colour alone. Rows are `min-h-10` because a 40px target is the DS floor and
- * `py-2` on compact text does not reach it on its own.
+ * Every entry is a real control: a jump to a section, with the section being read
+ * carried by `aria-current` as well as a fill, so the position is not colour alone.
+ * Rows are `min-h-10` because a 40px target is the DS floor and `py-2` on compact text
+ * does not reach it on its own — and because at 13rem the longer entries take two
+ * lines, which those rows already allow.
+ *
+ * **The number sits on the first line of its label, not in the middle of both**
+ * (owner, 2026-09-11). Centring was invisible on the one-line entries and wrong on the
+ * two-line one — "2. Case specific details" wraps at 13rem, and a centred "2." floated
+ * between its own two lines with nothing to align to. `items-start` puts it where a
+ * numbered list puts it; both spans share a line box, so the digit and the first word
+ * sit on one baseline.
  */
 function CaseFileIndex({
   sections,
@@ -530,7 +522,7 @@ function CaseFileIndex({
                 onClick={() => onJump(section.id)}
                 aria-current={current ? "true" : undefined}
                 className={cn(
-                  "flex min-h-10 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-body-compact transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                  "flex min-h-10 w-full items-start gap-2 rounded-lg px-3 py-2 text-left text-body-compact transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
                   current
                     ? "bg-accent-strong font-medium text-foreground"
                     : "text-muted-foreground",
@@ -554,9 +546,14 @@ function CaseFileIndex({
  * the two columns on the same side of the app agree about which end is the present.
  * The reference puts the newest at the top; one ordering for one kind of column is
  * worth more than matching that. What the steps *are* lives with the file
- * (`timelineFor` in `case-review.ts`): a dummy registry history that follows the
- * Kerala spine as far as this queue, and stops before the decision this screen does
- * not make.
+ * (`timelineFor` in `case-review.ts`), where each one names the field or the spine step
+ * it comes from — the two the owner cut on 2026-09-10 could name neither.
+ *
+ * The second line of a step is three different kinds of thing, so it is rendered by
+ * three branches rather than handed over as one pre-formatted string. That is what lets
+ * a day be a `<time>` a machine can read and the wait be counted rather than quoted; a
+ * single `detail: string` could be neither, and put the formatting in the module
+ * furthest from the render.
  */
 function CaseProgressPanel({
   steps,
@@ -576,10 +573,10 @@ function CaseProgressPanel({
       <Timeline>
         {steps.map((step) => (
           <TimelineItem
-            key={step.on ? `${step.on}-${step.label}` : step.label}
+            key={step.label}
             status={step.status}
             title={step.label}
-            description={step.detail}
+            description={<CaseTimelineDetailText detail={step.detail} />}
           />
         ))}
       </Timeline>
@@ -587,14 +584,48 @@ function CaseProgressPanel({
   );
 }
 
+/** The second line of a timeline step — a day, a duration, or the name of a state. */
+function CaseTimelineDetailText({ detail }: { detail: CaseTimelineDetail }) {
+  switch (detail.kind) {
+    case "date":
+      return (
+        <time dateTime={detail.on} className="tabular-nums">
+          {formatCaseDate(detail.on)}
+        </time>
+      );
+    case "elapsed":
+      /* Counted here rather than quoted from the file, so the number is a number: the
+         wait is the one figure on this panel that changes every day. */
+      return (
+        <span className="tabular-nums">{formatDaysWaitingLong(detail.days)}</span>
+      );
+    case "state":
+      return <span>{detail.state}</span>;
+  }
+}
+
 /**
- * One numbered part of the file: a heading that folds it away, and the blocks inside.
+ * One numbered part of the file: a heading, and the group panels under it.
  *
- * The heading sits on the page rather than in a panel of its own — it is the section's
- * name, and giving it a sheet would put a frame around a line of text and then a second
- * frame around each block inside it. The `AccordionItem` border goes for the same
- * reason: sections are separated by the page's own step, and a rule between two
- * disclosures that are already a full step apart is a stroke doing nothing.
+ * A plain region. The heading sits on the page rather than in a panel of its own — it
+ * is the section's name, and giving it a sheet would put a frame around a line of text
+ * and then a second frame around each block inside it. Nothing separates the sections
+ * but the page's own step: heading to groups is 4, group to group is 6, section to
+ * section is 8, so the rhythm states the nesting and no rule is needed anywhere
+ * (`ui-craft` §1.1).
+ *
+ * The id and the scroll margin stay on the region, because that is what the reading
+ * index jumps to and what its reading line is measured against.
+ *
+ * **The heading drops to `text-body` 600 from the 20px step** (owner, 2026-09-11). Every other
+ * section heading on the court side — seventeen screens of them — is `text-body`
+ * `font-semibold`; this was the only one at 20px, and a heading that is bigger here than
+ * the same heading everywhere else is not a hierarchy, it is a screen that disagrees with
+ * its siblings. What separates it from the group headings below it, which are also
+ * `text-body` 600, is not type at all: a section heading sits on the tinted canvas with
+ * its ordinal, and a group heading sits inside a white panel with an icon tile beside it.
+ * That is one signal each, which is what the level needed and what an extra 4px was
+ * standing in for.
  */
 function CaseSectionBlock({
   section,
@@ -603,59 +634,86 @@ function CaseSectionBlock({
   section: CaseSection;
   number: number;
 }) {
+  const headingId = `case-section-heading-${section.id}`;
+
   return (
-    <AccordionItem
-      value={section.id}
+    <section
       id={anchorFor(section.id)}
-      /* `not-last:border-b-0`, not `border-b-0`. The DS `AccordionItem` ships
-         `not-last:border-b`, and tailwind-merge treats a variant-prefixed utility as a
-         different group from a bare one — so the unprefixed reset never displaced it
-         and every section but the last drew a full-strength rule hard against its own
-         last panel, with no padding between. Matching the variant is what removes it.
-         Sections are separated by the accordion's own `gap-8`: spacing before
-         strokes (`ui-craft` §1.1). */
-      className="flex min-w-0 scroll-mt-(--chrome-sticky-top) flex-col gap-4 not-last:border-b-0"
+      aria-labelledby={headingId}
+      className="flex min-w-0 scroll-mt-(--chrome-sticky-top) flex-col gap-4"
     >
-      <AccordionTrigger className="items-center py-0 font-semibold text-title-s hover:no-underline">
-        <span className="flex min-w-0 items-baseline gap-2">
-          <span className="tabular-nums text-muted-foreground">{number}.</span>
-          <span className="min-w-0">{section.title}</span>
-        </span>
-      </AccordionTrigger>
-      {/* `h-auto` cancels the primitive's own `h-(--radix-accordion-content-height)`.
-          Radix measures that variable when the item opens and does not remeasure it on
-          resize, and the content here is a column of panels that reflows at every
-          breakpoint — so a window narrowed after opening left the last panel cut off by
-          the wrapper's `overflow-hidden`. The open/close animation is on the wrapper and
-          still runs. Upstream DS feedback: the fixed height is safe for a paragraph of
-          FAQ copy and wrong for anything that reflows. */}
-      <AccordionContent className="flex h-auto min-w-0 flex-col gap-6 pb-0">
+      <h2
+        id={headingId}
+        className="flex min-w-0 items-baseline gap-2 text-body font-semibold"
+      >
+        <span className="tabular-nums text-muted-foreground">{number}.</span>
+        <span className="min-w-0">{section.title}</span>
+      </h2>
+      <div className="flex min-w-0 flex-col gap-6">
         {section.groups.map((group) => (
           <CaseGroupPanel key={group.id} group={group} />
         ))}
-      </AccordionContent>
-    </AccordionItem>
+      </div>
+    </section>
   );
 }
 
 /**
  * One block of the file — the cheque, the notice, who appears.
  *
- * The panel is the frame, so what is inside it is fill and spacing: repeated records
- * are sunken wells, a group's own facts sit straight on the sheet, and nothing draws a
- * second edge. The mark beside the title is a well too, and muted: twelve tinted tiles
- * down a page would spend the view's one saturated colour a dozen times over, and the
- * icon is here to make a long file scannable rather than to say anything.
+ * The panel is the frame, so what is inside it is fill, spacing and one hairline: the
+ * records are stacked blocks with a rule between them, and nothing draws a second edge.
+ * They were sunken wells until 2026-09-11; with the canvas now tinted, a well inside a
+ * panel on a tinted page would be a fourth tier on a screen that is read rather than
+ * filled (owner's ruling, module note). A rule between records is the least that says
+ * "another one of these" and costs no depth.
+ *
+ * The mark beside the title is still a well, and muted: twelve tinted tiles down a page
+ * would spend the view's one saturated colour a dozen times over, and the icon is here to
+ * make a long file scannable rather than to say anything.
  */
 function CaseGroupPanel({ group }: { group: CaseGroup }) {
   const Icon = group.icon;
   const headingId = `case-group-${group.id}`;
 
+  /* Every block this panel holds, in reading order, so the rule between them is decided
+     once by position rather than twice by which shape the data happened to take. A
+     group's own facts are the last block; they used to sit bare on the sheet while a
+     named record sat in a well, which split the file down a line — `records` versus
+     `facts` — that is invisible to a reader and meant nothing to them. */
+  const blocks: React.ReactNode[] = [
+    ...(group.records ?? []).map((record, index) => (
+      <CaseRecordBlock
+        key={record.id}
+        heading={record.heading}
+        tag={record.tag}
+        /* "1." above a lone complainant counts nothing, so the ordinal appears only
+           where there is more than one of something. */
+        ordinal={(group.records?.length ?? 0) > 1 ? index + 1 : undefined}
+        facts={record.facts}
+        documents={record.documents}
+        /* What a document row is named after in the accessible name: the record it
+           belongs to, or failing that the head it was filed under. */
+        within={record.heading}
+      />
+    )),
+    ...(group.facts || group.documents
+      ? [
+          <CaseRecordBlock
+            key="group-facts"
+            facts={group.facts}
+            documents={group.documents}
+            within={group.title}
+          />,
+        ]
+      : []),
+  ];
+
   return (
     <section className={`${PANEL} flex flex-col gap-4`} aria-labelledby={headingId}>
       <div className="flex min-w-0 items-center gap-3">
         <span
-          className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-muted-foreground"
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-muted-foreground"
           aria-hidden
         >
           <Icon className="size-4" />
@@ -665,76 +723,109 @@ function CaseGroupPanel({ group }: { group: CaseGroup }) {
         </h3>
       </div>
 
-      {group.empty ? (
-        /* Not a bordered grey void: the panel is already the frame, and the sentence
-           is the whole content. A head the form asked about and nobody answered is a
-           fact the court is reading. */
-        <p className="text-body text-muted-foreground">{group.empty}</p>
-      ) : null}
+      {group.empty ? <CaseAbsenceNote absence={group.empty} /> : null}
 
-      {group.records?.map((record, index) => (
-        <CaseFactWell
-          key={record.id}
-          heading={record.heading}
-          tag={record.tag}
-          /* "1." above a lone complainant counts nothing, so the ordinal appears only
-             where there is more than one of something. */
-          ordinal={(group.records?.length ?? 0) > 1 ? index + 1 : undefined}
-          facts={record.facts}
-          confirmed={record.confirmed}
-          documents={record.documents}
-        />
-      ))}
-
-      {/* A group's own facts go in the same well as a named record's. They used to sit
-          bare on the sheet, which meant half the file had a sunken block inside its
-          panel and half did not — Complainant, Accused, Cheque, Witness and Advocate
-          against Debt, Notice, Delay, Payment and Submissions. The split tracked
-          whether the data happened to be modelled as `records` or as `facts`, which is
-          invisible to a reader and meant nothing to them. */}
-      {group.facts || group.confirmed || group.documents ? (
-        <CaseFactWell
-          facts={group.facts}
-          confirmed={group.confirmed}
-          documents={group.documents}
-        />
+      {blocks.length > 0 ? (
+        <div className="flex min-w-0 flex-col gap-4">
+          {blocks.map((block, index) => (
+            /* The rule belongs to the block below it, not between two siblings in the
+               abstract: `gap-4` above and `pt-4` below leave it centred in an even
+               32px, and the first block never carries one — the panel's own heading has
+               already separated it. */
+            <div
+              key={index}
+              className={cn(
+                "min-w-0",
+                index > 0 && "border-t border-hairline pt-4",
+              )}
+            >
+              {block}
+            </div>
+          ))}
+        </div>
       ) : null}
     </section>
   );
 }
 
 /**
- * A block of the file's content, in the one container every block uses.
+ * A head of the file with nothing under it, in one shape.
  *
- * A well, because the fill is what separates a group's parts: several records inside
- * one panel, or one set of facts and the documents backing them. Nothing in here
- * carries a border — depth is fill (`ui-craft` §4), and the panel around it is already
- * the frame.
+ * Not a bordered grey void: the panel is already the frame, and the panel's own title
+ * has named the head. The reason is the file's (a closed `CaseAbsence.reason`, so an
+ * empty head can be counted and translated); the sentence under it is the product's
+ * voice and says what follows — that the complainant conducts the matter in person.
+ * They are two lines because they are two kinds of thing (`ui-craft` §1.6): fusing the
+ * second into the first is what made three authored strings out of one state.
  *
- * The heading is optional. A named record has one — a party, a cheque, an advocate —
- * and a group's own facts do not, because the panel's title has already named them.
- * That is the only difference between the two callers; before this they were two
- * different treatments, and a reader could not tell why.
+ * Two reasons since 2026-09-11, not three. `not-yet-due` belonged to the section on
+ * submissions from the accused, which the owner cut — the accused cannot file before the
+ * complaint is registered — and a label with no state left to name is one the next reader
+ * cannot tell is dead.
  */
-function CaseFactWell({
+const ABSENCE_REASONS = {
+  "none-named": "None named",
+  "none-on-record": "None on record",
+} as const;
+
+function CaseAbsenceNote({ absence }: { absence: CaseAbsence }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      <p className="text-body text-muted-foreground">
+        {ABSENCE_REASONS[absence.reason]}
+      </p>
+      {absence.explanation ? (
+        <p className="text-body-compact text-muted-foreground">
+          {absence.explanation}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * A block of the file's content, in the one shape every block takes.
+ *
+ * Several records inside one panel, or one set of facts and the documents backing them.
+ * No fill and no border of its own — the hairline above it is the panel's, and depth on
+ * this page stops at the panel (`ui-craft` §4 and the module note).
+ *
+ * **It is the query container for everything inside it.** The rows below switch from two
+ * columns to stacked on the *block's* width, not the window's, because the window was
+ * never the constraint — the reading column was. At 1280 this block is ≈384px inside a
+ * 432px column and the rows are two-column; at 375 it is ≈279px and they stack, which is
+ * the answer the old `sm:` rule gave for the wrong reason.
+ *
+ * The heading is optional. A named record has one — a party, a cheque, an advocate — and
+ * a group's own facts do not, because the panel's title has already named them.
+ */
+function CaseRecordBlock({
   heading,
   tag,
   ordinal,
   facts,
-  confirmed,
   documents,
+  within,
 }: {
   heading?: string;
   tag?: string;
   ordinal?: number;
   facts?: CaseFact[];
-  confirmed?: string[];
   documents?: CaseDocument[];
+  /** What the documents in this block belong to, for their accessible names. */
+  within: string;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-3 rounded-lg bg-surface-sunken p-4">
+    <div className="@container flex min-w-0 flex-col gap-3">
       {heading ? (
-        <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        /* The tag sits **beside** the name, not at the far edge of the row (owner,
+           2026-09-11). `justify-between` put "Company" a whole column away from the
+           thing it describes, and the further apart they were the wider the panel got.
+           It is a `Badge variant="secondary"` because it is a closed enum
+           (`LITIGANT_TYPES`) — the DS's own shape for one — rather than the caption it
+           used to be, which read as metadata about the row instead of a property of the
+           party. */
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <p className="min-w-0 text-body font-medium">
             {ordinal ? (
               <span className="tabular-nums text-muted-foreground">
@@ -743,36 +834,47 @@ function CaseFactWell({
             ) : null}
             {heading}
           </p>
-          {tag ? (
-            <span className="text-caption text-muted-foreground">{tag}</span>
-          ) : null}
+          {tag ? <Badge variant="secondary">{tag}</Badge> : null}
         </div>
       ) : null}
       {facts ? <CaseFactRows facts={facts} /> : null}
-      {confirmed ? <CaseConfirmations items={confirmed} /> : null}
-      {documents ? <CaseDocuments documents={documents} inset /> : null}
+      {documents ? (
+        <CaseDocuments documents={documents} within={within} />
+      ) : null}
     </div>
   );
 }
 
 /**
- * The row metric, tuned from the screen rather than by editing the synced primitive.
+ * The file's fact rows, at the DS `DescriptionList`'s own metric.
  *
- * Two changes to the DS default. The term column widens and then disappears: a §138
- * file asks things like "date the fifteen days from service were complete", which no
- * 10rem column holds, so terms sit above their values below `sm` and beside them from
- * `sm` up at a width that fits a clause. And the stroke drops to hairline — fifteen
- * rows at full strength would be the darkest marks on the page, and an internal
- * divider inside a panel that already has an edge is not what full strength is for.
+ * `minmax(7rem,10rem)` is the DS default, and it holds now that the terms are the
+ * attributes' names rather than the form's questions (brief §5a.4a) — the fixed `17rem`
+ * term column this used to carry is what squeezed the value cell to a measured 14px at
+ * 1280, and shortening the terms is upstream of that whole problem.
+ *
+ * Two departures from the primitive, both stated once here. The stroke drops to
+ * hairline: fifteen rows at full `border-border` would be the darkest marks on the
+ * page, and an internal divider inside a panel that already has an edge is not what
+ * full strength is for (`ui-craft` §1.1). And the two-column grid is applied at `@xs`
+ * on the well rather than at `sm:` on the window, so a term that outgrows its track in
+ * a narrow reading column stacks *there*, whatever the window is doing — which is what
+ * makes the long-label and other-language cases survivable.
+ *
+ * Term and value are both `text-body-compact` at 400, which is also the DS default and
+ * the reason it exists: the value used to be larger and heavier than its own term, so
+ * fifteen rows read as fifteen emphasised strings and the pair was distinguished by
+ * nothing. At one size and one weight the pair is distinguished by colour, which is
+ * `ui-craft` §1.3's own instruction.
  */
-const FACT_ROW =
-  "grid-cols-1 gap-1 border-hairline py-3 sm:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] sm:gap-4";
-
 function CaseFactRows({ facts }: { facts: CaseFact[] }) {
   return (
     <DescriptionList>
       {facts.map((fact) => (
-        <DescriptionRow key={fact.term} className={FACT_ROW}>
+        <DescriptionRow
+          key={fact.term}
+          className="grid-cols-1 gap-1 border-hairline @xs:grid-cols-[minmax(7rem,10rem)_1fr] @xs:gap-4"
+        >
           <DescriptionTerm className="text-body-compact">
             {fact.term}
           </DescriptionTerm>
@@ -781,9 +883,20 @@ function CaseFactRows({ facts }: { facts: CaseFact[] }) {
               screen exists to show what is and is not on the file. */}
           <DescriptionDetails
             className={cn(
-              "min-w-0 wrap-break-word text-body",
-              fact.value ? "font-medium" : "text-muted-foreground",
+              "min-w-0 wrap-break-word text-body-compact",
+              fact.value ? undefined : "text-muted-foreground",
               fact.numeric && "tabular-nums",
+              /* The page's one coloured mark, and it appears on one complaint in
+                 thirty-five. A cheque presented outside §138(a)'s three months is one no
+                 complaint under the section can stand on, so the row that answers it is
+                 the single fact on this file with a consequence for the decision at the
+                 foot of it — and it sat in the same ink as a branch name. Which answer
+                 is the exception is the file's to say (`CaseFact.exception`), not a
+                 string comparison here. Ink, not a fill and not a chip: the word already
+                 reads "No", so the colour is the second treatment and never the only one
+                 (`ACCESSIBILITY.md` §3). Nothing else on the page is coloured, which is
+                 what keeps this one worth seeing (`ui-craft` §1.4). */
+              fact.exception && "text-warning-ink",
             )}
           >
             {fact.value ?? "Not stated"}
@@ -795,12 +908,260 @@ function CaseFactRows({ facts }: { facts: CaseFact[] }) {
 }
 
 /**
+ * The documents filed under one head, and the slots left empty.
+ *
+ * **This is e-filing's uploaded-document row** (owner, 2026-09-11): the DS `DocumentSlot`
+ * with a page-shaped thumbnail in its media well, which is exactly what the advocate sees
+ * on the upload screen (`filing/upload/slot-row.tsx`) and what the scrutiny inset shows.
+ * One component showing an uploaded document everywhere was the point, and it replaces an
+ * `Item variant="outline"` list borrowed from `submission-record-dialog.tsx` — a second
+ * shape for the same thing, and the one place on the page where the document was
+ * represented by nothing but its name.
+ *
+ * The thumbnail is the control, as it is on the upload screen: `ThumbnailButton` from
+ * `filing/upload/thumbnail.tsx`, shared rather than copied — see that file for what was
+ * split out and why. There is no room for eighteen inline previews in a 432px column, so
+ * pressing it opens the one `DocumentPreview variant="quiet"` dialog below.
+ *
+ * A document that is *not* on file is deliberately **not** a `DocumentSlot`. The
+ * primitive's empty state is an upload target — a dashed edge and a "Choose file" button
+ * — and a clerk reading a complaint cannot upload a litigant's document; hiding that
+ * button with CSS would leave it in the tab order and in the accessible tree. So the
+ * absent row keeps the slot's geometry and none of its affordances: same media column,
+ * same padding, no fill, no paper, nothing to press, reading "Not on file". An absence is
+ * never dressed as a document.
+ */
+function CaseDocuments({
+  documents,
+  within,
+}: {
+  documents: CaseDocument[];
+  within: string;
+}) {
+  /* Two pieces of state, and the second one is load-bearing. Radix restores focus to
+     the row that opened the overlay from inside the content's own unmount, so the
+     content has to survive the close: `open={reading !== null}` with the body rendered
+     only while `reading` is set tears the element out of the tree in the same commit
+     that closes the dialog, the restore never runs, and Escape drops focus on `body` —
+     measured, not assumed. Keeping the last document mounted while `open` goes false
+     hands the exit back to the primitive, and focus lands on the thumbnail again. */
+  const [reading, setReading] = React.useState<CaseDocument | null>(null);
+  const [open, setOpen] = React.useState(false);
+  /* The thumbnail that opened the overlay, so closing it can put focus back there. */
+  const trigger = React.useRef<HTMLButtonElement | null>(null);
+
+  return (
+    <div className="flex min-w-0 flex-col gap-2">
+      <p className="text-caption font-medium text-muted-foreground">Documents</p>
+      <ul className="flex min-w-0 flex-col gap-2">
+        {documents.map((document) => (
+          <li key={document.label} className="min-w-0">
+            <CaseDocumentItem
+              document={document}
+              within={within}
+              onOpen={(button) => {
+                trigger.current = button;
+                setReading(document);
+                setOpen(true);
+              }}
+            />
+          </li>
+        ))}
+      </ul>
+      {/* One overlay for the group rather than a trigger per row, keyed on the document
+          so opening a second one starts fresh instead of inheriting the first one's
+          scroll position. */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        {reading ? (
+          <CaseDocumentBody
+            key={reading.label}
+            document={reading}
+            onReturnFocus={() => trigger.current?.focus()}
+          />
+        ) : null}
+      </Dialog>
+    </div>
+  );
+}
+
+/**
+ * The media well, page-shaped rather than the DS square, and on paper.
+ *
+ * Page-shaped for the reason the upload row gives for the same override: a square crop of
+ * a cheque or an ID card is noise, and `DocumentSlot` fixes its well at `size-16`. 44×56
+ * is portrait like the facsimile's own 60×80 `viewBox`, close to the same optical area as
+ * the upload row's 64×48 landscape, and — the constraint that set the width — the
+ * thumbnail *is* the row's control, so it has to clear the 40×40 touch floor
+ * (`ACCESSIBILITY.md` §8). 36 wide, which is what an exact 3:4 at this height would be,
+ * does not.
+ *
+ * `paper` and `paper-border` rather than the well's default `muted`: what sits in it is a
+ * drawing of a court document in the DS's document-facsimile tokens, and a page needs the
+ * ground it is printed on. The hairline-weight edge is the DS's stated exception for
+ * thumbnails (`foundations/elevation`) — a picture needs a boundary a fill cannot give
+ * it.
+ */
+const DOCUMENT_MEDIA = [
+  "[&_[data-slot=document-slot-media]]:h-14",
+  "[&_[data-slot=document-slot-media]]:w-11",
+  "[&_[data-slot=document-slot-media]]:border",
+  "[&_[data-slot=document-slot-media]]:border-paper-border",
+  "[&_[data-slot=document-slot-media]]:bg-paper",
+].join(" ");
+
+/** One document on the file, or one slot that was left empty. */
+function CaseDocumentItem({
+  document,
+  within,
+  onOpen,
+}: {
+  document: CaseDocument;
+  within: string;
+  onOpen: (trigger: HTMLButtonElement) => void;
+}) {
+  if (document.state === "absent") {
+    return (
+      /* The `DocumentSlot` geometry without the primitive — see `CaseDocuments`. No
+         fill either: the filed rows are sunken and this one is not, so a reader scanning
+         the column sees which slots are full before reading a word. */
+      <div className="flex w-full items-start gap-4 rounded-lg p-4">
+        <span
+          className="flex h-14 w-11 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-muted-foreground"
+          aria-hidden
+        >
+          <FileTextIcon className="size-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-body-compact font-medium">{document.label}</p>
+          <p className="mt-0.5 text-body-compact text-muted-foreground">
+            Not on file
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <DocumentSlot
+      status="filled"
+      media="thumbnail"
+      label={document.label}
+      /* The second line the upload row spends on a filename and a size, which no
+         court-side store holds (brief §5a.6). What it holds is whether the slot is
+         full. */
+      meta="Filed"
+      className={DOCUMENT_MEDIA}
+      thumbnail={
+        <ThumbnailButton
+          /* The head the document was filed under, in the name as well as beside it.
+             Both parties file an "ID proof" and the file lists eighteen rows in all, so
+             a reader tabbing the page or pulling up a list of controls met "View ID
+             proof" twice with nothing to tell them apart. The visible label stays the
+             document's own — the row sits under a heading that supplies the rest. */
+          label={`View ${document.label} — ${within}`}
+          onPreview={(event) => onOpen(event.currentTarget)}
+        >
+          <PageFacsimile kind={document.kind} />
+        </ThumbnailButton>
+      }
+    />
+  );
+}
+
+/**
+ * The document itself, as far as a build with no document store can show one.
+ *
+ * `ChromeDialogContent` + `DocumentPreview variant="quiet" height="fill"` over a
+ * `composed` source, which is exactly what `employee/register-advocates-dialog.tsx`
+ * composes for the Bar ID card — no third way is introduced for this.
+ *
+ * What the well holds is a drawing, and the description says so. A facsimile states
+ * that *a page of this kind* is on the file and is deliberately not legible, because
+ * readable text here would be fabricating a court record. It is bounded and centred
+ * rather than sized to the well: a drawing scaled to a full-screen dialog stops reading
+ * as a thumbnail of a page and starts reading as a page.
+ *
+ * *Risk accepted (brief §11):* the quiet variant keeps its own "Full view" inside a
+ * dialog that is already large. `register-advocates-dialog` ships the same duplication,
+ * and matching the sibling beats a local exception. Download is not passed and
+ * `resolveDownload` omits the button rather than shipping it dead — there is nothing to
+ * download.
+ */
+function CaseDocumentBody({
+  document,
+  onReturnFocus,
+}: {
+  document: CaseDocument;
+  onReturnFocus: () => void;
+}) {
+  return (
+    <ChromeDialogContent
+      className="flex max-h-[85dvh] flex-col gap-4 overflow-hidden sm:max-w-xl"
+      /* Radix focuses the first tabbable thing it finds, and here that is the preview
+         well — it is a scroll container, so it is focusable — which opened the overlay
+         with a ring around the whole document. The dialog itself takes it instead: it
+         is what a reader is here to read, WAI-ARIA APG allows a container when a dialog
+         is this much content, and the well stays one Tab away for a keyboard reader who
+         wants to scroll it. The same landing `register-advocates-dialog` chose, for the
+         same reason. */
+      onOpenAutoFocus={(event) => {
+        event.preventDefault();
+        (event.currentTarget as HTMLElement | null)?.focus();
+      }}
+      /* Focus goes back to the row that opened this, said out loud rather than left to
+         the primitive: measured on the render, Escape dropped focus on `body`, which
+         puts a keyboard reader back at the top of a file eighteen documents long. The
+         same handler `register-advocates-dialog` writes, for the same reason. */
+      onCloseAutoFocus={(event) => {
+        event.preventDefault();
+        onReturnFocus();
+      }}
+    >
+      <DialogHeader className="shrink-0 pr-12">
+        <DialogTitle className="font-semibold break-words text-title-s">
+          {document.label}
+        </DialogTitle>
+        <DialogDescription className="text-body-compact">
+          On the file. The page is drawn, not scanned — this build has no document
+          store behind it.
+        </DialogDescription>
+      </DialogHeader>
+      <DocumentPreview
+        variant="quiet"
+        /* `height="default"` and not `fill`, which is where this parts company with the
+           brief — and the render is why. `fill` sizes the well against a definite
+           container, so it needs the dialog pinned to a viewport height; at any such
+           height a facsimile bounded to `w-64` (256×341, and bounded on purpose) leaves
+           most of the well empty, and `DocumentPreview` composes its content at the top
+           of the well with no way to centre it that does not mean editing the shared
+           component. The standard well is 384px, which the page very nearly fills, and
+           the dialog then sizes to its content. */
+        height="default"
+        className="min-h-0"
+        title={document.label}
+        source={{
+          kind: "composed",
+          content: (
+            /* `w-56`, not the `w-64` the brief names: the well's own toolbar row sits
+               above the page inside the same 384px well, and at 64 the foot of the page
+               was cut off by the well's edge — measured on the render. 56 is the widest
+               rung that fits the page whole. */
+            <div className="mx-auto aspect-[3/4] w-56 overflow-hidden rounded-md border border-paper-border bg-paper">
+              <PageFacsimile kind={document.kind} />
+            </div>
+          ),
+        }}
+      />
+    </ChromeDialogContent>
+  );
+}
+
+/**
  * A page, at thumbnail size, in the DS's document-facsimile tokens.
  *
- * Drawn as one inline SVG rather than a stack of divs: at 80×107 the marks are two
- * pixels tall, and a `viewBox` gets them there without reaching for off-ladder heights
- * or arbitrary lengths. `size-full` is also what keeps the media's
- * `[&_svg:not([class*='size-'])]:size-4` rule from shrinking it to an icon.
+ * Drawn as one inline SVG rather than a stack of divs: the marks are a couple of pixels
+ * tall, and a `viewBox` gets them there without reaching for off-ladder heights or
+ * arbitrary lengths.
  *
  * Six shapes, because a §138 file holds six kinds of page and a clerk tells them apart
  * without reading. Marks are `paper-muted` for body and `paper-muted-foreground` for
@@ -925,7 +1286,7 @@ function ReceiptMarks() {
   );
 }
 
-/** A card scan — an ID proof, a bar card. Photo left, particulars right. */
+/** A card scan — an ID proof, a Bar ID card. Photo left, particulars right. */
 function IdMarks() {
   return (
     <>
@@ -953,145 +1314,12 @@ function FormMarks() {
 }
 
 /**
- * What the filer has sworn to.
- *
- * Tinted, because these are the two facts a §138 complaint turns on and the court
- * checks them against the dates a few rows up — machine-read data that carries legal
- * risk, which is what a tint is for. The variant carries its own text colour; grey on
- * a tinted fill is the thing it exists to prevent.
- */
-function CaseConfirmations({ items }: { items: string[] }) {
-  return (
-    <Alert variant="info">
-      <InfoIcon aria-hidden />
-      <AlertTitle className="text-body-compact font-medium">
-        The complainant has confirmed
-      </AlertTitle>
-      <AlertDescription className="text-body-compact">
-        <ul className="flex list-disc flex-col gap-1 pl-4">
-          {items.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
-      </AlertDescription>
-    </Alert>
-  );
-}
-
-/**
- * The documents filed under one head, and the slots left empty.
- *
- * A wrapping grid rather than the primitive's own scrolling strip: a document a clerk
- * has to reach by dragging a horizontal scrollbar is a document they will miss.
- *
- * None of these opens. There is no document store behind the court side, so a tile
- * that looked clickable would promise a viewer that is not there; the tile states what
- * the file holds and stops.
- */
-function CaseDocuments({
-  documents,
-  inset = false,
-}: {
-  documents: CaseDocument[];
-  inset?: boolean;
-}) {
-  return (
-    <div className="flex min-w-0 flex-col gap-2">
-      <p className="text-caption font-medium text-muted-foreground">Documents</p>
-      <div className="grid min-w-0 gap-3 sm:grid-cols-2">
-        {documents.map((document) => (
-          <CaseDocumentTile
-            key={document.label}
-            document={document}
-            inset={inset}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/**
- * One document, as the registry holds it: a thumbnail of the page, what the court
- * calls it, and the upload underneath.
- *
- * The reference shows page previews rather than file icons, and it is right to — a
- * clerk checking a §138 file recognises a cheque from a demand notice at a glance, and
- * an identical icon on twelve rows throws that away. There is no document store to
- * preview from, so the thumbnail is drawn: `bg-paper` with `paper-muted` marks standing
- * in for the page, in the DS's own facsimile tokens (`paper` exists for exactly this —
- * "a printed complaint is a convention the reader recognises").
- *
- * It is deliberately *not legible*. A thumbnail says "a page of this kind is on the
- * file"; putting readable text in it would be fabricating a court record, which is the
- * one thing a demo of a case file must not do.
- *
- * An empty slot gets no paper at all — the sunken media and a muted icon, because
- * there is no page. Dressing an absence as a blank sheet is how "not uploaded" starts
- * looking like "uploaded and blank".
- */
-function CaseDocumentTile({
-  document,
-  inset,
-}: {
-  document: CaseDocument;
-  inset: boolean;
-}) {
-  const filed = document.state === "filed";
-
-  return (
-    <Attachment
-      /* `size="default"` and not `sm`: the media's width is overridden below, and the
-         `sm` variant sets it through a `group-data-` selector, which outranks a plain
-         utility no matter what `cn` merges. */
-      state={filed ? "done" : "idle"}
-      className={cn("w-full items-start", inset ? "rounded-md" : "rounded-lg")}
-    >
-      <AttachmentMedia
-        className={cn(
-          "aspect-[3/4] w-20",
-          filed && "border-paper-border bg-paper",
-        )}
-      >
-        {filed ? (
-          <PageFacsimile kind={document.kind} />
-        ) : (
-          <FileTextIcon className="text-muted-foreground" aria-hidden />
-        )}
-      </AttachmentMedia>
-      <AttachmentContent>
-        {/* `text-clip` is what actually displaces the primitive's `truncate` — adding
-            `whitespace-normal` alone leaves both rules standing and which one wins is
-            down to stylesheet order. The court's name for a document is the one label
-            here that must not be cut. */}
-        <AttachmentTitle className="text-clip whitespace-normal text-body-compact">
-          {document.label}
-        </AttachmentTitle>
-        {document.file ? (
-          <>
-            <AttachmentDescription className="font-mono">
-              {document.file.name}
-            </AttachmentDescription>
-            <AttachmentDescription className="tabular-nums">
-              {document.file.pages === 1
-                ? "1 page"
-                : `${document.file.pages} pages`}
-              {" · "}
-              {document.file.size}
-            </AttachmentDescription>
-          </>
-        ) : (
-          <AttachmentDescription>Not uploaded</AttachmentDescription>
-        )}
-      </AttachmentContent>
-    </Attachment>
-  );
-}
-
-/**
  * The two decisions this file is waiting for.
  *
- * Admitting a complaint is taking cognizance under BNSS §210; dismissing one ends it.
+ * **The word is "register"** (brief §5a.7, owner 2026-09-10). The rail row, the queue,
+ * the brief and the timeline's last step all say register; "Admit" was a fourth verb for
+ * the same act on the one screen that performs it, which is how two vocabularies start.
+ * Registering a complaint is taking cognizance under BNSS §210; dismissing one ends it.
  * Both are judicial acts, and `lib/employee/register-cases.ts` records the standing
  * position that this build performs no registration act — which is also why the queue
  * behind this screen carries no row actions. What the reference does have is this band,
@@ -1110,13 +1338,19 @@ function CaseDocumentTile({
  * press — a teal button that lit up and went down under the finger while doing nothing
  * is worse than one that looks dead. Deliberately not `pointer-events-none`.
  *
- * One teal, spent on Admit. Dismiss is ghost — the reference paints it as quiet text
+ * One teal, spent on Register. Dismiss is ghost — the reference paints it as quiet text
  * too, and a second filled button would be two primaries in one band.
  */
 function CaseDecisionBand() {
   return (
     <footer className="sticky bottom-0 z-30 mt-8 border-t border-hairline bg-card px-6 py-3 md:px-8 md:py-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+      {/* Stacked at 375 in the DS's own order — `DialogFooter` is
+          `flex-col-reverse … sm:flex-row sm:justify-end`, so the decision that ends the
+          row on a wide screen is the one at the top of the stack on a narrow one, and a
+          court-side footer does not invent a second convention for the same shape.
+          Register stays the last control in the DOM either way, which is what a
+          keyboard reader meets last and what `sm:justify-end` puts on the right. */}
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
         <Button
           type="button"
           variant="ghost"
@@ -1130,7 +1364,7 @@ function CaseDecisionBand() {
           aria-disabled
           className="w-full sm:w-fit aria-disabled:opacity-50 aria-disabled:hover:bg-primary aria-disabled:active:translate-y-0"
         >
-          Admit case
+          Register case
         </Button>
       </div>
     </footer>

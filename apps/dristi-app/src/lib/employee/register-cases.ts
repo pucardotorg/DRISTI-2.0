@@ -256,8 +256,15 @@ export const REGISTER_QUEUE: RegisterCase[] = [
   {
     id: "r-612",
     caseNumber: "CMP/612/2026",
+    /* The queue's one complaint filed by an entity (`case-review.ts` marks it
+       `complainantType: "institution"`), so the complainant is a firm and not a person:
+       the *Company* tag beside the name has to sit on something that is one, and a
+       registered office and an authorised signatory are what the file then prints
+       instead of an age and two addresses. It read "Thomas Kurien" until 2026-09-11 —
+       a person wearing a company's tag, which is the same defect as a constant fact
+       wearing a fact's clothes. */
     parties: {
-      complainant: "Thomas Kurien",
+      complainant: "Kurien Agencies",
       accused: "Paravur Rice Mills and General Trading Pvt Ltd",
     },
     counsel: [

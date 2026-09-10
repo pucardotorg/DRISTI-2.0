@@ -30,6 +30,19 @@
  * Those are the screen's unhappy paths, so they are named for particular rows in
  * `CASE_FILE_MARKS` and reachable from the queue rather than left to a modulo.
  *
+ * **A derived value is demo data; a derived attribute is not** (brief §5a.8). Every
+ * term this module names is an attribute the registry actually holds — the e-filing
+ * contract in `lib/filing/types.ts`, a `docs/product/` citation, or a `REG-nn`
+ * requirement — and the whole vocabulary is declared once in `FACT_TERMS` so it can be
+ * checked rather than trusted. Nineteen rows that had no source, restated another row,
+ * or were constant on every §138 complaint were cut in the 2026-09-10 revision; the
+ * table in `docs/design/proposals/register-cases.md` §5a records each one.
+ *
+ * **The terms are the attributes' names, not the form's questions** (brief §5a.4a).
+ * "Date when the fifteen days from service of the legal demand notice were complete" is
+ * a question a form asks once; "Notice period ended" is what the court calls the fact
+ * afterwards, and it is what survives translation into a column a reader can scan.
+ *
  * **The reference's own values are not copied.** The legacy screen shows placeholder
  * filings — `asdf`, `dfgfdg`, a stylesheet pasted into the cheque-return reason. The
  * court side already speaks Kollam parties and `CMP` numbers
@@ -54,6 +67,77 @@ import { formatCaseDate, formatChequeAmount } from "./hearing-overview";
 import { registerCaseById, type RegisterCase } from "./register-cases";
 
 /**
+ * Every attribute name this file can print, in one place.
+ *
+ * The point is not tidiness. A term typed at the call site is a term that can be
+ * invented, translated twice, or quietly disagree with the slot beside it — and the
+ * defect the 2026-09-10 revision found was exactly that: fifteen rows whose terms were
+ * the e-filing form's questions rather than the court's names for the facts. Declaring
+ * the vocabulary makes "is this a real attribute?" a question a test can ask
+ * (`case-review.test.ts`), and it is why no term string lives in the screen.
+ *
+ * Sources are in the brief's §5a Attributes table, one row per term.
+ */
+export const FACT_TERMS = {
+  /* Litigants — `Complainant` / `Accused` in `lib/filing/types.ts`. */
+  mobile: "Mobile",
+  email: "Email",
+  age: "Age",
+  permanentAddress: "Permanent address",
+  currentAddress: "Current address",
+  powerOfAttorney: "Power of attorney",
+  authorisedSignatory: "Authorised signatory",
+  registeredOffice: "Registered office",
+
+  /* The cheque — `ChequeDetails` and `Jurisdiction`. */
+  amount: "Amount",
+  chequeDated: "Cheque dated",
+  payeeBank: "Payee bank",
+  payeeBranch: "Payee branch",
+  payeeIfsc: "Payee IFSC",
+  payerBank: "Payer bank",
+  payerBranch: "Payer branch",
+  payerIfsc: "Payer IFSC",
+  depositedOn: "Deposited on",
+  returnedOn: "Returned on",
+  returnReason: "Return reason",
+  payeePolice: "Police station — payee bank",
+  drawerPolice: "Police station — drawer bank",
+  depositedInTime: "Deposited within three months",
+
+  /* The debt behind it — `DemandNotice`. */
+  natureOfDebt: "Nature of the debt",
+  paymentAgainstCheque: "Payment against the cheque",
+  partAmount: "Part payment amount",
+  whyIssued: "Why the cheque was issued",
+
+  /* The demand notice — `DemandNotice` and `Jurisdiction.causeDate`. */
+  noticeDispatched: "Notice dispatched",
+  noticeServed: "Notice served",
+  replyReceived: "Reply received",
+  noticePeriodEnded: "Notice period ended",
+
+  /* The delay, when there is one — `Jurisdiction`, §142(b). The group only exists on a
+     file that was late, so *whether* it was late is answered by the heading; the row
+     that restated it went on 2026-09-11 with the other constants. */
+  daysBeyondMonth: "Days beyond the month",
+  grounds: "Grounds",
+
+  /* Additional details — `Witness`, `AdrPrayer`, `Advocate`. No `Prayer`: the relief
+     §138 allows is the statute's and reads the same on every complaint, which is the
+     class `Criminal` and `S.138` were already cut for (brief §5a.4b). */
+  speaksTo: "Speaks to",
+  otherDetails: "Other details",
+  barRegistration: "Bar registration",
+
+  /* What was paid to file — `SignState`. */
+  courtFeePaid: "Court fee paid",
+  receiptNumber: "Receipt number",
+} as const;
+
+export type CaseFactTerm = (typeof FACT_TERMS)[keyof typeof FACT_TERMS];
+
+/**
  * One term and its value.
  *
  * `value` is absent when the complaint carries nothing there. The screen says so in
@@ -61,18 +145,30 @@ import { registerCaseById, type RegisterCase } from "./register-cases";
  * fact the court is reading, and an empty cell reads as a broken row.
  */
 export type CaseFact = {
-  term: string;
+  term: CaseFactTerm;
   value?: string;
   /** A number, an amount or a date — set in a column of its own kind. */
   numeric?: boolean;
+  /**
+   * This value is the exception, and the exception has a consequence for the decision
+   * the reader is about to take.
+   *
+   * Marked here rather than styled at the call site, for the reason no term string lives
+   * in the screen: which answer is the exception is a property of the fact, not of the
+   * render. Today exactly one row can carry it — a cheque presented outside §138(a)'s
+   * three months is one no complaint under the section can stand on — and the screen
+   * spends its single coloured mark on it (`ui-craft` §1.4). The words already say "No";
+   * the ink is the second treatment, not the only one.
+   */
+  exception?: boolean;
 };
 
 /**
  * What kind of page this is.
  *
- * It decides the thumbnail the screen draws — a cheque does not look like a letter,
+ * It decides the facsimile the screen draws — a cheque does not look like a letter,
  * and a receipt does not look like either. Six shapes cover a §138 file, and none of
- * them is a picture of a *specific* document: the thumbnail says "a page of this kind
+ * them is a picture of a *specific* document: the drawing says "a page of this kind
  * is on the file", never what the page says. Legible facsimile text would be
  * fabricating a record, which is the one thing a demo of a court file must not do.
  */
@@ -85,32 +181,29 @@ export type CaseDocumentKind =
   | "memo"
   /** A receipt or a ledger extract: label-and-amount rows under a rule. */
   | "receipt"
-  /** A card scan — an ID proof. */
+  /** A card scan — an ID proof, a Bar ID card. */
   | "id"
   /** A court form with a ruled table — a vakalatnama, a registration paper. */
   | "form";
-
-/** How the registry lists an upload. */
-export type CaseDocumentFile = {
-  name: string;
-  pages: number;
-  /** Already formatted. These are fixtures, not bytes counted off a disk. */
-  size: string;
-};
 
 /**
  * A document the form asked for, and whether it arrived.
  *
  * `absent` is not an error. Several slots on a §138 e-filing are conditional — there is
  * no proof of reply when no reply came — so the screen shows the slot and says it is
- * empty rather than hiding the question the form asked. An absent slot carries no
- * `file`, which is what makes the two states impossible to render the same way.
+ * empty rather than hiding the question the form asked.
+ *
+ * **There is no filename, page count or size here** (brief §5a.6). `StoredFileRef`
+ * holds a name and a size on the *filer's* side; nothing on the court side holds any of
+ * the three, and nothing anywhere holds a page count. All three were fixtures wearing a
+ * field's clothes, which is worse than no field: they invite a reader to trust them and
+ * a builder to keep them. What the file holds is the court's label for the slot and
+ * whether something is in it.
  */
 export type CaseDocument = {
   label: string;
   state: "filed" | "absent";
   kind: CaseDocumentKind;
-  file?: CaseDocumentFile;
 };
 
 /**
@@ -123,12 +216,45 @@ export type CaseDocument = {
 export type CaseRecord = {
   id: string;
   heading: string;
-  /** What kind of party or record this is — "Individual", "Company". */
+  /**
+   * What kind of litigant this record is — `Complainant.type` / `Accused.type`, which
+   * the registry holds as the closed enum `LITIGANT_TYPES` renders.
+   *
+   * Optional because not every record is a litigant: an advocate's used to read "For
+   * the complainant" on every advocate of every complaint, which is constant by
+   * construction — this file only ever lists the complainant's counsel, and before
+   * summons there is nobody else to have any. A tag identical on every record is the
+   * same defect as a constant fact (brief §5a.4b), so it went on 2026-09-11.
+   */
   tag?: string;
   facts: CaseFact[];
   documents?: CaseDocument[];
-  /** What the filer has sworn to about this record, in their own words' effect. */
-  confirmed?: string[];
+};
+
+/**
+ * Why a head of the file is empty.
+ *
+ * A closed reason rather than three authored sentences. "No witness added", "No
+ * advocate on record — the complainant appears in person" and "Nothing on record — the
+ * accused has not been summoned yet" were three shapes for one state, written at three
+ * call sites, and the clause after the dash was a *consequence* fused into the absence
+ * string — so nothing could sort, count or translate an empty head, and a fourth empty
+ * head would have needed a fourth sentence.
+ *
+ * The reason is the machine-readable half and the screen renders it through one slot;
+ * `explanation` is the product's voice and stays copy (`ui-craft` §1.6), carried beside
+ * the reason instead of inside it.
+ *
+ * Two reasons, not three, since 2026-09-11: `not-yet-due` existed only for the section
+ * on submissions from the accused, and that section is gone (owner — the accused cannot
+ * file before the complaint is registered, so the head read the same absence on every
+ * file forever). A reason with no head left to describe is a name the next reader cannot
+ * tell is dead, so it goes with the section rather than waiting for one.
+ */
+export type CaseAbsence = {
+  reason: "none-named" | "none-on-record";
+  /** What follows from the absence, when anything does. Product copy, not a fact. */
+  explanation?: string;
 };
 
 /** One block of the file — Cheque details, Advocate details, Witness details. */
@@ -139,9 +265,8 @@ export type CaseGroup = {
   records?: CaseRecord[];
   facts?: CaseFact[];
   documents?: CaseDocument[];
-  confirmed?: string[];
   /** Nothing at all was filed under this head. The group still renders and says so. */
-  empty?: string;
+  empty?: CaseAbsence;
 };
 
 /** A numbered part of the file, and the head of an entry in the reading index. */
@@ -151,15 +276,39 @@ export type CaseSection = {
   groups: CaseGroup[];
 };
 
+/**
+ * The second line of a timeline step, and what kind of thing it is.
+ *
+ * One `detail: string` used to hold three: a formatted day on the past steps, a spoken
+ * duration on the wait, and the name of a state on the decision nobody has made. A slot
+ * carrying three kinds of thing is the defect the reply row was already fixed for —
+ * nothing can put a `<time>` around the day, nothing can recount the wait in another
+ * language, and the module that formats them is the one furthest from the render. The
+ * kind is named here and the screen branches on it.
+ */
+export type CaseTimelineDetail =
+  /** The day the step happened, as an ISO day. */
+  | { kind: "date"; on: string }
+  /** How long the complaint has been in this step, in whole days. */
+  | { kind: "elapsed"; days: number }
+  /** A step that has not happened, named by the state it is in. */
+  | { kind: "state"; state: string };
+
 export type CaseTimelineStep = {
   label: string;
-  detail: string;
+  detail: CaseTimelineDetail;
   status: "past" | "current" | "future";
-  /** ISO day when the step has one — current wait and the unmade decision do not. */
-  on?: string;
 };
 
-/** A complaint's whole file, as this screen reads it. */
+/**
+ * A complaint's whole file, as this screen reads it.
+ *
+ * No `category` and no `type`: "Criminal" and "S.138, Negotiable Instruments Act, 1881"
+ * are identical on every complaint DRISTI will ever hold, and `FilingDraft.caseType`
+ * being the one-value union `"s138"` is the proof rather than an opinion. A column
+ * whose value never varies is the constant-column defect already killed on the queues
+ * (brief §5a.4b).
+ */
 export type CaseReview = {
   id: string;
   caseNumber: string;
@@ -174,12 +323,88 @@ export type CaseReview = {
    * them itself in a different register.
    */
   submittedOnLabel: string;
-  category: string;
-  type: string;
   court: string;
   sections: CaseSection[];
   timeline: CaseTimelineStep[];
 };
+
+/**
+ * Why a bank sent a cheque back, in the phrase a return memo carries.
+ *
+ * One register, not two. The second — the same fact inside a sworn sentence — existed
+ * only to feed a tinted alert that restated the row above it, and both went in the
+ * 2026-09-10 revision (brief §5a.10). `ChequeDetails.returnReason` is a string in the
+ * registry, machine-prefilled from the memo; whether it is really a closed list is
+ * §12.7, open.
+ */
+const RETURN_REASONS = {
+  "insufficient-funds": "Funds insufficient",
+  "payment-stopped": "Payment stopped by drawer",
+  "account-closed": "Account closed",
+} as const;
+
+export type ReturnReasonId = keyof typeof RETURN_REASONS;
+
+/**
+ * What kind of litigant a party is — `Complainant.type` and `Accused.type`, both the
+ * closed enum `"individual" | "institution"`.
+ *
+ * The tag beside a party's name used to be the string "Individual" typed on every
+ * complainant and "Company" typed on every accused, which made the slot decoration: a
+ * label that never differs tells a reader nothing, and it cannot be filtered or counted.
+ * It is the enum now, and at least one complaint in the queue is filed by an entity.
+ */
+const LITIGANT_TYPES = {
+  individual: "Individual",
+  institution: "Company",
+} as const;
+
+type LitigantType = keyof typeof LITIGANT_TYPES;
+
+/**
+ * Whether the cheque reached the bank inside the three months §138(a) allows.
+ *
+ * Derived from the two dates the same record already prints — the date on the cheque
+ * and the day it was deposited — rather than declared. It used to read "Confirmed by
+ * the complainant" on all thirty-five complaints, which is a declaration the e-filing
+ * cannot be submitted without; a value identical on every file is not a fact, and on a
+ * screen where the reader is deciding whether to take cognizance this is the row with a
+ * consequence attached to it.
+ */
+const DEPOSIT_LIMIT = {
+  "within-limit": "Yes",
+  "outside-limit": "No",
+} as const;
+
+type DepositLimit = keyof typeof DEPOSIT_LIMIT;
+
+/**
+ * What a witness is offered to speak to — `Witness.prove`.
+ *
+ * A real field, and the four things a §138 witness is actually called for. Every
+ * witness on every complaint used to be offered for the transaction, which made the row
+ * a caption on the group rather than an attribute of the person.
+ */
+const WITNESS_PROVES = [
+  "The transaction the cheque was issued for",
+  "The signature on the cheque",
+  "Service of the demand notice",
+  "The dishonour of the cheque",
+] as const;
+
+/**
+ * `AdrPrayer.otherDetails` — the filer's own words in the form's catch-all slot.
+ *
+ * Most complaints leave it empty and the row says so, which is why the slot stays on
+ * the page. A few say something, and the same closed list `CONDONATION_GROUNDS` is:
+ * fixed sentences a filer chose, not prose this module composes about the case.
+ */
+const OTHER_DETAILS = [
+  "The complainant is willing to receive the amount in instalments if the accused offers.",
+  "The accused issued cheques to other traders in Kollam which were returned in the same week.",
+  "The parties are known to each other and the complainant would accept a settlement before trial.",
+  "The complainant asks that the matter be heard early, the business being a small one.",
+] as const;
 
 /**
  * The states a derivation cannot decide, named for the rows that carry them.
@@ -192,35 +417,17 @@ export type CaseReview = {
  * reachable from a real row, and so the screen's empty and partial states can be seen
  * without editing code.
  *
+ * **Every mark lands in a field the registry holds** (brief §5a.8). `returnReason` →
+ * `ChequeDetails.returnReason`; `delayed` → `Jurisdiction.causeDate` / `filingDate`;
+ * `missing` → `IntakeSlot.file === null`; `witnesses` → the length of `Witness[]`;
+ * `replied` → `DemandNotice.replied`; `partPayment` → `DemandNotice.paymentStatus`.
+ * The mark this replaces, `partialLiability`, pointed at nothing — there is no
+ * full-or-part-liability field anywhere — and `accusedSubmissions` is gone with the
+ * section-4 fiction it invented.
+ *
  * A row with no entry gets `DEFAULT_MARKS` — a complete file, returned for insufficient
  * funds, filed in time, one witness.
  */
-/**
- * Why a bank sent a cheque back — in the two registers a file states it in.
- *
- * `memo` is the phrase a return memo carries, and it is what the cheque row shows.
- * `sworn` is the same fact inside a sentence, which is what the complainant's
- * confirmation needs: dropping the memo phrase into one produced "the cheque was
- * returned because of funds insufficient", and a file that reads like a machine wrote
- * it is a file a clerk stops trusting.
- */
-const RETURN_REASONS = {
-  "insufficient-funds": {
-    memo: "Funds insufficient",
-    sworn: "the insufficiency of funds",
-  },
-  "payment-stopped": {
-    memo: "Payment stopped by drawer",
-    sworn: "payment having been stopped by the drawer",
-  },
-  "account-closed": {
-    memo: "Account closed",
-    sworn: "the account having been closed",
-  },
-} as const;
-
-export type ReturnReasonId = keyof typeof RETURN_REASONS;
-
 type CaseFileMarks = {
   /** Why the bank sent the cheque back. */
   returnReason: ReturnReasonId;
@@ -228,24 +435,37 @@ type CaseFileMarks = {
   delayed: boolean;
   /** Someone the complainant says can speak to the transaction. */
   witnesses: number;
-  /** The cheque covers only part of what is owed. */
-  partialLiability: boolean;
+  /** The drawer paid part of the cheque amount after the notice. */
+  partPayment: boolean;
   /** Slots the filer left empty, by document label. */
   missing: string[];
   /** A reply to the demand notice came back. */
   replied: boolean;
-  /** The accused has filed something of their own. Almost never, before registration. */
-  accusedSubmissions: boolean;
+  /** `Complainant.type` — an entity complains as often as a person does. */
+  complainantType: LitigantType;
+  /** `Complainant.poa` — the complaint is filed through a power-of-attorney holder. */
+  poa: boolean;
+  /**
+   * The cheque was presented outside §138(a)'s three months, so the deposit row answers
+   * no. The chain is pushed, not the row: the dates and the answer have to agree, which
+   * is the whole point of deriving the answer from them.
+   */
+  depositedLate: boolean;
+  /** `AdrPrayer.otherDetails` — the filer wrote something in the catch-all slot. */
+  otherDetails: boolean;
 };
 
 const DEFAULT_MARKS: CaseFileMarks = {
   returnReason: "insufficient-funds",
   delayed: false,
   witnesses: 1,
-  partialLiability: false,
+  partPayment: false,
   missing: [],
   replied: false,
-  accusedSubmissions: false,
+  complainantType: "individual",
+  poa: false,
+  depositedLate: false,
+  otherDetails: false,
 };
 
 const CASE_FILE_MARKS: Record<string, Partial<CaseFileMarks>> = {
@@ -255,18 +475,34 @@ const CASE_FILE_MARKS: Record<string, Partial<CaseFileMarks>> = {
   /* Payment stopped rather than funds short — the other limb of §138, and a different
      reason for the same return. */
   "r-1722": { returnReason: "payment-stopped" },
-  /* A part-payment case: the cheque covers some of the debt, not all of it. */
-  "r-1654": { partialLiability: true, witnesses: 0 },
+  /* Part of the cheque amount was paid after the notice, so the balance is what is
+     claimed — `DemandNotice.paymentStatus: "part"`. */
+  "r-1654": { partPayment: true, witnesses: 0 },
   /* Delayed, and the delay-condonation application itself is not on record — the
      partial file the screen has to survive. */
   "r-1588": { delayed: true, missing: ["delay-application"] },
   /* No vakalat on the queue row either: a complaint in person, no witness named, and
      the accused's own ID proof never uploaded. */
-  "r-1490": { witnesses: 0, missing: ["accused-id-proof"] },
+  "r-1490": { witnesses: 0, missing: ["accused-id-proof"], otherDetails: true },
   /* The account itself had been closed by the time the cheque was presented. */
   "r-1402": { returnReason: "account-closed", replied: true },
-  /* The one file in the queue with something from the other side already on it. */
-  "r-1104": { accusedSubmissions: true, witnesses: 2 },
+  /* Presented outside the three months §138(a) allows — the one file where the deposit
+     row answers no, and the answer bears on whether the court can take cognizance at
+     all. Nothing else is marked here, so the row is read on its own. */
+  "r-1333": { depositedLate: true },
+  /* Two witnesses and a long wait — the file that used to carry an invented letter
+     from the accused. Nothing in the product records one before summons, so the mark
+     and its section-4 fact went (brief §5a.9a). The complaint is filed through a
+     power-of-attorney holder, which is what `Complainant.poa` records. */
+  "r-1104": { witnesses: 2, poa: true, otherDetails: true },
+  /* The one complaint filed by an entity rather than a person — `Complainant.type:
+     "institution"`, which is why the record carries a signatory and a registered office
+     where an individual carries an age and two addresses. Its accused is the queue's
+     other limited company, so the matter is a trade one on both sides. */
+  "r-612": { complainantType: "institution" },
+  /* A second part payment and a second power of attorney: one file carrying a state is
+     a fixture, two is a field. */
+  "r-330": { partPayment: true, poa: true },
 };
 
 function marksFor(id: string): CaseFileMarks {
@@ -297,10 +533,27 @@ function pick<T>(list: readonly T[], seed: number): T {
  * complaint's cheque number came out inside its complainant's mobile number, and
  * "Cheque no. 270960" sitting beside "+91 9740 270960" is the kind of thing that
  * tells a reader the whole file is made up.
+ *
+ * `count` is in the mix for the same reason, added 2026-09-11. Salting alone left two
+ * lengths of the same salt sharing every digit but the leading ones — a nine-digit line
+ * and a six-digit code taken modulo different powers of ten are the same number
+ * truncated — so a payee IFSC ended in the last six digits of the complainant's mobile
+ * on every complaint in the queue. Mixing the length in means a six-digit draw is not a
+ * window onto a nine-digit one.
+ *
+ * **The multiplier has to outrun the modulus** — the third correction, 2026-09-11, and
+ * the one that was visible without reading any code. A `CMP` serial is at most four
+ * digits, so `(seed + …) * 7919` came out around ten million; taken modulo the 900
+ * million a nine-digit draw needs, the remainder *was* the product, and every nine-digit
+ * number in the queue therefore began 10… or 11…. Every mobile on the court side read
+ * `+91 91…`. `2654435761` is Knuth's 32-bit multiplier and `>>> 0` takes the low 32 bits
+ * (4.29 billion), which covers the widest modulus here with room to spare — one change
+ * for every length, rather than a special case for nine digits.
  */
 function numberOf(seed: number, salt: number, count: number): number {
   const low = 10 ** (count - 1);
-  const mixed = (seed + salt * 31) * 7919 + salt * 104729;
+  const mixed =
+    ((seed + salt * 31 + count * 7) * 2654435761 + salt * 104729) >>> 0;
   return low + (mixed % (10 ** count - low));
 }
 
@@ -343,13 +596,29 @@ const POLICE_STATIONS = [
   "Chavara",
 ] as const;
 
-/** What the cheque was given for. Generic on purpose — the trade is the accused's. */
-const DEBTS = [
-  "Goods supplied on credit",
-  "Repayment of a hand loan",
-  "Return of an advance on a contract",
-  "Settlement of a work bill",
-  "Arrears of rent",
+/**
+ * What the cheque was given for, and why it was issued.
+ *
+ * Both are closed lists in the registry rather than free text — `NATURE_OF_DEBT` and
+ * `WHY_ISSUED` in `lib/filing/options.ts` — so the values here are that vocabulary
+ * rather than sentences composed for a case. Restated rather than imported: the court
+ * side does not read from the advocate's areas (`content.ts`), and two labels drifting
+ * apart is a smaller failure than a dependency in the wrong direction.
+ */
+const NATURE_OF_DEBT = [
+  "Loan / advance repayment",
+  "Payment for goods supplied",
+  "Payment for services rendered",
+  "Business / trade transaction",
+  "Repayment of borrowed money",
+] as const;
+
+const WHY_ISSUED = [
+  "Towards repayment of a loan",
+  "Towards payment for goods",
+  "Towards payment for services",
+  "As security, subsequently enforced",
+  "Discharge of an existing debt",
 ] as const;
 
 /** Who signed a company's cheque. Kollam given names, like the parties around them. */
@@ -368,6 +637,30 @@ const WITNESS_NAMES = [
   "Beena Thomas",
   "Nazeer Ahmed",
   "Sarala Devi",
+] as const;
+
+/** `DemandNotice.paymentStatus`, in the two labels the filing form offers. */
+const PAYMENT_STATUS = {
+  none: "No payment made",
+  part: "Part payment made",
+} as const;
+
+/**
+ * Why a late complaint says it was late — `Jurisdiction.condonationReason`.
+ *
+ * The filer's own words in a fixed slot, which is what that field holds. It replaces
+ * two sentences this module used to compose from whether the application had been
+ * uploaded: a machine result written as prose needs new prose for every new outcome,
+ * and a file whose grounds read as generated is a file a clerk stops trusting. When the
+ * application is not on record the row carries no value at all and the screen says so —
+ * the grounds live *in* the application, and citing one that never arrived is the
+ * contradiction this row was fixed for once already.
+ */
+const CONDONATION_GROUNDS = [
+  "The complainant was under treatment through the period and could not instruct counsel.",
+  "The papers were with a previous advocate and were returned only after the month had run.",
+  "The complainant was away from Kollam on work and returned after the period expired.",
+  "The parties were in settlement talks, which failed only after the month had run.",
 ] as const;
 
 /** A bank account, the way a cheque names one. */
@@ -413,8 +706,18 @@ function emailFor(name: string): string {
  * inside thirty days of the return, the cause of action accrues fifteen days after the
  * notice is served, and the complaint follows inside a month of that — unless the file
  * carries an application to condone the delay, in which case it deliberately does not.
+ *
+ * `depositedLate` is the other deliberate exception, and it is the graver one: a cheque
+ * presented outside §138(a)'s three months is one no complaint under the section can be
+ * built on. One complaint in the queue is in that state so the deposit row has
+ * something to answer, and the dates say so as loudly as the row does.
  */
-function chainFor(submittedOn: string, seed: number, delayed: boolean): CaseChain {
+function chainFor(
+  submittedOn: string,
+  seed: number,
+  delayed: boolean,
+  depositedLate: boolean,
+): CaseChain {
   /* A complaint in time is filed inside the month; a delayed one is filed past it, by
      enough that the application on the file has something to explain. */
   const sinceAccrual = delayed ? 44 + (seed % 90) : 4 + (seed % 24);
@@ -426,7 +729,11 @@ function chainFor(submittedOn: string, seed: number, delayed: boolean): CaseChai
      court can act on at all. The moduli are sized to stay clear of both. */
   const returnedOn = shiftDay(noticeSentOn, -(3 + (seed % 22)));
   const depositedOn = shiftDay(returnedOn, -(1 + (seed % 3)));
-  const chequeOn = shiftDay(depositedOn, -(6 + (seed % 70)));
+  /* Inside the three months, or past them by enough that no rounding hides it. */
+  const chequeOn = shiftDay(
+    depositedOn,
+    depositedLate ? -(95 + (seed % 20)) : -(6 + (seed % 70)),
+  );
   const repliedOn = shiftDay(noticeServedOn, 5 + (seed % 9));
   return {
     submittedOn,
@@ -474,7 +781,12 @@ export function caseChainFor(id: string, today: string): CaseChain | undefined {
   if (!complaint) return undefined;
   const marks = marksFor(complaint.id);
   const submittedOn = shiftDay(today, -complaint.daysSinceSubmitted);
-  return chainFor(submittedOn, serialOf(complaint.caseNumber), marks.delayed);
+  return chainFor(
+    submittedOn,
+    serialOf(complaint.caseNumber),
+    marks.delayed,
+    marks.depositedLate,
+  );
 }
 
 /** Every step of the chain, oldest first, plus the gap the delay turns on. */
@@ -506,36 +818,6 @@ function chequeAmountFor(seed: number): number {
 
 /* ── The file ───────────────────────────────────────────────────────────────────── */
 
-/** "Adv. Suresh Menon" → "suresh-menon", for the filename of what they filed. */
-function fileSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/^adv\.?\s+/, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
-/** `05-08-2025` — the way a scanned upload is named, not the way a page reads. */
-function shortDay(day: string): string {
-  const [year, month, date] = day.split("-");
-  return `${date}-${month}-${year}`;
-}
-
-/**
- * A plausible size for a scan of `pages` pages.
- *
- * Stable per slot rather than random, and derived here rather than through one of the
- * three `formatBytes` helpers the repo already has: all three sit in the advocate's
- * areas (`lib/tasks`, `lib/filing`, `components/cases`), which the court side does not
- * read from (`content.ts`). These are fixture strings, not bytes off a disk, so there
- * is nothing to count.
- */
-function fileSize(key: string, pages: number): string {
-  const perPage = 74 + ([...key].reduce((sum, c) => sum + c.charCodeAt(0), 0) % 58);
-  const kb = pages * perPage;
-  return kb < 1024 ? `${kb} KB` : `${(kb / 1024).toFixed(1)} MB`;
-}
-
 /**
  * `filed`, unless this file is one of the ones with that slot left empty.
  *
@@ -543,33 +825,15 @@ function fileSize(key: string, pages: number): string {
  * parties file an ID proof, so a `missing` list holding labels would empty both slots
  * when only one of them is empty — and naming the slot "ID proof of the accused" to
  * keep them apart put the group's own title back inside every row of it.
- *
- * An empty slot gets no `file`: there is no upload to name, and inventing a filename
- * for a document nobody sent is exactly the kind of detail that makes a demo lie.
  */
 function slot(
-  spec: {
-    key: string;
-    label: string;
-    kind: CaseDocumentKind;
-    /** The uploaded filename, without extension — every court upload here is a PDF. */
-    name: string;
-    pages: number;
-  },
+  spec: { key: string; label: string; kind: CaseDocumentKind },
   missing: string[],
 ): CaseDocument {
-  if (missing.includes(spec.key)) {
-    return { label: spec.label, state: "absent", kind: spec.kind };
-  }
   return {
     label: spec.label,
-    state: "filed",
     kind: spec.kind,
-    file: {
-      name: `${spec.name}.pdf`,
-      pages: spec.pages,
-      size: fileSize(spec.key, spec.pages),
-    },
+    state: missing.includes(spec.key) ? "absent" : "filed",
   };
 }
 
@@ -591,7 +855,7 @@ export function caseReviewFor(
   const seed = serialOf(complaint.caseNumber);
   const marks = marksFor(complaint.id);
   const submittedOn = shiftDay(today, -complaint.daysSinceSubmitted);
-  const chain = chainFor(submittedOn, seed, marks.delayed);
+  const chain = chainFor(submittedOn, seed, marks.delayed, marks.depositedLate);
   const amount = chequeAmountFor(seed);
 
   return {
@@ -601,19 +865,14 @@ export function caseReviewFor(
     daysSinceSubmitted: complaint.daysSinceSubmitted,
     submittedOn,
     submittedOnLabel: formatCaseDate(submittedOn),
-    category: "Criminal",
-    /* The one offence this product tries. Written the way the domain model writes it
-       (`docs/product/terminology.md`), not as the reference's `NIA S138`. */
-    type: "S.138, Negotiable Instruments Act, 1881",
     court: CURRENT_STAFF.court,
     sections: [
       litigantSection(complaint, seed, marks),
-      caseSpecificSection(complaint, seed, marks, chain, amount),
+      caseSpecificSection(seed, marks, chain, amount),
       additionalSection(complaint, seed, marks),
-      accusedSubmissionsSection(marks),
       paymentSection(seed, marks),
     ],
-        timeline: timelineFor(complaint, submittedOn, marks),
+    timeline: timelineFor(complaint, submittedOn, marks),
   };
 }
 
@@ -625,6 +884,7 @@ function litigantSection(
 ): CaseSection {
   const complainant = complaint.parties.complainant;
   const accused = complaint.parties.accused;
+  const entity = marks.complainantType === "institution";
 
   return {
     id: "litigants",
@@ -638,23 +898,60 @@ function litigantSection(
           {
             id: "complainant-1",
             heading: complainant,
-            tag: "Individual",
+            tag: LITIGANT_TYPES[marks.complainantType],
             facts: [
+              /* An entity complains through the person who signs for it and is reached
+                 at a registered office; a person has an age and two addresses. Same
+                 shape the accused record already uses for the same reason, and the
+                 reason the tag beside the name is worth printing. */
+              ...(entity
+                ? [
+                    {
+                      term: FACT_TERMS.authorisedSignatory,
+                      value: pick(SIGNATORIES, seed + 4),
+                    },
+                  ]
+                : []),
               {
-                term: "Mobile number",
+                term: FACT_TERMS.mobile,
                 value: mobileFor(seed, 1),
                 numeric: true,
               },
-              { term: "Email", value: emailFor(complainant) },
-              { term: "Age", value: String(28 + (seed % 38)), numeric: true },
-              { term: "Address", value: addressFor(seed) },
+              { term: FACT_TERMS.email, value: emailFor(complainant) },
+              ...(entity
+                ? [
+                    {
+                      term: FACT_TERMS.registeredOffice,
+                      value: addressFor(seed + 7),
+                    },
+                  ]
+                : [
+                    {
+                      term: FACT_TERMS.age,
+                      value: String(28 + (seed % 38)),
+                      numeric: true,
+                    },
+                    {
+                      term: FACT_TERMS.permanentAddress,
+                      value: addressFor(seed),
+                    },
+                    /* `Complainant.res`, which the form collects when `permSame ===
+                       "no"`. Salted away from the permanent address: the two rows used
+                       to print the same string under two labels, which reads as a
+                       rendering bug rather than as two answers that happened to
+                       agree. */
+                    {
+                      term: FACT_TERMS.currentAddress,
+                      value: addressFor(seed + 3),
+                    },
+                  ]),
+              /* `Complainant.poa` is a `YesNo`, and it is the complainant's alone — the
+                 row read "No" on every complaint until 2026-09-11, when the mark that
+                 lands in that field arrived. Who the holder is belongs to
+                 `poaHolder`, which this screen does not yet have a slot for. */
               {
-                term: "Current residential address",
-                value: addressFor(seed),
-              },
-              {
-                term: "Power of attorney given to somebody else",
-                value: "No",
+                term: FACT_TERMS.powerOfAttorney,
+                value: marks.poa ? "Yes" : "No",
               },
             ],
             documents: [
@@ -663,8 +960,6 @@ function litigantSection(
                   key: "complainant-id-proof",
                   label: "ID proof",
                   kind: "id",
-                  name: "id-proof-complainant",
-                  pages: 1,
                 },
                 marks.missing,
               ),
@@ -673,8 +968,6 @@ function litigantSection(
                   key: "s225-affidavit",
                   label: "Affidavit u/s 225 BNSS",
                   kind: "letter",
-                  name: "affidavit-s225-bnss",
-                  pages: 2,
                 },
                 marks.missing,
               ),
@@ -690,36 +983,29 @@ function litigantSection(
           {
             id: "accused-1",
             heading: accused,
-            /* Every accused in this queue is a trading name, and a company's cheque is
-               signed by somebody — which is why the signatory is a fact on the cheque
-               and a fact here. */
-            tag: "Company",
+            /* `Accused.type`, from the same enum the complainant's tag comes from.
+               Every accused in this queue is a trading name — the queue's own data, not
+               a decision taken here — and under S-141 a company's cheque is signed by
+               somebody who answers for it, which is the row below. */
+            tag: LITIGANT_TYPES.institution,
             facts: [
               {
-                term: "Authorised signatory",
+                term: FACT_TERMS.authorisedSignatory,
                 value: pick(SIGNATORIES, seed),
               },
               {
-                term: "Mobile number",
+                term: FACT_TERMS.mobile,
                 value: mobileFor(seed, 2),
                 numeric: true,
               },
-              { term: "Email" },
-              { term: "Registered office", value: addressFor(seed + 5) },
-              {
-                term: "Power of attorney given to somebody else",
-                value: "No",
-              },
+              /* The one address slot an accused has. `poa` exists on `Complainant`
+                 only, which is why the accused's power-of-attorney row went. */
+              { term: FACT_TERMS.email },
+              { term: FACT_TERMS.registeredOffice, value: addressFor(seed + 5) },
             ],
             documents: [
               slot(
-                {
-                  key: "accused-id-proof",
-                  label: "ID proof",
-                  kind: "id",
-                  name: "id-proof-accused-signatory",
-                  pages: 1,
-                },
+                { key: "accused-id-proof", label: "ID proof", kind: "id" },
                 marks.missing,
               ),
               slot(
@@ -727,8 +1013,6 @@ function litigantSection(
                   key: "company-documents",
                   label: "Company documents",
                   kind: "form",
-                  name: "certificate-of-incorporation",
-                  pages: 3,
                 },
                 marks.missing,
               ),
@@ -742,7 +1026,6 @@ function litigantSection(
 
 /** 2 — the cheque, the debt behind it, the notice, and any delay. */
 function caseSpecificSection(
-  complaint: RegisterCase,
   seed: number,
   marks: CaseFileMarks,
   chain: ReturnType<typeof chainFor>,
@@ -750,12 +1033,18 @@ function caseSpecificSection(
 ): CaseSection {
   const payee = bankFor(seed, 1);
   const payer = bankFor(seed, 2);
-  const debt = pick(DEBTS, seed);
-  /* Hoisted: the cheque's number heads its record and names the scan of it, and the
-     two must not be able to disagree. */
+  /* Hoisted: the cheque's number heads its record, and nothing else may disagree
+     with it. */
   const chequeNumber = numberOf(seed, 3, 6);
-  /* A part-payment case: the cheque is for less than what is claimed to be owed. */
-  const owed = marks.partialLiability ? Math.round((amount * 1.6) / 100) * 100 : amount;
+  /* What was already paid comes off the claim — `DemandNotice.partAmount`, so it is
+     less than the cheque it is paid against. */
+  const partAmount = Math.round((amount * 0.35) / 100) * 100;
+  /* Read off the chain rather than off the mark, so the row and the two dates it sits
+     under can never disagree. */
+  const depositLimit: DepositLimit =
+    daysBetween(chain.chequeOn, chain.depositedOn) <= PRESENTATION_WINDOW_DAYS
+      ? "within-limit"
+      : "outside-limit";
 
   const groups: CaseGroup[] = [
     {
@@ -768,44 +1057,58 @@ function caseSpecificSection(
           heading: `Cheque no. ${chequeNumber}`,
           facts: [
             {
-              term: "Signatory of the dishonoured cheque",
-              value: pick(SIGNATORIES, seed),
+              term: FACT_TERMS.amount,
+              value: formatChequeAmount(amount),
+              numeric: true,
             },
-            { term: "Cheque amount", value: formatChequeAmount(amount), numeric: true },
-            { term: "Date of the cheque", value: formatCaseDate(chain.chequeOn), numeric: true },
-            { term: "Payee name on the cheque", value: complaint.parties.complainant },
-            { term: "Payee bank", value: payee.name },
-            { term: "Payee bank branch", value: payee.branch },
-            { term: "Payee IFSC code", value: payee.ifsc, numeric: true },
-            { term: "Payer bank", value: payer.name },
-            { term: "Payer bank branch", value: payer.branch },
-            { term: "Payer IFSC code", value: payer.ifsc, numeric: true },
             {
-              term: "Date the cheque was deposited",
+              term: FACT_TERMS.chequeDated,
+              value: formatCaseDate(chain.chequeOn),
+              numeric: true,
+            },
+            { term: FACT_TERMS.payeeBank, value: payee.name },
+            { term: FACT_TERMS.payeeBranch, value: payee.branch },
+            { term: FACT_TERMS.payeeIfsc, value: payee.ifsc, numeric: true },
+            { term: FACT_TERMS.payerBank, value: payer.name },
+            { term: FACT_TERMS.payerBranch, value: payer.branch },
+            { term: FACT_TERMS.payerIfsc, value: payer.ifsc, numeric: true },
+            {
+              term: FACT_TERMS.depositedOn,
               value: formatCaseDate(chain.depositedOn),
               numeric: true,
             },
             {
-              term: "Date of return as per the cheque return memo",
+              term: FACT_TERMS.returnedOn,
               value: formatCaseDate(chain.returnedOn),
               numeric: true,
             },
             {
-              term: "Reason for the return of the cheque",
-              value: RETURN_REASONS[marks.returnReason].memo,
+              term: FACT_TERMS.returnReason,
+              value: RETURN_REASONS[marks.returnReason],
             },
+            /* Two police stations, because the registry holds two: §138 jurisdiction
+               turns on where the payee's bank sits, and the drawer's bank is the other
+               end of the same question. One unqualified row used to stand for both. */
             {
-              term: "Police station with jurisdiction over the cheque",
+              term: FACT_TERMS.payeePolice,
               value: `${pick(POLICE_STATIONS, seed)} police station`,
             },
-            { term: "Additional details about the cheque" },
-          ],
-          /* The two facts a §138 complaint turns on, and the complainant has sworn to
-             both. The court checks them against the dates above rather than taking
-             them; showing them together is what makes that check one glance. */
-          confirmed: [
-            "The cheque was deposited within three months from the date of the cheque.",
-            `The cheque was returned because of ${RETURN_REASONS[marks.returnReason].sworn}.`,
+            {
+              term: FACT_TERMS.drawerPolice,
+              value: `${pick(POLICE_STATIONS, seed + 2)} police station`,
+            },
+            /* §138(a), answered rather than declared. It used to read "Confirmed by the
+               complainant" on every complaint — the filer's own tick, which the e-filing
+               cannot be submitted without, so it was a constant wearing a fact's
+               clothes. The court's question is whether the two dates above are less than
+               three months apart, and that is a check, not a declaration. */
+            {
+              term: FACT_TERMS.depositedInTime,
+              value: DEPOSIT_LIMIT[depositLimit],
+              /* The one row on this file with a cognizance consequence attached to its
+                 answer, and only when the answer is no. */
+              exception: depositLimit === "outside-limit",
+            },
           ],
           documents: [
             slot(
@@ -813,29 +1116,15 @@ function caseSpecificSection(
                 key: "dishonoured-cheque",
                 label: "Dishonoured cheque",
                 kind: "cheque",
-                name: `cheque-${chequeNumber}`,
-                pages: 1,
               },
               marks.missing,
             ),
             slot(
-              {
-                key: "deposit-proof",
-                label: "Proof of deposit",
-                kind: "memo",
-                name: `deposit-counterfoil-${shortDay(chain.depositedOn)}`,
-                pages: 1,
-              },
+              { key: "deposit-proof", label: "Proof of deposit", kind: "memo" },
               marks.missing,
             ),
             slot(
-              {
-                key: "return-memo",
-                label: "Cheque return memo",
-                kind: "memo",
-                name: `return-memo-${shortDay(chain.returnedOn)}`,
-                pages: 1,
-              },
+              { key: "return-memo", label: "Cheque return memo", kind: "memo" },
               marks.missing,
             ),
           ],
@@ -847,22 +1136,21 @@ function caseSpecificSection(
       title: "Debt or liability details",
       icon: ReceiptIndianRupeeIcon,
       facts: [
-        { term: "Nature of the debt or liability", value: debt },
+        { term: FACT_TERMS.natureOfDebt, value: pick(NATURE_OF_DEBT, seed) },
         {
-          term: "Cheque received for full or part liability",
-          value: marks.partialLiability ? "Part liability" : "Full liability",
+          term: FACT_TERMS.paymentAgainstCheque,
+          value: marks.partPayment ? PAYMENT_STATUS.part : PAYMENT_STATUS.none,
         },
-        { term: "Amount covered by the cheque", value: formatChequeAmount(amount), numeric: true },
-        ...(marks.partialLiability
+        ...(marks.partPayment
           ? [
               {
-                term: "Total amount claimed to be owed",
-                value: formatChequeAmount(owed),
+                term: FACT_TERMS.partAmount,
+                value: formatChequeAmount(partAmount),
                 numeric: true,
               },
             ]
           : []),
-        { term: "Additional details of the debt or liability" },
+        { term: FACT_TERMS.whyIssued, value: pick(WHY_ISSUED, seed) },
       ],
       documents: [
         slot(
@@ -870,8 +1158,6 @@ function caseSpecificSection(
             key: "debt-proof",
             label: "Proof of the debt or liability",
             kind: "receipt",
-            name: "ledger-extract",
-            pages: 4,
           },
           marks.missing,
         ),
@@ -883,22 +1169,26 @@ function caseSpecificSection(
       icon: ScrollTextIcon,
       facts: [
         {
-          term: "Date the notice was dispatched",
+          term: FACT_TERMS.noticeDispatched,
           value: formatCaseDate(chain.noticeSentOn),
           numeric: true,
         },
         {
-          term: "Date of service or deemed service on the drawer",
+          term: FACT_TERMS.noticeServed,
           value: formatCaseDate(chain.noticeServedOn),
           numeric: true,
         },
+        /* `DemandNotice.replied` is a `YesNo`, so this row is one. It used to hold a
+           date on a file that had a reply and the sentence "No reply received" on one
+           that did not — one slot carrying two kinds of thing, which nothing can sort,
+           filter or translate. The date the reply came is not a field the registry
+           holds at all. */
         {
-          term: "Date of reply to the notice",
-          value: marks.replied ? formatCaseDate(chain.repliedOn) : "No reply received",
-          numeric: marks.replied,
+          term: FACT_TERMS.replyReceived,
+          value: marks.replied ? "Yes" : "No",
         },
         {
-          term: "Date the fifteen days from service were complete",
+          term: FACT_TERMS.noticePeriodEnded,
           value: formatCaseDate(chain.accruedOn),
           numeric: true,
         },
@@ -909,29 +1199,15 @@ function caseSpecificSection(
             key: "demand-notice",
             label: "Legal demand notice",
             kind: "letter",
-            name: `demand-notice-${shortDay(chain.noticeSentOn)}`,
-            pages: 2,
           },
           marks.missing,
         ),
         slot(
-          {
-            key: "dispatch-proof",
-            label: "Proof of dispatch",
-            kind: "memo",
-            name: "speedpost-booking-receipt",
-            pages: 1,
-          },
+          { key: "dispatch-proof", label: "Proof of dispatch", kind: "memo" },
           marks.missing,
         ),
         slot(
-          {
-            key: "service-proof",
-            label: "Proof of service",
-            kind: "memo",
-            name: "speedpost-delivery-confirmation",
-            pages: 1,
-          },
+          { key: "service-proof", label: "Proof of service", kind: "memo" },
           marks.missing,
         ),
         /* No reply, no proof of one. The slot stays on the page because the form
@@ -942,8 +1218,6 @@ function caseSpecificSection(
                 key: "notice-reply",
                 label: "Reply to the notice",
                 kind: "letter",
-                name: `reply-to-notice-${shortDay(chain.repliedOn)}`,
-                pages: 2,
               },
               marks.missing,
             )
@@ -966,26 +1240,24 @@ function caseSpecificSection(
       title: "Delay condonation application",
       icon: ScaleIcon,
       facts: [
+        /* No "Filed within one month: No". The group is on the file only because the
+           complaint was late, so the heading has already answered it and the row was
+           the same word twice (2026-09-11). What the court needs is by how much. */
         {
-          term: "Filed within one month of the cause of action",
-          value: "No",
-        },
-        {
-          term: "Days beyond the one month",
+          term: FACT_TERMS.daysBeyondMonth,
           value: String(Math.max(0, chain.sinceAccrual - FILING_WINDOW_DAYS)),
           numeric: true,
         },
-        /* The grounds live in the application, so what this row can say depends on
-           whether the application arrived. Citing a document that is not on the file
-           is the same contradiction as a synopsis calling a notice unanswered on a
-           file that carries the reply — and on a late complaint it is the row a court
-           would act on. Kept when the details pass was reverted: a correctness fix,
-           not a change of dress. */
+        /* The grounds live *in* the application, so a file that never carried one has
+           nothing to state here and says so. Citing a document that is not on the file
+           is the contradiction this row was fixed for on 2026-09-09; what changed on
+           2026-09-10 is that the absence is now the empty slot the screen already
+           renders in words, rather than a second composed sentence. */
         {
-          term: "Grounds stated",
+          term: FACT_TERMS.grounds,
           value: applicationFiled
-            ? "Set out in the application on record"
-            : "The application itself was never uploaded",
+            ? pick(CONDONATION_GROUNDS, seed)
+            : undefined,
         },
       ],
       documents: [
@@ -994,8 +1266,6 @@ function caseSpecificSection(
             key: "delay-application",
             label: "Delay condonation application",
             kind: "letter",
-            name: "delay-condonation-application",
-            pages: 3,
           },
           marks.missing,
         ),
@@ -1022,17 +1292,22 @@ function additionalSection(
         id: "witnesses",
         title: "Witness details",
         icon: UserRoundCheckIcon,
-        empty: marks.witnesses === 0 ? "No witness added" : undefined,
+        /* "Named", not "added": a complainant names a witness in the complaint, and
+           "added" is the form's word for what the filer did to a list. */
+        empty:
+          marks.witnesses === 0
+            ? { reason: "none-named" as const }
+            : undefined,
         records: Array.from({ length: marks.witnesses }, (_, index) => ({
           id: `witness-${index + 1}`,
           heading: pick(WITNESS_NAMES, seed + index),
           facts: [
             {
-              term: "Speaks to",
-              value: "The transaction the cheque was issued for",
+              term: FACT_TERMS.speaksTo,
+              value: pick(WITNESS_PROVES, seed + index * 3),
             },
             {
-              term: "Mobile number",
+              term: FACT_TERMS.mobile,
               value: mobileFor(seed, 40 + index),
               numeric: true,
             },
@@ -1043,33 +1318,25 @@ function additionalSection(
         id: "complaint",
         title: "Complaint",
         icon: FileTextIcon,
+        /* No synopsis. The two versions this group used to carry were composed from
+           whether a reply had come back — a machine result written as prose, so a third
+           outcome would have needed a third paragraph, and nothing could sort, filter
+           or translate it. What the complaint says is in the complaint, which is on the
+           file below. */
+        /* No prayer either, since 2026-09-11: the relief §138 allows is the statute's —
+           trial, punishment, compensation — so the row read the same sentence on all
+           thirty-five complaints, which is what `Criminal` and `S.138` were cut for. */
         facts: [
           {
-            term: "Synopsis",
-            /* The two versions exist because the file states elsewhere whether a reply
-               came, and a synopsis saying the notice went unanswered on a file that
-               carries the reply is the one contradiction a clerk reading both would
-               certainly catch. */
-            value: marks.replied
-              ? `${complaint.parties.complainant} says the cheque drawn by ${complaint.parties.accused} was returned unpaid, and that the reply to the demand notice did not meet the demand.`
-              : `${complaint.parties.complainant} says the cheque drawn by ${complaint.parties.accused} was returned unpaid and the demand notice went unanswered.`,
+            term: FACT_TERMS.otherDetails,
+            value: marks.otherDetails
+              ? pick(OTHER_DETAILS, seed)
+              : undefined,
           },
-          {
-            term: "Prayer",
-            value:
-              "That the accused be tried and punished under section 138, and that compensation be awarded.",
-          },
-          { term: "Additional details" },
         ],
         documents: [
           slot(
-            {
-              key: "complaint",
-              label: "Complaint",
-              kind: "letter",
-              name: `complaint-${complaint.caseNumber.toLowerCase().replace(/\//g, "-")}`,
-              pages: 9,
-            },
+            { key: "complaint", label: "Complaint", kind: "letter" },
             marks.missing,
           ),
           slot(
@@ -1077,8 +1344,6 @@ function additionalSection(
               key: "s223-affidavit",
               label: "Affidavit u/s 223 BNSS",
               kind: "letter",
-              name: "affidavit-s223-bnss",
-              pages: 2,
             },
             marks.missing,
           ),
@@ -1088,29 +1353,40 @@ function additionalSection(
         id: "advocates",
         title: "Advocate details",
         icon: ScaleIcon,
+        /* The clause is the *consequence* of the absence, not part of it: a complaint
+           with no vakalat is one the complainant conducts in person, which is a thing
+           the court needs told and is product copy rather than a field. It used to be
+           fused into the empty string with a dash. */
         empty:
           complainantCounsel.length === 0
-            ? "No advocate on record — the complainant appears in person"
+            ? {
+                reason: "none-on-record" as const,
+                explanation: "The complainant appears in person.",
+              }
             : undefined,
         records: complainantCounsel.map((counsel, index) => ({
           id: `advocate-${index + 1}`,
           heading: counsel.name,
-          tag: "For the complainant",
+          /* No tag. Every advocate this file lists is `counselFor(…, "complainant")`,
+             so "For the complainant" was the same words under every name — and before
+             summons the accused has no counsel for it to be distinguished from. */
           facts: [
             {
-              term: "Bar registration",
+              term: FACT_TERMS.barRegistration,
               value: `KER/${1000 + ((seed + index * 37) % 8000)}/20${10 + ((seed + index) % 15)}`,
               numeric: true,
             },
           ],
           documents: [
+            /* `REG-14` collects a photograph of the **Bar ID card**, and that is what
+               the file holds. It was labelled "ID proof", which is a document
+               `REG-13` / handover §5.2 record is *not* collected at advocate
+               registration at all. */
             slot(
               {
-                key: `advocate-${index + 1}-id-proof`,
-                label: "ID proof",
+                key: `advocate-${index + 1}-bar-id-card`,
+                label: "Bar ID card",
                 kind: "id",
-                name: `bar-card-${fileSlug(counsel.name)}`,
-                pages: 1,
               },
               marks.missing,
             ),
@@ -1119,8 +1395,6 @@ function additionalSection(
                 key: `advocate-${index + 1}-vakalatnama`,
                 label: "Vakalatnama",
                 kind: "form",
-                name: `vakalatnama-${fileSlug(counsel.name)}`,
-                pages: 1,
               },
               marks.missing,
             ),
@@ -1131,57 +1405,7 @@ function additionalSection(
   };
 }
 
-/**
- * 4 — anything the other side has put on the file.
- *
- * Almost always nothing: the accused has not been summoned, because the complaint has
- * not been registered. The section stays because "has the other side filed anything?"
- * is a question the court asks before it decides, and *no* is an answer to it.
- */
-function accusedSubmissionsSection(marks: CaseFileMarks): CaseSection {
-  return {
-    id: "accused-submissions",
-    title: "Submissions from the accused",
-    groups: [
-      {
-        /* The group names what could be filed rather than repeating the section
-           heading a few pixels above it — "Submissions from the accused" twice, once
-           as the section and once as the only thing in it, was the reference's own
-           echo and there is no reason to keep it. */
-        id: "accused-submissions",
-        title: "Reply, objections and documents",
-        icon: UsersRoundIcon,
-        empty: marks.accusedSubmissions
-          ? undefined
-          : "Nothing on record — the accused has not been summoned yet",
-        facts: marks.accusedSubmissions
-          ? [
-              {
-                term: "Filed",
-                value: "A letter asking that the complaint not be entertained",
-              },
-            ]
-          : undefined,
-        documents: marks.accusedSubmissions
-          ? [
-              slot(
-                {
-                  key: "accused-letter",
-                  label: "Letter from the accused",
-                  kind: "letter",
-                  name: "letter-from-accused",
-                  pages: 1,
-                },
-                marks.missing,
-              ),
-            ]
-          : undefined,
-      },
-    ],
-  };
-}
-
-/** 5 — what was paid to file. */
+/** 4 — what was paid to file. */
 function paymentSection(seed: number, marks: CaseFileMarks): CaseSection {
   return {
     id: "payment",
@@ -1193,25 +1417,19 @@ function paymentSection(seed: number, marks: CaseFileMarks): CaseSection {
         icon: ReceiptIndianRupeeIcon,
         facts: [
           {
-            term: "Court fee paid",
+            term: FACT_TERMS.courtFeePaid,
             value: formatChequeAmount(200 + (seed % 8) * 25),
             numeric: true,
           },
           {
-            term: "Receipt number",
+            term: FACT_TERMS.receiptNumber,
             value: `KL-CF-${String(seed).padStart(6, "0")}`,
             numeric: true,
           },
         ],
         documents: [
           slot(
-            {
-              key: "payment-receipt",
-              label: "Payment receipt",
-              kind: "receipt",
-              name: `court-fee-receipt-kl-cf-${String(seed).padStart(6, "0")}`,
-              pages: 1,
-            },
+            { key: "payment-receipt", label: "Payment receipt", kind: "receipt" },
             marks.missing,
           ),
         ],
@@ -1221,19 +1439,18 @@ function paymentSection(seed: number, marks: CaseFileMarks): CaseSection {
 }
 
 /**
- * Where the complaint has got to — a dummy registry history, oldest first.
+ * Where the complaint has got to — six steps, each one an event the product records.
  *
- * It follows the Kerala spine as far as this queue sits: e-filing and court fee, then
- * scrutiny, then placement before the magistrate (`docs/product/product-foundation.md`
- * §3). It stops there. Cognizance and numbering are the act this list is waiting for,
- * and this build still performs none of it — so the last two steps are always the wait
- * this row already states, and a decision that has not been made.
+ * Trimmed on 2026-09-10 to what can be traced (brief §5a.9). *Placed before the
+ * magistrate* and *Letter from the accused received* are gone: neither appears anywhere
+ * in `docs/product/`, the Kerala spine runs filing → scrutiny → **cognizance** with no
+ * placement step between, and nothing records a filing from an accused who has not been
+ * summoned. Every step below names its source on the line above it.
  *
- * How much of that path has happened is derived from the wait, the same way the file's
+ * How much of the path has happened is derived from the wait, the same way the file's
  * dates are: a complaint submitted yesterday has not been through scrutiny; one that
- * has sat for months has. Particular marks add the events the file itself already
- * carries (a delay-condonation application that is on record; a letter from the
- * accused). Nothing here is a live system event.
+ * has sat for months has. Nothing here is a live system event, and two of the steps
+ * name spine events no store holds today — flagged in §11 of the brief.
  *
  * Oldest first, like the case history on a listing's overview: two orderings for the
  * same kind of column on the same side of the app is how two screens start disagreeing
@@ -1246,69 +1463,67 @@ function timelineFor(
 ): CaseTimelineStep[] {
   const wait = complaint.daysSinceSubmitted;
   const steps: CaseTimelineStep[] = [
+    /* `FilingDraft.status: "filed"` + `submittedAt`; spine step 1. */
     pastStep("Complaint submitted", submittedOn),
+    /* `SignState.paid` / `paidAt` / `paidAmount`; spine step 1, court fee on filing. */
     pastStep("Court fee received", submittedOn),
   ];
 
-  /* Only when the application is actually on the file. A delayed complaint whose
-     application was never uploaded already says so in the delay-condonation group;
-     claiming it was filed here would contradict that row. */
+  /* `Jurisdiction.condonationReason` + the application's own `IntakeSlot` — and only
+     when the application is actually on the file. A delayed complaint whose application
+     was never uploaded already says so in the delay-condonation group; claiming it was
+     filed here would contradict that row. */
   if (marks.delayed && !marks.missing.includes("delay-application")) {
     steps.push(pastStep("Delay condonation application filed", submittedOn));
   }
 
-  /* Offsets stay strictly inside the wait, so no dummy event lands on today or after
-     it. A one-day complaint has only been submitted; a week-old one has been through
-     scrutiny; eight days is the earliest a file in this queue would have been placed
-     before the magistrate. */
+  /* Spine step 2 — "Scrutiny & defect check (Registry; before numbering / cognizance)".
+     No store holds the event today. Offsets stay strictly inside the wait, so no dummy
+     event lands on today or after it. */
   if (wait >= 3) {
     steps.push(
       pastStep("Taken up for scrutiny", shiftDay(submittedOn, Math.min(2, wait - 1))),
     );
   }
 
+  /* Spine step 2, the other end of it — likewise unbacked by any store today. */
   if (wait >= 7) {
     steps.push(
       pastStep("Scrutiny completed", shiftDay(submittedOn, Math.min(5, wait - 1))),
     );
   }
 
-  if (wait >= 8) {
-    steps.push(
-      pastStep(
-        "Placed before the magistrate",
-        shiftDay(submittedOn, Math.min(7, wait - 1)),
-      ),
-    );
-  }
-
-  if (marks.accusedSubmissions && wait >= 20) {
-    steps.push(
-      pastStep(
-        "Letter from the accused received",
-        shiftDay(submittedOn, Math.min(18, wait - 1)),
-      ),
-    );
-  }
-
+  /* Derived from `daysSinceSubmitted` — the queue's own current state. */
   steps.push({
     label: "Waiting to be registered",
-    detail: formatDaysWaitingLong(wait),
+    detail: { kind: "elapsed", days: wait },
     status: "current",
   });
+  /* The act this build does not perform (brief §5.7, §12.4). */
   steps.push({
     label: "Registration decision",
-    detail: "Not made",
+    detail: { kind: "state", state: "Not made" },
     status: "future",
   });
   return steps;
 }
 
 function pastStep(label: string, on: string): CaseTimelineStep {
-  return { label, detail: formatCaseDate(on), status: "past", on };
+  return { label, detail: { kind: "date", on }, status: "past" };
 }
 
-/** "281 days so far" — the wait, spoken, for the one place it is not a column. */
+/**
+ * "281 days so far" — the wait, spoken, for the one place it is not a column.
+ *
+ * The eyebrow's "281 days waiting" is *not* here any more. It was a fourth
+ * `formatDaysWaiting` in `lib/employee/`, and — the part that made it a defect rather
+ * than a duplication — it returned a different string under a name two sibling modules
+ * already export ("281" on both queues). `register-advocates.ts` already spells this
+ * one `formatDaysWaitingSpoken` and returns the identical words, so the screen calls
+ * that. The three surviving `formatDaysWaiting` exports still disagree with each other
+ * across `register-cases.ts` and `register-advocates.ts`; consolidating them is a
+ * separate pass and is noted rather than done here.
+ */
 export function formatDaysWaitingLong(days: number): string {
   return days === 1 ? "1 day so far" : `${days} days so far`;
 }

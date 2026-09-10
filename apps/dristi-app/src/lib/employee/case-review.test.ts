@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
   CASE_REVIEW_STATUS,
+  FACT_TERMS,
   FILING_WINDOW_DAYS,
   NOTICE_WINDOW_DAYS,
   PAYMENT_WINDOW_DAYS,
@@ -10,6 +12,7 @@ import {
   caseChainFor,
   caseReviewFor,
   daysBetween,
+  type CaseFact,
   type CaseGroup,
 } from "./case-review";
 import { REGISTER_QUEUE, registerCaseById } from "./register-cases";
@@ -29,6 +32,23 @@ function groups(id: string): CaseGroup[] {
 
 function groupById(id: string, groupId: string): CaseGroup | undefined {
   return groups(id).find((group) => group.id === groupId);
+}
+
+/** Every fact on a file, wherever it sits — a group's own, or a record's. */
+function facts(id: string): CaseFact[] {
+  return groups(id).flatMap((group) => [
+    ...(group.facts ?? []),
+    ...(group.records ?? []).flatMap((record) => record.facts),
+  ]);
+}
+
+function factByTerm(id: string, groupId: string, term: string) {
+  const group = groupById(id, groupId);
+  const own = [
+    ...(group?.facts ?? []),
+    ...(group?.records ?? []).flatMap((record) => record.facts),
+  ];
+  return own.find((fact) => fact.term === term);
 }
 
 describe("caseReviewFor", () => {
@@ -67,21 +87,146 @@ describe("caseReviewFor", () => {
     assert.deepEqual(caseReviewFor("r-1654", TODAY), caseReviewFor("r-1654", TODAY));
   });
 
-  it("is the five numbered sections, in reading order", () => {
+  it("is the four numbered sections, in reading order", () => {
+    /* Four, not five. "Submissions from the accused" was cut by the owner on
+       2026-09-11: the accused cannot file anything before the complaint is registered,
+       so the section answered its own question the same way on every file in the queue
+       and forever. It belongs on whatever screen shows a case *after* registration. */
     assert.deepEqual(
       review("r-1840").sections.map((section) => section.id),
-      [
-        "litigants",
-        "case-specific",
-        "additional",
-        "accused-submissions",
-        "payment",
-      ],
+      ["litigants", "case-specific", "additional", "payment"],
     );
+  });
+
+  it("holds no head for submissions the accused cannot yet have made", () => {
+    /* The other edge of the same cut: not merely absent from the reading order, but
+       absent from the file — no group, no absence reason, nothing for the index to
+       list. A section that comes back one day comes back with a source. */
+    for (const complaint of REGISTER_QUEUE) {
+      assert.equal(
+        groupById(complaint.id, "accused-submissions"),
+        undefined,
+        complaint.id,
+      );
+    }
   });
 
   it("states the queue's one status", () => {
     assert.equal(CASE_REVIEW_STATUS, "Waiting to be registered");
+  });
+});
+
+/**
+ * The rule the 2026-09-10 revision turns on: a value may be derived, an attribute may
+ * not. Eleven rows on this file had no source at all before it — a case category, a
+ * synopsis, a full-or-part-liability field that exists nowhere in the registry — and
+ * the way that gets in is one term string typed at a call site. So the vocabulary is
+ * declared once and checked here, in both directions: nothing prints a term the model
+ * has not named, and no term string lives in the screen.
+ */
+describe("terms are attributes the file names", () => {
+  const named = new Set<string>(Object.values(FACT_TERMS));
+
+  it("prints only terms the model declares, on every complaint in the queue", () => {
+    for (const complaint of REGISTER_QUEUE) {
+      for (const fact of facts(complaint.id)) {
+        assert.ok(
+          named.has(fact.term),
+          `${complaint.id} states "${fact.term}", which is not in FACT_TERMS`,
+        );
+      }
+    }
+  });
+
+  it("declares no term the file never uses", () => {
+    /* The other edge of the same rule: a vocabulary nobody checks grows names for
+       fields that were cut, and the next reader cannot tell which are live. */
+    const printed = new Set(
+      REGISTER_QUEUE.flatMap((complaint) =>
+        facts(complaint.id).map((fact) => fact.term as string),
+      ),
+    );
+    for (const term of named) {
+      assert.ok(printed.has(term), `FACT_TERMS names "${term}", which nothing prints`);
+    }
+  });
+
+  it("leaves no term string in the screen", () => {
+    /* Read rather than rendered: the claim is about the source, not about one render.
+       `CaseFactRows` is the only thing that may write a `DescriptionTerm`, and the only
+       thing it may put inside one is the term the file handed it. A term typed into the
+       screen would be an attribute invented outside the model, which is exactly the
+       defect this file's §5a census found. */
+    const screen = readFileSync(
+      new URL(
+        "../../components/employee/case-review-screen.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const opens = screen.match(/<DescriptionTerm\b/g) ?? [];
+    assert.equal(opens.length, 1, "only CaseFactRows may render a term");
+    assert.match(screen, /<DescriptionTerm[^>]*>\s*\{fact\.term\}\s*<\/DescriptionTerm>/);
+  });
+});
+
+/**
+ * The other half of the same rule, and the one the 2026-09-11 review added.
+ *
+ * "Is this a real attribute?" was checkable; "is this a real *fact*?" was not. A row
+ * whose value is identical on all thirty-five complaints is not something the court is
+ * reading about *this* complaint — it is the statute, or the form's own precondition,
+ * printed once per file. Five of them were on this screen at once: the §138 prayer, the
+ * complainant's deposit tick, "Filed within one month: No" inside a group that exists
+ * only because it was not, a power of attorney that was always "No", and every witness
+ * offered to speak to the transaction. None broke a gate, and each read as a fact.
+ *
+ * So the vocabulary is measured rather than trusted: across the whole queue, every term
+ * in `FACT_TERMS` must take more than one value. `undefined` counts as a value, because
+ * a row that is stated on one file and absent on another is telling the reader
+ * something; a row absent on all of them would not be printed at all.
+ */
+describe("a fact varies, or it is not a fact", () => {
+  /**
+   * Terms the owner would accept as constant across the queue.
+   *
+   * **Empty, and that is the point.** An entry here is a standing exception, so each
+   * one would have to say which reader is served by a row that reads the same on every
+   * complaint in the court. Nothing in the file needed one after the 2026-09-11 pass:
+   * `Other details` was the near miss — the form's catch-all, empty on most filings —
+   * and it is a *sometimes* rather than a constant, which is what the two marked files
+   * make it.
+   */
+  const CONSTANT_BY_DESIGN = new Set<string>([]);
+
+  it("takes more than one value across the queue, for every term", () => {
+    const seen = new Map<string, Set<string | undefined>>();
+    for (const complaint of REGISTER_QUEUE) {
+      for (const fact of facts(complaint.id)) {
+        const values = seen.get(fact.term) ?? new Set();
+        values.add(fact.value);
+        seen.set(fact.term, values);
+      }
+    }
+
+    for (const term of Object.values(FACT_TERMS)) {
+      if (CONSTANT_BY_DESIGN.has(term)) continue;
+      const values = seen.get(term);
+      assert.ok(values, `nothing prints "${term}"`);
+      assert.ok(
+        values.size > 1,
+        `"${term}" reads "${[...values][0]}" on all ${REGISTER_QUEUE.length} complaints — a value identical on every record is not a fact`,
+      );
+    }
+  });
+
+  it("allows nothing constant without saying why", () => {
+    /* The allowlist is a set of *terms*, so a name that no longer exists cannot sit in
+       it unnoticed and quietly excuse the next constant row that takes its place. */
+    const named = new Set<string>(Object.values(FACT_TERMS));
+    for (const term of CONSTANT_BY_DESIGN) {
+      assert.ok(named.has(term), `"${term}" is allowlisted but is not a term`);
+    }
   });
 });
 
@@ -112,10 +257,15 @@ describe("the §138 chain", () => {
       const chain = caseChainFor(complaint.id, TODAY);
       assert.ok(chain);
 
-      /* §138(a) — the cheque is presented within three months of its date. */
+      /* §138(a) — the cheque is presented within three months of its date, and the
+         row that answers that question agrees with the two dates it sits under. One
+         complaint in the queue is deliberately outside the window, because a deposit
+         row that says "Yes" on all thirty-five is not a check. */
       const presentation = daysBetween(chain.chequeOn, chain.depositedOn);
-      assert.ok(
-        presentation > 0 && presentation <= PRESENTATION_WINDOW_DAYS,
+      assert.ok(presentation > 0, `${complaint.id}: ${presentation}`);
+      assert.equal(
+        factByTerm(complaint.id, "cheque", FACT_TERMS.depositedInTime)?.value,
+        presentation <= PRESENTATION_WINDOW_DAYS ? "Yes" : "No",
         `${complaint.id} deposited the cheque after ${presentation} days`,
       );
 
@@ -158,20 +308,168 @@ describe("the §138 chain", () => {
 
   it("reports the delay as the days past the month, not the whole gap", () => {
     const chain = caseChainFor("r-1840", TODAY);
-    const condonation = groupById("r-1840", "delay-condonation");
     assert.ok(chain);
-    assert.ok(condonation);
-    const beyond = condonation.facts?.find(
-      (fact) => fact.term === "Days beyond the one month",
-    );
+    const beyond = factByTerm("r-1840", "delay-condonation", FACT_TERMS.daysBeyondMonth);
     assert.equal(beyond?.value, String(chain.sinceAccrual - FILING_WINDOW_DAYS));
+  });
+
+  it("states the §138 dates in the order the Act runs them", () => {
+    /* The renamed terms still name the same chain, and the file prints it in order:
+       the cheque, its deposit, its return, the notice out, the notice served, the
+       fifteen days run. A rename that shuffled these would be a rename that changed
+       what the court reads. */
+    const cheque = groupById("r-1840", "cheque")?.records?.[0].facts ?? [];
+    const dated = cheque
+      .map((fact) => fact.term)
+      .filter((term) =>
+        (
+          [
+            FACT_TERMS.chequeDated,
+            FACT_TERMS.depositedOn,
+            FACT_TERMS.returnedOn,
+          ] as string[]
+        ).includes(term),
+      );
+    assert.deepEqual(dated, [
+      FACT_TERMS.chequeDated,
+      FACT_TERMS.depositedOn,
+      FACT_TERMS.returnedOn,
+    ]);
+
+    const notice = groupById("r-1840", "demand-notice")?.facts ?? [];
+    assert.deepEqual(
+      notice.map((fact) => fact.term),
+      [
+        FACT_TERMS.noticeDispatched,
+        FACT_TERMS.noticeServed,
+        FACT_TERMS.replyReceived,
+        FACT_TERMS.noticePeriodEnded,
+      ],
+    );
   });
 });
 
 describe("the states a file can be in", () => {
   it("says so when no witness was named", () => {
-    assert.equal(groupById("r-1490", "witnesses")?.empty, "No witness added");
+    /* A closed reason, not a sentence. "No witness added" was one of three authored
+       absence strings; "added" was the form's word for what the filer did to a list,
+       and a complainant *names* a witness in the complaint. */
+    assert.deepEqual(groupById("r-1490", "witnesses")?.empty, {
+      reason: "none-named",
+    });
     assert.equal(groupById("r-1490", "witnesses")?.records?.length, 0);
+  });
+
+  it("keeps the consequence of an absence out of the absence", () => {
+    /* The reason is the file's and the clause is the product's voice, so an empty head
+       can be counted and translated without re-authoring the sentence around it. */
+    assert.deepEqual(groupById("r-1490", "advocates")?.empty, {
+      reason: "none-on-record",
+      explanation: "The complainant appears in person.",
+    });
+  });
+
+  it("varies what a witness is offered to speak to", () => {
+    /* `Witness.prove` is a real field. Every witness on every complaint used to be
+       offered for the transaction, which made the row a caption on the group. */
+    const spoken = new Set(
+      REGISTER_QUEUE.flatMap((complaint) =>
+        facts(complaint.id)
+          .filter((fact) => fact.term === FACT_TERMS.speaksTo)
+          .map((fact) => fact.value),
+      ),
+    );
+    assert.ok(spoken.size > 1, [...spoken].join(" / "));
+  });
+
+  it("names the litigant type from the enum, and it is not always the same", () => {
+    /* `Complainant.type` — "Individual" typed on every complainant is decoration.
+       `r-612` is the queue's one complaint filed by an entity. */
+    const tags = new Set(
+      REGISTER_QUEUE.map(
+        (complaint) =>
+          groupById(complaint.id, "complainant")?.records?.[0].tag,
+      ),
+    );
+    assert.deepEqual([...tags].sort(), ["Company", "Individual"]);
+    assert.equal(
+      groupById("r-612", "complainant")?.records?.[0].tag,
+      "Company",
+    );
+    /* And an entity carries a signatory and a registered office where a person carries
+       an age — which is what makes the tag worth printing. */
+    assert.ok(
+      factByTerm("r-612", "complainant", FACT_TERMS.authorisedSignatory)?.value,
+    );
+    assert.equal(
+      factByTerm("r-612", "complainant", FACT_TERMS.age),
+      undefined,
+    );
+    /* And the name the tag sits beside is a firm's. It read "Thomas Kurien" until
+       2026-09-11 — a person carrying a *Company* tag, an authorised signatory and a
+       registered office, which is a fixture contradicting itself in three rows at
+       once. */
+    assert.equal(
+      groupById("r-612", "complainant")?.records?.[0].heading,
+      "Kurien Agencies",
+    );
+  });
+
+  it("leaves no tag on an advocate, every one being for the complainant", () => {
+    for (const id of ["r-1840", "r-1588"]) {
+      for (const record of groupById(id, "advocates")?.records ?? []) {
+        assert.equal(record.tag, undefined, id);
+      }
+    }
+  });
+
+  it("states a power of attorney only where the complaint is filed through one", () => {
+    assert.equal(
+      factByTerm("r-1104", "complainant", FACT_TERMS.powerOfAttorney)?.value,
+      "Yes",
+    );
+    assert.equal(
+      factByTerm("r-714", "complainant", FACT_TERMS.powerOfAttorney)?.value,
+      "No",
+    );
+  });
+
+  it("answers the three-month deposit against the dates, not the filer's tick", () => {
+    /* `r-1333` presented the cheque outside §138(a)'s three months — the one file where
+       the row has a consequence for whether the court can take cognizance at all. */
+    const chain = caseChainFor("r-1333", TODAY);
+    assert.ok(chain);
+    assert.ok(
+      daysBetween(chain.chequeOn, chain.depositedOn) > PRESENTATION_WINDOW_DAYS,
+    );
+    assert.equal(
+      factByTerm("r-1333", "cheque", FACT_TERMS.depositedInTime)?.value,
+      "No",
+    );
+    assert.equal(
+      factByTerm("r-1840", "cheque", FACT_TERMS.depositedInTime)?.value,
+      "Yes",
+    );
+  });
+
+  it("marks the deposit answer as the exception only where it is no", () => {
+    /* The screen spends its single coloured mark on this row, so *which* answer is the
+       exception is decided here rather than by a string comparison in the render — the
+       same rule that keeps term strings out of the screen. Nothing else on the file
+       carries the flag, which is what makes it one mark and not a palette. */
+    assert.equal(
+      factByTerm("r-1333", "cheque", FACT_TERMS.depositedInTime)?.exception,
+      true,
+    );
+    for (const complaint of REGISTER_QUEUE) {
+      const marked = facts(complaint.id).filter((fact) => fact.exception);
+      if (complaint.id === "r-1333") {
+        assert.equal(marked.length, 1, complaint.id);
+        assert.equal(marked[0].value, "No");
+      } else {
+        assert.deepEqual(marked, [], `${complaint.id} marks an exception`);
+      }
+    }
   });
 
   it("lists the witnesses when there are some", () => {
@@ -188,89 +486,76 @@ describe("the states a file can be in", () => {
     const application = condonation?.documents?.[0];
     assert.equal(application?.label, "Delay condonation application");
     assert.equal(application?.state, "absent");
-    /* No upload to name. A filename on a document nobody sent is the kind of detail
-       that makes a demo lie, so the absence is carried by `file` being missing rather
-       than by a string saying so. */
-    assert.equal(application?.file, undefined);
   });
 
   it("does not cite an application that is not on the file", () => {
-    /* `r-1588` is late and never uploaded the application, so the grounds cannot be
-       "set out in the application on record". `r-1840` is late and did. */
-    const missing = groupById("r-1588", "delay-condonation")?.facts?.find(
-      (fact) => fact.term === "Grounds stated",
-    );
-    assert.match(missing?.value ?? "", /never uploaded/);
+    /* `r-1588` is late and never uploaded the application, so there are no grounds to
+       state: the grounds live *in* the application. The row stays and the screen says
+       "Not stated", rather than a sentence composed about the absence. `r-1840` is late
+       and did file, so it carries the filer's own words. */
+    const missing = factByTerm("r-1588", "delay-condonation", FACT_TERMS.grounds);
+    assert.ok(missing, "the grounds row should still be on the file");
+    assert.equal(missing.value, undefined);
 
-    const present = groupById("r-1840", "delay-condonation")?.facts?.find(
-      (fact) => fact.term === "Grounds stated",
-    );
-    assert.match(present?.value ?? "", /application on record/);
+    const present = factByTerm("r-1840", "delay-condonation", FACT_TERMS.grounds);
+    assert.ok(present?.value, "a filed application states its grounds");
   });
 
-  it("marks a reply as absent when none came back", () => {
-    const notice = groupById("r-1722", "demand-notice");
-    const reply = notice?.documents?.find(
+  it("answers the reply as the yes-or-no the registry holds", () => {
+    /* `DemandNotice.replied` is a `YesNo`. The slot used to hold a date on one file and
+       the sentence "No reply received" on another — two kinds of thing in one slot,
+       which nothing can sort, filter or translate. */
+    assert.equal(
+      factByTerm("r-1722", "demand-notice", FACT_TERMS.replyReceived)?.value,
+      "No",
+    );
+    assert.equal(
+      factByTerm("r-1840", "demand-notice", FACT_TERMS.replyReceived)?.value,
+      "Yes",
+    );
+
+    const reply = groupById("r-1722", "demand-notice")?.documents?.find(
       (document) => document.label === "Reply to the notice",
     );
     assert.equal(reply?.state, "absent");
-    assert.equal(
-      notice?.facts?.find((fact) => fact.term === "Date of reply to the notice")
-        ?.value,
-      "No reply received",
-    );
   });
 
-  it("carries the reason the bank gave, and repeats it in what was sworn", () => {
-    const cheque = groupById("r-1722", "cheque")?.records?.[0];
+  it("carries the reason the bank gave, once", () => {
+    /* Once, not twice: the sworn register of the same fact existed only to fill a
+       tinted alert that restated the row above it, and both went. */
     assert.equal(
-      cheque?.facts.find(
-        (fact) => fact.term === "Reason for the return of the cheque",
-      )?.value,
+      factByTerm("r-1722", "cheque", FACT_TERMS.returnReason)?.value,
       "Payment stopped by drawer",
     );
-    /* The same fact in the register a sentence needs — not the memo phrase dropped
-       into one, which read "returned because of payment stopped by drawer". */
-    assert.ok(
-      cheque?.confirmed?.some((line) =>
-        line.includes("payment having been stopped by the drawer"),
-      ),
-      "what the complainant swore to should name the same reason",
+    assert.equal(
+      factByTerm("r-1402", "cheque", FACT_TERMS.returnReason)?.value,
+      "Account closed",
     );
   });
 
-  it("claims more than the cheque only on a part-liability file", () => {
-    const part = groupById("r-1654", "debt")?.facts ?? [];
-    assert.equal(
-      part.find((fact) => fact.term === "Cheque received for full or part liability")
-        ?.value,
-      "Part liability",
-    );
-    assert.ok(
-      part.some((fact) => fact.term === "Total amount claimed to be owed"),
-      "a part-liability file should say what the whole debt is",
-    );
-
-    const whole = groupById("r-714", "debt")?.facts ?? [];
-    assert.equal(
-      whole.find((fact) => fact.term === "Cheque received for full or part liability")
-        ?.value,
-      "Full liability",
-    );
-    assert.ok(
-      !whole.some((fact) => fact.term === "Total amount claimed to be owed"),
-      "a full-liability file has no second amount to state",
-    );
+  it("names both police stations the registry holds", () => {
+    /* `Jurisdiction.payeePolice` and `drawerPolice` are two fields, and §138
+       jurisdiction turns on the first. One unqualified row used to stand for both. */
+    assert.ok(factByTerm("r-1840", "cheque", FACT_TERMS.payeePolice)?.value);
+    assert.ok(factByTerm("r-1840", "cheque", FACT_TERMS.drawerPolice)?.value);
   });
 
-  it("says nothing has come from the accused unless something has", () => {
-    assert.match(
-      groupById("r-714", "accused-submissions")?.empty ?? "",
-      /not been summoned/,
+  it("states a part payment only on a file that carries one", () => {
+    assert.equal(
+      factByTerm("r-1654", "debt", FACT_TERMS.paymentAgainstCheque)?.value,
+      "Part payment made",
+    );
+    const paid = factByTerm("r-1654", "debt", FACT_TERMS.partAmount);
+    assert.ok(paid?.value, "a part-payment file says how much was paid");
+
+    assert.equal(
+      factByTerm("r-714", "debt", FACT_TERMS.paymentAgainstCheque)?.value,
+      "No payment made",
     );
     assert.equal(
-      groupById("r-1104", "accused-submissions")?.empty,
+      factByTerm("r-714", "debt", FACT_TERMS.partAmount),
       undefined,
+      "a file with no payment has no amount to state",
     );
   });
 
@@ -279,25 +564,10 @@ describe("the states a file can be in", () => {
        same absence must not disagree. */
     assert.equal(registerCaseById("r-1490")?.counsel.length, 0);
     assert.match(
-      groupById("r-1490", "advocates")?.empty ?? "",
+      groupById("r-1490", "advocates")?.empty?.explanation ?? "",
       /appears in person/,
     );
     assert.equal(groupById("r-1588", "advocates")?.records?.length, 2);
-  });
-});
-
-describe("the complaint's own account", () => {
-  it("does not say the notice went unanswered on a file that carries the reply", () => {
-    const replied = groups("r-1840")
-      .find((group) => group.id === "complaint")
-      ?.facts?.find((fact) => fact.term === "Synopsis")?.value;
-    assert.ok(replied);
-    assert.ok(!replied.includes("went unanswered"), replied);
-
-    const silent = groups("r-714")
-      .find((group) => group.id === "complaint")
-      ?.facts?.find((fact) => fact.term === "Synopsis")?.value;
-    assert.ok(silent?.includes("went unanswered"), silent);
   });
 });
 
@@ -314,7 +584,7 @@ describe("derived numbers", () => {
          code too, and a ten-digit line then measures twelve. */
       const mobiles = parties
         .flatMap((record) => record.facts)
-        .filter((fact) => fact.term === "Mobile number")
+        .filter((fact) => fact.term === FACT_TERMS.mobile)
         .map((fact) => /^\+91 (\d{5}) (\d{5})$/.exec(fact.value ?? ""))
         .map((match) => {
           assert.ok(match, "a mobile number should be +91 then five and five");
@@ -334,54 +604,90 @@ describe("derived numbers", () => {
           `${complaint.id}: cheque ${cheque} appears in mobile ${mobile}`,
         );
       }
-    }
-  });
-});
 
-describe("documents", () => {
-  it("names an upload on every filed slot and none on an empty one", () => {
-    for (const complaint of REGISTER_QUEUE) {
-      const docs = groups(complaint.id).flatMap((group) => group.documents ?? []);
-      assert.ok(docs.length > 0, `${complaint.id} lists no documents at all`);
-      for (const doc of docs) {
-        if (doc.state === "filed") {
-          assert.ok(doc.file, `${complaint.id}: ${doc.label} is filed with no file`);
-          assert.match(doc.file.name, /^[a-z0-9][a-z0-9-]*\.pdf$/, doc.file.name);
-          assert.ok(doc.file.pages >= 1);
-          assert.match(doc.file.size, /^\d+(\.\d)? (KB|MB)$/, doc.file.size);
-        } else {
-          assert.equal(
-            doc.file,
-            undefined,
-            `${complaint.id}: ${doc.label} is absent but names a file`,
+      /* The same defect one length down, found on 2026-09-11: a six-digit draw and a
+         nine-digit draw off the same salt are the same number truncated, so every payee
+         IFSC ended in the last six digits of the complainant's mobile. The mix now
+         takes the length as well as the salt. */
+      const ifscs = (
+        file.sections[1].groups.find((group) => group.id === "cheque")?.records?.[0]
+          .facts ?? []
+      )
+        .filter(
+          (fact) =>
+            fact.term === FACT_TERMS.payeeIfsc ||
+            fact.term === FACT_TERMS.payerIfsc,
+        )
+        .map((fact) => (fact.value ?? "").slice(-6));
+      assert.equal(ifscs.length, 2, complaint.id);
+      for (const ifsc of ifscs) {
+        for (const mobile of mobiles) {
+          assert.notEqual(
+            ifsc,
+            mobile.slice(-6),
+            `${complaint.id}: IFSC ends in the last six of mobile ${mobile}`,
+          );
+          assert.ok(
+            !mobile.includes(ifsc),
+            `${complaint.id}: IFSC tail ${ifsc} appears in mobile ${mobile}`,
           );
         }
       }
     }
   });
 
-  it("names the scan of the cheque after the cheque", () => {
-    /* The record heading and the filename are both built from the hoisted number, so
-       a clerk reading "Cheque no. X" finds `cheque-X.pdf` under it. */
-    const cheque = groupById("r-1840", "cheque");
-    const number = (cheque?.records?.[0].heading ?? "").replace(/\D/g, "");
-    const scan = cheque?.documents ?? cheque?.records?.[0].documents ?? [];
-    const front = scan.find((doc) => doc.label === "Dishonoured cheque");
-    assert.equal(front?.kind, "cheque");
-    assert.equal(front?.file?.name, `cheque-${number}.pdf`);
+  it("does not start every mobile number with the same digits", () => {
+    /* The tell that a queue is generated, found on the render 2026-09-11: a `CMP` serial
+       is four digits at most, so the old multiplier's product never reached the modulus
+       a nine-digit draw takes and every line came out `+91 91…`. A spread is the claim,
+       not the multiplier — a future reseed that reintroduces the collapse fails here. */
+    const leads = new Set(
+      REGISTER_QUEUE.flatMap((complaint) =>
+        facts(complaint.id)
+          .filter((fact) => fact.term === FACT_TERMS.mobile)
+          .map((fact) => (fact.value ?? "").slice(4, 6)),
+      ),
+    );
+    assert.ok(
+      leads.size >= 5,
+      `every mobile in the queue starts ${[...leads].join(" / ")}`,
+    );
   });
 
-  it("dates a scan from the event it records", () => {
-    const chain = caseChainFor("r-1840", TODAY);
-    assert.ok(chain);
-    const [day, month, year] = [
-      chain.returnedOn.slice(8),
-      chain.returnedOn.slice(5, 7),
-      chain.returnedOn.slice(0, 4),
-    ];
-    const memo = groupById("r-1840", "cheque")
-      ?.records?.[0].documents?.find((doc) => doc.label === "Cheque return memo");
-    assert.equal(memo?.file?.name, `return-memo-${day}-${month}-${year}.pdf`);
+  it("gives the complainant two addresses that are not the same string", () => {
+    /* Permanent and current used to print one address under two labels, which reads
+       as a rendering fault rather than as two answers that agree. */
+    for (const id of ["r-714", "r-1840", "r-1490"]) {
+      const permanent = factByTerm(id, "complainant", FACT_TERMS.permanentAddress);
+      const current = factByTerm(id, "complainant", FACT_TERMS.currentAddress);
+      assert.ok(permanent?.value && current?.value);
+      assert.notEqual(permanent.value, current.value, id);
+    }
+  });
+});
+
+describe("documents", () => {
+  it("carries a label, a state and a page shape, and nothing else", () => {
+    /* No filename, no page count, no size. `StoredFileRef` holds a name and a size on
+       the *filer's* side; nothing on the court side holds any of them, and nothing
+       anywhere holds a page count — so all three were fixtures wearing a field's
+       clothes. A plausible fixture is worse than no field. */
+    for (const complaint of REGISTER_QUEUE) {
+      const docs = groups(complaint.id).flatMap((group) => [
+        ...(group.documents ?? []),
+        ...(group.records ?? []).flatMap((record) => record.documents ?? []),
+      ]);
+      assert.ok(docs.length > 0, `${complaint.id} lists no documents at all`);
+      for (const doc of docs) {
+        assert.deepEqual(
+          Object.keys(doc).sort(),
+          ["kind", "label", "state"],
+          `${complaint.id}: ${doc.label} carries a field no store holds`,
+        );
+        assert.ok(doc.label.length > 0);
+        assert.ok(doc.state === "filed" || doc.state === "absent");
+      }
+    }
   });
 
   it("gives each kind of page its own shape to draw", () => {
@@ -399,6 +705,14 @@ describe("documents", () => {
     assert.equal(byLabel.get("Vakalatnama"), "form");
     assert.equal(byLabel.get("ID proof"), "id");
     assert.equal(byLabel.get("Payment receipt"), "receipt");
+  });
+
+  it("calls the advocate's document what REG-14 collects", () => {
+    /* A photograph of the **Bar ID card**. It was labelled "ID proof", which the
+       handover records is not collected at advocate registration at all. */
+    const advocate = groupById("r-1840", "advocates")?.records?.[0];
+    const labels = (advocate?.documents ?? []).map((doc) => doc.label);
+    assert.deepEqual(labels, ["Bar ID card", "Vakalatnama"]);
   });
 });
 
@@ -419,36 +733,56 @@ describe("the case timeline", () => {
         `${complaint.id} has a non-past step before the wait`,
       );
       assert.equal(steps.at(-1)?.label, "Registration decision");
-      assert.equal(steps.at(-1)?.detail, "Not made");
+      assert.deepEqual(steps.at(-1)?.detail, {
+        kind: "state",
+        state: "Not made",
+      });
     }
   });
 
   it("counts the wait the queue row counts, on the current step", () => {
+    /* A count, not a sentence: the detail slot names what kind of thing it holds, so
+       the wait is a number the screen can recount and a day is a day a `<time>` can
+       carry. One `detail: string` for all three is what this replaced. */
     const waiting = (id: string) =>
       review(id).timeline.find((step) => step.status === "current");
-    assert.equal(waiting("r-714")?.detail, "1 day so far");
-    assert.equal(waiting("r-1840")?.detail, "281 days so far");
+    assert.deepEqual(waiting("r-714")?.detail, { kind: "elapsed", days: 1 });
+    assert.deepEqual(waiting("r-1840")?.detail, { kind: "elapsed", days: 281 });
     assert.equal(waiting("r-714")?.label, "Waiting to be registered");
+  });
+
+  it("dates a past step and nothing else", () => {
+    /* Every `past` step carries a day and no other kind of step does, which is what
+       lets the screen branch on the kind instead of parsing the string. */
+    for (const complaint of REGISTER_QUEUE) {
+      for (const step of review(complaint.id).timeline) {
+        assert.equal(
+          step.detail.kind === "date",
+          step.status === "past",
+          `${complaint.id} ${step.label}`,
+        );
+      }
+    }
   });
 
   it("keeps dated steps on or after the filing day, and before today", () => {
     for (const complaint of REGISTER_QUEUE) {
       const file = review(complaint.id);
       for (const step of file.timeline) {
-        if (!step.on) continue;
+        if (step.detail.kind !== "date") continue;
         assert.ok(
-          step.on >= file.submittedOn,
+          step.detail.on >= file.submittedOn,
           `${complaint.id} ${step.label} is before the complaint was submitted`,
         );
         assert.ok(
-          step.on < TODAY,
+          step.detail.on < TODAY,
           `${complaint.id} ${step.label} lands on or after today`,
         );
       }
     }
   });
 
-  it("follows the Kerala spine as far as the wait allows", () => {
+  it("carries only the six steps the product can trace", () => {
     assert.deepEqual(
       review("r-714").timeline.map((step) => step.label),
       [
@@ -466,22 +800,31 @@ describe("the case timeline", () => {
         "Delay condonation application filed",
         "Taken up for scrutiny",
         "Scrutiny completed",
-        "Placed before the magistrate",
         "Waiting to be registered",
         "Registration decision",
       ],
     );
   });
 
-  it("adds the events the file itself already carries", () => {
-    assert.ok(
-      review("r-1104").timeline.some(
-        (step) => step.label === "Letter from the accused received",
-      ),
-    );
-    /* The application was never uploaded, so the timeline must not claim it was filed. */
+  it("carries neither of the two steps the product does not record", () => {
+    /* The Kerala spine runs filing → scrutiny → cognizance with no placement step
+       between, and nothing records a letter from an accused who has not been
+       summoned. Cut by the owner, 2026-09-10. */
+    for (const complaint of REGISTER_QUEUE) {
+      const labels = review(complaint.id).timeline.map((step) => step.label);
+      assert.ok(!labels.includes("Placed before the magistrate"), complaint.id);
+      assert.ok(!labels.includes("Letter from the accused received"), complaint.id);
+    }
+  });
+
+  it("does not claim an application that was never uploaded", () => {
     assert.ok(
       !review("r-1588").timeline.some(
+        (step) => step.label === "Delay condonation application filed",
+      ),
+    );
+    assert.ok(
+      review("r-1840").timeline.some(
         (step) => step.label === "Delay condonation application filed",
       ),
     );

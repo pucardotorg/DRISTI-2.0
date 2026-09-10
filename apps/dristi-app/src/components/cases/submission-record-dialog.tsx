@@ -310,7 +310,11 @@ function DocumentItem({
   const src = submissionDocumentSrc(doc);
   if (!src) {
     return (
-      <Item variant="outline">
+      /* Not a button and nothing to open, so it does not light up under the cursor:
+         `itemVariants` hangs `hover:bg-accent` off every `Item`. Pinned to the
+         variant's own `bg-card`, not to transparent — transparent would swap one
+         hover response for another. */
+      <Item variant="outline" className="hover:bg-card">
         <ItemContent>
           <ItemTitle className="line-clamp-none text-body font-medium text-foreground">
             {doc.label}
