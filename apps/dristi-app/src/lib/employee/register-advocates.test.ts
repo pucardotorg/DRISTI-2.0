@@ -571,21 +571,22 @@ describe("the register speaks only when it disagrees", () => {
     assert.equal(registerAnswer(differs), "differs");
     assert.deepEqual(registerFindingRow(differs), {
       id: "register",
-      term: "Bar Council of Kerala",
+      // The act, not the institution: a bare register name in a term column says nothing
+      // about why the row is there. The register names itself over the values it claims.
+      term: "Bar Council check",
       value: "Some details do not match",
       format: "text",
       tone: "warning",
     });
 
     assert.equal(registerAnswer(noEntry), "no-entry");
-    // A register that answered nothing has no name of its own to quote, so the row falls
-    // back to the generic noun — and reads it off the registrant, for the clerk queue.
+    // The term reads off the registrant, so the clerk queue needs no new row.
     assert.equal(registerName("advocate"), "Bar Council register");
     assert.equal(registerName("clerk"), "Clerk register");
-    assert.equal(registerFindingRow(noEntry)?.term, "Bar Council register");
+    assert.equal(registerFindingRow(noEntry)?.term, "Bar Council check");
     assert.equal(
       registerFindingRow({ ...noEntry, registrantKind: "clerk" })?.term,
-      "Clerk register",
+      "Clerk register check",
     );
     assert.equal(
       registerFindingRow(noEntry)?.value,
@@ -626,7 +627,9 @@ describe("shape two: two values, side by side", () => {
     assert.deepEqual(rest, []);
     assert.equal(block.id, "register");
     assert.equal(block.label, "Does not match Bar Council of Kerala");
-    assert.deepEqual(block.columns, ["Submitted", "On the register"]);
+    // The register names itself over its own values — that is where "what is on the
+    // system records" belongs, and why the row above it can be called a check.
+    assert.deepEqual(block.columns, ["Submitted", "Bar Council of Kerala"]);
     assert.equal(block.tone, "warning");
     assert.equal(block.rows.length, 1);
     assert.equal(block.rows[0].term, "Full name");
@@ -642,17 +645,17 @@ describe("shape two: two values, side by side", () => {
     const edited = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-191");
     assert.ok(edited);
     const blocks = comparisonBlocks(edited);
-    /* The register disagrees *because* of the edit — the account was created from the Bar
-       Council record, so what it held before is what the register still holds. One table,
-       the one that says why; the finding itself is still the register's row in Request. */
+    /* Both, now that each sits behind the row that announces it: the register's finding
+       opens what the register holds, and "Edited …" opens what the holder changed. They
+       answer two questions and are never on screen together unless both are opened. */
     assert.deepEqual(
       blocks.map((block) => block.id),
-      ["changed"],
+      ["register", "changed"],
     );
     assert.equal(registerAnswer(edited), "differs");
     assert.ok(registerFindingRow(edited));
 
-    const changed = blocks[0];
+    const changed = blocks[1];
     assert.equal(changed.label, "Changed at first login");
     assert.deepEqual(changed.columns, ["Before", "Now"]);
     assert.equal(changed.tone, "plain");
@@ -672,16 +675,24 @@ describe("shape two: two values, side by side", () => {
     assert.equal(before.absent, true);
   });
 
-  it("never tables the same pair of values twice", () => {
+  it("hangs every comparison on the row that announces it, and nowhere else", () => {
     for (const request of REGISTER_ADVOCATES_QUEUE) {
-      const pairs = comparisonBlocks(request).flatMap((block) =>
-        block.rows.map((row) => row.values.map((v) => v.text).join(" ↔ ")),
+      const rows = requestRows(request);
+      const attached = rows.flatMap((row) => (row.detail ? [row.detail.id] : []));
+      const built = comparisonBlocks(request).map((block) => block.id);
+      // Every block has exactly one home, and no block is built without one.
+      assert.deepEqual(
+        [...attached].sort(),
+        [...built].sort(),
+        `${request.applicationNumber} built a table with nowhere to open it`,
       );
-      assert.equal(
-        new Set(pairs).size,
-        pairs.length,
-        `${request.applicationNumber} compares the same two values in two tables`,
-      );
+      // The register's finding opens the register's table; the request kind opens the edit.
+      const register = rows.find((row) => row.id === "register");
+      const kind = rows.find((row) => row.id === "requestKind");
+      assert.equal(register?.detail?.id ?? null, built.includes("register") ? "register" : null);
+      assert.equal(kind?.detail?.id ?? null, built.includes("changed") ? "changed" : null);
+      // Nothing in the Identity block opens anything: it is what was typed, full stop.
+      for (const row of identityRows(request)) assert.equal(row.detail, undefined);
     }
   });
 

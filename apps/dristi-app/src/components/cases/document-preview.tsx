@@ -151,6 +151,51 @@ export function DocumentPreview({
   surface?: WellSurface;
   className?: string;
 }) {
+  if (variant === "quiet" && surface === "card") {
+    /*
+      A framed well: a title strip with the two actions in it, a hairline, and the
+      document below. Added 2026-09-11 for the register-advocates overlay, where the
+      owner read floating icons over a mostly empty white sheet as unresolved — *"the
+      download and enlarge icon also looks like it's floating… maybe it should have a
+      slight line to separate those as action items of the section"*.
+
+      It is deliberately not the default variant's header, which sits *above* the well
+      and restates a date: this one is inside the frame, carries the title at caption
+      weight, and lets the document take everything under the rule however tall or wide
+      it is. That is the scaling question in the same note answered structurally — the
+      frame is fixed, the content area is what varies.
+    */
+    return (
+      <section
+        aria-label={title}
+        className={cn(
+          "flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-hairline bg-card",
+          className
+        )}
+      >
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-hairline py-1.5 pr-1.5 pl-4">
+          <h3 className="min-w-0 truncate text-caption font-semibold text-muted-foreground">
+            {title}
+          </h3>
+          <DocumentPreviewActions
+            iconOnly
+            title={title}
+            source={source}
+            download={download}
+          >
+            {actions}
+          </DocumentPreviewActions>
+        </div>
+        <DocumentWell
+          title={title}
+          source={source}
+          surface="bare"
+          className={cn(wellHeight[height], "max-md:overflow-visible")}
+        />
+      </section>
+    );
+  }
+
   if (variant === "quiet") {
     return (
       /*
@@ -452,7 +497,7 @@ function FullViewDialog({
  * preview is the nested media well the Laws name, and depth here is fill
  * (Elevation: the box-in-box ban).
  */
-type WellSurface = "sunken" | "card";
+type WellSurface = "sunken" | "card" | "bare";
 
 /**
  * The two fills a well can take, and the sticky strip that has to match whichever one
@@ -462,6 +507,8 @@ type WellSurface = "sunken" | "card";
 const wellSurface: Record<WellSurface, { well: string; strip: string }> = {
   sunken: { well: "bg-surface-sunken", strip: "bg-surface-sunken" },
   card: { well: "border border-hairline bg-card", strip: "bg-card" },
+  /** Inside a frame that already draws the edge and the fill — see the quiet+card path. */
+  bare: { well: "rounded-none", strip: "bg-card" },
 };
 
 function DocumentWell({

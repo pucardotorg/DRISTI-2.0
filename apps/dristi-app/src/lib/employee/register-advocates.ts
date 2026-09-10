@@ -308,6 +308,11 @@ export function registerName(kind: RegistrantKind): string {
   return kind === "clerk" ? "Clerk register" : "Bar Council register";
 }
 
+/** What the row reporting the lookup is called — the act, not the institution. */
+export function registerCheckTerm(kind: RegistrantKind): string {
+  return kind === "clerk" ? "Clerk register check" : "Bar Council check";
+}
+
 /** What the pre-created account came from, when one was edited (`REG-18`). */
 function preCreatedFrom(kind: RegistrantKind): string {
   return kind === "clerk" ? "clerk register" : "Bar Council";
@@ -396,6 +401,15 @@ export type FactRow = {
   tone?: WaitTone;
   /** A dated fact belonging to the row rather than to a source — a round's own date. */
   note?: string;
+  /**
+   * The detail behind this fact, revealed on the row itself (D23).
+   *
+   * A row that reports a finding — "Some details do not match", "Edited Bar Council
+   * account" — states *that* something is so; the table states *what*. Hanging it on the
+   * row is what makes the value clickable and puts the answer where the question was
+   * asked, instead of in a section further down a scrolling column.
+   */
+  detail?: ComparisonBlock;
 };
 
 /** Two names are the same name when only spacing and case separate them. */
@@ -438,8 +452,18 @@ export function requestRows(request: AdvocateRegistration): FactRow[] {
     },
   ];
 
+  /* Each comparison hangs off the row that announces it (D23): the register's finding
+     carries what the register holds, and "Edited …" carries what the holder changed. */
+  const blocks = comparisonBlocks(request);
+  const kind = rows[2];
+  const changed = blocks.find((block) => block.id === "changed");
+  if (changed) rows[2] = { ...kind, detail: changed };
+
   const finding = registerFindingRow(request);
-  if (finding) rows.push(finding);
+  if (finding) {
+    const register = blocks.find((block) => block.id === "register");
+    rows.push(register ? { ...finding, detail: register } : finding);
+  }
 
   return rows;
 }
@@ -520,12 +544,13 @@ export function registerFindingRow(
   if (!answer) return null;
   return {
     id: "register",
-    /* The register names itself when it answered at all; only an unreachable or empty
-       one falls back to the generic noun. */
-    term:
-      request.lookup.state === "found"
-        ? request.lookup.entry.bar
-        : registerName(request.registrantKind),
+    /* **"Bar Council check", not "Bar Council of Kerala"** (owner, 2026-09-11: *"I don't
+       understand what Bar Council of Kerala here is trying to convey"*). A bare
+       institution name in a term column is a label with no verb — it does not say that
+       this row is the result of the court looking the registration up. The specific
+       register still names itself, in the column header of the table the row opens,
+       which is where a value is being attributed to it. */
+    term: registerCheckTerm(request.registrantKind),
     value: REGISTER_FINDING[answer],
     format: "text",
     tone: "warning",
@@ -649,32 +674,26 @@ export function comparisonBlocks(
 
   const { lookup } = request;
   /**
-   * **The same two values are never tabled twice.**
+   * **Both comparisons are kept, even when their values coincide** — revised 2026-09-11
+   * with D23, which reversed the rule that stood for one round.
    *
-   * On an edited pre-created account the two comparisons collide: the account was created
-   * from the Bar Council record, so the value it held *before* the holder edited it is
-   * the value the register still holds. Rendering both tables put "Thomas Kurian" against
-   * "Thomas Kurian Varghese" twice on one screen, under two different headings — one fact
-   * with two treatments, which is the defect this whole rebuild exists to remove.
-   *
-   * When they coincide, the edit is kept and the register row dropped: the edit is the
-   * *reason* the register disagrees, and a table that says why beats one that says only
-   * that. The finding itself is not lost — it is the register's row in the Request group,
-   * which states it once whatever the tables below do.
+   * On an edited pre-created account the two collide: the account was created from the Bar
+   * Council record, so the value it held before the holder edited it is the value the
+   * register still holds, and for a while only one of them was built. That was right while
+   * both tables sat open in the same column — the same pair under two headings is one
+   * fact with two treatments. It stopped being right when each table moved behind the row
+   * that announces it: they now answer two different questions ("what does the register
+   * hold" and "what did the holder change"), are never on screen together unless the
+   * officer opens both, and the one that is missing is the one they clicked for.
    */
-  const explainedByEdit =
-    lookup.state === "found" &&
-    sameValue(editFor(request, "fullName")?.was ?? "", lookup.entry.name);
-
-  if (
-    lookup.state === "found" &&
-    registerAnswer(request) === "differs" &&
-    !explainedByEdit
-  ) {
+  if (lookup.state === "found" && registerAnswer(request) === "differs") {
     blocks.push({
       id: "register",
       label: `Does not match ${lookup.entry.bar}`,
-      columns: ["Submitted", "On the register"],
+      /* The register names itself **here**, over the values it is claiming — which is the
+         answer to "what is on the system records" (owner, 2026-09-11) and the reason the
+         row above can be called a check rather than an institution. */
+      columns: ["Submitted", lookup.entry.bar],
       rows: [
         {
           id: "fullName",
