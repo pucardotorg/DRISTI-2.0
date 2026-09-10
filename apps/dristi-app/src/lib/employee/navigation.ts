@@ -12,6 +12,7 @@ import { APPROVE_COPY_QUEUE_COUNT } from "./approve-copy-application";
 import { DELAY_CONDONATION_QUEUE_COUNT } from "./delay-condonation";
 import { hearingById, TODAYS_HEARING_COUNT } from "./hearings";
 import { OTHER_APPLICATIONS_QUEUE_COUNT } from "./other-applications";
+import { REGISTER_ADVOCATES_QUEUE_COUNT } from "./register-advocates";
 import { REGISTER_QUEUE_COUNT } from "./register-cases";
 import { findFiling, SCRUTINY_QUEUE_COUNT } from "./scrutiny/queue";
 import { RESCHEDULING_QUEUE_COUNT } from "./rescheduling-request";
@@ -32,8 +33,9 @@ import { WITNESS_DEPOSITION_QUEUE_COUNT } from "./sign-witness-deposition";
  * not markup: the rail renders whatever is here, so a row's destination, its count or
  * its position is a change to this file rather than to a component.
  *
- * **Most of it is not wired yet.** The three Hearings rows, both Actions rows —
- * Register cases and Approve copy application — all three Review applications rows —
+ * **Most of it is not wired yet.** The three Hearings rows, all four Actions rows —
+ * Scrutinise submitted cases, Register cases, Approve copy application and Register
+ * advocates — all three Review applications rows —
  * Rescheduling request, Delay condonation and Others — and all seven of the Sign rows —
  * Sign forms, Sign orders, Sign process, Sign bail bonds, Sign witness deposition, Sign
  * evidence and Sign A-Diary — have an `href`, and they point at the court-side routes
@@ -47,6 +49,7 @@ import { WITNESS_DEPOSITION_QUEUE_COUNT } from "./sign-witness-deposition";
  * performs. The exceptions are the built rows whose counts are derived from the lists
  * they lead to (`lib/employee/hearings.ts`, `lib/employee/schedule.ts`,
  * `lib/employee/register-cases.ts`, `lib/employee/approve-copy-application.ts`,
+ * `lib/employee/register-advocates.ts`,
  * `lib/employee/rescheduling-request.ts`,
  * `lib/employee/delay-condonation.ts`, `lib/employee/other-applications.ts`,
  * `lib/employee/sign-forms.ts`, `lib/employee/sign-orders.ts`,
@@ -173,6 +176,17 @@ export const COURT_NAV_GROUPS: CourtNavGroup[] = [
         label: "Approve copy application",
         href: "/employee/approve-copy-application",
         count: APPROVE_COPY_QUEUE_COUNT,
+      },
+      /* Last in the group, and deliberately so. The three rows above it are a complaint's
+         own progression — scrutiny, then the register, then what the office does for a
+         party afterwards. An advocate's registration is not part of any case's life at
+         all, so putting it at the head would break that reading for the three rows that
+         share the group with it. */
+      {
+        id: "register-advocates",
+        label: "Register advocates",
+        href: "/employee/register-advocates",
+        count: REGISTER_ADVOCATES_QUEUE_COUNT,
       },
     ],
   },
