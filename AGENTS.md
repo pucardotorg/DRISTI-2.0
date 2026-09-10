@@ -21,8 +21,8 @@ on another feature, never committed straight to a long-lived branch.
 **UI:** before any UI work, the DS is at `vendor/pucar-design-system` after `npm install`.
 **Read** that repo’s `AGENTS.md`, `ACCESSIBILITY.md`, Laws, Typography, and needed
 `src/components/ui/*` — then `npm run sync:ui -- <name>` (do not hand-write).
-Gates: `npm run check:tokens`, `npm run check:typography`, `npm run check:ui-sync`, and
-`npm run check:rails`. See [docs/design/design-system.md](docs/design/design-system.md).
+Gates: `npm run check:tokens`, `npm run check:typography`, `npm run check:ui-sync`,
+`npm run check:spacing`, and `npm run check:rails`. See [docs/design/design-system.md](docs/design/design-system.md).
 **Craft (mandatory, every iteration):** also load the `ui-craft` skill for any UI build,
 change, or polish — layering (canvas → chrome → panel → well), strokes, type, elevation —
 and run its pre-flight checklist on the render before reporting done.

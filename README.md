@@ -46,6 +46,7 @@ git checkout -b feature/<kebab-case> origin/design   # design work
 ```bash
 npm run sync:ui -- button      # copy a primitive from vendor DS
 npm run check:ui-sync          # primitives must match that DS
+npm run check:spacing          # spacing stays on the ladder
 ```
 
 ## Docs

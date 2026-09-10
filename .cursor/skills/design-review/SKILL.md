@@ -82,7 +82,8 @@ The report is owner intent, not literal CSS. Before editing, load
   you have the right one. Selectors are brittle across edits — resolve them
   against source components, don't grep for the selector string.
 
-After implementing: gates (`check:tokens`, `check:typography`, `check:ui-sync`),
+After implementing: gates (`check:tokens`, `check:typography`, `check:ui-sync`,
+`check:spacing`),
 `npm test`, verify on the live render, and summarise what was applied
 as-asked, what was translated (and to which token), and what was declined and
 why. Offer another round.
