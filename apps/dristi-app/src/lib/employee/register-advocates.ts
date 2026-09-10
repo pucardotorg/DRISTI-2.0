@@ -25,12 +25,13 @@
  * wrap its column twice, Bar registration IDs from four state bars so the column is sized
  * off the longest rather than off Kerala's short form, waits spread from one day to two
  * months, an edited pre-created account (`REG-18`) whose changed name is also the one the
- * register disagrees with — so the two-mark row exists in the data and not only in the
- * brief — a resubmission at round 2 and one at round 5 with every earlier reason kept, a
- * register that could not be reached, one that holds no entry, one mismatch where the
- * register answers in a different script from the claim, and one card photo that will not
- * load. Between them the rows reach **all six** `SourceStatus` values, which is
- * the coverage the overlay's one row model has to be exercised against.
+ * register disagrees with — so a request carrying **both** comparison tables at once
+ * exists in the data and not only in the brief — a resubmission at round 2 and one at
+ * round 5 with every earlier reason kept, a register that could not be reached, one that
+ * holds no entry, one mismatch where the register answers in a different script from the
+ * claim, and one card photo that will not load. Between them the rows reach all three
+ * `RegisterAnswer` values and the silent fourth case where the register simply agreed,
+ * which is the coverage the overlay has to be exercised against.
  * No row is read from a bar council, a register or a person.
  *
  * **Approve and Reject perform no act.** Neither opens an account, grants access, refuses
@@ -118,9 +119,9 @@ export type RejectionRound = {
  * file also says in its own header that "the register will never be complete", which is
  * why `no-entry` below is an ordinary state and not an error.
  *
- * The two absent answers carry the same names as the statuses they become
- * (`SourceStatus`), because they *are* those statuses — the mapping is an identity, not a
- * translation table somebody has to keep in step.
+ * The two absent states carry the same names as the `RegisterAnswer` values they become,
+ * because they *are* those answers — the mapping is an identity, not a translation table
+ * somebody has to keep in step.
  */
 export type BarCouncilLookup =
   /** The register holds an entry against this number. */
@@ -363,114 +364,27 @@ export function formatWaitingDuration(days: number): string {
 
 /* ─────────────────────────── the row every fact is in ─────────────────────── */
 
-/**
- * What an authority said about one submitted value — **a closed set of six**, and the
- * whole reason this module exists in its present shape.
- *
- * The screen this replaced turned each of these into a sentence of its own, four of them
- * for the Bar Council lookup alone, which meant a fifth answer, a second source or clerk
- * registrations (`REG-13a`) all cost new prose — and prose cannot be filtered, counted or
- * shown anywhere else. Here the answer is a value. A fifth source is a fifth row; a fifth
- * answer is one more member of this union and one word in `SOURCE_ANSWER`.
- *
- * - `matches` — the source holds this value.
- * - `differs` — the source holds a different one. **The only status that earns a mark.**
- * - `no-entry` — the source has nothing against the key it was looked up by.
- * - `not-checked` — the source could not be reached.
- * - `verified` — proved by machine before the request was made (`REG-11`, the OTP).
- * - `none` — nothing checks this attribute at all, and **no line is rendered**. An
- *   absent source line is therefore itself information: it means unchecked-by-design,
- *   never "checked, result unknown" (brief D5.5).
- */
-export type SourceStatus =
-  | "matches"
-  | "differs"
-  | "no-entry"
-  | "not-checked"
-  | "verified"
-  | "none";
-
-/**
- * The word each status answers with.
- *
- * `differs` is absent because its answer is the value the source actually holds, which is
- * data; `none` is absent because it renders no line. Both absences are enforced by the
- * type, so a seventh status cannot be added without deciding what it says.
- */
-const SOURCE_ANSWER: Record<
-  Exclude<SourceStatus, "differs" | "none">,
-  string
-> = {
-  matches: "matches",
-  "no-entry": "no entry",
-  "not-checked": "not checked",
-  verified: "verified",
-};
-
-/** Which authority answered, and what it said, for one attribute. */
-export type AttributeSource =
-  | { status: "none" }
-  | {
-      status: Exclude<SourceStatus, "none" | "differs">;
-      /** The authority's own name — "Bar Council of Kerala", "OTP". */
-      source: string;
-    }
-  | {
-      status: "differs";
-      source: string;
-      /** What the source holds instead. The one answer that is data, not a word. */
-      answer: string;
-      answerLang?: string;
-    };
-
-/**
- * The source line as two slots, or nothing at all — `{source}: {answer}`.
- *
- * The component renders the slots and never composes the sentence, which is what stops a
- * seventh state from arriving as a paragraph.
- */
-export function sourceLine(
-  source: AttributeSource,
-): { source: string; answer: string; answerLang?: string } | null {
-  if (source.status === "none") return null;
-  if (source.status === "differs") {
-    return {
-      source: source.source,
-      answer: source.answer,
-      answerLang: source.answerLang,
-    };
-  }
-  return { source: source.source, answer: SOURCE_ANSWER[source.status] };
-}
-
-/**
- * Every mark a row can carry — **two, and there is no third**.
- *
- * `differs` is the source's finding; `changed` is orthogonal to it and says the holder of
- * a pre-created account altered this value at first login (`REG-18`). A row can carry
- * both, and one does. AGENTS rule 6 (three treatments per status, never a fourth) is what
- * keeps this set closed: a mark set that grows per scenario is the prose problem again,
- * in chip form.
- */
-export type RowMark = "differs" | "changed";
-
-export const MARK_LABEL: Record<RowMark, string> = {
-  differs: "Differs",
-  changed: "Changed",
-};
-
 /** How a value is set. Not decoration — a Bar ID is a code and a wait is a figure. */
 export type RowFormat = "text" | "code" | "figure" | "email";
 
 /**
- * One fact, in the one shape every fact on this overlay takes.
+ * One fact, in the one shape every fact on this overlay takes: **a term and its value**.
  *
  * Request metadata, the four submitted attributes and every rejection round all render
- * through this. That is the test the rebuild is judged on: a sixth attribute, a fifth
- * lookup answer or a clerk queue costs a row of data here, not a paragraph of copy in
- * the component.
+ * through this, and nothing else hangs off it. The version this replaces carried a
+ * source, a previous value and a list of marks on the same row, so a single line could
+ * arrive as a name, plus a chip saying `Differs`, plus a chip saying `Changed`, plus a
+ * muted line reading "Bar Council of Kerala: Thomas Kurian", plus a struck-through "Was
+ * Thomas Kurian" — five treatments stacked in a 190px column, which the owner read on
+ * the render as "an abomination of just information being thrown around"
+ * (2026-09-11). It was scalable in the sense that the *data* generalised; it was not
+ * scalable in the sense that matters, which is that a person has to scan it.
+ *
+ * So a comparison is no longer a decoration on a value. It is its own table with its
+ * own columns — see `ComparisonBlock`. This row holds one value and says nothing about
+ * where it came from.
  */
-export type RegistrationRow = {
+export type FactRow = {
   id: string;
   /** The attribute's label, read off `registrantKind` wherever the kind decides it. */
   term: string;
@@ -478,14 +392,10 @@ export type RegistrationRow = {
   /** BCP 47 tag for `value`, when it is not written in English. */
   valueLang?: string;
   format: RowFormat;
-  /** Escalating tone. Only the wait has one, and it is the queue cell's own (D6). */
+  /** Escalating ink. The wait carries one (D6); so does a register finding. */
   tone?: WaitTone;
-  source: AttributeSource;
-  /** `REG-18`. `was: null` means the value was **added**, not altered. */
-  previous?: { was: string | null };
   /** A dated fact belonging to the row rather than to a source — a round's own date. */
   note?: string;
-  marks: RowMark[];
 };
 
 /** Two names are the same name when only spacing and case separate them. */
@@ -495,23 +405,21 @@ function sameValue(a: string, b: string): boolean {
 }
 
 /**
- * The request's own facts: when it arrived, how long it has been kept, and which of the
- * three jobs it is (brief D16).
+ * The request's own facts: when it arrived, how long it has been kept, which of the
+ * three jobs it is (brief D16) — and the register's answer **only when the register did
+ * not simply agree** (D19).
  *
  * They are a group of rows and not a line of header prose, because a header holds two
- * facts before it becomes a paragraph — and a paragraph is what this model removes. The
- * application number is **not** here: it is the dialog's description, and carrying it
- * twice would be one fact with two treatments.
+ * facts before it becomes a paragraph. The application number is **not** here: it is the
+ * dialog's description, and carrying it twice would be one fact with two treatments.
  */
-export function requestRows(request: AdvocateRegistration): RegistrationRow[] {
-  return [
+export function requestRows(request: AdvocateRegistration): FactRow[] {
+  const rows: FactRow[] = [
     {
       id: "submitted",
       term: "Submitted",
       value: formatRegistrationLongDate(submissionDay(request)),
       format: "figure",
-      source: { status: "none" },
-      marks: [],
     },
     {
       id: "waiting",
@@ -521,18 +429,19 @@ export function requestRows(request: AdvocateRegistration): RegistrationRow[] {
       /* The same escalation as the queue cell the officer arrived from: one fact, one
          treatment, on both surfaces (D6). */
       tone: registrationWaitTone(request.daysWaiting),
-      source: { status: "none" },
-      marks: [],
     },
     {
       id: "requestKind",
       term: "Request type",
       value: requestTypeValue(request),
       format: "text",
-      source: { status: "none" },
-      marks: [],
     },
   ];
+
+  const finding = registerFindingRow(request);
+  if (finding) rows.push(finding);
+
+  return rows;
 }
 
 /**
@@ -540,7 +449,7 @@ export function requestRows(request: AdvocateRegistration): RegistrationRow[] {
  *
  * The provenance a paragraph used to explain — "this account was created from the Bar
  * Council record, the advocate changed the marked values at first login" — is carried by
- * this value plus the `Changed` marks on the rows that changed. Nothing is narrated.
+ * this value plus the `Changed at first login` comparison. Nothing is narrated.
  */
 export function requestTypeValue(request: AdvocateRegistration): string {
   if (request.requestKind === "edited") {
@@ -552,103 +461,276 @@ export function requestTypeValue(request: AdvocateRegistration): string {
   return "New registration";
 }
 
+/* ───────────────────────── what the register answered ─────────────────────── */
+
 /**
- * The four submitted values, each with whatever authority can speak to it.
+ * The register's answer — **a closed set of three, and agreement is not one of them**
+ * (D19, owner 2026-09-11).
+ *
+ * The build this replaces put the register's answer on every attribute it could speak
+ * to, including the ones it agreed with: `Bar Council of Kerala: matches` under the
+ * name, `OTP: verified` under the mobile. The owner read those on the render and asked
+ * the question that retires them — *"is that relevant information in the first place?"*
+ * It is not. A queue is scanned for exceptions, and a line that appears on the fourteen
+ * ordinary requests to say nothing is wrong is a line the officer stops reading long
+ * before the one that says something is.
+ *
+ * So the register speaks only when it disagrees, is empty, or could not be reached. A
+ * silent register means it agreed. `OTP: verified` is gone outright: the mobile is the
+ * account's key and is **always** OTP-verified (`REG-10`/`REG-11`), so it distinguishes
+ * no request from any other — the same argument that retired the User Type column (D4).
+ */
+export type RegisterAnswer = "differs" | "no-entry" | "not-checked";
+
+/**
+ * What each answer says, in the officer's terms rather than the system's.
+ *
+ * `differs` says only *that* something disagrees; **how** it disagrees is the comparison
+ * table, because two values side by side is what "how" looks like.
+ */
+const REGISTER_FINDING: Record<RegisterAnswer, string> = {
+  differs: "Some details do not match",
+  "no-entry": "No entry for this registration ID",
+  "not-checked": "Could not be reached",
+};
+
+/** The register's answer about this request, or `null` when it simply agreed. */
+export function registerAnswer(
+  request: AdvocateRegistration,
+): RegisterAnswer | null {
+  const { lookup } = request;
+  if (lookup.state === "no-entry") return "no-entry";
+  if (lookup.state === "not-checked") return "not-checked";
+  return sameValue(lookup.entry.name, request.fullName) ? null : "differs";
+}
+
+/**
+ * The one row the register gets — in the Request group, because a lookup the court ran
+ * is a fact about the request and not an attribute of the person.
+ *
+ * `warning`, never `destructive`: a register that disagrees is a finding that needs a
+ * human to look at a photograph, not a verdict, and the loud treatment would have the
+ * machine reject before anybody looked at the card (the lesson `scrutiny/flag-composer`
+ * already records). The words carry it, so the finding is never colour alone.
+ */
+export function registerFindingRow(
+  request: AdvocateRegistration,
+): FactRow | null {
+  const answer = registerAnswer(request);
+  if (!answer) return null;
+  return {
+    id: "register",
+    /* The register names itself when it answered at all; only an unreachable or empty
+       one falls back to the generic noun. */
+    term:
+      request.lookup.state === "found"
+        ? request.lookup.entry.bar
+        : registerName(request.registrantKind),
+    value: REGISTER_FINDING[answer],
+    format: "text",
+    tone: "warning",
+  };
+}
+
+/**
+ * The four submitted values — and **nothing about where they came from**.
  *
  * Exactly four, because the flow collects exactly five things and the fifth — the
  * photograph — is the evidence column, not a row (`REG-10`–`REG-15`). That mapping is how
  * a reader checks at a glance that nothing was invented: five collected values, four rows
  * and one column.
  *
- * **Where each answer sits** (brief D5). The lookup is made on the registration ID, so
- * that row carries whether the register *had* an entry — `no entry` / `not checked` — and
- * the name row carries whether the entry agrees. When there is no entry the name row
- * states nothing at all, and the ID row directly beneath it is read as covering both.
- * The two are adjacent for exactly that reason; whoever moves them apart owes the absent
- * answer a second home.
+ * This is the block the officer reads against the photograph, so it holds what the
+ * advocate typed and stops. Every comparison — with the register, with the account before
+ * it was edited — is a table of its own below (`comparisonBlocks`).
  */
-export function identityRows(request: AdvocateRegistration): RegistrationRow[] {
-  const { lookup } = request;
-
-  const nameSource: AttributeSource =
-    lookup.state !== "found"
-      ? { status: "none" }
-      : sameValue(lookup.entry.name, request.fullName)
-        ? { status: "matches", source: lookup.entry.bar }
-        : {
-            status: "differs",
-            source: lookup.entry.bar,
-            answer: lookup.entry.name,
-            answerLang: lookup.entryNameLang,
-          };
-
-  /* The lookup's two absent answers are already the statuses they become, so this is an
-     identity rather than a mapping somebody has to keep in step. */
-  const idSource: AttributeSource =
-    lookup.state === "found"
-      ? { status: "matches", source: lookup.entry.bar }
-      : { status: lookup.state, source: registerName(request.registrantKind) };
-
-  const rows: RegistrationRow[] = [
-    row("fullName", "Full name", request.fullName, "text", nameSource, {
+export function identityRows(request: AdvocateRegistration): FactRow[] {
+  const rows: FactRow[] = [
+    {
+      id: "fullName",
+      term: "Full name",
+      value: request.fullName,
       valueLang: request.fullNameLang,
-    }),
-    row(
-      "barRegistrationId",
-      registrationIdLabel(request.registrantKind),
-      request.barRegistrationId,
-      "code",
-      idSource,
-    ),
-    /* `REG-10`/`REG-11` — the number is the account's primary key and it was proved by
-       OTP before the request was ever made. Stated so the officer does not spend a doubt
-       on the one value a machine has already settled. */
-    row("mobile", "Mobile number", request.mobile, "figure", {
-      status: "verified",
-      source: "OTP",
-    }),
+      format: "text",
+    },
+    {
+      id: "barRegistrationId",
+      term: registrationIdLabel(request.registrantKind),
+      value: request.barRegistrationId,
+      format: "code",
+    },
+    {
+      id: "mobile",
+      term: "Mobile number",
+      value: request.mobile,
+      format: "figure",
+    },
   ];
 
   /* `REG-15`. Absent, not blank: an optional value nobody gave is not a missing one, and
      a row reading "—" would teach the officer to look for it. */
   if (request.email) {
-    rows.push(row("email", "Email", request.email, "email", { status: "none" }));
+    rows.push({
+      id: "email",
+      term: "Email",
+      value: request.email,
+      format: "email",
+    });
   }
 
-  return rows.map((attribute) => withEdit(attribute, request));
-
-  function row(
-    id: ClaimField,
-    term: string,
-    value: string,
-    format: RowFormat,
-    source: AttributeSource,
-    extra?: { valueLang?: string },
-  ): RegistrationRow {
-    return {
-      id,
-      term,
-      value,
-      format,
-      source,
-      marks: source.status === "differs" ? ["differs"] : [],
-      ...extra,
-    };
-  }
+  return rows;
 }
 
-/** `REG-18` — the second mark, and the line under the value saying what it replaced. */
-function withEdit(
-  attribute: RegistrationRow,
+/* ─────────────────────── two values, side by side ─────────────────────────── */
+
+/**
+ * One value in a comparison — the claimant's, the register's, or the account's before an
+ * edit. They are the same kind of thing, which is why they are the same type.
+ */
+export type ComparisonValue = {
+  text: string;
+  /** BCP 47 tag, when this value is not written in English. */
+  lang?: string;
+  format: RowFormat;
+  /**
+   * A value the record never held. Rendered quiet, and as words rather than a dash: an
+   * em-dash in a before/after table is read as "unknown" as readily as "nothing".
+   */
+  absent?: boolean;
+};
+
+export type ComparisonRow = {
+  id: string;
+  /** The attribute being compared, in the same words the Identity block uses. */
+  term: string;
+  /** One per column, in the block's own column order. */
+  values: ComparisonValue[];
+};
+
+/**
+ * A set of attributes where two sources hold different values — the whole of what the
+ * old `differs` / `changed` chips, source lines and struck-through values were trying to
+ * say, in the shape the owner asked for: *"clearly show what was before and after… all in
+ * a clean tabular format so it's scannable"* (2026-09-11).
+ *
+ * The block is **general in the axis that matters**: a third source, a fourth, or a
+ * comparison over three columns is a block with more `columns` and more `values`. It is
+ * not general in a way that lets a component invent a sentence — the label and the column
+ * headers are the only strings, and both are named here.
+ *
+ * Nothing renders when there is nothing to compare, which is the ordinary request: the
+ * officer of a clean submission sees the four values and the photograph, and no table at
+ * all.
+ */
+export type ComparisonBlock = {
+  id: "register" | "changed";
+  /** The group's own name — what the two columns are a comparison *between*. */
+  label: string;
+  /** Header over each value column. Same length as every row's `values`. */
+  columns: string[];
+  rows: ComparisonRow[];
+  /**
+   * Whether this is something to look at or something to know. A register that disagrees
+   * is a finding (`warning`); an edit the account holder made at first login is a fact
+   * about the record (`plain`) — `REG-18` says an edit happened, which is not a status.
+   */
+  tone: "warning" | "plain";
+};
+
+/**
+ * Every comparison this request carries, in reading order: the exception first, then the
+ * record's own history.
+ */
+export function comparisonBlocks(
   request: AdvocateRegistration,
-): RegistrationRow {
-  const edit = editFor(request, attribute.id as ClaimField);
-  if (!edit) return attribute;
-  return {
-    ...attribute,
-    previous: { was: edit.was },
-    marks: [...attribute.marks, "changed"],
-  };
+): ComparisonBlock[] {
+  const blocks: ComparisonBlock[] = [];
+  const current = identityRows(request);
+
+  const { lookup } = request;
+  /**
+   * **The same two values are never tabled twice.**
+   *
+   * On an edited pre-created account the two comparisons collide: the account was created
+   * from the Bar Council record, so the value it held *before* the holder edited it is
+   * the value the register still holds. Rendering both tables put "Thomas Kurian" against
+   * "Thomas Kurian Varghese" twice on one screen, under two different headings — one fact
+   * with two treatments, which is the defect this whole rebuild exists to remove.
+   *
+   * When they coincide, the edit is kept and the register row dropped: the edit is the
+   * *reason* the register disagrees, and a table that says why beats one that says only
+   * that. The finding itself is not lost — it is the register's row in the Request group,
+   * which states it once whatever the tables below do.
+   */
+  const explainedByEdit =
+    lookup.state === "found" &&
+    sameValue(editFor(request, "fullName")?.was ?? "", lookup.entry.name);
+
+  if (
+    lookup.state === "found" &&
+    registerAnswer(request) === "differs" &&
+    !explainedByEdit
+  ) {
+    blocks.push({
+      id: "register",
+      label: `Does not match ${lookup.entry.bar}`,
+      columns: ["Submitted", "On the register"],
+      rows: [
+        {
+          id: "fullName",
+          term: current[0].term,
+          values: [
+            {
+              text: request.fullName,
+              lang: request.fullNameLang,
+              format: "text",
+            },
+            /* The register's answer carries the register's own tag, never the
+               claimant's: the two strings are separate answers and need not share a
+               script, and borrowing the claimant's tag would have a screen reader read
+               the disagreement aloud in one voice (ACCESSIBILITY §13). */
+            {
+              text: lookup.entry.name,
+              lang: lookup.entryNameLang,
+              format: "text",
+            },
+          ],
+        },
+      ],
+      tone: "warning",
+    });
+  }
+
+  /* `REG-18`. Ordered by the Identity block rather than by the edit list, so the two
+     tables are read in the same order however the data arrives. */
+  const changed = current.flatMap((row) => {
+    const edit = editFor(request, row.id as ClaimField);
+    if (!edit) return [];
+    return [
+      {
+        id: row.id,
+        term: row.term,
+        values: [
+          edit.was === null
+            ? { text: "Not given", format: row.format, absent: true }
+            : { text: edit.was, format: row.format },
+          { text: row.value, lang: row.valueLang, format: row.format },
+        ],
+      },
+    ];
+  });
+
+  if (changed.length > 0) {
+    blocks.push({
+      id: "changed",
+      label: "Changed at first login",
+      columns: ["Before", "Now"],
+      rows: changed,
+      tone: "plain",
+    });
+  }
+
+  return blocks;
 }
 
 /**
@@ -663,7 +745,7 @@ function withEdit(
  * was a rejection, because an approved request leaves the queue, so a chip saying so
  * would mark the norm. The group's own label carries it.
  */
-export function rejectionRows(request: AdvocateRegistration): RegistrationRow[] {
+export function rejectionRows(request: AdvocateRegistration): FactRow[] {
   return [...(request.rejections ?? [])].reverse().map((round) => ({
     id: `round-${round.round}`,
     term: `Round ${round.round}`,
@@ -671,9 +753,7 @@ export function rejectionRows(request: AdvocateRegistration): RegistrationRow[] 
        rewrite what the court told the advocate. */
     value: round.reason,
     format: "text" as const,
-    source: { status: "none" as const },
     note: formatRegistrationLongDate(rejectionDay(round)),
-    marks: [],
   }));
 }
 

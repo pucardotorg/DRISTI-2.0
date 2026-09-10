@@ -437,7 +437,12 @@ every row would carry no information."
 *Given up:* the exact submission date is only in the overlay.
 *Fixes problems 4, 8.*
 
-### D5 — **Revised.** The register's answer sits on the attribute it checks, as a closed status — never as a banner
+### D5 — **Superseded by D19.** The register's answer sits on the attribute it checks, as a closed status — never as a banner
+
+> **2026-09-11:** the half of this that survives is *never as a banner* and *never
+> `destructive`*. The half that does not is putting the answer **on the attribute** — see
+> **D19**, which takes it off every attribute it agreed with, and off the ones it agreed
+> with silently most of all.
 
 *Supersedes the first pass's "stated as a machine reading… as a line above the claim
 block". The reasoning survives intact; the rendering does not.*
@@ -550,9 +555,16 @@ Newest-first wins because the officer's question on a resubmission is "did they 
 said last time", and that answer must not be at the bottom of five rounds.
 *Fixes problems 4, 8, 9.*
 
-### D8 — Reject requires a reason, and it takes the DS's *soft* destructive treatment
+### D8 — **Revised.** Reject requires a reason, and it takes the DS's *soft* destructive treatment
 
-*(Unchanged.)* Reject opens the reason field inside the same overlay — `Field` + a
+**2026-09-11:** the label loses its second sentence. It read *"Why are you rejecting this?
+The advocate will read this."* — and of course they will; that is what a reason is, and the
+officer writes one daily (owner: *"avoid unnecessary exposition in the product"*). The
+description under the box stating the gate before it is tripped goes with it; the error
+after a box has been typed in and emptied stays. Reject also gets its own **focused stage**
+rather than a composer dropped into the review layout — D21.
+
+Reject opens the reason field inside the same overlay — `Field` + a
 **visible** `FieldLabel`, a `Textarea`, and the save gate stated in words when it is holding
 the button, exactly as `FlagComposer` does. The label is written for the person who will
 read it: **"Why are you rejecting this? The advocate will read this."** Placeholder models
@@ -816,6 +828,125 @@ hover, just like how we treat usual cards in the design system."*
 separates). Not a page-level grey canvas — the dialog body is the scoped surface.
 *Rejected:* `bg-surface-sunken` wells inside the cards (a well needs a white panel between
 it and a tinted ground; here the card *is* on the tint).
+
+### D19 — **New.** The register speaks only when it disagrees
+
+Owner on the render, 2026-09-11: *"this whole Bar Council of Kerala matches, I didn't
+notice it until I read it… is that relevant information in the first place?"*
+
+It is not. **Agreement is not information.** A queue is scanned for exceptions, and a line
+that appears on every ordinary request to report that nothing is wrong is a line the
+officer stops reading long before the one that says something is. So:
+
+- `matches` is **deleted**, everywhere. A silent register agreed.
+- `OTP: verified` under the mobile is **deleted outright**: the number is the account's key
+  and is *always* OTP-verified (`REG-10`/`REG-11`), so it distinguishes no request from any
+  other — the same argument that retired the User Type column (D4).
+- The three remaining answers — `differs`, `no-entry`, `not-checked` — collapse to **one
+  row in the Request group**, `{register name} · {finding}`, in `warning` ink with the
+  words. A lookup the court ran is a fact about the request, not an attribute of the
+  person, which is also why it stops appearing beside four different values.
+- **How** it differs is a comparison table (D20), because two values side by side is what
+  "how" looks like.
+
+*Rule:* owner 2026-09-11; ACCESSIBILITY §3 (never colour alone); `flag-composer`'s lesson
+that a machine finding is not a verdict — still `warning`, never `destructive`.
+*Rejected:* keeping a quiet "checked, agrees" row so the officer can tell a clean check
+from an absent one. It is a real loss and it is logged in §11: the officer cannot
+distinguish "the register agreed" from "nothing looked". The `not-checked` answer is what
+covers the case that matters (the register was asked and could not answer).
+*Open:* whether a Bar Council integration exists at all — **§12.11**, raised by the owner
+in the same note. The design does not depend on it: with no lookup the block never renders.
+*Fixes problems 9, 11.*
+
+### D20 — **New.** Two shapes, and there is no third: a fact row, and a comparison table
+
+The 2026-09-10 build made every fact a value — and then hung every *other* fact about that
+value off the same row. One line could carry a name, a `Differs` chip, a `Changed` chip, a
+muted "Bar Council of Kerala: Thomas Kurian" line and a struck-through "Was Thomas Kurian",
+in a 190px column. The owner read it as *"an abomination of just information being thrown
+around with no particular hierarchy… not scalable"*, and the diagnosis is right: the data
+generalised, the **reading** did not.
+
+So the overlay has exactly two shapes.
+
+1. **`FactRow` → `DescriptionList` in a `Card`.** A term and its value. Nothing else
+   attaches: no source, no mark, no previous value. Request metadata, the four submitted
+   attributes, every rejection round. (DS Laws name this: "Description list inside Card for
+   a single record's key-value fields".)
+2. **`ComparisonBlock` → `Table`.** A column per source, a row per attribute, a heading
+   naming what is being compared against what. Two today —
+   *Does not match {register}* (`Submitted` · `On the register`) and *Changed at first
+   login* (`Before` · `Now`) — and a third source is a third block with the same shape.
+
+Three rules fall out of it, and they are the point:
+
+- **No strikethrough, ever.** *"I hate this application of just striking out something that
+  was previously before… it should clearly show what was before and after"* (owner). A
+  strikethrough puts two values in one cell and says one of them is gone without saying
+  what replaced it. Columns say both.
+- **The table is the product's own** — `chrome/table-plate`, the treatment the queue behind
+  the overlay wears, not a grid composed here. That answers the other half of the note:
+  *"everywhere I am seeing a new unique way of this being implemented… UI should be
+  scalable."* The fix for a new unique way is the shared one, not a better new one.
+- **The same two values are never tabled twice.** On an edited pre-created account the
+  account was created *from* the Bar Council record, so the value before the edit is the
+  value the register still holds — both tables would print the same pair under two
+  headings. The edit wins, because it says *why* the register disagrees; the finding itself
+  is still stated once, in the Request row.
+
+*Rule:* owner 2026-09-11; DS Laws (grouped content; description list role); `table-plate`.
+*Rejected:* a third shape for "one value with an annotation" — that is the thing being
+removed; a per-attribute mismatch chip (D5's) — the block's heading carries it once.
+*Given up:* seeing a disagreement inline with the value it belongs to. The officer reads
+the four values, then the exceptions, in that order, rather than all at once.
+*Fixes problems 9, 12, 13.*
+
+### D21 — **New.** Every stage past Review is a focused step, and it ends in green or red
+
+Four notes from 2026-09-11, one answer.
+
+- *"Why is it that when I reject… it's still staying in the same modal, like just how
+  accept was going into the next step"* — because Reject kept the two-column review layout
+  with a composer wedged into it. Reject, Approve and both settled states are now **one
+  centred column**, `max-w-xl`, nothing else on the stage. Reading is done; the layout for
+  reading goes with it.
+- *"Someone like a scrutiny officer, they know they are going to get access to their
+  account… who are you trying to explain this to?"* — the Approve stage's explanatory
+  sentence is **deleted**. The stage is the identity being vouched for, and the footer.
+- *"Calling out each name, is that scalable UI?"* — the settled outcome is a **heading, not
+  a sentence with a name interpolated**: "Account created" / "Reason sent to the advocate",
+  the same strings every time, with who it happened to in the Identity table beneath. A
+  name in a labelled slot is scannable in the same place every time; a name in a sentence
+  is prose.
+- *"Is the next in queue contextually relevant to that same information? Why do you club
+  it with that card?"* — the next request leaves the card entirely. It is the footer's
+  button, and the button says what it does. **The next application number is not printed at
+  all**: a serial the officer has never seen tells them nothing.
+
+And the semantics: **approved is `success`, rejected is `destructive`** — the header badge,
+the icon disc, and the outcome's ink. The 2026-09-10 build used `info` for a rejection on
+the argument that it is a message on its way rather than a failure; the owner overruled it
+(*"probably using red versus green"*), and the overrule is right for the reader, who needs
+to know which of two decisions they just took.
+
+*Rule:* owner 2026-09-11; DS three-treatments-per-status; ACCESSIBILITY §3.
+*Rejected:* a solid `bg-success` panel as `SignBulkConfirmDialog` uses — on a tinted stage
+the muted disc keeps the card white like its neighbours.
+
+### D22 — **Iteration, not a decision.** The beige page on the queue screen
+
+Owner: *"I just want to see how it looks if you add that beige as the background here… if
+I say no after seeing it, just revert it back."*
+
+Built as asked, and flagged as the one thing on the branch arguing with a rule rather than
+following it: ui-craft §1.0 keeps the page `bg-background` and gets depth from the lifted
+panel, and a tinted page was owner-rejected once already (2026-08-17). What makes it worth
+looking at is that `muted` is the tone the **rail** already carries, so page and rail become
+one ground and the white panel is the only lifted thing on the screen — the arrangement the
+overlay's own stage just adopted. Top bar stays `bg-card`; dark stays `bg-background`.
+
+**Revert is deleting two utilities** on the screen's root element. Nothing depends on them.
 
 ## 6. What I cut (and why)
 
@@ -1095,6 +1226,20 @@ there is product's call, not this brief's.
 
 ---
 
+### 12.11 — Is there a Bar Council integration at all? **[OWNER / PRODUCT]**
+
+Raised by the owner on the render, 2026-09-11: *"this Bar Council of Kerala matches assumes
+that we are doing an API check to Bar Council… it might be possible also, but is that
+relevant information?"* The handover names the officer's verification as the **Bar
+registration ID and the photograph** (`REG-14`); it does not describe a register lookup.
+`lib/filing/registry.ts` models one for the filing side, which is where this screen's
+`BarCouncilLookup` came from.
+
+The screen is built so the answer does not change its shape: with no lookup, `registerAnswer`
+is never anything but silent and neither the Request row nor the comparison table renders.
+What product has to settle is whether the court is entitled to assert a mismatch against a
+register at all — and, if so, whose register and how current.
+
 ## 13. Gaps in the DS (if any)
 
 **None filed, and the attribute row is not one.** The row is
@@ -1151,5 +1296,6 @@ dependency here. Request #9 stands on its own merits for the screens that raised
 | **2026-09-10 (evening)** | **D16 added.** Request metadata is its own attribute group, not header prose; the application number stays in the header description and is not repeated; the advocate's name **leaves** the header, because printing a value under verification as the record's title asserts it. | ux-designer |
 | **2026-09-10 (evening)** | **D9 and D11 corrected for two parallel cross-cutting changes** — search filters as you type (the Search button goes away app-wide) and the whole table row becomes the click target. The queue page therefore has **no page-level primary**, which is what D9 argued was correct all along; the "teal on the queue page is Search" line is void, and two code comments asserting it must change with the rebuild. | orchestrator / ux-designer |
 | **2026-09-10 (evening)** | **§6 clarified** so the brief cannot be read as rejecting structure wholesale: the officer's rejection reason stays free text (`REG-22`) because it is *user data in a consistent slot*; what was rejected is *product copy narrating machine results*. Reason chips remain cut; a per-attribute rejection is filed as §12.10 for the owner to decide. | ux-designer |
+| **2026-09-11 (design-mode round 2)** | **Nine render comments.** The overlay's fact model rebuilt around **two shapes** — a term/value row and a comparison table on the product's own `table-plate` (D20); strikethroughs and the `Differs`/`Changed` chips deleted; the register reduced to one Request row that speaks only when it disagrees, `matches` and `OTP: verified` deleted (D19); Reject, Approve and both settled states became focused single-column stages, the settled outcome a heading rather than a sentence with a name in it, the next request moved out of the card and its number dropped, approved/rejected now green/red (D21); explanatory copy removed from the reject label and the approve stage (D8, D21); the review split widened to 3:2 and the overlay to `max-w-5xl`; the beige page built as a reversible iteration (D22). D5 superseded; §12.11 opened on whether the Bar Council lookup exists at all. | owner (direction) / orchestrator |
 | **2026-09-10 (design-mode round)** | Four render comments implemented. (1) Request-type chips colour-coded — `info` Edited, `warning` Resubmitted (D7). (2) Search placeholder sentence-cased — at the owning layer, all fourteen court-side queue placeholders. (3) Overlay body is a tinted stage with white hairline cards and a white photo well, hover-lifted (D18; `DocumentPreview surface="card"`). (4) Decision is a staged slide inside one overlay, with settled end states and "View next application" (D17; supersedes D9's `AlertDialog` and rejected conveyor, and D10's "no success dialog"). Brief D9, D10, D15 revised accordingly. | owner (direction) / orchestrator |
 | **2026-09-10 (evening)** | **§13**: no DS request filed — the attribute row composes from `DescriptionList` + `Badge`. Recorded that deleting the lookup `Alert` retires this screen's dependence on open DS request #9 (no quiet standing notice). | ux-designer |
