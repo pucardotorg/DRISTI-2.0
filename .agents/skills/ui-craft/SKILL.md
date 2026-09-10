@@ -48,7 +48,7 @@ drift cheap. Rules:
 - **Log every deviation** — what, why (which Law/a11y rule), and the minimal form
   chosen — in the build report for owner sign-off. An unlogged deviation is a defect.
 
-## 1. The six non-negotiables
+## 1. The seven non-negotiables
 
 0. **Layer the surface before you draw a stroke — the DS way.** The page stays
    `bg-background` (the DS `SidebarInset` default); rails are `bg-sidebar`; panels are
@@ -58,7 +58,15 @@ drift cheap. Rules:
    page from panel from well with every border removed, the layering is missing and no
    stroke will fix it. **Do not paint a grey canvas under the whole page** — it reads as
    a dull admin panel and departs from the DS's flat-page model (owner-rejected
-   2026-08-17). (See §4 for the exact recipe.)
+   2026-08-17). The one sanctioned exception is a **scoped work canvas**: a long-form
+   data-entry column may carry `bg-muted` (neutral-2) so the white cards on it read as
+   the focus area, provided the bright chrome around it — top bar and sticky footer —
+   stays `bg-card` so the tint reads as the writing surface and not as a grey page (a
+   `bg-sidebar` rail already shares neutral-2 and may sit flush with the canvas). Approved for
+   the e-filing form 2026-08-26 (`FilingMain`); it is not a licence to tint dashboards,
+   landings, or any page that is read rather than filled. Light mode only — in dark,
+   `muted` is the `surface-raised` step and sits *above* `card`, so tinting the canvas
+   inverts depth; keep `dark:bg-background`. (See §4 for the exact recipe.)
 
 1. **Borders are the last resort for separation.** To separate two regions try, in
    order: spacing → background shift (`bg-surface-sunken`, `bg-muted` stage per the
@@ -97,6 +105,16 @@ drift cheap. Rules:
    column, pair, count, date, time, or currency. Hierarchy comes from weight + color
    at a fixed size before it comes from a bigger size.
 
+6. **Facts are attributes; guidance is copy.** A fact the screen shows — a name, a
+   number, a date, a status — is a value in a field with a source and a type, rendered
+   through one slot. It is never a sentence composed for this case: the moment a
+   machine result reads as different prose depending on outcome, the next outcome needs
+   new copy and nothing on the screen can be filtered, sorted or reused. The other edge
+   is just as real: empty states, consequences and instructions are the product's voice,
+   and a screen that is nothing but label:value pairs has thrown that voice away. Sort
+   every string into one of the two before you style it. The brief's §5a Attributes
+   table is where the sorting is recorded.
+
 ## 2. Cheap-tell → premium move
 
 Every prescription is gate-legal (verified against `check:tokens` /
@@ -108,7 +126,7 @@ the role names.
 | Cheap tell | Premium move |
 | --- | --- |
 | White page, white cards, only `border-border` between them ("wireframe", "flat", "no elevation") | Lift the panels: `Card` + `border-hairline shadow-raised` (`PANEL_CLASS`). The DS shadow does the separating; the page stays white |
-| Grey canvas painted under the whole page to "add depth" | Revert to `bg-background`; depth comes from the lifted panel and the `bg-sidebar` rail, not from a tinted page (owner-rejected) |
+| Grey canvas painted under the whole page to "add depth" | Revert to `bg-background`; depth comes from the lifted panel and the `bg-sidebar` rail, not from a tinted page (owner-rejected). Exception: a long-form entry column may take `bg-muted` with the chrome left white — see §1.0 |
 | Rail/sidebar on `bg-card` (same white as the content) | Rails are `bg-sidebar` with a `border-hairline` seam — the DS's own rail tone is the second layer |
 | A sunken well wrapped around a white sheet that already lifts off the page | Delete the wrapper — wells live *inside* panels only |
 | `border-b border-border` under a header/tab row that already changes fill or has an active underline | `border-b border-hairline`, or delete the rule and let spacing + the underline separate |
@@ -116,7 +134,8 @@ the role names.
 | Panel/rail with `border-l border-border` sitting on `bg-sidebar` / `bg-muted` | The fill change already separates it — drop to `border-hairline` or remove |
 | `bg-surface-sunken` well *plus* `border border-border` | Pick one: sunken fill with no border (the box-in-box ban — depth is fill, not borders) |
 | `shadow-raised` box nested inside another `shadow-raised` card | Inner box becomes a flat fill (`bg-card` on a tinted parent, `bg-surface-sunken` on a white one); shadow only on the outermost lifted surface |
-| Info/warning notice as a tinted colour block with tinted body copy | Quiet notice: white panel (`Alert` default + hairline + `shadow-raised`), icon in `*-ink`, title foreground, body muted — status by icon + words |
+| Notice that reports a status rendered as a plain white panel (variant thrown away, only the icon tinted) | The DS `Alert` variant for that status — opaque `*-muted` fill with its own `*-muted-foreground` pair for title, body and icon (never grey `text-muted-foreground` on the tint), plus the words. Icon + words + tint is not colour *alone*; the tint is the sanctioned third treatment |
+| Every notice on a screen tinted, or a status tint on copy that only explains how to fill the control beside it | Tint what reports a status — a failure, a success, a legal risk, machine-read data. Guidance stays the neutral `Alert` default. Count the tints at rest: three stacked on one screen means too many notices, not too much colour |
 | Card where title, number, badge, and metadata are all `font-semibold` | Title keeps 600; numbers drop to 500 + `tabular-nums`; metadata to 400 `text-muted-foreground` — two weights per component |
 | 3–4 chips/badges on one card row (status + ownership + count + avatar) | One chip carries the status; ownership becomes the avatar itself or plain caption text; counts become text |
 | `Badge variant="destructive"` on every overdue row in a list | Rows state the fact in `text-destructive-ink` caption text; at most the single most-urgent item (or a rail header count) keeps the badge |

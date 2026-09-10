@@ -48,7 +48,7 @@ drift cheap. Rules:
 - **Log every deviation** — what, why (which Law/a11y rule), and the minimal form
   chosen — in the build report for owner sign-off. An unlogged deviation is a defect.
 
-## 1. The six non-negotiables
+## 1. The seven non-negotiables
 
 0. **Layer the surface before you draw a stroke — the DS way.** The page stays
    `bg-background` (the DS `SidebarInset` default); rails are `bg-sidebar`; panels are
@@ -104,6 +104,16 @@ drift cheap. Rules:
    negatively in body or caption. `tabular-nums` on every number that sits in a
    column, pair, count, date, time, or currency. Hierarchy comes from weight + color
    at a fixed size before it comes from a bigger size.
+
+6. **Facts are attributes; guidance is copy.** A fact the screen shows — a name, a
+   number, a date, a status — is a value in a field with a source and a type, rendered
+   through one slot. It is never a sentence composed for this case: the moment a
+   machine result reads as different prose depending on outcome, the next outcome needs
+   new copy and nothing on the screen can be filtered, sorted or reused. The other edge
+   is just as real: empty states, consequences and instructions are the product's voice,
+   and a screen that is nothing but label:value pairs has thrown that voice away. Sort
+   every string into one of the two before you style it. The brief's §5a Attributes
+   table is where the sorting is recorded.
 
 ## 2. Cheap-tell → premium move
 

@@ -57,6 +57,8 @@ Review:
 - [ ] Laws: sentence case; one primary teal action per view; 40px controls; 40×40 touch
 - [ ] ACCESSIBILITY.md: labels, keyboard, focus, errors via aria-describedby / Field
 - [ ] Product meaning from docs/product — no invented personas
+- [ ] Every fact on screen is a row in the brief's §5a Attributes table, with a source
+- [ ] Statuses render from a closed enum through one slot — no per-case prose; no constant-on-every-record value shown as a fact
 ```
 
 ## 4. Report format
