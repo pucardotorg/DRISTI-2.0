@@ -506,13 +506,21 @@ function ChoicePills<Value extends string>({
 
 export function ReviewRow({
   term,
+  className,
   children,
 }: {
   term: string;
+  /** For a caller whose rows sit in a well and need a quieter rule than border. */
+  className?: string;
   children: ReactNode;
 }) {
   return (
-    <DescriptionRow className="grid-cols-1 sm:grid-cols-[minmax(8rem,11rem)_1fr]">
+    <DescriptionRow
+      className={cn(
+        "grid-cols-1 sm:grid-cols-[minmax(8rem,11rem)_1fr]",
+        className
+      )}
+    >
       <DescriptionTerm className="text-body-compact">{term}</DescriptionTerm>
       <DescriptionDetails className="min-w-0 text-body-compact">
         {children}

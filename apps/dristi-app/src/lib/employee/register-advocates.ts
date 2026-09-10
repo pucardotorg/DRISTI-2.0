@@ -24,9 +24,13 @@
  * what the screen has to survive: two names in Malayalam script, one name long enough to
  * wrap its column twice, Bar registration IDs from four state bars so the column is sized
  * off the longest rather than off Kerala's short form, waits spread from one day to two
- * months, an edited pre-created account (`REG-18`), a resubmission at round 2 and one at
- * round 5 with every earlier reason kept, a Bar Council lookup that disagrees, one that
- * could not be reached, one that found nothing, and one card photo that will not load.
+ * months, an edited pre-created account (`REG-18`) whose changed name is also the one the
+ * register disagrees with — so the two-mark row exists in the data and not only in the
+ * brief — a resubmission at round 2 and one at round 5 with every earlier reason kept, a
+ * register that could not be reached, one that holds no entry, one mismatch where the
+ * register answers in a different script from the claim, and one card photo that will not
+ * load. Between them the rows reach **all six** `SourceStatus` values, which is
+ * the coverage the overlay's one row model has to be exercised against.
  * No row is read from a bar council, a register or a person.
  *
  * **Approve and Reject perform no act.** Neither opens an account, grants access, refuses
@@ -40,7 +44,7 @@
  */
 
 import { matchesQuery } from "./filter-state";
-import { formatListingDate, parseIsoDay } from "./hearings";
+import { parseIsoDay } from "./hearings";
 import type { RegisteredAdvocate } from "@/lib/filing/registry";
 
 /**
@@ -97,42 +101,52 @@ export type RejectionRound = {
 };
 
 /**
- * What the Bar Council register said when this Bar registration ID was looked up
- * (`REG-13`).
+ * What the register answered when this Bar registration ID was looked up (`REG-13`).
  *
- * Four answers, and only one of them is an exception worth marking (brief D5). It is
- * stated as **a machine reading**, never as a verdict: the evidence `REG-14` actually
- * names is the photograph, and the officer looks at that in every case.
+ * Three answers and nothing else: it either holds an entry against the number, holds
+ * none, or could not be reached. **Whether the entry agrees with the claim is not stored
+ * here** — it is derived, by comparing the register's name with the submitted one
+ * (`identityRows`). Storing "agrees" beside the entry it agrees with is two facts that
+ * can drift apart, and the one that drifts is the one the officer reads.
+ *
+ * It is a **machine reading**, never a verdict: the evidence `REG-14` names is the
+ * photograph, and the officer looks at that in every case.
  *
  * `entry` reuses `RegisteredAdvocate` from `lib/filing/registry.ts` — the app already
  * models a bar-council register as `{ barNumber, name, bar }`, and a second shape for the
  * same register is how two screens end up disagreeing about what a lookup returns. That
  * file also says in its own header that "the register will never be complete", which is
- * why `not-found` below is an ordinary state and not an error.
- */
-/**
- * BCP 47 tag for `entry.name`, when the register's answer is not written in English.
+ * why `no-entry` below is an ordinary state and not an error.
  *
- * The register's name is its own string and carries its own script: the claimant may
- * have typed Malayalam and the register answer in Latin, or the reverse, and the whole
- * point of the `disagrees` case is that the two are *not* the same name. Tagging the
- * register's name with the claimant's tag — which is what this screen did before — hands
- * a screen reader a Malayalam voice for a Latin string on exactly the row where the
- * officer is being asked to compare them (ACCESSIBILITY §13). It rides `entry` rather
- * than `RegisteredAdvocate` itself because that type is `lib/filing/registry.ts`'s, shared
- * with the filing side, and this is a fact about the lookup's presentation here.
+ * The two absent answers carry the same names as the statuses they become
+ * (`SourceStatus`), because they *are* those statuses — the mapping is an identity, not a
+ * translation table somebody has to keep in step.
  */
-type EntryNameLang = { entryNameLang?: string };
-
 export type BarCouncilLookup =
-  /** The register holds this number against this name. The norm — stated once, quietly. */
-  | ({ state: "agrees"; entry: RegisteredAdvocate } & EntryNameLang)
-  /** The register holds this number against somebody else. A finding for a human. */
-  | ({ state: "disagrees"; entry: RegisteredAdvocate } & EntryNameLang)
+  /** The register holds an entry against this number. */
+  | {
+      state: "found";
+      entry: RegisteredAdvocate;
+      /**
+       * BCP 47 tag for `entry.name`, when the register's answer is not written in
+       * English.
+       *
+       * The register's name is its own string and carries its own script: the claimant
+       * may have typed Malayalam and the register answered in Latin, or the reverse, and
+       * the whole point of a `differs` row is that the two are *not* the same name.
+       * Tagging the register's name with the claimant's tag hands a screen reader a
+       * Malayalam voice for a Latin string on exactly the row where the officer is being
+       * asked to compare them (ACCESSIBILITY §13). It rides the lookup rather than
+       * `RegisteredAdvocate` itself because that type is `lib/filing/registry.ts`'s,
+       * shared with the filing side, and this is a fact about the lookup's presentation
+       * here.
+       */
+      entryNameLang?: string;
+    }
   /** The number is not in the register. Ordinary — see above. */
-  | { state: "not-found" }
+  | { state: "no-entry" }
   /** The register could not be reached. **The decision is not blocked.** */
-  | { state: "unavailable" };
+  | { state: "not-checked" };
 
 export type AdvocateRegistration = {
   id: string;
@@ -204,11 +218,6 @@ function dayBefore(day: string, days: number): string {
   return `${date.getFullYear()}-${month}-${date_}`;
 }
 
-/** "31 Aug 2026" — the same column register every other court-side list uses. */
-export function formatRegistrationDate(day: string): string {
-  return formatListingDate(day);
-}
-
 const LONG_DAY = new Intl.DateTimeFormat("en-IN", {
   day: "numeric",
   month: "long",
@@ -261,18 +270,23 @@ export function currentRound(request: AdvocateRegistration): number {
   return (request.rejections?.length ?? 0) + 1;
 }
 
-/** The reason the officer gave last time, in full — the resubmission's whole question. */
-export function latestRejection(
-  request: AdvocateRegistration,
-): RejectionRound | undefined {
-  return request.rejections?.at(-1);
+/**
+ * What the register this registrant is checked against is called, when it has not named
+ * itself.
+ *
+ * A register that answered names itself — `entry.bar` is "Bar Council of Kerala", or
+ * Maharashtra's, or Gujarat's, and nothing here is hardcoded to one state. A register
+ * that held **no entry**, or could not be reached, has told us nothing at all, so there
+ * is no bar name to quote and the generic noun is what is honest. Read off the
+ * registrant, so a clerk register (`REG-13a`) names itself without a second code path.
+ */
+export function registerName(kind: RegistrantKind): string {
+  return kind === "clerk" ? "Clerk register" : "Bar Council register";
 }
 
-/** Everything before that, oldest first — one line each in the overlay's timeline. */
-export function earlierRejections(
-  request: AdvocateRegistration,
-): RejectionRound[] {
-  return request.rejections?.slice(0, -1) ?? [];
+/** What the pre-created account came from, when one was edited (`REG-18`). */
+function preCreatedFrom(kind: RegistrantKind): string {
+  return kind === "clerk" ? "clerk register" : "Bar Council";
 }
 
 /** What the holder changed in this field at first login, if anything (`REG-18`). */
@@ -319,6 +333,327 @@ export function formatDaysWaitingSpoken(days: number): string {
   return days === 1 ? "1 day waiting" : `${days} days waiting`;
 }
 
+/** The wait as a value beside the term "Waiting", where the term is not a column header. */
+export function formatWaitingDuration(days: number): string {
+  return days === 1 ? "1 day" : `${days} days`;
+}
+
+/* ─────────────────────────── the row every fact is in ─────────────────────── */
+
+/**
+ * What an authority said about one submitted value — **a closed set of six**, and the
+ * whole reason this module exists in its present shape.
+ *
+ * The screen this replaced turned each of these into a sentence of its own, four of them
+ * for the Bar Council lookup alone, which meant a fifth answer, a second source or clerk
+ * registrations (`REG-13a`) all cost new prose — and prose cannot be filtered, counted or
+ * shown anywhere else. Here the answer is a value. A fifth source is a fifth row; a fifth
+ * answer is one more member of this union and one word in `SOURCE_ANSWER`.
+ *
+ * - `matches` — the source holds this value.
+ * - `differs` — the source holds a different one. **The only status that earns a mark.**
+ * - `no-entry` — the source has nothing against the key it was looked up by.
+ * - `not-checked` — the source could not be reached.
+ * - `verified` — proved by machine before the request was made (`REG-11`, the OTP).
+ * - `none` — nothing checks this attribute at all, and **no line is rendered**. An
+ *   absent source line is therefore itself information: it means unchecked-by-design,
+ *   never "checked, result unknown" (brief D5.5).
+ */
+export type SourceStatus =
+  | "matches"
+  | "differs"
+  | "no-entry"
+  | "not-checked"
+  | "verified"
+  | "none";
+
+/**
+ * The word each status answers with.
+ *
+ * `differs` is absent because its answer is the value the source actually holds, which is
+ * data; `none` is absent because it renders no line. Both absences are enforced by the
+ * type, so a seventh status cannot be added without deciding what it says.
+ */
+const SOURCE_ANSWER: Record<
+  Exclude<SourceStatus, "differs" | "none">,
+  string
+> = {
+  matches: "matches",
+  "no-entry": "no entry",
+  "not-checked": "not checked",
+  verified: "verified",
+};
+
+/** Which authority answered, and what it said, for one attribute. */
+export type AttributeSource =
+  | { status: "none" }
+  | {
+      status: Exclude<SourceStatus, "none" | "differs">;
+      /** The authority's own name — "Bar Council of Kerala", "OTP". */
+      source: string;
+    }
+  | {
+      status: "differs";
+      source: string;
+      /** What the source holds instead. The one answer that is data, not a word. */
+      answer: string;
+      answerLang?: string;
+    };
+
+/**
+ * The source line as two slots, or nothing at all — `{source}: {answer}`.
+ *
+ * The component renders the slots and never composes the sentence, which is what stops a
+ * seventh state from arriving as a paragraph.
+ */
+export function sourceLine(
+  source: AttributeSource,
+): { source: string; answer: string; answerLang?: string } | null {
+  if (source.status === "none") return null;
+  if (source.status === "differs") {
+    return {
+      source: source.source,
+      answer: source.answer,
+      answerLang: source.answerLang,
+    };
+  }
+  return { source: source.source, answer: SOURCE_ANSWER[source.status] };
+}
+
+/**
+ * Every mark a row can carry — **two, and there is no third**.
+ *
+ * `differs` is the source's finding; `changed` is orthogonal to it and says the holder of
+ * a pre-created account altered this value at first login (`REG-18`). A row can carry
+ * both, and one does. AGENTS rule 6 (three treatments per status, never a fourth) is what
+ * keeps this set closed: a mark set that grows per scenario is the prose problem again,
+ * in chip form.
+ */
+export type RowMark = "differs" | "changed";
+
+export const MARK_LABEL: Record<RowMark, string> = {
+  differs: "Differs",
+  changed: "Changed",
+};
+
+/** How a value is set. Not decoration — a Bar ID is a code and a wait is a figure. */
+export type RowFormat = "text" | "code" | "figure" | "email";
+
+/**
+ * One fact, in the one shape every fact on this overlay takes.
+ *
+ * Request metadata, the four submitted attributes and every rejection round all render
+ * through this. That is the test the rebuild is judged on: a sixth attribute, a fifth
+ * lookup answer or a clerk queue costs a row of data here, not a paragraph of copy in
+ * the component.
+ */
+export type RegistrationRow = {
+  id: string;
+  /** The attribute's label, read off `registrantKind` wherever the kind decides it. */
+  term: string;
+  value: string;
+  /** BCP 47 tag for `value`, when it is not written in English. */
+  valueLang?: string;
+  format: RowFormat;
+  /** Escalating tone. Only the wait has one, and it is the queue cell's own (D6). */
+  tone?: WaitTone;
+  source: AttributeSource;
+  /** `REG-18`. `was: null` means the value was **added**, not altered. */
+  previous?: { was: string | null };
+  /** A dated fact belonging to the row rather than to a source — a round's own date. */
+  note?: string;
+  marks: RowMark[];
+};
+
+/** Two names are the same name when only spacing and case separate them. */
+function sameValue(a: string, b: string): boolean {
+  const fold = (value: string) => value.trim().replace(/\s+/g, " ").toLowerCase();
+  return fold(a) === fold(b);
+}
+
+/**
+ * The request's own facts: when it arrived, how long it has been kept, and which of the
+ * three jobs it is (brief D16).
+ *
+ * They are a group of rows and not a line of header prose, because a header holds two
+ * facts before it becomes a paragraph — and a paragraph is what this model removes. The
+ * application number is **not** here: it is the dialog's description, and carrying it
+ * twice would be one fact with two treatments.
+ */
+export function requestRows(request: AdvocateRegistration): RegistrationRow[] {
+  return [
+    {
+      id: "submitted",
+      term: "Submitted",
+      value: formatRegistrationLongDate(submissionDay(request)),
+      format: "figure",
+      source: { status: "none" },
+      marks: [],
+    },
+    {
+      id: "waiting",
+      term: "Waiting",
+      value: formatWaitingDuration(request.daysWaiting),
+      format: "figure",
+      /* The same escalation as the queue cell the officer arrived from: one fact, one
+         treatment, on both surfaces (D6). */
+      tone: registrationWaitTone(request.daysWaiting),
+      source: { status: "none" },
+      marks: [],
+    },
+    {
+      id: "requestKind",
+      term: "Request type",
+      value: requestTypeValue(request),
+      format: "text",
+      source: { status: "none" },
+      marks: [],
+    },
+  ];
+}
+
+/**
+ * Which of the three jobs this request is, as a value from a closed set of three.
+ *
+ * The provenance a paragraph used to explain — "this account was created from the Bar
+ * Council record, the advocate changed the marked values at first login" — is carried by
+ * this value plus the `Changed` marks on the rows that changed. Nothing is narrated.
+ */
+export function requestTypeValue(request: AdvocateRegistration): string {
+  if (request.requestKind === "edited") {
+    return `Edited ${preCreatedFrom(request.registrantKind)} account`;
+  }
+  if (request.requestKind === "resubmission") {
+    return `Resubmitted · round ${currentRound(request)}`;
+  }
+  return "New registration";
+}
+
+/**
+ * The four submitted values, each with whatever authority can speak to it.
+ *
+ * Exactly four, because the flow collects exactly five things and the fifth — the
+ * photograph — is the evidence column, not a row (`REG-10`–`REG-15`). That mapping is how
+ * a reader checks at a glance that nothing was invented: five collected values, four rows
+ * and one column.
+ *
+ * **Where each answer sits** (brief D5). The lookup is made on the registration ID, so
+ * that row carries whether the register *had* an entry — `no entry` / `not checked` — and
+ * the name row carries whether the entry agrees. When there is no entry the name row
+ * states nothing at all, and the ID row directly beneath it is read as covering both.
+ * The two are adjacent for exactly that reason; whoever moves them apart owes the absent
+ * answer a second home.
+ */
+export function identityRows(request: AdvocateRegistration): RegistrationRow[] {
+  const { lookup } = request;
+
+  const nameSource: AttributeSource =
+    lookup.state !== "found"
+      ? { status: "none" }
+      : sameValue(lookup.entry.name, request.fullName)
+        ? { status: "matches", source: lookup.entry.bar }
+        : {
+            status: "differs",
+            source: lookup.entry.bar,
+            answer: lookup.entry.name,
+            answerLang: lookup.entryNameLang,
+          };
+
+  /* The lookup's two absent answers are already the statuses they become, so this is an
+     identity rather than a mapping somebody has to keep in step. */
+  const idSource: AttributeSource =
+    lookup.state === "found"
+      ? { status: "matches", source: lookup.entry.bar }
+      : { status: lookup.state, source: registerName(request.registrantKind) };
+
+  const rows: RegistrationRow[] = [
+    row("fullName", "Full name", request.fullName, "text", nameSource, {
+      valueLang: request.fullNameLang,
+    }),
+    row(
+      "barRegistrationId",
+      registrationIdLabel(request.registrantKind),
+      request.barRegistrationId,
+      "code",
+      idSource,
+    ),
+    /* `REG-10`/`REG-11` — the number is the account's primary key and it was proved by
+       OTP before the request was ever made. Stated so the officer does not spend a doubt
+       on the one value a machine has already settled. */
+    row("mobile", "Mobile number", request.mobile, "figure", {
+      status: "verified",
+      source: "OTP",
+    }),
+  ];
+
+  /* `REG-15`. Absent, not blank: an optional value nobody gave is not a missing one, and
+     a row reading "—" would teach the officer to look for it. */
+  if (request.email) {
+    rows.push(row("email", "Email", request.email, "email", { status: "none" }));
+  }
+
+  return rows.map((attribute) => withEdit(attribute, request));
+
+  function row(
+    id: ClaimField,
+    term: string,
+    value: string,
+    format: RowFormat,
+    source: AttributeSource,
+    extra?: { valueLang?: string },
+  ): RegistrationRow {
+    return {
+      id,
+      term,
+      value,
+      format,
+      source,
+      marks: source.status === "differs" ? ["differs"] : [],
+      ...extra,
+    };
+  }
+}
+
+/** `REG-18` — the second mark, and the line under the value saying what it replaced. */
+function withEdit(
+  attribute: RegistrationRow,
+  request: AdvocateRegistration,
+): RegistrationRow {
+  const edit = editFor(request, attribute.id as ClaimField);
+  if (!edit) return attribute;
+  return {
+    ...attribute,
+    previous: { was: edit.was },
+    marks: [...attribute.marks, "changed"],
+  };
+}
+
+/**
+ * Every round this request has already been refused, **newest first** (brief D7).
+ *
+ * Newest first because the question a resubmission asks is "did they fix what I said last
+ * time", and that answer must not be at the bottom of five rounds. All of them render
+ * through the same row as everything else — the build this replaces had the newest as a
+ * quote block and the rest as a timeline, which is one fact with two treatments.
+ *
+ * The round's `decision` is not a field and not a mark: every round that can appear here
+ * was a rejection, because an approved request leaves the queue, so a chip saying so
+ * would mark the norm. The group's own label carries it.
+ */
+export function rejectionRows(request: AdvocateRegistration): RegistrationRow[] {
+  return [...(request.rejections ?? [])].reverse().map((round) => ({
+    id: `round-${round.round}`,
+    term: `Round ${round.round}`,
+    /* The officer's own words, kept whole. A summary would let this screen quietly
+       rewrite what the court told the advocate. */
+    value: round.reason,
+    format: "text" as const,
+    source: { status: "none" as const },
+    note: formatRegistrationLongDate(rejectionDay(round)),
+    marks: [],
+  }));
+}
+
 /* ──────────────────────────────── the queue ───────────────────────────────── */
 
 const CARD = "/demo/bar-id-card-specimen.svg";
@@ -344,7 +679,7 @@ const PENDING: AdvocateRegistration[] = [
     registrantKind: "advocate",
     requestKind: "resubmission",
     lookup: {
-      state: "agrees",
+      state: "found",
       entry: {
         barNumber: "KL/1109/2009",
         name: "Fathima Beevi Abdul Rahman Kunju Rawther",
@@ -393,7 +728,7 @@ const PENDING: AdvocateRegistration[] = [
     requestKind: "first",
     /* Nothing came back from the register. The officer still has the card, which is the
        evidence REG-14 names, so the decision is not held up. */
-    lookup: { state: "unavailable" },
+    lookup: { state: "not-checked" },
   },
   {
     id: "adv-181",
@@ -406,15 +741,19 @@ const PENDING: AdvocateRegistration[] = [
     daysWaiting: 12,
     registrantKind: "advocate",
     requestKind: "first",
-    /* The one mismatch. `warning`, never destructive: the register disagreeing with the
-       form is a finding that needs a human to look at a photograph, not a verdict. */
+    /* The mismatch at its worst: the register holds a different name **and** holds it in
+       another script, which is the one row where tagging the register's answer with the
+       claimant's `lang` would have a screen reader read the two as agreeing. `warning`,
+       never destructive — the register disagreeing with the form is a finding that needs
+       a human to look at a photograph, not a verdict. */
     lookup: {
-      state: "disagrees",
+      state: "found",
       entry: {
         barNumber: "KL/3312/2021",
-        name: "Meera Sudhakaran",
+        name: "മീര സുധാകരൻ",
         bar: KERALA,
       },
+      entryNameLang: "ml",
     },
   },
   {
@@ -429,7 +768,7 @@ const PENDING: AdvocateRegistration[] = [
     registrantKind: "advocate",
     requestKind: "first",
     lookup: {
-      state: "agrees",
+      state: "found",
       entry: {
         barNumber: "MAH/2201/2010",
         name: "Sandeep Deshmukh",
@@ -440,10 +779,13 @@ const PENDING: AdvocateRegistration[] = [
   {
     id: "adv-191",
     applicationNumber: "KL-ADV-000191-2026",
-    fullName: "Thomas Kurian",
+    /* The register was created under the short form and he corrected it to his full legal
+       name at first login — so this row is both `changed` and `differs`, which is the
+       case the overlay has to hold two chips for. */
+    fullName: "Thomas Kurian Varghese",
     barRegistrationId: "KL/3077/2020",
     /* REG-18: the account was auto-created from the Bar Council record and he changed
-       two things at first login. The officer verifies the change, not the record. */
+       three things at first login. The officer verifies the change, not the record. */
     mobile: "9895204471",
     email: "thomas.kurian@example.com",
     photo: { src: CARD, filename: "bar-id-kl-3077-2020.jpg" },
@@ -451,7 +793,7 @@ const PENDING: AdvocateRegistration[] = [
     registrantKind: "advocate",
     requestKind: "edited",
     lookup: {
-      state: "agrees",
+      state: "found",
       entry: {
         barNumber: "KL/3077/2020",
         name: "Thomas Kurian",
@@ -459,6 +801,7 @@ const PENDING: AdvocateRegistration[] = [
       },
     },
     edits: [
+      { field: "fullName", was: "Thomas Kurian" },
       { field: "mobile", was: "9847051204" },
       /* The Bar Council record holds no email, so this is an addition rather than a
          change — and "was: —" would be a value the record never had. */
@@ -479,7 +822,7 @@ const PENDING: AdvocateRegistration[] = [
     /* The one row where the register answers in Malayalam too, so the tag is on the
        register's own name and not borrowed from the claimant's. */
     lookup: {
-      state: "agrees",
+      state: "found",
       entry: {
         barNumber: "KL/2306/2016",
         name: "ഷൈലജ രാമകൃഷ്ണൻ",
@@ -503,7 +846,7 @@ const PENDING: AdvocateRegistration[] = [
     registrantKind: "advocate",
     requestKind: "resubmission",
     lookup: {
-      state: "agrees",
+      state: "found",
       entry: {
         barNumber: "KL/2140/2015",
         name: "Nazeer Muhammed",
@@ -530,7 +873,7 @@ const PENDING: AdvocateRegistration[] = [
     registrantKind: "advocate",
     requestKind: "first",
     lookup: {
-      state: "agrees",
+      state: "found",
       entry: {
         barNumber: "G/60/1992",
         name: "Prakash Vaidya",
@@ -553,7 +896,7 @@ const PENDING: AdvocateRegistration[] = [
     requestKind: "first",
     /* An incomplete register is normal, not a defect — `lib/filing/registry.ts` says so
        in its own header. The card is what decides this one. */
-    lookup: { state: "not-found" },
+    lookup: { state: "no-entry" },
   },
   {
     id: "adv-204",
@@ -566,7 +909,7 @@ const PENDING: AdvocateRegistration[] = [
     registrantKind: "advocate",
     requestKind: "first",
     lookup: {
-      state: "agrees",
+      state: "found",
       entry: {
         barNumber: "KL/2588/2017",
         name: "Vishnu Prasad",
@@ -586,7 +929,7 @@ const PENDING: AdvocateRegistration[] = [
     registrantKind: "advocate",
     requestKind: "first",
     lookup: {
-      state: "agrees",
+      state: "found",
       entry: {
         barNumber: "D/1450/2013",
         name: "Ritu Sabharwal",
@@ -605,7 +948,7 @@ const PENDING: AdvocateRegistration[] = [
     registrantKind: "advocate",
     requestKind: "first",
     lookup: {
-      state: "agrees",
+      state: "found",
       entry: {
         barNumber: "KL/1877/2014",
         name: "Joseph Mathew",
@@ -625,7 +968,7 @@ const PENDING: AdvocateRegistration[] = [
     registrantKind: "advocate",
     requestKind: "first",
     lookup: {
-      state: "agrees",
+      state: "found",
       entry: {
         barNumber: "KL/1533/2012",
         name: "Sreelakshmi Pillai",
@@ -644,7 +987,7 @@ const PENDING: AdvocateRegistration[] = [
     registrantKind: "advocate",
     requestKind: "first",
     lookup: {
-      state: "agrees",
+      state: "found",
       entry: {
         barNumber: "KL/0421/2004",
         name: "Deepak Menon",

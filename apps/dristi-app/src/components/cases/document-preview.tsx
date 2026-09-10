@@ -18,6 +18,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 /**
@@ -104,6 +110,15 @@ const wellHeight = {
  * Surfaces that cannot hang their actions off this header — the case file,
  * whose PDF and digital reads share one grid cell — compose
  * `DocumentPreviewActions` directly instead.
+ *
+ * `variant="quiet"` is the third shape: no header band at all, and the two
+ * actions as 40×40 icon buttons on the well itself. It exists for a surface
+ * where the document *is* the column and the dialog's own title already names
+ * it — a titled band 100px under a DialogTitle is two headings competing for
+ * one job, and its sub-line repeats a date the record already carries. The
+ * region keeps its accessible name, so nothing is lost to a screen reader,
+ * only to an eye that did not need it. Opt-in: every existing caller renders
+ * exactly as before.
  */
 export function DocumentPreview({
   title,
@@ -112,19 +127,60 @@ export function DocumentPreview({
   download,
   height = "default",
   actions,
+  variant = "default",
   className,
 }: {
   /** The document's own name. Heads the section and names both actions. */
   title: string;
-  /** Optional sub-label, e.g. which file of how many is on screen. */
+  /** Optional sub-label, e.g. which file of how many is on screen. Not shown when quiet. */
   description?: ReactNode;
   source: DocumentPreviewSource;
   download?: DocumentDownload;
   height?: keyof typeof wellHeight;
   /** Surface-specific controls, placed ahead of Download in the same row. */
   actions?: ReactNode;
+  /** `quiet` drops the header band and puts the actions on the well as icons. */
+  variant?: "default" | "quiet";
   className?: string;
 }) {
+  if (variant === "quiet") {
+    return (
+      /*
+        aria-label carries the heading the eye lost: the region is still named,
+        and the well and the image beneath it name themselves too.
+      */
+      <section
+        aria-label={title}
+        className={cn("flex min-h-0 min-w-0 flex-col", className)}
+      >
+        <DocumentWell
+          title={title}
+          source={source}
+          /*
+            A sticky child pins to the nearest scrollport, and the well is one:
+            fine above `md`, where the well is what scrolls and the actions stay
+            at the top of a tall scan. Below it the *body* scrolls and the well
+            is merely tall, so a well that keeps its own overflow would carry
+            the actions off the top of the screen with it. Handing the scrolling
+            back to the body at that size is what keeps them pinned. Scoped to
+            this variant — no other caller has a toolbar to pin.
+          */
+          className={cn(wellHeight[height], "max-md:overflow-visible")}
+          toolbar={
+            <DocumentPreviewActions
+              iconOnly
+              title={title}
+              source={source}
+              download={download}
+            >
+              {actions}
+            </DocumentPreviewActions>
+          }
+        />
+      </section>
+    );
+  }
+
   return (
     <section className={cn("flex min-h-0 min-w-0 flex-col", className)}>
       {/*
@@ -180,25 +236,65 @@ export function DocumentPreviewActions({
   title,
   source,
   download,
+  iconOnly = false,
   className,
   children,
 }: {
   title: string;
   source: DocumentPreviewSource;
   download?: DocumentDownload;
+  /**
+   * Drop the words and keep the icons, at the 40×40 floor with a tooltip and an
+   * accessible name carrying the same sentence. For a surface that has no room
+   * for a header band — see `DocumentPreview`'s quiet variant.
+   */
+  iconOnly?: boolean;
   className?: string;
   children?: ReactNode;
 }) {
   const resolved = resolveDownload(source, download);
 
-  return (
+  const cluster = (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
       {children}
-      {resolved ? <DownloadAction title={title} download={resolved} /> : null}
+      {resolved ? (
+        <DownloadAction title={title} download={resolved} iconOnly={iconOnly} />
+      ) : null}
       {canExpand(source) ? (
-        <FullViewDialog title={title} source={source} download={resolved} />
+        <FullViewDialog
+          title={title}
+          source={source}
+          download={resolved}
+          iconOnly={iconOnly}
+        />
       ) : null}
     </div>
+  );
+
+  /* Its own provider rather than an app-wide one: this component is dropped into
+     dialogs and panels that have no idea a tooltip is coming, and the pattern the
+     product already uses (`join/download-case-file-button.tsx`) is a local
+     provider. Nesting inside another provider is harmless. */
+  return iconOnly ? <TooltipProvider>{cluster}</TooltipProvider> : cluster;
+}
+
+/**
+ * An icon action that says what it does in three places at once — the tooltip,
+ * the accessible name and the same words — so a voice user can speak what a
+ * sighted user reads (ACCESSIBILITY §9, §12).
+ */
+function IconAction({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -215,39 +311,55 @@ export function DocumentPreviewActions({
 function DownloadAction({
   title,
   download,
+  iconOnly = false,
 }: {
   title: string;
   download: DocumentDownload;
+  iconOnly?: boolean;
 }) {
   const label = download.label ?? `Download ${title}`;
 
   if ("href" in download) {
-    return (
-      <Button variant="ghost" className="shrink-0" asChild>
+    const anchor = (
+      <Button
+        variant="ghost"
+        size={iconOnly ? "icon" : "default"}
+        className="shrink-0"
+        asChild
+      >
         <a
           href={download.href}
           download={download.filename ?? true}
           aria-label={label}
         >
-          Download
-          <DownloadIcon data-icon="inline-end" aria-hidden />
+          {iconOnly ? null : "Download"}
+          <DownloadIcon
+            data-icon={iconOnly ? undefined : "inline-end"}
+            aria-hidden
+          />
         </a>
       </Button>
     );
+    return iconOnly ? <IconAction label={label}>{anchor}</IconAction> : anchor;
   }
 
-  return (
+  const button = (
     <Button
       type="button"
       variant="ghost"
+      size={iconOnly ? "icon" : "default"}
       className="shrink-0"
       aria-label={label}
       onClick={download.onDownload}
     >
-      Download
-      <DownloadIcon data-icon="inline-end" aria-hidden />
+      {iconOnly ? null : "Download"}
+      <DownloadIcon
+        data-icon={iconOnly ? undefined : "inline-end"}
+        aria-hidden
+      />
     </Button>
   );
+  return iconOnly ? <IconAction label={label}>{button}</IconAction> : button;
 }
 
 /**
@@ -266,24 +378,35 @@ function FullViewDialog({
   title,
   source,
   download,
+  iconOnly = false,
 }: {
   title: string;
   source: DocumentPreviewSource;
   download: DocumentDownload | undefined;
+  iconOnly?: boolean;
 }) {
+  const label = `Full view of ${title}`;
+  const trigger = (
+    <DialogTrigger asChild>
+      <Button
+        type="button"
+        variant="ghost"
+        size={iconOnly ? "icon" : "default"}
+        className="shrink-0"
+        aria-label={label}
+      >
+        {iconOnly ? null : "Full view"}
+        <Maximize2Icon
+          data-icon={iconOnly ? undefined : "inline-end"}
+          aria-hidden
+        />
+      </Button>
+    </DialogTrigger>
+  );
+
   return (
     <Dialog>
-      <DialogTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          className="shrink-0"
-          aria-label={`Full view of ${title}`}
-        >
-          Full view
-          <Maximize2Icon data-icon="inline-end" aria-hidden />
-        </Button>
-      </DialogTrigger>
+      {iconOnly ? <IconAction label={label}>{trigger}</IconAction> : trigger}
       <ChromeDialogContent className="flex h-[92svh] flex-col gap-4 overflow-hidden sm:max-w-[calc(100%-4rem)]">
         {/*
           Same rule as the inline header: title left, actions right. Download
@@ -322,10 +445,18 @@ function FullViewDialog({
 function DocumentWell({
   title,
   source,
+  toolbar,
   className,
 }: {
   title: string;
   source: DocumentPreviewSource;
+  /**
+   * Controls that belong **on** the well rather than above it — the quiet
+   * variant's two icons. In flow at the well's top-right, so they sit on the
+   * sunken fill and never on the document: a ghost button over a pale scan is
+   * fill on fill, and the well's own tone is the surface that answers it.
+   */
+  toolbar?: ReactNode;
   className?: string;
 }) {
   if (source.kind === "src") {
@@ -344,6 +475,11 @@ function DocumentWell({
           src={source.src}
           className="absolute inset-0 size-full border-0 bg-paper"
         />
+        {/* An iframe fills its well edge to edge, so there is no flow to put
+            the toolbar in — it floats, and the page under it is a document. */}
+        {toolbar ? (
+          <div className="absolute top-2 right-2 z-10">{toolbar}</div>
+        ) : null}
       </div>
     );
   }
@@ -352,6 +488,7 @@ function DocumentWell({
   // content is unreachable without a pointer.
   const scrollableWell = cn(
     "flex overflow-auto overscroll-contain rounded-xl bg-surface-sunken p-4 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+    toolbar && "flex-col gap-2",
     className
   );
 
@@ -362,6 +499,19 @@ function DocumentWell({
         aria-label={`Preview of ${title}`}
         className={cn(scrollableWell, "flex-col")}
       >
+        {toolbar ? (
+        /*
+          Sticky for the same reason the header band is: a tall scan pushes the
+          well past the viewport, and Download has to still be there when it
+          does — at 375 the whole overlay body is what scrolls. It carries the
+          well's own fill so it is invisible at rest and opaque when the
+          document passes under it; a ghost icon over a pale card scan is fill
+          on fill, and this is the surface that answers it.
+        */
+        <div className="sticky top-0 z-10 flex justify-end bg-surface-sunken">
+          {toolbar}
+        </div>
+      ) : null}
         {/* Capped so full view buys a bigger document, not a longer line —
             past about 90 characters a paragraph gets harder to read, not
             easier. Inert at the widths the inline well ever reaches. */}
@@ -378,6 +528,19 @@ function DocumentWell({
       aria-label={`Preview of ${title}`}
       className={scrollableWell}
     >
+      {toolbar ? (
+        /*
+          Sticky for the same reason the header band is: a tall scan pushes the
+          well past the viewport, and Download has to still be there when it
+          does — at 375 the whole overlay body is what scrolls. It carries the
+          well's own fill so it is invisible at rest and opaque when the
+          document passes under it; a ghost icon over a pale card scan is fill
+          on fill, and this is the surface that answers it.
+        */
+        <div className="sticky top-0 z-10 flex justify-end bg-surface-sunken">
+          {toolbar}
+        </div>
+      ) : null}
       {/*
         Centred with margin auto rather than items-center: a flex-centred
         child that outgrows a scroll container has its top edge clipped away,

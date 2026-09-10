@@ -1,6 +1,9 @@
 # Register advocates
 
-Status: reviewed
+Status: draft — **the decision overlay is being rebuilt.** The queue screen shipped
+(`f453fd1`); the owner rejected what is inside the overlay on 2026-09-10 and this brief
+carries the replacement. Everything not named in the 2026-09-10 (evening) log rows stands
+as built.
 Updated: 2026-09-10
 Source: `/Users/abhiramrajilan/Desktop/account-creation-handover.md` (Account Creation
 handover v3, 2026-09-07 — requirement IDs `REG-nn` cited throughout) ·
@@ -8,29 +11,38 @@ docs/product/README.md · docs/product/domain/actors.md ·
 docs/product/domain/journey.md · docs/product/domain/practice-notes.md ·
 docs/product/terminology.md · docs/product/open-questions.md ·
 owner (Abhiram) in this conversation, 2026-09-10 — quoted inline
-DS read: `vendor/pucar-design-system` — origin verified by reading
-`.git/config` (`https://github.com/pucardotorg/dristi-design-system.git`),
-pin `ds.lock.json` = `e0cadea6b9d4`. **`npm run check:ds-fresh` was not run** — this
-session had no shell; the pin is verified as a fact in the repo, not as the checked-out
-HEAD. Run it before building. Files opened: `AGENTS.md`, `RESPONSIVE.md`, foundations
-`laws`, `colors` (destructive / status semantics), `src/components/ui/button.tsx`,
-`src/components/docs/component-registry.tsx` (Button, Badge, Alert, Empty,
-Document slot entries), and the `src/components/ui/` catalog (69 components).
+DS read: `vendor/pucar-design-system`, pin `ds.lock.json` =
+`e0cadea6b9d459bd3c58eed840974c6c610ad624`, `remote: pucardotorg/dristi-design-system`.
+**`npm run check:ds-fresh` has still not been run** — neither session had a shell; the pin
+is verified as a fact in the repo, not as the checked-out HEAD. Run it before building.
+Files opened for the first pass: `AGENTS.md`, `RESPONSIVE.md`, foundations `laws`,
+`colors`, `src/components/ui/button.tsx`, `src/components/docs/component-registry.tsx`,
+and the `src/components/ui/` catalog. Files opened for **this revision**: `AGENTS.md`
+(rules 6, 6a, 7, 7a, 10 and the token-meaning table), foundations `laws`,
+`src/components/ui/description-list.tsx`, `item.tsx`, `badge.tsx`, `button.tsx`,
+`document-slot.tsx`, and the catalog re-globbed (68 components).
 
-Code read: `lib/employee/navigation.ts` (whole doc comment) ·
-`lib/employee/register-cases.ts` · `lib/employee/approve-copy-application.ts` ·
-`lib/employee/scrutiny/{queue,types,history}.ts` · `lib/employee/content.ts` ·
-`components/employee/approve-copy-application-{screen,dialog}.tsx` ·
+Code read for this revision: `components/employee/register-advocates-dialog.tsx` ·
+`components/employee/register-advocates-screen.tsx` ·
+`components/employee/register-advocates-table.tsx` ·
+`lib/employee/register-advocates.ts` · `components/cases/document-preview.tsx` ·
+`components/cases/filing-form-shared.tsx` (`ReviewRow`) ·
+`components/chrome/app-chrome.tsx` (`ChromeDialogContent`) ·
+`components/cases/case-file.tsx` (the `DocumentPreviewActions` precedent).
+First pass also read: `lib/employee/navigation.ts` · `lib/employee/register-cases.ts` ·
+`lib/employee/approve-copy-application.ts` · `lib/employee/scrutiny/{queue,types,history}.ts` ·
+`lib/employee/content.ts` · `components/employee/approve-copy-application-{screen,dialog}.tsx` ·
 `components/employee/register-cases-table.tsx` ·
 `components/employee/scrutiny/{flag-composer,history-sheet}.tsx` ·
-`components/cases/document-preview.tsx` · `lib/cases/party-actions.ts` ·
-`lib/filing/registry.ts` · `lib/sign-in/content.ts`
+`lib/cases/party-actions.ts` · `lib/filing/registry.ts` · `lib/sign-in/content.ts`
 
 Passes run (`.claude/skills/propose-ui-brief/references/staff-ux-thinking.md`):
 1 Walk the Tuesday · 2 Domain layout · 3 Control vocabulary · 4 Real weather ·
-5 Exception vs. norm · 6 Pattern census · 7 Sibling sweep · 8 Render — **pass 8 could
-not be run and is not claimed**: the screen does not exist yet. What must be checked on
-the render is listed in §11.
+5 Exception vs. norm · 6 Pattern census · 7 Sibling sweep — **all seven re-run for this
+revision against the built code**, which is why problems 9 and 10 cite line-level evidence
+instead of screenshots. Pass 8 (render) **was not re-run in this session** — no shell, no
+browser. It does not need to be: the owner ran it on the built screen and his verdict is
+quoted in §2. What must be re-checked on the render *after* the rebuild is listed in §11.
 
 ---
 
@@ -43,7 +55,7 @@ cases*, *Approve copy application*. One entry in `COURT_NAV_GROUPS[actions].item
 it, per that file's own convention ("a count of the list behind it is what keeps the rail
 and the screen from disagreeing"). The sidebar component is not touched.
 
-**Confirmed with the owner (2026-09-10), in his words:**
+**Confirmed with the owner (2026-09-10, morning), in his words:**
 
 - *"it's option 1, the approval queue"* — advocates **self-register** on the citizen
   side; their flow ends on a "Your registration is awaiting approval" screen carrying an
@@ -55,6 +67,17 @@ and the screen from disagreeing"). The sidebar component is not touched.
 - *"make sure the UI and UX of this is not anchoring to the screenshots… i want you to
   build a better version of the same, based on the kind of information we are asking to
   the advocates in the registration flow."*
+
+**Confirmed with the owner (2026-09-10, evening), on the built overlay** — the direction
+this revision follows, quoted at length in §2 and not re-litigated here:
+
+- The **shape** is kept: *"I like that it's a hover, like a modal that opens up."* D1 stands.
+- The **contents** are rejected: *"the information inside this modal does not make any
+  sense… it's not at all scalable. Stick to simple attributes that we can keep reusing.
+  Don't invent new scenarios and attributes that we cannot trace back to. You are relying
+  too much on… custom copy to do the heavy lifting."*
+- The **evidence region's chrome** is rejected by name: *"I also hate how the current
+  download button full view and title, photo of the bar ID, everything looks like."*
 
 **Confirmed by the handover** (precedence: owner > PDF > prototype):
 
@@ -72,7 +95,27 @@ and the screen from disagreeing"). The sidebar component is not touched.
 | The rejection reason is **free text** from the scrutiny officer | `REG-22` `[OWNER]` |
 | Rejection–resubmission may repeat **without limit** | `REG-23` `[DERIVED]` |
 | While Pending, the advocate has **no access** from their advocate account | `REG-24` `[OWNER]` |
+| Clerks register through the same officer, with their own identifier and their own ID card | `REG-13a` / `REG-14a` |
 | Notification copy is explicitly **not covered** | §12 |
+
+**This is the whole submitted set, and the overlay now says so structurally.** Five values
+(`REG-12` full name, `REG-13` Bar registration ID, `REG-10`/`REG-11` mobile,
+`REG-15` email, `REG-14` the photo) and nothing else. Four are attribute rows; the fifth —
+the photo — is the evidence column, rendered as itself. Any attribute an officer sees that
+is not in that list is invented, and the new row model makes that visible at a glance
+rather than buried in a paragraph.
+
+**Two cross-cutting changes land before the rebuild**, being made in parallel by
+`ui-designer` and adopted here rather than re-decided:
+
+1. **Search filters as you type** — the Search button is going away app-wide. This screen's
+   `draft` / `applied` two-state (`register-advocates-screen.tsx` lines 76–110) goes with
+   it. Consequence for this brief: D11 and the teal budget in D9 (both revised below).
+2. **The whole table row becomes the click target**, replacing the application-number-only
+   opener in `register-advocates-table.tsx` lines 125–134 and the item-list opener in
+   `register-advocates-screen.tsx` lines 387–394. Constraint this brief keeps: the row's
+   accessible name still **starts with the application number** (WCAG 2.5.3, and it is the
+   string the advocate can quote), and the row is one keyboard target, not five.
 
 **The cost of a slow queue is not a UX preference.** §138 runs on statutory clocks —
 notice within 30 days of the dishonour memo, 15 days to pay, complaint within one month
@@ -95,10 +138,10 @@ approve confirmation; empty/loading/error states; the one nav registry entry; th
 data shape.
 
 **Out of scope:** the advocate-side registration flow and its "awaiting approval" screen;
-the advocate-side rendering of a rejection; clerk registration (§12.3); notification
-delivery (§12.1); what an approved registration writes into the advocate registry
-(`lib/cases/party-actions.ts` `ADVOCATE_LOOKUP` is presumably the destination — not
-confirmed, §12.8); the Actions group's other three rows.
+the advocate-side rendering of a rejection; clerk registration as a shipped kind (§12.3);
+notification delivery (§12.1); what an approved registration writes into the advocate
+registry (`lib/cases/party-actions.ts` `ADVOCATE_LOOKUP` is presumably the destination —
+not confirmed, §12.8); the Actions group's other three rows.
 
 **Who this is for.** Who logs into DRISTI is still unanswered
 (`docs/product/open-questions.md`). The owner named the FSO, and the court-side demo
@@ -115,69 +158,122 @@ cognizance". Approving an advocate's registration is not in that definition. Tha
 
 ## 2. Problem
 
-Numbered so decisions and reviewers can cite them. Problems 1–8 are read off the six
-reference screenshots of the legacy system (owner, 2026-09-10) — used, as instructed, as
-a statement of *what* must exist, never *how*.
+Numbered so decisions and reviewers can cite them. Problems 1–8 were read off the six
+reference screenshots of the legacy system (owner, 2026-09-10) — used, as instructed, as a
+statement of *what* must exist, never *how*. **Problems 9 and 10 are defects in our own
+build**, found by the owner on the render and confirmed here line by line in the source.
 
-1. **The row does not exist.** The rail has no destination for advocate registrations at
-   all, so the only place this work can happen today is the legacy system.
-2. **The reference's detail page shows fields the new flow no longer collects.** ID Type
-   (Aadhar), ID Proof (PDF), Permanent Address, Current Residential Address, Location
-   (View on map) — none of these is in `REG-10`–`REG-15`; §5.1 `[OWNER]` explicitly drops
-   address and ID proof. Roughly **six of the nine values on that page are dead**, and
-   the three live ones (name, Bar Registration Number, Bar Council ID photo) are split
-   across three cards with the two that must be compared furthest apart.
+1. ~~**The row does not exist.**~~ **Resolved** by the 2026-09-10 build (`f453fd1`): the
+   rail carries *Register advocates* and the screen exists at
+   `/employee/register-advocates`.
+2. ~~**The reference's detail page shows fields the new flow no longer collects**~~ — ID
+   Type (Aadhar), ID Proof (PDF), Permanent Address, Current Residential Address, Location
+   (View on map); roughly six of nine values dead. **Resolved** by D3: those fields are
+   absent from the row model and from the overlay.
 3. **It never stages the comparison the officer is there to make.** `REG-14` says the
-   photo exists so the officer can verify the typed claim. The reference renders the
-   typed claim as label/value pairs in two cards at the top and the photo as a small
-   preview two scrolls down. The one act — *does the card show this name and this
-   number* — is the one thing the layout does not put in front of the eye.
-4. **The queue's columns carry almost no decision-relevant information.** Of five
-   columns, **User Type is constant** (this screen is advocates), **Application Number is
-   a string the officer does not hold** unless someone phoned them, and **Action ("Verify")
-   is a link that says nothing and duplicates the row it sits in**. That leaves User Name
-   and Due Since actually working. Nothing on the row says whether this is a first
-   registration, an edit to a pre-created account (`REG-18`), or a resubmission after a
-   rejection (`REG-23`) — three genuinely different jobs.
-5. **The filters are sliced by the system, not by the officer.** *User Type* is a
-   dropdown whose only value is Advocate; *Application Number* asks for the one identifier
-   the officer is least likely to have. Neither completes a sentence an officer would say.
-6. **Deciding one request costs six steps and ends in the wrong place.** Row → Verify →
-   detail page → Accept Request → confirm dialog → success dialog → "Go To Home". At the
-   reference's own count of **39 pending**, that is ~234 interactions and 39 trips back to
-   a Home the officer did not want to be on.
-7. **The decision pair is emphasised backwards.** Two equal-weight full-width buttons —
-   teal *Accept Request* and red *Reject Request*. But rejection is **recoverable by
-   design** (`REG-23`: the advocate edits and resubmits, without limit) while acceptance
-   is the one the reference's own dialog calls irreversible ("Advocate details cannot be
-   modified once registration request is accepted"). The loud destructive treatment is on
-   the reversible act; the irreversible one gets brand teal and a one-line confirm.
-8. **Nothing records or surfaces why a request is still here.** The reference shows a
-   sortable "Due Since" and nothing else — no prior reason, no round count, no history.
-   Against `REG-23` (unlimited rounds) an officer cannot tell round 1 from round 4, and
-   against the Kerala practice note there is no visible clock on the officer's own delay.
+   photo exists so the officer can verify the typed claim. **Half resolved:** the built
+   overlay does put the claim and the card side by side. **Still open, and now the main
+   defect:** the comparison is narrated in prose rather than expressed per attribute — see
+   problem 9.
+4. ~~**The queue's columns carry almost no decision-relevant information.**~~ **Resolved**
+   by D4: User Type and "Verify" are gone, Request type and Days waiting arrived.
+5. ~~**The filters are sliced by the system, not by the officer.**~~ **Resolved** by D11:
+   one box reaching name, Bar registration ID and application number.
+6. ~~**Deciding one request costs six steps and ends in the wrong place.**~~ **Resolved**
+   by D1 and D10: open the row, decide, the row leaves, focus comes back.
+7. ~~**The decision pair is emphasised backwards.**~~ **Resolved** by D8 and D9: soft
+   destructive on the reversible act, the `AlertDialog` on the irreversible one.
+8. ~~**Nothing records or surfaces why a request is still here.**~~ **Resolved** by D6 and
+   D7: escalating wait, request type, rejection history.
+
+9. **Every machine result is a bespoke sentence, so the overlay does not scale and cannot
+   be read at a glance.** The owner's words: *"You are relying too much on… custom copy to
+   do the heavy lifting of the product conveying information, but it should have a specific
+   set of attributes and show that mindfully."* One machine result — the Bar Council lookup
+   — is rendered as **four different prose variants** in
+   `components/employee/register-advocates-dialog.tsx` `BarCouncilLine` (lines 561–627):
+
+   | Lookup state | What the screen says today | Lines |
+   |---|---|---|
+   | agrees | "Bar Council of Kerala register: Fathima Beevi Abdul Rahman Kunju Rawther." | 572–582 |
+   | unavailable | "The Bar Council register could not be reached. Decide from the card." | 584–590 |
+   | not-found | "This number is not in the register / The Bar Council register has no entry against KAR/12453/2018. The register is not complete, so this is ordinary — the card is what decides it." | 592–604 |
+   | disagrees | "The register has a different name against this number / Bar Council of Kerala holds KL/3312/2021 against Meera Sudhakaran. This request was made in the name Meera Suresh. Check the card before deciding." | 606–626 |
+
+   Two more states are narrated the same way: the resubmission block writes "Round 4,
+   rejected 8 July 2026. This request is round 5." under a heading "Why this was rejected
+   last time" (lines 224–292), and an edited pre-created account gets the sentence "This
+   account was created from the Bar Council record. The advocate changed the marked values
+   at first login; the rest is the record as it stood." (lines 294–303).
+
+   Four consequences, all of them structural:
+
+   - **Every new case needs new copy.** A fifth lookup state, a second source, or clerk
+     registrations (`REG-13a`) means writing more sentences, and each one is a place the
+     product can say something the data does not support.
+   - **None of it is data.** A prose variant cannot be filtered, sorted, counted, or shown
+     on any other screen. The queue table consequently shows no lookup result at all
+     (`register-advocates-table.tsx` has no lookup cell), which means the brief's own D5 —
+     "a mark on the row when it disagrees" — was never true of the build. Resolved in the
+     revised D5.
+   - **A reader parses a paragraph to learn one fact.** The `disagrees` variant is 34 words
+     to say *the register holds a different name*.
+   - **The register's answer sits above everything, not on the attribute it concerns.** The
+     lookup line renders once, before the claim block (line 305), so a finding about the
+     *name* is two elements away from the name it disagrees with.
+
+10. **The evidence region carries a second title bar, and it competes with the dialog's
+    own.** `DocumentPreview` renders a sticky header — an `h3` "Photo of Bar ID card", a
+    sub-line "Uploaded 31 August 2026", and two ghost text buttons *Download* and *Full
+    view* (`components/cases/document-preview.tsx` lines 141–165), fed from
+    `register-advocates-dialog.tsx` lines 399–428. In this overlay that band sits roughly
+    100px under `DialogTitle` "Review registration request", so the top of the screen holds
+    **two headings and two controls fighting for the same job**. Three separate faults:
+
+    - The heading restates what the column already is; nothing else in the overlay is a
+      document, and the attribute list names the card in its own rows.
+    - "Uploaded 31 August 2026" is the **submitted date said twice** — the same fact the
+      request metadata carries.
+    - On the owner's marked screenshot, *Full view*'s focus ring (`ring-3
+      ring-focus-ring`, `button.tsx` line 8) renders hard against the title band and reads
+      as an error state next to a heading.
+
+    The owner: *"This entire model sucks. I feel like it has to be completely rethought
+    from a design scalability and, like, UX point of view."*
 
 ---
 
 ## 3. Objective
 
-Observable, and not provisional — the Job is confirmed (§4):
+Observable, and not provisional — the Job is confirmed (§4).
 
-- An officer can tell, **from the row**, whether a request is routine or needs a look:
-  how long it has waited, and whether it is a first registration, an edit, or a
-  resubmission.
+Standing from the first pass (all met by the build, and preserved by the rebuild):
+
+- An officer can tell, **from the row**, whether a request is routine or needs a look: how
+  long it has waited, and whether it is a first registration, an edit, or a resubmission.
 - The decision is taken **in one place where the typed claim and the photo of the Bar ID
   card are visible at the same time**, without leaving the queue.
 - A rejection cannot leave the screen without a reason an advocate could act on.
 - Deciding a request costs **two interactions** from the queue (open, decide) plus a
-  confirm on the irreversible one — not six plus a navigation home.
+  confirm on the irreversible one.
 - The officer's own delay is visible on every row and escalates with it.
+
+Added by this revision, and the test the rebuild is judged on:
+
+- **Every fact in the overlay is a value in a named slot.** Nothing the product knows is
+  expressed only as a sentence the product wrote. Concretely: adding a sixth submitted
+  attribute, a fifth lookup state, or clerk registrations should cost **a row of data, not
+  a paragraph of copy**.
+- **A finding sits on the attribute it concerns.** The officer's eye reaches "the register
+  holds a different name" without leaving the name.
+- **The evidence column has one heading and it is the dialog's.**
 
 ---
 
 ## 4. Job
 
-**Confirmed — owner, 2026-09-10.** *"it's option 1, the approval queue."*
+**Confirmed — owner, 2026-09-10.** *"it's option 1, the approval queue."* **Unchanged by
+the critique**, which was about the rendering of this Job, not the Job.
 
 In full, in the terms product uses: advocates self-register on the citizen side and their
 account sits at **Pending Approval** with no access (`REG-24`). This screen is the
@@ -199,9 +295,13 @@ owner's.
 ## 5. Decisions
 
 Each carries the rule or doc behind it, or the word *judgment*; the alternative rejected;
-and what it gives up.
+and what it gives up. **D2, D5, D7, D9 and D11 were revised on 2026-09-10 (evening)** —
+what changed and why is in each one and in §14.
 
 ### D1 — Push back first: collapse the reference's six-step path into a queue and one overlay
+
+*(Unchanged, and explicitly kept by the owner: "I like that it's a hover, like a modal that
+opens up.")*
 
 The request as screenshotted is a list that navigates to a page that opens a dialog that
 opens another dialog that navigates home. Do not build that. The queue is a list screen;
@@ -215,41 +315,95 @@ to say yes or no", all `ChromeDialogContent` at `sm:max-w-4xl md:h-[85dvh]` with
 document filling a `1fr` row.
 *Rejected:* the reference's dedicated route. The only court-side screen that earns a route
 is the scrutiny workbench (`/employee/scrutiny/<filingNo>`), and that is a 40-field
-annotation task over a multi-page bundle — not a three-value comparison.
-*Given up:* no deep-linkable URL per request (an officer cannot send a colleague a link
-to application `KL-ADV-000207-2026`), and less width than a full page for the photo.
-`DocumentPreview` already ships **Full view** and **Download** in its own sticky header,
-which is the answer to the second; the first is a real loss, accepted.
+annotation task over a multi-page bundle — not a small-set comparison.
+*Given up:* no deep-linkable URL per request, and less width than a full page for the
+photo. The first is a real loss, accepted.
 *Fixes problems 1, 6.*
 
-### D2 — The overlay is built as the verification act: claim ← → evidence, side by side
+### D2 — **Revised.** The overlay is attribute rows, not prose: one row component, three groups
 
-Two columns inside the overlay body, `md:grid-cols-2`, stacking to claim-then-evidence
-below `md`:
+*Supersedes the first pass's "claim ← → evidence, side by side", which stands as far as
+the two columns go and is replaced in what fills the left one.*
 
-- **Left — what they typed.** A `DescriptionList` in a `surface-sunken` well: Full name
-  (`REG-12`), Bar registration ID (`REG-13`, `font-mono`/`tabular-nums`), Mobile number
-  (`REG-10`, with a quiet "verified by OTP" note — it is the account's primary key,
-  `REG-07`), Email if given (`REG-15`). Above it, the **Bar Council register line** (D5).
-- **Right — the evidence.** The photo of the Bar ID card (`REG-14`) as a
-  `DocumentPreview` with `height="fill"`, taking the rest of the overlay height.
+The verification is **per attribute**: a submitted value set against whatever authority can
+speak to it. So the overlay's left column is a small number of **identical rows**, and
+every fact the screen knows is a value in one of that row's slots.
 
-The officer's eye runs claim → evidence → decide, and the two things `REG-21` says a
-rejection turns on are never more than one saccade apart.
+**The row.** Term, value, and up to two sub-lines, in fixed slots:
 
-*Rule:* handover `REG-14` — the photo exists *so the officer can verify*; DS Laws,
-"grouped content gets a border… `surface-sunken` for nested media wells inside a Card".
-*Rejected:* the reference's two identity cards split on an unnameable axis (mobile+ID
-proof in one, name+addresses in the other), and a flat `DescriptionList` of everything.
-*Given up:* at narrow widths the photo is below the fold on first paint. Accepted — the
-claim is what you read first anyway.
-*Fixes problems 2, 3.*
+```
+Full name                    Meera Suresh                    [Differs]
+                             Bar Council of Kerala: Meera Sudhakaran
+
+Mobile number                9895447120
+                             OTP: verified
+
+Email                        thomas.kurian@example.com
+                             Added at first login             [Changed]
+```
+
+| Slot | What goes in it | Type |
+|---|---|---|
+| **term** | the attribute's label, read off `registrantKind` (D13) | fixed string |
+| **value** | what the person submitted | data |
+| **source line** | `{source}: {answer}` — the authority's reading of *this* attribute | data + closed enum |
+| **previous line** | `Was {value}` / `Added at first login` (`REG-18`) | data |
+| **marks** | zero or more `Badge`s from a **closed set of two** | closed enum |
+
+**The status enum, closed.** No sentence is ever generated; the answer is one of six
+values, and only one of them earns a mark:
+
+| status | when | source line reads | mark |
+|---|---|---|---|
+| `matches` | the register holds this value | `Bar Council of Kerala: matches` | none |
+| `differs` | the register holds a different value | `Bar Council of Kerala: Meera Sudhakaran` | `Badge warning` **Differs** |
+| `no-entry` | the number is not in the register | `Bar Council of Kerala: no entry` | none |
+| `not-checked` | the register could not be reached | `Bar Council register: not checked` | none |
+| `verified` | proved by machine before submission (`REG-11`) | `OTP: verified` | none |
+| `none` | nothing checks this attribute (email) | *no line rendered* | none |
+
+The second mark is orthogonal and its own closed value: **`changed`** →
+`Badge secondary` **Changed**, set on any row a pre-created account's holder altered at
+first login (`REG-18`). A row can carry both; they are two short chips in one slot.
+
+**Three groups, all built from that one row:**
+
+1. **Request** — `Submitted` (31 August 2026) · `Waiting` (12 days, D6's escalating tone) ·
+   `Request type` (see D7 and D16).
+2. **Identity** — `Full name` · `Bar registration ID` · `Mobile number` · `Email` (omitted
+   when absent). Name and Bar registration ID sit adjacent, because the register answers
+   both and its "no entry / not checked" answer is stated once, on the ID it was looked up
+   by (D5).
+3. **Earlier rejections** — resubmissions only (D7).
+
+The photo is the **fifth submitted value and the only one not rendered as a row**: it is
+the evidence column (D15). That mapping is exhaustive — five collected values, four rows
+and one column — which is how a reader checks that nothing was invented.
+
+*Rule:* owner, 2026-09-10 — "Stick to simple attributes that we can keep reusing. Don't
+invent new scenarios and attributes that we cannot trace back to." DS Laws, *Grouped
+content gets a border*: "Description list inside Card for a single record's key-value
+fields"; AGENTS rule 6 (three treatments per status, no fourth) is what keeps the mark set
+closed.
+*Rejected — two columns, submitted vs. source, side by side.* Three reasons, in order of
+weight: (a) **it is a constant/empty column** — the register answers 2 of the 5 submitted
+values, so it would be blank on mobile, email and photo, which is precisely the defect
+problem 4 killed on the queue; (b) **it does not survive real weather** — the overlay's
+left column is roughly 380–400px at `sm:max-w-4xl`, and halving it puts a Malayalam name
+against a 40-character register name in ~190px each; (c) it would need a second row model
+below `md`, where side-by-side is impossible, so the screen would own two renderings of
+one fact (pass 7).
+*Given up:* the strict left–right diff, which is genuinely the faster read when both values
+are short and Latin. Bought back by putting the two values on consecutive lines and letting
+the **Differs** badge do the finding, so the officer is never asked to spot a difference
+unaided.
+*Fixes problems 3, 9.*
 
 ### D3 — Only the fields the registration flow actually collects
 
-Name, Bar registration ID, mobile, optional email, photo of the Bar ID card. Nothing
-else. Address, ID type, Aadhaar ID proof, and Location/View-on-map are **deleted**, not
-moved.
+*(Unchanged.)* Name, Bar registration ID, mobile, optional email, photo of the Bar ID card.
+Nothing else. Address, ID type, Aadhaar ID proof, and Location/View-on-map are **deleted**,
+not moved.
 
 *Rule:* handover §5.1 `[OWNER]` — "Address and ID proof are **not collected** during
 registration." A field the flow never captures cannot be shown, and a screen that shows
@@ -259,293 +413,440 @@ empty rows for them teaches the officer the data is missing rather than absent.
 point.
 *Fixes problem 2.*
 
-### D4 — Queue columns: application number (opener), name, Bar registration ID, request type, days waiting
+### D4 — Queue columns: application number, name, Bar registration ID, request type, days waiting
 
-Five columns. What each earns:
+*(Unchanged in substance. One amendment: with the whole row now the click target (§1), the
+application number is no longer the row's only opener — it stays the row's first cell and
+the start of the row's accessible name.)*
 
 | Column | Why it survives |
 |---|---|
-| **Application number** | The one string shared with the advocate's own waiting screen (`KL-ADV-000207-2026`) — the only thing they can quote on the phone. It is the row's opener, matching `ApproveCopyApplicationTable`. |
+| **Application number** | The one string shared with the advocate's own waiting screen — the only thing they can quote on the phone. First cell, and the start of the row's accessible name. |
 | **Full name** (`REG-12`) | The emphasised cell (`font-medium`). What identifies a person. |
-| **Bar registration ID** (`REG-13`) | The claim under verification, and the second thing an officer would search by. `tabular-nums`, `whitespace-nowrap`. |
-| **Request type** | *Silent for a first registration.* Carries a `Badge` only for the two exceptions — an edited pre-created account (`REG-18`) and a resubmission (`REG-23`, with its round count). See D7. |
+| **Bar registration ID** (`REG-13`) | The claim under verification, and the second thing an officer searches by. `tabular-nums`, `whitespace-nowrap`. |
+| **Request type** | *Silent for a first registration.* Carries a `Badge secondary` only for the two exceptions (D7). |
 | **Days waiting** | Right-aligned, `tabular-nums`, escalating tone (D6). |
 
 **Killed:** *User Type* (constant on this screen — problem 4; it returns the day clerks
-join, §12.3, and not before). *Action / "Verify"* (a link that repeats its own row; the
-application number is the opener on every other court-side table).
+join, §12.3). *Action / "Verify"* (a link that repeated its own row).
 
 *Rule:* pattern census + `RegisterCasesTable`'s own doc comment — "there is no status
 chip: a row in this queue is in exactly one state, waiting, so a column repeating that on
-every row would carry no information." Same argument retires User Type.
-*Rejected:* a Status column, and a Submitted-on date column beside Days waiting (two
-renderings of one fact; `register-cases` already chose the day count).
-*Given up:* the exact submission date is only in the overlay. Accepted.
+every row would carry no information."
+*Rejected:* a Status column; a Submitted-on date column beside Days waiting.
+*Given up:* the exact submission date is only in the overlay.
 *Fixes problems 4, 8.*
 
-### D5 — The Bar Council lookup is stated as a machine reading, and it never pre-judges
+### D5 — **Revised.** The register's answer sits on the attribute it checks, as a closed status — never as a banner
 
-`REG-13` says the Bar registration ID is looked up against the Bar Council database. Show
-what came back, as a line above the claim block and as a mark on the row when — and only
-when — it **disagrees**:
+*Supersedes the first pass's "stated as a machine reading… as a line above the claim
+block". The reasoning survives intact; the rendering does not.*
 
-- **Agrees** (the norm): one muted line, `text-muted-foreground` —
-  "Bar Council of Kerala register: Meera Suresh." No badge, no green. The default is
-  silent.
-- **Disagrees**: `warning`, with words — "The register has this number against a different
-  name: Meera Sudhakaran." Never colour alone.
-- **Unavailable**: plain statement — "The Bar Council register could not be reached." The
-  decision is **not blocked**: the officer has the card photo, which is the evidence
-  `REG-14` actually names.
+What survives, unchanged and still the load-bearing part:
 
-**`warning`, not `destructive`.** A mismatch is a finding that needs a human, not a
-verdict. The repo has already learned this in this exact role — `flag-composer.tsx`:
-"pre-filling a defect assertion on the officer's behalf is the machine making the claim."
-Destructive tint would have the machine reject before the officer has looked at the card.
+- The lookup is **a machine reading, not a verdict.** It never pre-judges and never blocks.
+- A mismatch is **`warning`, never `destructive`.** A register that holds a different name
+  is a finding that needs a human to look at a photograph. The repo has already learned
+  this in this exact role — `flag-composer.tsx`: "pre-filling a defect assertion on the
+  officer's behalf is the machine making the claim." Destructive tint would have the
+  machine reject before the officer had looked at the card.
+- **Never colour alone**: the mark carries the word *Differs*, and the differing value is
+  on the line beneath it (DS Laws, "status never conveyed by color alone").
+- **The default is silent**: `matches` gets no badge and no colour. A green *verified* chip
+  would spend ink marking the norm (pass 5).
 
-*Rule:* DS AGENTS §6 (three treatments per status, opaque `-muted` never alpha); DS Laws
-"status never conveyed by color alone"; `REG-13`.
-*Existing shape to reuse:* `lib/filing/registry.ts` already models a Bar-council register
-returning `{ barNumber, name, bar }` and already says in its header that "the register
-will never be complete" — which is why *unavailable* and *not found* are ordinary states
-here, not errors.
-*Rejected:* auto-approving on a clean lookup (it would make `REG-14`'s photo pointless);
-a green "verified" badge on the ~90% that agree (marks the norm — pass 5).
-*Given up:* speed. An agreeing lookup still costs the officer a glance at the photo.
-*Fixes problem 3.*
+What changed:
+
+1. **The Alert above the claim block is gone.** The register's answer is a **source line on
+   the row it answers**: a name mismatch renders on the Full name row, beside the name it
+   differs from. Shorter eye path, and it scales — a second source (a future court roll, a
+   clerk register per `REG-13a`) is another source line on another row, not another banner.
+2. **All four lookup states collapse into the enum in D2.** No variant writes a sentence.
+3. **`no-entry` and `not-checked` lose their `warning` treatment** and become plain muted
+   source lines. `lib/filing/registry.ts` says in its own header that "the register will
+   never be complete", so an absent entry is ordinary and the officer's next action —
+   look at the card — is the same as on every other row. Marking it spends warning ink on
+   something that changes nothing. **This flips if product tells us the register is in fact
+   complete for a given state** (§12.4).
+4. **The queue row carries no lookup mark**, resolving a contradiction: the first pass's D5
+   promised "a mark on the row when it disagrees" and the build never had one
+   (`register-advocates-table.tsx` has no lookup cell). Decided deliberately rather than
+   patched: there is no bulk path (D9), so the officer opens every request anyway, and the
+   table's own doc comment already rations the row to **one** status cue — the wait.
+5. **Where the "no answer at all" case is stated.** A row never renders an empty source
+   slot — no "—", no ghost line — so absence means *nothing checks this attribute*. The one
+   case that could be misread (the register was silent about a person who does have a name)
+   is covered by stating `no entry` / `not checked` on the **Bar registration ID** row,
+   which is the key the lookup was made on, directly adjacent to the name.
+
+*Rule:* `REG-13`; AGENTS §6 and §10; DS Laws (status never by colour alone; ration teal);
+pass 5. Existing shape reused: `lib/filing/registry.ts` already models the register as
+`{ barNumber, name, bar }` — the source line's `{source}` is `entry.bar`, so a
+Maharashtra or Gujarat bar names itself and nothing is hardcoded to Kerala.
+*Rejected:* auto-approving on a clean lookup (it would make `REG-14`'s photo pointless); a
+green "verified" badge on the rows that agree; keeping the banner "because a mismatch is
+important" — importance is what the badge is for, and a banner that repeats every state is
+how the four prose variants happened.
+*Given up:* the instruction "Check the card before deciding" is gone. Deliberately: the
+officer checks the card on **every** request, so a sentence saying so on one of them is
+product copy carrying no information (§6).
+*Fixes problems 3, 9.*
 
 ### D6 — Days waiting escalates; it does not paint every row
 
-Adopt the scrutiny queue's `waitTone` shape (`lib/employee/scrutiny/queue.ts`): plain at
-rest, `warning-ink` past a threshold, `destructive-ink` past a longer one. Thresholds for
-*this* queue are product's to set (§12.5); until they do, mirror scrutiny's registry
-clock — 7 and 14 days — and say in the build report that the numbers are borrowed.
+*(Unchanged.)* Adopt the scrutiny queue's `waitTone` shape (`lib/employee/scrutiny/queue.ts`):
+plain at rest, `warning-ink` past a threshold, `destructive-ink` past a longer one.
+Thresholds for *this* queue are product's to set (§12.5); until they do, mirror scrutiny's
+registry clock — 7 and 14 days — and say in the build report that the numbers are borrowed.
+The same tone now also applies to the **`Waiting` row inside the overlay** (D16), so one
+fact has one treatment on both surfaces (pass 7).
 
-*Rule:* pass 5 (mark the exception, mute the norm) + `REG-24` — a pending advocate has no
-access, so a long wait is a live harm, and `docs/product/domain/journey.md` §1–3 is why
-the harm compounds.
+*Rule:* pass 5 + `REG-24` (a pending advocate has no access, so a long wait is a live harm)
++ `docs/product/domain/journey.md` §1–3.
 *Sibling divergence, named:* `RegisterCasesTable` paints **every** days cell
-`text-warning-ink`, and its own brief accepted that as a risk ("a coloured mark per
-visible row… above the craft budget"). Two court-side queues would then render the same
-fact two ways — a pass-7 defect. **Recommendation: register-cases should move to the
-escalating treatment**, as a separate change. Not done here; flagged in §11.
-*Rejected:* a flat paint (restates the norm); a Due-since sort control (the default sort
-already is longest-wait-first).
-*Given up:* the reference's sortable column. See D11.
+`text-warning-ink`. **Recommendation: register-cases should move to the escalating
+treatment**, as a separate change. Not done here; flagged in §11.
+*Rejected:* a flat paint; a Due-since sort control (the default sort already is
+longest-wait-first).
 *Fixes problems 4, 8.*
 
-### D7 — Three kinds of request; two of them are exceptions and get ink
+### D7 — **Revised.** Three kinds of request — the classification survives; its prose rendering does not
 
-- **First registration** — the norm. **No badge.**
-- **Edited pre-created account** (`REG-18`) — the account was auto-created from the Bar
-  Council database and the advocate changed something at first login. Row: `Badge`
-  "Edited". Overlay: the changed values shown **was → now** in the claim block, so the
-  officer verifies the change rather than re-verifying the whole record.
-- **Resubmission** (`REG-23`) — row: `Badge` with the round ("Resubmitted · round 3").
-  Overlay: the **most recent rejection reason in full**, directly above the claim block —
-  the officer's actual question is "did they fix what I said" — with earlier rounds as a
-  compact `Timeline`, the pattern `HistorySheet` already uses for the same job.
+The three kinds are real and stay: **first registration** (the norm), **edited pre-created
+account** (`REG-18`), **resubmission** (`REG-23`). What changes is that each is now a
+**value**, not a sentence.
 
-*Rule:* `REG-18`, `REG-23`; pass 5.
-*Rejected:* a request-type column with a value on every row (would mark the norm); putting the
-history behind a `Sheet` (the scrutiny workbench needs a sheet because its index rail
-occupies the space; here the overlay has room, and a detour for two lines is a detour too
-many).
-*Given up:* an unlimited history could in principle grow long. Mitigated by showing the
-latest reason in full and older rounds as one-line events.
-*Fixes problems 4, 8.*
+- **In the queue** — unchanged: silent on the norm, `Badge secondary` on the two
+  exceptions ("Edited", "Resubmitted · round 3").
+- **In the overlay** — a `Request type` row in the Request group, whose value is one of a
+  closed set: `New registration` · `Edited Bar Council account` · `Resubmitted · round 5`.
+  The paragraph "This account was created from the Bar Council record. The advocate changed
+  the marked values at first login…" is **deleted**: the value carries the provenance, and
+  the changed rows carry the `Changed` mark plus their `Was …` line (D2).
+- **Earlier rejections** — a group of rows, **newest first**, each one
+  `Round 4 · 8 July 2026` with the officer's own reason under it. The most recent is always
+  visible; the rest sit inside a `Collapsible` labelled "3 earlier rounds". The sentence
+  "Round 4, rejected 8 July 2026. This request is round 5." dissolves entirely: the round
+  is a value on the row, the date is a value on the row, and the current round is already
+  in `Request type`.
+- **The `decision` field is not rendered.** Product's history tuple is
+  `{round, date, decision, reason}`, but every round that can appear here was a rejection —
+  an approved request leaves the queue — so a per-row "Rejected" chip would mark the norm.
+  The group's name carries it: **Earlier rejections**. Same argument that retired *User
+  Type* in D4. The moment a second decision value can occur, the chip earns its place.
+
+*Rule:* `REG-18`, `REG-22`, `REG-23`; pass 5; owner 2026-09-10.
+*Rejected:* keeping the heading "Why this was rejected last time" (product copy doing the
+work a group label does); rendering the latest rejection as a quote block and the earlier
+ones as timeline items — that is **one fact with two treatments**, a pass-7 defect the
+build shipped (`register-advocates-dialog.tsx` lines 232–288). All rounds now use one row;
+the `Collapsible` governs how many are visible, not how they look.
+*Given up:* a timeline that runs oldest → newest, which is the conventional direction.
+Newest-first wins because the officer's question on a resubmission is "did they fix what I
+said last time", and that answer must not be at the bottom of five rounds.
+*Fixes problems 4, 8, 9.*
 
 ### D8 — Reject requires a reason, and it takes the DS's *soft* destructive treatment
 
-Reject opens the reason field inside the same overlay — `Field` + a **visible**
-`FieldLabel`, a `Textarea`, and the save gate stated in words when it is holding the
-button, exactly as `FlagComposer` does. The label is written for the person who will
-read it, not for the officer: **"Why are you rejecting this? The advocate will read
-this."** Placeholder models a usable sentence: *e.g. "The name on the Bar ID card is
-different from the name you typed. Please check and submit again."*
+*(Unchanged.)* Reject opens the reason field inside the same overlay — `Field` + a
+**visible** `FieldLabel`, a `Textarea`, and the save gate stated in words when it is holding
+the button, exactly as `FlagComposer` does. The label is written for the person who will
+read it: **"Why are you rejecting this? The advocate will read this."** Placeholder models
+a usable sentence.
 
 Button treatment: **`variant="destructive"` — the soft, muted at-rest treatment** — not
-`destructive-solid`, and not a full-width red block.
+`destructive-solid`.
 
 *Rule:* DS component registry, Button: "destructive is the soft/at-rest treatment;
-destructive-solid **only for a confirmed irreversible action**", and "pair
-destructive-solid with confirmation (Alert Dialog) for irreversible work; keep destructive
-soft at rest." A rejection here is **reversible by design** — `REG-23`, the advocate edits
-and resubmits without limit — so it does not qualify for the solid.
-*Why free text and not reason chips:* `REG-22` `[OWNER]` says free text. The temptation to
-add chips comes from a real, documented failure in this same role — `flag-composer.tsx`:
-"officers leave one-word remarks and advocates travel to court to decode them" — but the
-answer inherited here is the **gate and the modelled sentence**, not a new taxonomy. Chips
-belong in a later pass if rejection reasons prove to be the same three sentences; that is
-a data question, not a design one. See §6.
-*Rejected:* a second confirm dialog on top of a typed reason (double gate — the reason
-*is* the friction); an unlabelled placeholder-only box (DS Laws accessibility floor:
-"Placeholder-only fields" is a listed defect).
+destructive-solid **only for a confirmed irreversible action**". A rejection here is
+**reversible by design** (`REG-23`).
+*Why free text and not reason chips:* `REG-22` `[OWNER]` says free text. See §6 — and note
+that this is the *officer's own sentence*, which is user data in a fixed slot, not the
+product narrating a machine result. The two are not the same thing, and problem 9 does not
+touch this one.
+*Rejected:* a second confirm dialog on top of a typed reason; a placeholder-only box (DS
+Laws accessibility floor).
 *Given up:* an officer in a hurry cannot reject in one click. Intended.
 *Fixes problems 7, 8.*
 
-### D9 — Approve is the guarded act: one `AlertDialog`, and no bulk path
+### D9 — Approve is the guarded act: one `AlertDialog`, no bulk path — and the queue page has **no** teal
 
 Approve is the **overlay's** single teal action. It opens one `AlertDialog`
-(`ChromeAlertDialogContent`, the court-side wrapper) stating what approval does: the
-advocate gets access to their advocate account. Whether it is *irreversible* is **not
-asserted** until product confirms (§12.2) — the reference's claim that "details cannot be
-modified once accepted" is not in the handover.
+(`ChromeAlertDialogContent`) stating what approval does: the advocate gets access to their
+advocate account. Whether it is *irreversible* is **not asserted** until product confirms
+(§12.2).
 
-**No bulk approve, no checkbox column.** This deliberately breaks from the nearest
-sibling: `ApproveCopyApplicationScreen` clears its queue with checkboxes and a sticky bar.
+**No bulk approve, no checkbox column.** This deliberately breaks from the nearest sibling,
+`ApproveCopyApplicationScreen`. On that queue the evidence is a document the court itself
+composed. Here the evidence is a photograph, the whole reason it is collected is that a
+human looks at it (`REG-14`), and the outcome is a **credential grant**. A bulk control
+would let an officer clear the queue without opening a single photo, which defeats the only
+mechanism the product has for verifying identity.
 
-*Why the break:* on that queue the evidence is a document the court itself composed and
-the bench is allowing a copy. Here the evidence is a photograph, the whole reason it is
-collected is that a human looks at it (`REG-14`), and the outcome is a **credential
-grant** — the person can then act as an advocate on real §138 files. A bulk control would
-let an officer clear 39 registrations without opening a single photo, which defeats the
-only mechanism the product has for verifying identity. Consequence sizing: this is not
-browsing.
-*Rejected:* bulk approve for lookup-agreeing rows (same objection, one step removed); a
-"next request" conveyor after each decision (a pattern no sibling has — see §6).
-*Given up:* throughput. Clearing 39 costs 39 overlays. Accepted, and re-openable if
-product tells us the real daily volume (§12.5).
+**Teal budget — revised 2026-09-10 (evening).** The first pass wrote: "on the queue page
+the teal is **Search**". **That is about to be false** — search filters as you type and the
+Search button is going away app-wide (§1). The correct reading, which is what D9 argued for
+all along: **the queue page has no page-level act, so it gets no primary at all.** DS Laws
+ration teal — they cap primaries, they do not require one, and `DocumentPreview`'s own doc
+comment says exactly this ("they cap primaries, they do not require one"). Clear search
+stays `ghost` or becomes an affordance inside the input; either way it acquires no teal.
+The **only** teal on this feature is Approve, in the overlay.
+*Consequence for the rebuild:* two code comments now assert the old rule and must change
+with it — `register-advocates-table.tsx` line ~122 ("the teal on this page is rationed for
+Search") and `register-advocates-screen.tsx` lines 250–252.
+
+*Rejected:* bulk approve for lookup-agreeing rows; a "next request" conveyor after each
+decision (a pattern no sibling has — §6); promoting Clear search to primary to "keep a teal
+on the page" (that is decoration, and the Law is a cap, not a quota).
+*Given up:* throughput. Clearing the queue costs one overlay per request. Accepted, and
+re-openable if product tells us the real daily volume (§12.5).
 *Fixes problem 7.*
-
-**Teal budget, stated once so nobody has to re-derive it.** Two visual regions, one
-primary each (DS Laws, Ration teal): on the **queue page** the teal is **Search** — the
-only committing control there, exactly as `RegisterCasesScreen` and `ScheduleScreen` do,
-because this screen has no page-level act (D9 killed the bulk bar). In the **overlay** the
-teal is **Approve**. `ApproveCopyApplicationScreen` drops its Search to `outline` for the
-opposite reason — it *has* a page-level Accept in a sticky bar — so the two screens follow
-the same law to different answers, and that is not a drift.
 
 ### D10 — After a decision the officer stays put
 
-The row leaves the list, an `aria-live` region announces what happened, focus returns to
-the search box, and the header count drops. The rail count does **not** — it is a module constant read at load, and every court-side sibling behaves the same way (verified on `approve-copy-application`: header 30→29, rail stays 30). A shared queue store would fix all of them at once; that is not this feature's change and is logged in §11. No success dialog, no "Go
-To Home".
+*(Unchanged.)* The row leaves the list, an `aria-live` region announces what happened, focus
+returns to the search box, and the header count drops. The rail count does **not** — it is
+a module constant read at load, and every court-side sibling behaves the same way. A shared
+queue store would fix all of them at once; logged in §11. No success dialog, no "Go To
+Home".
 
 *Rule:* `ApproveCopyApplicationScreen` already does exactly this — `removeFromQueue` +
-`sr-only` `aria-live` + `onReturnFocus`. Reusing it is the sibling-consistent answer and
-the accessible one (a decision that only shows in a list is silent to a screen reader).
-*Rejected:* the reference's success dialog.
-*Given up:* nothing. The dialog was pure cost.
+`sr-only` `aria-live` + `onReturnFocus`.
 *Fixes problem 6.*
 
-### D11 — One search box; no second filter axis at this size
+### D11 — **Revised.** One search box, filtering as you type; no second filter axis at this size
 
-A single labelled search reaching **name, Bar registration ID and application number** —
-the `filterCopyApplications` shape, whose module comment makes the same argument (the
-reference's narrow "Case number" label "promised less than it does"). Visible label
-"Search requests"; placeholder "name, Bar registration ID or application number".
-Default sort: **longest wait first**, like `REGISTER_QUEUE` and `filterQueue`.
+A single labelled search reaching **name, Bar registration ID and application number**.
+Visible label "Search requests"; placeholder "name, Bar registration ID or application
+number". Default sort: **longest wait first**.
 
-*Rule:* pass 3 — *User Type* is a system concept and a constant here; *Application
-Number* alone is the identifier the officer is least likely to hold.
-*Rejected:* a "needs a look / lookup agrees" segmented slice. It would be the officer's
-own language, but at the reference's 39 rows a filter you must remember to apply is worse
-than a mark you cannot miss — and D5/D7 already mark those rows in place. **This decision
-flips if the queue is routinely in the hundreds** (a Gujarat-scale, bulk-institutional
-deployment — `open-questions.md` contrasts exactly this); the row model already carries
-everything such a filter would need.
-*Given up:* an officer who wants only the mismatches must scan for them.
+**What changed:** the court side is moving to filter-as-you-type and the Search button is
+going away app-wide (§1). So the `draft` / `applied` two-state and the disabled-until-dirty
+submit go with it; `filterRegistrations` runs on the live query. The first pass's line "the
+teal on the queue page is **Search**" is void — see D9.
+
+*Rule:* pass 3 — *User Type* is a system concept and a constant here; *Application Number*
+alone is the identifier the officer is least likely to hold.
+*Rejected:* a "needs a look / lookup agrees" segmented slice. **This decision flips if the
+queue is routinely in the hundreds** (a Gujarat-scale deployment — `open-questions.md`
+contrasts exactly this); the row model already carries everything such a filter would need,
+and after D2 the lookup status is a real enum value rather than a sentence, so the filter
+would now be a half-day's work rather than a re-model. That is the scalability the owner
+asked for, made concrete.
+*Given up:* an officer who wants only the mismatches must open requests to find them —
+and, per revised D5, the queue no longer marks them. Accepted while the queue is ~14 rows;
+revisit with §12.5.
 *Fixes problem 5.*
 
 ### D12 — The nav entry goes last in Actions, and its count is derived
+
+*(Unchanged.)*
 
 ```
 { id: "register-advocates", label: "Register advocates",
   href: "/employee/register-advocates", count: REGISTER_ADVOCATES_QUEUE_COUNT }
 ```
 
-`REGISTER_ADVOCATES_QUEUE_COUNT` is the length of the pending list, exported from
-`lib/employee/register-advocates.ts` — the convention `navigation.ts` documents and the
-other built rows follow.
-
-**Last in the group**, after Approve copy application. The group's internal order is a
-complaint's own progression — the file says so: "Scrutiny comes first because it comes
-first: a complaint an advocate files lands here, and only what survives scrutiny reaches
-the register below it." An advocate's registration is not part of any case's life, so
-inserting it at the head would break that reading for the three rows that share it.
+**Last in the group**, after Approve copy application: the group's internal order is a
+complaint's own progression, and an advocate's registration is not part of any case's life.
 *Judgment.*
 
 ### D13 — Built so clerks can be added later without restructuring
 
-`REG-13a`/`REG-14a` put clerk registrations through the same scrutiny-officer approval,
-and the owner named only advocates. So: the row model carries a `kind`, and the claim
-block takes its labels from it ("Bar registration ID" / "Clerk registration number";
-"Photo of Bar ID card" / "Photo of clerk ID card"). **No User Type column and no kind
-filter ship now** — that is precisely the constant-column mistake of problem 4. The day
-clerks join, the constant becomes a real distinction and the column earns its place then.
+*(Unchanged, and strengthened by D2.)* `REG-13a`/`REG-14a` put clerk registrations through
+the same approval. The row model carries a `kind`, and every **term** in the attribute list
+is read off it: "Bar registration ID" / "Clerk registration number"; the evidence column's
+accessible name likewise. **No User Type column and no kind filter ship now.**
+
+This is the test of whether the D2 model is actually scalable, and it passes: clerks are
+**the same rows with different labels and a different source**. Nothing about the overlay's
+structure changes — no new block, no new sentence, no new state. Under the old prose model
+each of the six narrated variants would have needed a clerk wording.
 *Judgment, on `REG-13a`/`REG-14a`; open question §12.3.*
 
 ### D14 — Keep `KL-ADV-…` as the application number
 
-Unlike case numbers — where `register-cases.md` rightly refused the screenshot's
-`KL-00…` because the court side already speaks `CMP/…` — a registration application
-number has **no** court-side equivalent, and it is the string the advocate is shown on
-their own waiting screen. Changing it would break the one handshake between the two
-sides. Its exact format is product's, not this screen's.
-*Judgment.*
+*(Unchanged.)* A registration application number has no court-side equivalent, and it is
+the string the advocate is shown on their own waiting screen. Its exact format is
+product's. *Judgment.*
+
+### D15 — **New.** The evidence column loses its chrome: the well, and two quiet actions on it
+
+The photo region becomes **the well and nothing above it**:
+
+- **No heading.** The `h3` "Photo of Bar ID card" goes. A card photograph in a two-column
+  review overlay is self-evidently the evidence; the dialog's own title is 100px above it;
+  and the attribute list already names the card in its terms. Its accessible name survives
+  as the `img`'s `alt` and an `sr-only` label on the region, so nothing is lost to a screen
+  reader — only to the eye, which did not need it.
+- **No upload date.** "Uploaded 31 August 2026" is the submitted date, and the Request
+  group now carries it once (pass 7: one fact, one treatment).
+- **Two icon affordances on the well, not two text buttons in a header band.** Download and
+  Full view become `Button variant="ghost" size="icon"` (`size-10` = the 40×40 floor, DS
+  Laws), clustered top-right **inside** the well's padding, each with an `aria-label` that
+  names the document ("Download photo of Bar ID card") and a DS `Tooltip` carrying the same
+  words for sighted users.
+- **The well keeps `bg-surface-sunken rounded-xl`** — DS Laws, "surface-sunken for nested
+  media wells inside a Card" — and the failure and loading states stay as built (§10).
+
+**How it is built matters as much as what it looks like.** `DocumentPreview`
+(`components/cases/document-preview.tsx`) is an **app** component, not DS, and its own doc
+comment calls it "the one document preview in the product". So this is a **quiet
+presentation added to that component**, not a second well composed in this screen. The
+precedent already exists: `DocumentPreviewActions` is exported for exactly this reason and
+`case-file.tsx` already composes it apart from a header. Whoever builds this extends
+`DocumentPreview`; nobody hand-rolls a `bg-surface-sunken` box here.
+
+*Rule:* owner, 2026-09-10, naming the region; DS Laws (nested media wells; 40×40 touch
+targets; sentence case); `document-preview.tsx` lines 100–107 (the sanctioned way to place
+these actions elsewhere).
+*Rejected:* **keeping the text buttons and moving them below the well** — the honest
+alternative, and it loses on two counts: it puts the controls furthest from the thing they
+act on, and at `md` it pushes the well's bottom edge into the footer's decision pair, which
+is the one region that must stay unambiguous. **Making the whole photo clickable to
+enlarge** — tempting and familiar, but it would be a third click mechanism on a screen that
+already has "row opens overlay" and "button acts", and no court-side sibling does it (pass
+6). Restraint wins; if it turns out officers keep clicking the image, that is a measured
+change, not a guess.
+*Given up:* discoverability. Two icons are less legible than two words to someone who
+meets this screen once a quarter — and this screen is designed for the repeat user (§1),
+which is the assumption that makes the trade acceptable and the reason it is written down
+here rather than assumed. Mitigated by tooltips, `aria-label`s and universally-read icons
+(download arrow, expand). **Named as a pattern fork in §11**, with its reconciliation: if
+this reads well, quiet mode is the shape for *every* side-by-side preview in Dristi (the
+scrutiny workbench is next), and that is a follow-up, not a per-screen exception left
+dangling.
+*Fixes problem 10.*
+
+### D16 — **New.** Request metadata is an attribute group, not a header paragraph — except the one fact the header owns
+
+The request's own facts — submitted date, wait, request type — go into the **Request
+group**, rendered by the same row as everything else (D2). They are not squeezed into the
+dialog header, because a header holds two facts before it becomes a paragraph, and a
+paragraph is what this revision is removing.
+
+**The application number stays in the header's description** and does **not** repeat in the
+group. The header description is the fixed slot every court-side overlay uses to name the
+record you opened; carrying it twice would be one fact with two treatments (pass 7).
+
+The header therefore holds exactly: title "Review registration request", `Badge
+variant="warning"` "Pending approval" (the court-side convention for a pending application,
+said once here rather than on every queue row), and the application number as the
+description. The advocate's name leaves the header — it is an attribute **under
+verification**, and a screen that prints it as the record's title has quietly asserted it
+before the officer looked at the card.
+
+*Rule:* pass 7 (sibling sweep — `ApproveCopyApplicationDialog`'s header shape);
+`REG-14`/`REG-21` for why the name is not a title.
+*Rejected:* metadata as a muted line under the title (that is the paragraph again, one
+size smaller); a fourth group for "the wait" alone.
+*Given up:* the name is no longer visible at the top of the overlay while scrolled — it is
+the first row of the Identity group instead. Accepted: the left column scrolls
+independently and Identity is above the fold at every width in §10.
+*Fixes problems 9, 10.*
 
 ---
 
 ## 6. What I cut (and why)
 
-- **Bulk approve** (D9) — the strongest thing a reasonable person would add, and the
-  thing that would quietly void `REG-14`.
-- **A "next request" conveyor** after each decision. Genuinely useful at 39/day; it is
-  also an interaction pattern no court-side screen has, and I will not fork the grammar
-  on an assumed volume. Revisit when §12.5 is answered.
+**Read this first, because the critique could be misread as "add structure everywhere":**
+what was rejected is *product copy narrating machine results*, not structure and not user
+data. The officer's rejection reason stays **free text** — `REG-22` `[OWNER]` says so — and
+that is legitimate precisely because it is a person's own words **in a consistent slot**.
+A sentence the product writes to explain a lookup state is the opposite: fixed copy standing
+in for a value. Structured rejection-reason chips remain cut.
+
+- **Bulk approve** (D9) — the strongest thing a reasonable person would add, and the thing
+  that would quietly void `REG-14`.
+- **A "next request" conveyor** after each decision. Genuinely useful at volume; also an
+  interaction pattern no court-side screen has. Revisit when §12.5 is answered.
 - **Structured rejection-reason chips.** `REG-22` says free text; the gate plus a modelled
   sentence carries the lesson without minting a taxonomy nobody has validated.
-- **A status column / a "Pending" badge per row.** The list is entirely pending;
-  `ApproveCopyApplicationDialog` already established that this is said **once**, in the
-  header — "instead of thirty times down a column".
-- **A green "verified" badge on lookup-agreeing rows.** Marks the norm.
-- **A "hold" / "query the advocate" third action.** Tempting — real officers want to ask a
-  question without rejecting. The lifecycle has exactly two exits (§5.3) and inventing a
-  third state would be inventing product. It goes to §12.7 instead.
+- **A source *column*** (D2) — blank on three of five attributes, and unrenderable below `md`.
+- **A green "matches" / "verified" badge** (D5) — marks the norm.
+- **`warning` on `no-entry` and `not-checked`** (D5) — an incomplete register is ordinary,
+  and the officer's next act is unchanged.
+- **A lookup mark on the queue row** (D5) — the row already spends its one status cue on
+  the wait, and there is no bulk path that a pre-filter would serve.
+- **The sentence "Check the card before deciding."** True of every request, therefore
+  information on none.
+- **A "verification summary" — "2 of 3 checks passed", or a confidence mark.** The single
+  most tempting thing to build once attributes are structured, and pure invention: nobody
+  has said the checks are weighted, comparable, or sufficient, and `REG-14` says the human
+  looks at the card regardless.
+- **A per-attribute reject affordance** ("reject *this row*"). It falls out of the new model
+  so naturally that it looks free — and it would change what `REG-22` stores and what the
+  advocate is told. Product's call, filed as §12.10.
+- **A status column / a "Pending" badge per row.** Said once, in the overlay header.
+- **A "hold" / "query the advocate" third action.** The lifecycle has exactly two exits
+  (§5.3); inventing a third state would be inventing product. §12.7.
 - **Address, ID proof, ID type, map location** (D3).
 - **The reference's success dialog and "Go To Home"** (D10).
 - **A separate route for the detail view** (D1) — and with it, deep links.
-- **Rejecting the whole legacy visual language** — the *page* structure (title, count,
-  one lifted panel, table, pager) is kept deliberately, because that is the court side's
-  own furniture across seven screens and a new one is not a place to be interesting.
+- **The photo heading and its upload date** (D15) — and the temptation to replace them with
+  a smaller caption, which is the same defect at a lower type size.
+- **Rejecting the whole legacy visual language** — the *page* structure (title, count, one
+  lifted panel, table, pager) is kept deliberately: that is the court side's own furniture
+  across seven screens, and a new one is not a place to be interesting.
 
 ---
 
 ## 7. Layout & hierarchy
 
-**Queue screen** (`/employee/register-advocates`) — identical furniture to its six
-siblings, so an officer moving from *Approve copy application* re-learns nothing:
+**Queue screen** (`/employee/register-advocates`) — as built, with the two cross-cutting
+changes from §1 applied:
 
 - Page `p-6 md:p-8`, `gap-8` between header and panel.
 - `h1` `text-title sm:text-title-l font-semibold` — "Register advocates". Supporting line
-  in `text-body text-muted-foreground` carrying the count and the state once:
-  *"39 advocates are waiting for approval."* (singular spelled out).
-- **One** lifted panel: `rounded-xl border-hairline bg-card shadow-raised p-6`, `gap-6`,
-  holding search → table → `ListFooter`. Nothing inside draws a second frame.
-- Filter row: `gap-4`, wrapping, label above control, Search (teal — see D9's teal budget)
-  and Clear (`ghost`) at the end of the row.
+  in `text-body text-muted-foreground` carrying the count once.
+- **One** lifted panel: `rounded-xl border border-hairline bg-card shadow-raised p-6`,
+  `gap-6`, holding search → table → `ListFooter`.
+- Filter row: `gap-4`, wrapping, label above control. **No Search button** (§1, D9) — the
+  query applies as typed. Clear search stays `ghost`. **No teal on this page.**
 - Table: header well `bg-surface-sunken` with rounded end cells, `h-2` spacer row, rows
-  `border-b border-hairline`, last row cleared — the `RegisterCasesTable` recipe verbatim.
-  The row's opener is the application number cell; the name cell is the emphasised one.
-- Below `md`: stacked items, each spelling out what the column header would have said
-  ("18 days waiting"), per RESPONSIVE.md rule 5 and the sibling item lists.
+  `border-b border-hairline`, last row cleared. **The whole row is the click target** (§1);
+  the application number is its first cell and the start of its accessible name.
+- Table ↔ stacked items swaps at `xl` (measured: the table needs ~780px and has 656 at
+  1024, and the column that clips is Days waiting).
 
 **Decision overlay** — `ChromeDialogContent`, `flex max-h-[85dvh] flex-col gap-0
-overflow-hidden p-0 sm:max-w-4xl md:h-[85dvh]`, keyed on the request id:
+overflow-hidden p-0 sm:max-w-4xl md:h-[85dvh]`, keyed on the request id. Structure below is
+the revision:
 
-- Header `p-6 pr-16`: title "Review registration request"; `Badge variant="warning"`
-  "Pending approval" (the court-side convention for a pending application); description
-  line = application number `tabular-nums` · advocate's name.
+- **Header** `p-6 pr-16`, `gap-2`: `DialogTitle` "Review registration request" ·
+  `Badge variant="warning"` "Pending approval" · `DialogDescription` = the application
+  number, `tabular-nums`, **and nothing else** (D16).
 - `Separator`.
-- Body `grid min-h-0 flex-1 grid-rows-[auto_auto] gap-6 overflow-y-auto p-6 md:grid-cols-2 md:grid-rows-[minmax(0,1fr)] md:overflow-hidden` — rows declared explicitly on both sides of the breakpoint, and the claim column's `min-h-0` scoped to `md:`. (The first build used an unconditional `min-h-0` with implicit rows; below `md` the grid resolved the claim row to 0px and its content painted behind the photo. This is the `ApproveCopyApplicationDialog` recipe, not a new one.):
-  - Exception blocks first, when present (prior rejection reason; was → now for an edit).
-  - Left: Bar Council register line, then the claim `DescriptionList` in a
-    `rounded-lg bg-surface-sunken p-4` well.
-  - Right: `DocumentPreview height="fill"` — the Bar ID card photo.
-  - Reject reason `Field` appears in the left column when Reject is armed.
-- `DialogFooter`: `Button variant="destructive"` Reject · `Button` Approve (teal).
-  Stacked on small screens (DS RESPONSIVE rule 4 — the DS footer already does this).
+- **Body** `grid min-h-0 flex-1 grid-rows-[auto_auto] gap-6 overflow-y-auto p-6
+  md:grid-cols-2 md:grid-rows-[minmax(0,1fr)] md:overflow-hidden` — rows declared explicitly
+  on both sides of the breakpoint, and the left column's `min-h-0` scoped to `md:`. (This is
+  the `ApproveCopyApplicationDialog` recipe. The unconditional `min-h-0` with implicit rows
+  resolved the claim row to 0px below `md` and painted its content behind the photo — a
+  render defect already found and fixed once; do not reintroduce it.)
+
+  - **Left column** `flex min-w-0 flex-col gap-6 md:min-h-0 md:overflow-y-auto`, three
+    groups in this order:
+
+    1. **Request** — group label `text-caption font-semibold text-muted-foreground`; rows:
+       Submitted · Waiting (escalating tone, D6) · Request type.
+    2. **Identity** — rows: Full name · Bar registration ID · Mobile number · Email
+       (omitted when absent). Name and Bar registration ID adjacent (D5.5).
+    3. **Earlier rejections** — resubmissions only. Newest round always visible; older
+       rounds inside a `Collapsible` labelled "3 earlier rounds". Same row for all of them.
+
+    Each group is a `DescriptionList` in a `rounded-lg bg-surface-sunken p-4` well. The
+    reject-reason `Field` appears at the bottom of this column when Reject is armed.
+
+  - **Right column** — the evidence (D15): the well alone, `height="fill"`, with Download
+    and Full view as icon buttons on it. No header band.
+
+- **`DialogFooter`**: `Button variant="destructive"` Reject · `Button` Approve (teal, the
+  one on this feature). Stacked on small screens.
+
+**Hierarchy, stated once.** Loudest thing in the overlay: the photograph (it is the
+evidence). Second: the Identity group's values. Third: the `Differs` badge, which is the
+only colour in the left column on a normal request. The group labels, the terms, and every
+source line are `text-muted-foreground` — they are scaffolding, not findings.
 
 ---
 
@@ -556,23 +857,30 @@ overflow-hidden p-0 sm:max-w-4xl md:h-[85dvh]`, keyed on the request id:
 | Page title / count line | `text-title` · `text-title-l` · `text-body` type roles |
 | List panel | composed `section` with the court-side panel classes (not a nested `Card`) |
 | Search | `Field` + `FieldLabel` + `InputGroup` / `InputGroupAddon` / `InputGroupInput` |
-| Search / Clear | `Button` (`default` / `ghost`) |
+| Clear search | `Button variant="ghost"` — **no `default` (teal) button on this page** |
 | Queue table | `Table` · `TableHeader` · `TableRow` · `TableHead` · `TableCell` |
-| Kind marks (Edited / Resubmitted · round n) | `Badge` (`secondary` / `warning`) |
+| Request-type marks on the row (Edited / Resubmitted · round n) | `Badge variant="secondary"` |
 | Empty + filtered-empty | `Empty` · `EmptyHeader` · `EmptyMedia` · `EmptyTitle` · `EmptyDescription` · `EmptyContent` |
 | Pagination | app-level `ListFooter` (`Pagination` + `Select`) |
 | Decision overlay | `Dialog` via app-level `ChromeDialogContent`, `DialogHeader/Title/Description/Footer`, `Separator` |
 | Pending state | `Badge variant="warning"` (once, in the overlay header) |
-| Claim block | `DescriptionList` + the app's `ReviewRow`, inside a `surface-sunken` well |
-| Bar Council register line | `Alert` (`warning`) when it disagrees; plain `text-muted-foreground` when it agrees |
-| Bar ID card photo | app-level `DocumentPreview` (`kind: "src"`, `height="fill"`) |
-| Prior rounds | `Timeline` + `TimelineItem` |
-| Rejection reason | `Field` + `FieldLabel` + `Textarea` + `FieldError` |
+| **Attribute group** | `DescriptionList` in a `rounded-lg bg-surface-sunken p-4` well |
+| **Attribute row** | `DescriptionRow` + `DescriptionTerm` + `DescriptionDetails` — i.e. the app's existing `ReviewRow` (`components/cases/filing-form-shared.tsx` lines 507–522), **extended with the source line, previous line and marks slots**. It already stacks to one column below `sm`, which is what makes one row model work at every width. |
+| **Status marks** | `Badge variant="warning"` (Differs) · `Badge variant="secondary"` (Changed) — the closed set of two |
+| **Source line / previous line** | `text-caption text-muted-foreground` inside `DescriptionDetails` |
+| Earlier rejections | `Collapsible` + `CollapsibleTrigger` + `CollapsibleContent` around `Timeline` + `TimelineItem` |
+| Evidence well + quiet actions | app-level `DocumentPreview` in its new quiet presentation (D15); actions are `Button variant="ghost" size="icon"` + `Tooltip` |
+| Rejection reason | `Field` + `FieldLabel` + `Textarea` + `FieldError` / `FieldDescription` |
 | Approve confirmation | `AlertDialog` via app-level `ChromeAlertDialogContent` |
 | Photo loading | `Skeleton` |
 
-Every DS name above exists in `vendor/pucar-design-system/src/components/ui/`. Nothing
-new is proposed.
+**Removed from the previous composition:** `Alert` / `AlertTitle` / `AlertDescription` (the
+lookup banner) and the hand-written `blockquote` + `h3` for the last rejection reason
+(`register-advocates-dialog.tsx` lines 226–244). Both go with D5 and D7.
+
+Every DS name above exists in `vendor/pucar-design-system/src/components/ui/` (catalog
+re-globbed for this revision, 68 components). **Nothing new is proposed — see §13 for why
+the attribute row is not a DS request.**
 
 ---
 
@@ -582,9 +890,12 @@ Ladder only (`0.5 · 1 · 1.5 · 2 · 2.5 · 3 · 4 · 6 · 8 · 12 · 16`), mic
 controls only:
 
 `p-6 md:p-8` page · `gap-8` page sections · `p-6` panel and overlay body · `gap-6` panel
-stack and overlay grid · `gap-4` filter row, table→footer, claim rows · `p-4` sunken
-wells and stacked phone rows · `gap-3`/`gap-2` inside the footer button row · `px-4 py-3`
-table cells · `h-10` controls · `rounded-lg` controls and wells · `rounded-xl` containers.
+stack, overlay grid, and the gap between the overlay's three attribute groups · `gap-4`
+filter row and table→footer · `p-4` sunken wells and stacked phone rows · `gap-2` between a
+group label and its list, and between a value and its marks · `gap-1` between a value and
+its source / previous lines · `px-4 py-3` table cells and (from `DescriptionRow`) attribute
+rows · `h-10` controls, including the icon buttons on the evidence well · `rounded-lg`
+controls and wells · `rounded-xl` containers and the media well.
 
 ---
 
@@ -593,24 +904,29 @@ table cells · `h-10` controls · `rounded-lg` controls and wells · `rounded-xl
 | State | What the screen does |
 |---|---|
 | **Empty queue** | `Empty`, good-empty voice: "No registrations waiting" / "Every advocate who has applied to this court has been dealt with." Icon `UserCheck`. No action offered. |
-| **Filtered empty** | "No requests match this search" / names what was searched + `Clear search` (`outline`). Two different facts, two different states — the sibling convention. |
+| **Filtered empty** | "No requests match this search" / names what was searched + `Clear search` (`outline`). |
 | **Loading (list)** | No backend in this build, so none. When one arrives: the panel keeps its frame, rows become `Skeleton`. |
-| **Loading (photo)** | The photo is a served file and will sometimes be slow: `Skeleton` at the well's full height. Never a collapsed well. |
-| **Photo fails to load** | Say it plainly in the well — "This photo could not be opened" — and keep `Download` reachable. **Approve is not blocked** (the officer may hold the card another way) but the officer is not shown an empty box and left to infer. |
-| **Photo loads but is illegible** | A human finding, not a system state. The reject placeholder models the sentence: *"The photo of your Bar ID card is too blurred to read. Please upload a clearer one."* (`REG-21`.) |
-| **Bar Council lookup unavailable** | "The Bar Council register could not be reached." No mark on the row, no fake agreement, no block (D5). |
-| **Bar Council: number not found** | "This number is not in the register." `warning`, not destructive — an incomplete register is normal (`lib/filing/registry.ts`). |
-| **Long / Malayalam names** | `whitespace-normal` on the name column and the claim rows; no fixed widths; `min-w-0` on flex children. Malayalam is a real drafting language here (`lib/sign-in/content.ts`), and a Malayalam full name is longer in glyph height as well as width — the row must wrap, never truncate. |
-| **Bar ID shapes across states** | `K/0873/2009`, `MAH/2201/2010`, `G/60/1992`, `KKKK/123453/2026` all occur (`lib/filing/registry.ts`, and the reference screenshot). Column is `tabular-nums whitespace-nowrap` and sized off the longest, not off Kerala's short form. |
-| **Resubmitted five times** | Badge reads the round; latest reason in full; earlier rounds collapse to one-line `Timeline` events. The block does not grow without bound. |
-| **Very old item** | Escalated tone (D6), and the default longest-wait-first sort keeps it on page 1. |
-| **Partial data** | Email is optional (`REG-15`) — the row is **omitted**, not shown as "—" (the `CounselCell` precedent: an absence is not a missing value). |
-| **200% zoom / ~375px** | Table → stacked items; overlay grid → single column; footer buttons stack. No horizontal page scroll (table scrolls inside its panel). |
+| **Loading (photo)** | `Skeleton` at the well's full height. Never a collapsed well. |
+| **Photo fails to load** | Say it plainly in the well — "This photo could not be opened" — and **keep the Download icon reachable**. Approve is not blocked. (With D15 the actions sit on the well, so this state must not paint over them — check on the render.) |
+| **`matches` row** | Value, then `Bar Council of Kerala: matches` in muted caption. No badge, no colour. This is what most rows look like, and it must be quiet. |
+| **`differs` row** | Value, `Badge warning` **Differs** beside it, `Bar Council of Kerala: Meera Sudhakaran` beneath. Both names carry their own `lang` — the register's answer never borrows the claimant's tag, since the whole point is that they are different names (ACCESSIBILITY §13). |
+| **`no-entry` / `not-checked` row** | Muted source line on the Bar registration ID row: `Bar Council of Kerala: no entry` / `Bar Council register: not checked`. **Never a blank slot, never "—"** — an absent source line means *nothing checks this attribute*, and that distinction has to survive. |
+| **`changed` row** (`REG-18`) | `Badge secondary` **Changed** + `Was 9847051204` (struck) or `Added at first login` when the Bar Council record held nothing. |
+| **A row that is both `differs` and `changed`** | Two chips in the marks slot, warning first. Must be checked on the render: two chips plus a long term must not push the value onto a fourth line. |
+| **Long / Malayalam names** | `whitespace-normal` everywhere, no fixed widths, `min-w-0` on flex children. A Malayalam name is taller as well as longer. The source line wraps under the value, which is the layout's own justification (D2). |
+| **A Malayalam value against a Latin register answer** | The `differs` case at its worst: two scripts, two `lang` tags, one row. Stacked (not side-by-side) is what makes it survive. |
+| **Email absent** (`REG-15`) | The row is **omitted**, not shown as "—" (the `CounselCell` precedent: an absence is not a missing value). |
+| **Bar ID shapes across states** | `K/0873/2009`, `MAH/2201/2010`, `G/60/1992`, `KAR/12453/2018`. `tabular-nums whitespace-nowrap`; the column is sized off the longest, not off Kerala's short form. |
+| **Resubmitted five times** | `Request type` reads "Resubmitted · round 5"; the newest rejection is visible with its reason in full; four older rounds sit inside "4 earlier rounds". The group does not grow without bound. |
+| **Very old item** | Escalated tone on both the queue cell and the overlay's `Waiting` row (D6); the longest-wait-first sort keeps it on page 1. |
+| **200% zoom / ~375px** | Table → stacked items; overlay grid → single column (Request, Identity, Earlier rejections, then the photo); footer buttons stack. The evidence well's icon buttons stay 40×40 and inside the well. |
 
-**Demo data** should be ~39 rows (the reference's own count) so the table pages at
-10/20/30, and must include: a Malayalam-script name, a long English name, non-Kerala bar
-ID shapes, one `REG-18` edit, one resubmission at round 3, one lookup-disagrees row, one
-lookup-unavailable row, one 60-day-old row, and one row whose photo fails to load.
+**Demo data** stays as built and already exercises the new model: a Malayalam-script name,
+a long English name, four bar-ID shapes, an `REG-18` edit with one change and one addition,
+a resubmission at round 2 and one at round 5, one `disagrees`, one `unavailable`, one
+`not-found`, one 61-day wait, one photo that will not load. **One gap to add for the
+rebuild:** a row that is both `edited` and `differs`, so the two-chip case in §10 exists in
+the data rather than only in this table.
 
 ---
 
@@ -618,80 +934,92 @@ lookup-unavailable row, one 60-day-old row, and one row whose photo fails to loa
 
 - **No bulk path.** Clearing a large queue is slow by construction (D9). Accepted; the
   alternative voids the only identity check the product has.
-- **Deep links lost.** No URL per request (D1). Accepted; raise it again if officers turn
-  out to hand requests to each other.
-- **Days-waiting now has two treatments on the court side** — escalating here, flat
+- **Deep links lost.** No URL per request (D1). Accepted.
+- **The evidence column's icon-only actions fork a pattern.** Every other Dristi preview
+  labels Download and Full view in words (D15). Accepted for a repeat-user staff screen,
+  mitigated by tooltips and `aria-label`s, and owed a reconciliation: if it holds, quiet
+  mode becomes the shape for every side-by-side preview, starting with the scrutiny
+  workbench. If it does not, the words come back — in the well, not in a header band.
+- **The "no answer at all" rule depends on row order.** `no entry` / `not checked` is
+  stated on the Bar registration ID row and read as covering the name above it (D5.5). A
+  future reorder that separates those two rows silently breaks it. Whoever moves them owes
+  the source line a second home.
+- **Days-waiting has two treatments on the court side** — escalating here, flat
   `warning-ink` on `register-cases` (D6). A real pass-7 defect, accepted only until
-  `register-cases` is reconciled. Whoever builds this should open that as a follow-up.
-- **The mismatch marker depends on a lookup contract nobody has confirmed** (§12.4). If
-  the lookup returns nothing usable, D5 degrades to "not checked" and the officer makes
-  all three comparisons by eye. The layout survives; its main speed-up does not.
+  `register-cases` is reconciled.
+- **The `differs` mark depends on a lookup contract nobody has confirmed** (§12.4). If the
+  lookup returns nothing usable, every source line degrades to `not checked` and the
+  officer makes all comparisons by eye. **The layout survives unchanged** — which it did
+  not under the prose model, where each state was its own paragraph. That is the point of
+  the enum.
 - **Visible, escalating waits are a nudge, not a control.** They do not stop an officer
-  sitting on requests (the Kerala practice note). A real control — an SLA, reassignment,
-  an audit trail of who held what for how long — is product's to specify, not this
-  screen's to invent.
-- **Thresholds for escalation are borrowed from the scrutiny queue** (7/14 days) with no
+  sitting on requests (the Kerala practice note). A real control — an SLA, reassignment, an
+  audit trail — is product's to specify.
+- **Thresholds for escalation are borrowed** from the scrutiny queue (7/14 days) with no
   product basis (§12.5).
-- **The rail count is static after a decision** (D10). The header drops, the rail does
-  not, because every `*_QUEUE_COUNT` is a module constant and there is no shared queue
-  store. Every court-side sibling has the same gap (verified on `approve-copy-application`).
-  Accepted here; fixing it is one store for all of them, not a per-screen patch.
-- **Pass 8 ran on the render (2026-09-10, 375 and 1280, light).** (a) the pale specimen
-  card inside the `surface-sunken` well still reads as a boundary — the card's own faint
-  edge does the work; no hairline added; (b) the `warning` register line above the sunken
-  claim well reads as two distinct boxes; (c) the two columns hold at 1280 and the left
-  column scrolls independently; 200% zoom not measured; (d) Malayalam names render and
-  wrap at 375 and 1280 through system fallback — the font-stack gap is the app shell's
-  (`ACCESSIBILITY.md` §13), not this screen's; (e) the footer pair stacks Approve over
-  Reject at 375. Two defects found and fixed: the email value clipped in the claim well,
-  and below `md` the claim row collapsed to 0px behind the photo (§7 corrected).
+- **The rail count is static after a decision** (D10) — a codebase-wide gap, not this
+  screen's.
+- **Pass 8 has not been run on the rebuild** and cannot be claimed. It ran on the *previous*
+  build (2026-09-10, 375 and 1280, light) and found and fixed two defects: the email value
+  clipping in the claim well, and the sub-`md` claim-row collapse. **What the rebuild must
+  re-check on the render, at 375 / 1024 / 1280 and 200% zoom:**
+  1. The two icon buttons on the evidence well against a **pale** card scan (`PALE_CARD`) —
+     ghost buttons on a near-white photograph is the exact fill-on-fill case that only the
+     render answers. Measure; if it fails, the cluster gets a surface, not a darker icon.
+  2. Those buttons against the **failed-photo** state, which paints its own icon and two
+     lines of text into the same well.
+  3. A row carrying two chips and a long Malayalam term.
+  4. Whether three sunken group wells stacked in one column read as three panels or as
+     stripes — if they stripe, the group label carries the separation and the wells go.
+  5. That removing the preview header did not leave the right column's first pixel higher
+     than the left column's, which would read as a misalignment across the grid.
 
 ---
 
 ## 12. Open questions for product
 
-1. **Notification channel and content.** Handover §12 puts notification copy explicitly
-   out of scope pending the application-wide notifications file; the owner guessed email;
-   the legacy advocate screen promises SMS. *Leaning, not decided:* the rejection reason
-   should be readable **in the app** on the advocate's own waiting screen, with the
-   notification carrying only "there is an update" — a free-text reason sent by SMS is
-   both a privacy surface and a truncation risk. Blocks nothing here; blocks the
-   advocate-side half.
-2. **Is an approved registration actually immutable?** The legacy confirm claims
-   "Advocate details cannot be modified once registration request is accepted"; the
-   handover does not say. Blocks the confirm copy — until answered, the dialog states
-   what approval *grants* and does not claim what it *forecloses*.
-3. **Does this queue also carry clerk registrations** (`REG-13a`/`REG-14a`)? The feature
-   is named for advocates; the lifecycle is shared. Answer decides whether the User Type
-   column returns (D13).
-4. **What does the Bar Council lookup return, and when?** A name? An enrolment status? Is
-   it live per request or a periodic sync (§Out-of-scope: "Bar Council database
-   synchronisation mechanics")? A stale sync means the mismatch mark can be wrong, which
-   changes how loudly it is allowed to speak.
-5. **Real daily volume, and what "too long" means here.** Decides whether the conveyor
-   and the mismatch filter earn their place (D9, D11) and replaces the borrowed 7/14-day
+1. **Notification channel and content.** Handover §12 puts notification copy out of scope;
+   the owner guessed email; the legacy advocate screen promises SMS. *Leaning, not decided:*
+   the rejection reason should be readable **in the app** on the advocate's own waiting
+   screen, with the notification carrying only "there is an update". Blocks nothing here.
+2. **Is an approved registration actually immutable?** The legacy confirm claims it; the
+   handover does not say. Until answered, the dialog states what approval *grants* and does
+   not claim what it *forecloses*.
+3. **Does this queue also carry clerk registrations** (`REG-13a`/`REG-14a`)? Answer decides
+   whether the User Type column returns (D13).
+4. **What does the Bar Council lookup return, and when?** A name? An enrolment status? Live
+   per request or a periodic sync? A stale sync means the `differs` mark can be wrong, which
+   changes how loudly it is allowed to speak. **Added by this revision:** *is the register
+   complete for a given state deployment?* Revised D5 renders `no entry` as ordinary and
+   unmarked on the strength of `lib/filing/registry.ts` saying the register never is. If
+   Kerala's is, `no entry` becomes a finding and gets the `warning` mark — a one-value flip
+   in the enum, not a redesign.
+5. **Real daily volume, and what "too long" means here.** Decides whether the conveyor and
+   the mismatch filter earn their place (D9, D11) and replaces the borrowed 7/14-day
    thresholds (D6).
-6. **Who owns this queue, and is it courtroom-scoped?** `docs/product/domain/actors.md`
-   defines the *Registry / Scrutiny officer* as the office scrutinising **filed
-   complaints** — advocate registration is not in that definition. Worse, `REG-35`–`REG-38`
-   put every employee on a **courtroom** list and make them pick one after login, while a
-   Bar registration is not courtroom-scoped at all. **So whose queue does a given request
-   land in — every scrutiny officer in the state, one per district, the first to open
-   it?** Two officers seeing the same request need claiming (the scrutiny queue already
-   models `who` / `self` / unclaimed); nobody seeing it is worse. This is the one open
-   question that could change the screen's structure.
+6. **Who owns this queue, and is it courtroom-scoped?** `actors.md` defines the Registry /
+   Scrutiny officer as the office scrutinising **filed complaints**; `REG-35`–`REG-38` put
+   every employee on a **courtroom** list, while a Bar registration is not courtroom-scoped
+   at all. **Whose queue does a given request land in?** Two officers seeing the same
+   request need claiming; nobody seeing it is worse. The one open question that could still
+   change this screen's structure.
 7. **Is there a third outcome?** Officers may want to ask a question without rejecting.
    §5.3 has two exits. Deliberately not invented (§6).
 8. **Where does an approved registration land, and what happens to a rejected one?**
-   `lib/cases/party-actions.ts` `ADVOCATE_LOOKUP` is keyed by mobile and holds
-   `{ name, barId }` — presumably the destination, unconfirmed. And does a decided
-   request remain visible anywhere as a record? The count derivation assumes decided rows
-   leave the queue.
-9. **Handover Q-1 — help-desk contact details.** `REG-19` conflicts never reach this
-   queue, but an officer rejecting for a suspected duplicate has nowhere to point the
-   advocate.
+   `ADVOCATE_LOOKUP` is presumably the destination, unconfirmed. Does a decided request
+   remain visible anywhere as a record?
+9. **Handover Q-1 — help-desk contact details.** An officer rejecting for a suspected
+   duplicate has nowhere to point the advocate.
+10. **Added by this revision — should a rejection name the attribute it is about?** Now that
+    every submitted value is a first-class attribute with a status, the obvious next move is
+    to attach the officer's reason to the row that failed: `{attribute, reason}` instead of
+    one free-text field. It would make rejections analysable, would let the advocate's own
+    screen highlight the field to fix, and would directly serve the documented failure of
+    one-word remarks (`flag-composer.tsx`). **It is also a product change**, not a design
+    one: it alters what `REG-22` stores and what the advocate is told. **Not built. Only the
+    owner can authorise it**, and this brief deliberately stops at the door.
 
-Items 1–5 and 7–9 have UI consequences and stay in this brief. Item 6 additionally
+Items 1–5 and 7–10 have UI consequences and stay in this brief. Item 6 additionally
 belongs in `docs/product/open-questions.md` as a role/product-user question — filing it
 there is product's call, not this brief's.
 
@@ -699,23 +1027,33 @@ there is product's call, not this brief's.
 
 ## 13. Gaps in the DS (if any)
 
-**None filed.** Every region composes from components that already exist, and nothing
-here needed a new primitive:
+**None filed, and the attribute row is not one.** The row is
+`DescriptionRow` + `DescriptionTerm` + `DescriptionDetails` (all real, in
+`vendor/pucar-design-system/src/components/ui/description-list.tsx`), with the source line
+as `text-caption text-muted-foreground` inside the `dd` and the marks as `Badge` in the
+existing `warning` / `secondary` variants. That is composition — the thing AGENTS rule 3
+("reuse before creating") asks for — and the app already owns the wrapper it goes in
+(`ReviewRow`). Filing a request for a primitive that composes in a dozen lines would be
+noise in a queue that currently holds eleven real gaps.
 
-- The claim/evidence comparison is `DescriptionList` + `DocumentPreview` in a two-column
-  grid — composition, not a component.
-- A "match / mismatch" mark is `Badge`/`Alert` in the existing `warning` pair; inventing a
-  fourth status treatment would break AGENTS §6.
-- Enlarging the ID photo is `DocumentPreview`'s existing **Full view**.
-- The near-white-card-on-`surface-sunken` edge case is already governed by the Laws
-  ("`surface-sunken` for nested media wells inside a Card") and by AGENTS §6a's reasoning.
+**One thing this revision *removes* a dependency on.** The built overlay used `Alert
+variant="warning"` for a standing finding, which is exactly the misuse behind open request
+**#9 — "`Alert` is always `role="alert"` — no quiet standing notice"** in
+`docs/design/ds-requests.md`. A register mismatch is a fact to notice, not an
+interruption to announce, and a `role="alert"` region announces itself the moment the
+overlay opens. Moving the finding onto a `Badge` on the row it concerns retires that
+dependency here. Request #9 stands on its own merits for the screens that raised it.
 
-One thing to watch rather than file: the DS's destructive guidance is written for
-*irreversible* work, and this screen needed the inverse case — a destructive-sounding act
-that is reversible by design (D8). The existing rule already answered it correctly
-("destructive is the soft/at-rest treatment"), so this is a note for the next reader, not
-a request. If a second Dristi screen hits the same fork, it is worth a line in the DS
-Button docs.
+**Two things to watch rather than file:**
+
+- If a **second** Dristi screen needs the same triple-line verification row — and the
+  scrutiny workbench is the obvious candidate, since it also sets filed values against an
+  authority — then it stops being one screen's composition and becomes a DS proposal, with
+  measurements and both callers named. Not before.
+- The DS's destructive guidance is written for *irreversible* work, and this screen needed
+  the inverse case: a destructive-sounding act that is reversible by design (D8). The
+  existing rule already answers it correctly ("destructive is the soft/at-rest treatment"),
+  so this is a note for the next reader.
 
 ---
 
@@ -728,10 +1066,19 @@ Button docs.
 | 2026-09-10 | Rejection requires a free-text reason, "similar to how the scrutiny comment happens"; notification channel explicitly a guess, not a fact. | owner |
 | 2026-09-10 | Screenshots are concept reference only — "build a better version… based on the kind of information we are asking to the advocates in the registration flow". | owner |
 | 2026-09-10 | First pass written: overlay instead of the reference's detail route (D1); claim-vs-evidence layout (D2); dead fields deleted (D3); User Type and "Verify" columns killed (D4); lookup stated as `warning`, never destructive (D5); escalating wait (D6); no bulk approve (D9); no reason chips (§6). | ux-designer |
-| 2026-09-10 | Teal budget written down explicitly (D9) after a first draft had Search as `outline` in one section and teal in another — this screen has no page-level act, so Search keeps the teal on the queue and Approve takes it in the overlay. | ux-designer |
-| 2026-09-10 | Recorded that `docs/product/domain/actors.md` **does** carry a Registry / Scrutiny officer entry, but scoped to complaint scrutiny — so the gap is the scope of the role, not its absence (§1, §12.6). | ux-designer |
-| 2026-09-10 | `npm run check:ds-fresh` not run (no shell in session); DS origin verified by reading `.git/config`, pin read from `ds.lock.json`. Must be run before build. | ux-designer |
-| 2026-09-10 | Built and verified on the render at 375 and 1280 (light; the app pins light and ignores `prefers-color-scheme`). Two render defects fixed: email `dd` clipping (`break-all` on the value only), and the sub-`md` claim-row collapse — §7 corrected to the sibling grid recipe. | ui-designer / orchestrator |
-| 2026-09-10 | D10 corrected: the rail count does not drop after a decision; the sibling has the identical limitation. Accepted as a codebase-wide gap (shared queue store), not a defect of this screen. | orchestrator |
-| 2026-09-10 | ui-reviewer audit: no new criticals, gates green. Round two applied S1 (table↔list swap moved to `xl`, not the reviewer's `lg` — measured: at 1024 the table needs ~780px and has 656, so `lg` still clips the days column; `xl` is the first rung where the whole table fits), S2 (`Collapsible` replaces the hand-written disclosure), S3 (focus returns to Reject when the composer is cancelled), S5 (column header "Kind" → "Request type"), S6 (build caveat joined to the Approve dialog's `aria-describedby`), N3 (register name carries its own `lang`). S4 tested on the render: no focus race. S7, S8, N1, N2, N4 left as systemic / taste. | ui-reviewer / ui-designer |
-
+| 2026-09-10 | Teal budget written down explicitly (D9) — Search on the queue, Approve in the overlay. *(Superseded the same day; see below.)* | ux-designer |
+| 2026-09-10 | Recorded that `actors.md` carries a Registry / Scrutiny officer entry scoped to complaint scrutiny — the gap is the scope of the role, not its absence (§1, §12.6). | ux-designer |
+| 2026-09-10 | `npm run check:ds-fresh` not run (no shell); DS origin and pin verified by reading the repo. Must be run before build. | ux-designer |
+| 2026-09-10 | Built (`f453fd1`) and verified on the render at 375 and 1280. Two render defects fixed: email `dd` clipping, and the sub-`md` claim-row collapse. | ui-designer / orchestrator |
+| 2026-09-10 | D10 corrected: the rail count does not drop after a decision; the sibling has the identical limitation. Accepted as a codebase-wide gap. | orchestrator |
+| 2026-09-10 | ui-reviewer audit: no new criticals, gates green. S1 (table↔list swap at `xl`), S2 (`Collapsible`), S3 (focus returns to Reject), S5 ("Kind" → "Request type"), S6 (`aria-describedby`), N3 (register name carries its own `lang`) applied. | ui-reviewer / ui-designer |
+| **2026-09-10 (evening)** | **Owner rejected the decision overlay's contents on the render** — *"the information inside this modal does not make any sense… it's not at all scalable… You are relying too much on custom copy to do the heavy lifting."* The overlay **shape** (D1) is explicitly kept: *"I like that it's a hover, like a modal that opens up."* | owner |
+| **2026-09-10 (evening)** | **Problems 9 and 10 added** — prose-instead-of-attributes (four lookup variants + two narrated request kinds, cited to `register-advocates-dialog.tsx`), and the evidence region's competing title band (cited to `document-preview.tsx` 141–165). Problems 1, 2, 4, 5, 6, 7, 8 marked **resolved** by the build and kept in the record; problem 3 marked half-resolved and folded into 9. | ux-designer |
+| **2026-09-10 (evening)** | **D2 rewritten.** The overlay's left column becomes one repeated attribute row — `term · value · source line · previous line · marks` — in three groups (Request, Identity, Earlier rejections). Two-column submitted-vs-source **rejected**: it is blank on 3 of 5 attributes and does not survive ~190px per value with Malayalam names. The claim-vs-evidence split from the first D2 survives; its prose contents do not. | owner (direction) / ux-designer |
+| **2026-09-10 (evening)** | **D5 rewritten.** The register's answer moves onto the attribute it checks as a closed status enum (`matches` / `differs` / `no-entry` / `not-checked` / `verified` / `none`); the banner `Alert` is deleted. `warning`-not-`destructive` and never-colour-alone **survive**; `no-entry` and `not-checked` **lose** their warning treatment. Also resolved a live contradiction: the first D5 promised a row-level mismatch mark the build never had — decided deliberately that the queue row carries **no** lookup mark. | ux-designer |
+| **2026-09-10 (evening)** | **D7 revised.** The three-kind classification survives; its prose rendering does not. Request type becomes a closed value in the Request group; the "This account was created from the Bar Council record…" paragraph and the "Round 4, rejected 8 July 2026…" sentence are deleted. All rejection rounds now render with **one** row (newest first) instead of a quote block plus a timeline — a pass-7 defect the build shipped. The history's `decision` field is not rendered while "Rejected" is its only value. | ux-designer |
+| **2026-09-10 (evening)** | **D15 added.** The evidence region loses its heading, its upload date and its two text buttons; Download and Full view become 40×40 icon buttons on the well, built as a quiet presentation of the app's `DocumentPreview` (never a second hand-rolled well). Pattern fork named and accepted in §11. | owner (direction) / ux-designer |
+| **2026-09-10 (evening)** | **D16 added.** Request metadata is its own attribute group, not header prose; the application number stays in the header description and is not repeated; the advocate's name **leaves** the header, because printing a value under verification as the record's title asserts it. | ux-designer |
+| **2026-09-10 (evening)** | **D9 and D11 corrected for two parallel cross-cutting changes** — search filters as you type (the Search button goes away app-wide) and the whole table row becomes the click target. The queue page therefore has **no page-level primary**, which is what D9 argued was correct all along; the "teal on the queue page is Search" line is void, and two code comments asserting it must change with the rebuild. | orchestrator / ux-designer |
+| **2026-09-10 (evening)** | **§6 clarified** so the brief cannot be read as rejecting structure wholesale: the officer's rejection reason stays free text (`REG-22`) because it is *user data in a consistent slot*; what was rejected is *product copy narrating machine results*. Reason chips remain cut; a per-attribute rejection is filed as §12.10 for the owner to decide. | ux-designer |
+| **2026-09-10 (evening)** | **§13**: no DS request filed — the attribute row composes from `DescriptionList` + `Badge`. Recorded that deleting the lookup `Alert` retires this screen's dependence on open DS request #9 (no quiet standing notice). | ux-designer |

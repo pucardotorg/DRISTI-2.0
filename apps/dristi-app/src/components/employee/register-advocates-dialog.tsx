@@ -19,7 +19,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,20 +43,19 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { Timeline, TimelineItem } from "@/components/ui/timeline";
 import {
-  currentRound,
-  earlierRejections,
-  editFor,
-  formatRegistrationLongDate,
+  MARK_LABEL,
+  identityRows,
   idPhotoLabel,
-  latestRejection,
   registrantNoun,
-  registrationIdLabel,
-  rejectionDay,
-  submissionDay,
+  rejectionRows,
+  requestRows,
+  sourceLine,
   type AdvocateRegistration,
-  type BarCouncilLookup,
+  type RegistrationRow,
+  type RowFormat,
+  type RowMark,
+  type WaitTone,
 } from "@/lib/employee/register-advocates";
 import { cn } from "@/lib/utils";
 
@@ -69,15 +67,23 @@ import { cn } from "@/lib/utils";
  * because it is the same job: an application somebody filed, in front of staff who have
  * to say yes or no. What differs is what the overlay is *for*. Handover `REG-14` says the
  * photograph of the Bar ID card exists **so the scrutiny officer can verify** the typed
- * claim, so the body is built as that comparison and nothing else: the claim on the left,
- * the card on the right, at the same time, one saccade apart. The legacy screen put the
- * two furthest from each other and six dead fields in between.
+ * claim, so the body is built as that comparison and nothing else: the attributes on the
+ * left, the card on the right, at the same time, one saccade apart.
  *
- * **Only what the registration flow collects.** Full name, Bar registration ID, the
- * OTP-verified mobile, an email if one was given, and the photograph. Address, ID type,
- * Aadhaar proof and map location are not shown as blank rows — handover §5.1 says they
- * are never collected, and a row reading "—" would teach the officer the data is missing
- * rather than absent.
+ * **Every fact here is a value in a named slot** (brief D2). One row —
+ * `term · value · source line · previous line · marks` — renders the request's own
+ * metadata, the four submitted values and every rejection round alike, and the machine's
+ * answer about an attribute is a member of a closed six-value enum rather than a sentence
+ * this component writes. The version this replaces narrated one lookup four different
+ * ways, which meant a fifth answer, a second register or a clerk queue (`REG-13a`) each
+ * cost new prose. Nothing on this screen is generated from a status now: if you find
+ * yourself writing a sentence about what the data means, the model is missing a slot.
+ *
+ * **Only what the registration flow collects.** Five values — full name, Bar registration
+ * ID, the OTP-verified mobile, an email if one was given, and the photograph — which is
+ * four rows and one column, and that arithmetic is how a reader checks nothing was
+ * invented. Address, ID type, Aadhaar proof and map location are not shown as blank rows;
+ * handover §5.1 says they are never collected.
  *
  * **Approve and Reject perform no act.** Both drop the row from the demo queue and close —
  * see `lib/employee/register-advocates.ts`. No account is opened, no access is granted or
@@ -147,6 +153,8 @@ function RequestBody({
   const reasonRef = React.useRef<HTMLTextAreaElement>(null);
   /* The button that arms the composer, so cancelling can put focus back on it. */
   const rejectRef = React.useRef<HTMLButtonElement>(null);
+  /* Where the overlay lands on open — see `onOpenAutoFocus` below. */
+  const attributesRef = React.useRef<HTMLDivElement>(null);
   const wasRejecting = React.useRef(false);
 
   /**
@@ -172,17 +180,32 @@ function RequestBody({
 
   const empty = reason.trim() === "";
   const noun = registrantNoun(request.registrantKind);
-  const latest = latestRejection(request);
-  const earlier = earlierRejections(request);
+  const rounds = rejectionRows(request);
 
   return (
     <ChromeDialogContent
       className="flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl md:h-[85dvh]"
+      /* Radix focuses the first tabbable thing it finds. With the preview's header band
+         gone (D15) that is the evidence well itself — it is a scroll container, so it is
+         focusable — and the overlay opened with a 3px teal ring around the whole right
+         column, which reads as a selected or errored state rather than as a starting
+         point. The attribute column takes it instead: it is what the officer reads
+         first, it is the other scroll region, and WAI-ARIA APG allows a container when a
+         dialog holds this much content. Focus still moves into the dialog and is still
+         trapped there; only its landing place changed. */
+      onOpenAutoFocus={(event) => {
+        event.preventDefault();
+        attributesRef.current?.focus();
+      }}
       onCloseAutoFocus={(event) => {
         event.preventDefault();
         onReturnFocus();
       }}
     >
+      {/* Title, state, and the one string the advocate can quote — and nothing else
+          (brief D16). The name is **not** here: it is a value under verification, and a
+          screen that prints it as the record's title has asserted it before the officer
+          looked at the card. It is the first row of Identity instead. */}
       <DialogHeader className="shrink-0 gap-2 p-6 pr-16">
         <div className="flex flex-wrap items-center gap-2">
           <DialogTitle className="text-title-s font-semibold">
@@ -194,25 +217,23 @@ function RequestBody({
               set, in the same `warning` variant. */}
           <Badge variant="warning">Pending approval</Badge>
         </div>
-        <DialogDescription className="text-body-compact text-muted-foreground">
-          <span className="tabular-nums">{request.applicationNumber}</span>
-          {" · "}
-          <span lang={request.fullNameLang}>{request.fullName}</span>
+        <DialogDescription className="text-body-compact tabular-nums text-muted-foreground">
+          {request.applicationNumber}
         </DialogDescription>
       </DialogHeader>
       <Separator />
 
-      {/* Claim on the left, evidence on the right, and below `md` the claim first — it is
-          what you read before you look at anything. Each column scrolls on its own once
-          there is a viewport to split, so a request on its fifth round does not push the
-          photograph off the bottom of the overlay. */}
+      {/* Attributes on the left, evidence on the right, and below `md` the attributes
+          first — they are what you read before you look at anything. Each column scrolls
+          on its own once there is a viewport to split, so a request on its fifth round
+          does not push the photograph off the bottom of the overlay. */}
       {/* `grid-rows-[auto_auto]` below `md` and a single `minmax(0,1fr)` row above it —
           the recipe `ApproveCopyApplicationDialog` and `ApplicationReviewDialog` already
           use, with the row split into two columns instead of stacked.
 
-          Both halves are load-bearing. Stacked, the claim row must be `auto`: the
+          Both halves are load-bearing. Stacked, the attribute row must be `auto`: the
           photograph's `min-h-96` on its own exceeds the body's height, so an auto track
-          whose item declares `min-h-0` sizes to a 0px base and the claim column collapses
+          whose item declares `min-h-0` sizes to a 0px base and the left column collapses
           to nothing while its content paints on out of it, behind the card. Hence
           `md:min-h-0` on that column and not `min-h-0` — the zero minimum is what lets it
           scroll inside a definite row at `md`, and it is exactly what must not apply once
@@ -220,136 +241,30 @@ function RequestBody({
           same reason from the other end: it gives the two columns the definite height that
           `md:overflow-y-auto` and `height="fill"` both resolve against. */}
       <div className="grid min-h-0 flex-1 grid-rows-[auto_auto] gap-6 overflow-y-auto p-6 md:grid-cols-2 md:grid-rows-[minmax(0,1fr)] md:overflow-hidden">
-        <div className="flex min-w-0 flex-col gap-6 md:min-h-0 md:overflow-y-auto">
-          {request.requestKind === "resubmission" && latest ? (
-            <section className="flex flex-col gap-2">
-              <h3 className="text-caption font-semibold text-muted-foreground">
-                Why this was rejected last time
-              </h3>
-              {/* In full, in the officer's own words. The question a resubmission
-                  actually asks is "did they fix what I said", and a summary of what the
-                  court said would let this screen quietly rewrite it. */}
-              <blockquote className="rounded-lg bg-surface-sunken p-4 text-body-compact">
-                {latest.reason}
-              </blockquote>
-              <p className="text-caption text-muted-foreground">
-                {"Round "}
-                <span className="tabular-nums">{latest.round}</span>
-                {", rejected "}
-                <span className="tabular-nums">
-                  {formatRegistrationLongDate(rejectionDay(latest))}
-                </span>
-                {". This request is round "}
-                <span className="tabular-nums">{currentRound(request)}</span>.
-              </p>
-
-              {/* Older rounds are context, not the question — they collapse so the block
-                  cannot grow without bound on a request that has come back five times
-                  (`REG-23` sets no limit). The DS `Collapsible`, not a native
-                  `details`/`summary`: the app has one disclosure mechanism and this was
-                  the only place not using it, which meant hand-keeping a marker, a hover
-                  and a focus ring that the shared idiom already carries. */}
-              {earlier.length > 0 ? (
-                <Collapsible>
-                  {/* Styled off `TaskDetailPanel`'s history disclosure
-                      (`components/tasks/task-detail-panel.tsx`) — the same job, down to
-                      the Timeline underneath: a muted caption that darkens on hover, one
-                      chevron that turns, and the DS focus ring. `w-fit` rather than that
-                      one's full-width `justify-between`, because this label is a phrase in
-                      a narrow column and a chevron parked at the far edge would lose touch
-                      with it. `min-h-10` keeps the DS's 40px floor on a target an officer
-                      reaches on a tablet. */}
-                  <CollapsibleTrigger className="group/earlier flex min-h-10 w-fit items-center gap-1.5 rounded-lg text-left text-caption text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-focus-ring">
-                    {earlier.length === 1
-                      ? "1 earlier round"
-                      : `${earlier.length} earlier rounds`}
-                    <ChevronDownIcon
-                      aria-hidden
-                      className="size-4 shrink-0 transition-transform group-data-[state=open]/earlier:rotate-180"
-                    />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <Timeline className="mt-3">
-                      {earlier.map((round) => (
-                        <TimelineItem
-                          key={round.round}
-                          status="past"
-                          /* `title` is the DS's own `<li title>` narrowed to a string, so
-                             the figures cannot be wrapped in their own span. The variant
-                             inherits, so it goes on the item and covers both lines. */
-                          className="tabular-nums"
-                          title={`Round ${round.round} · ${formatRegistrationLongDate(
-                            rejectionDay(round),
-                          )}`}
-                          description={round.reason}
-                        />
-                      ))}
-                    </Timeline>
-                  </CollapsibleContent>
-                </Collapsible>
-              ) : null}
-            </section>
-          ) : null}
-
-          {request.requestKind === "edited" ? (
-            /* `REG-18`. The account already existed — the Bar Council database created
-               it — and what is under review is the change, not the record. Said in words
-               above the block whose rows carry the was → now. */
-            <p className="text-body-compact text-muted-foreground">
-              This account was created from the Bar Council record. The{" "}
-              {noun} changed the marked values at first login; the rest is the
-              record as it stood.
-            </p>
-          ) : null}
-
-          <BarCouncilLine
-            lookup={request.lookup}
-            claimedName={request.fullName}
-            claimedNameLang={request.fullNameLang}
-            barRegistrationId={request.barRegistrationId}
-          />
-
-          {/* What they typed, in a well. Four rows and no more — the flow collects no
-              more (handover §5.1). */}
-          <div className="rounded-lg bg-surface-sunken p-4">
+        <div
+          ref={attributesRef}
+          tabIndex={-1}
+          className="flex min-w-0 flex-col gap-6 outline-none md:min-h-0 md:overflow-y-auto"
+        >
+          <AttributeGroup label="Request">
             <DescriptionList>
-              <ReviewRow term="Full name">
-                <span lang={request.fullNameLang}>{request.fullName}</span>
-                <WasLine edit={editFor(request, "fullName")} />
-              </ReviewRow>
-              <ReviewRow term={registrationIdLabel(request.registrantKind)}>
-                <span className="font-mono tabular-nums">
-                  {request.barRegistrationId}
-                </span>
-                <WasLine edit={editFor(request, "barRegistrationId")} mono />
-              </ReviewRow>
-              <ReviewRow term="Mobile number">
-                <span className="tabular-nums">{request.mobile}</span>
-                {/* `REG-10`/`REG-11` — the number is the account's primary key and it was
-                    proved by OTP before the request was ever made. Quiet, because it is
-                    true of every row: it is here so the officer does not spend a doubt on
-                    the one fact that has already been checked by machine. */}
-                <span className="block text-caption text-muted-foreground">
-                  Verified by OTP
-                </span>
-                <WasLine edit={editFor(request, "mobile")} />
-              </ReviewRow>
-              {request.email ? (
-                <ReviewRow term="Email">
-                  {/* `break-all`, alone among the four rows. An address has no space in
-                      it, so normal wrapping has nowhere to break and the value runs
-                      straight out of the well's right edge in the two-column layout — and
-                      `break-words` would not help, because that only breaks a word that
-                      cannot fit *on its own line*, which at 188px this one nearly can. A
-                      name wraps on its spaces and the Bar ID is short, so neither needs
-                      this and neither should have it: a mid-syllable break in a Malayalam
-                      name is a worse read than a wrapped line. */}
-                  <span className="break-all">{request.email}</span>
-                  <WasLine edit={editFor(request, "email")} />
-                </ReviewRow>
-              ) : null}
+              {requestRows(request).map((row) => (
+                <AttributeRow key={row.id} row={row} />
+              ))}
             </DescriptionList>
-          </div>
+          </AttributeGroup>
+
+          <AttributeGroup label="Identity">
+            <DescriptionList>
+              {identityRows(request).map((row) => (
+                <AttributeRow key={row.id} row={row} />
+              ))}
+            </DescriptionList>
+          </AttributeGroup>
+
+          {rounds.length > 0 ? (
+            <EarlierRejections rounds={rounds} />
+          ) : null}
 
           {rejecting ? (
             <Field data-invalid={touched && empty}>
@@ -357,7 +272,12 @@ function RequestBody({
                   documented failure in this role is one-word remarks that send an advocate
                   to the court counter to decode them (`scrutiny/flag-composer.tsx`), and a
                   label naming the reader is the cheapest thing that answers it. Visible,
-                  never a placeholder alone — a listed accessibility defect. */}
+                  never a placeholder alone — a listed accessibility defect.
+
+                  This sentence is the one piece of free text the rebuild keeps, and it is
+                  not the defect the rest of it removed: `REG-22` says the reason is the
+                  officer's own words, which is user data in a fixed slot. Product copy
+                  standing in for a machine result is what went. */}
               <FieldLabel htmlFor={`reject-${request.id}`}>
                 Why are you rejecting this? The {noun} will read this.
               </FieldLabel>
@@ -392,22 +312,19 @@ function RequestBody({
           ) : null}
         </div>
 
-        {/* The evidence. `REG-14` collects this photograph for one purpose, so it takes
-            the rest of the overlay's height rather than sitting under the facts as a
-            thumbnail. Download and Full view are `DocumentPreview`'s own, in its sticky
-            header — the footer keeps only the two decisions. */}
+        {/* The evidence, and the fifth submitted value (brief D15). `REG-14` collects this
+            photograph for one purpose, so it takes the rest of the overlay's height rather
+            than sitting under the facts as a thumbnail — and it takes it **without a
+            header band**: the heading restated what the column plainly is, its sub-line
+            said the submitted date a second time, and the two text buttons sat under the
+            DialogTitle as a second title bar. Quiet mode drops all three; Download and
+            Full view are 40×40 icons on the well, which is `DocumentPreview`'s own doing
+            and not a second well hand-rolled here. */}
         <DocumentPreview
+          variant="quiet"
           className="min-h-96 md:min-h-0"
           height="fill"
           title={idPhotoLabel(request.registrantKind)}
-          description={
-            <>
-              {"Uploaded "}
-              <span className="tabular-nums">
-                {formatRegistrationLongDate(submissionDay(request))}
-              </span>
-            </>
-          }
           source={{
             kind: "composed",
             content: (
@@ -477,6 +394,207 @@ function RequestBody({
   );
 }
 
+/* ───────────────────────────── the one row ──────────────────────────────── */
+
+/** Plain at rest; the exception gets the ink. The queue cell's own map (brief D6). */
+const waitClass: Record<WaitTone, string> = {
+  plain: "",
+  warning: "text-warning-ink",
+  destructive: "text-destructive-ink",
+};
+
+/**
+ * How a value is set.
+ *
+ * `email` gets `break-all` alone among the four: an address has no space in it, so normal
+ * wrapping has nowhere to break and the value runs out of the well's right edge in the
+ * two-column layout. A name wraps on its spaces and a Bar ID is short, so neither needs
+ * this and neither should have it — a mid-syllable break in a Malayalam name is a worse
+ * read than a wrapped line.
+ */
+const formatClass: Record<RowFormat, string> = {
+  text: "",
+  code: "font-mono tabular-nums",
+  figure: "tabular-nums",
+  email: "break-all",
+};
+
+/**
+ * The two marks, and the treatment each takes.
+ *
+ * `Differs` is `warning`, **never** `destructive`: a register holding a different name is
+ * a finding that needs a human to look at a photograph, not a verdict, and the loud
+ * treatment would have the machine reject before anybody looked at the card (the lesson
+ * `scrutiny/flag-composer.tsx` already records). `Changed` is neutral — `REG-18` says an
+ * edit happened, which is a fact and not a status.
+ *
+ * Both carry **words**, so no finding is ever colour alone (DS Laws).
+ */
+const markVariant: Record<RowMark, "warning" | "secondary"> = {
+  differs: "warning",
+  changed: "secondary",
+};
+
+/**
+ * One fact — and the only row on this screen.
+ *
+ * Request metadata, the four submitted attributes and every rejection round render through
+ * this component. Adding a sixth attribute or a fifth register answer costs a row of data
+ * in `lib/employee/register-advocates.ts`; it costs nothing here.
+ *
+ * Nothing below composes a sentence. The source line is two slots printed with a colon
+ * between them; the previous line is `REG-18`'s own two shapes; the marks are looked up
+ * from a closed set of two.
+ */
+function AttributeRow({ row }: { row: RegistrationRow }) {
+  const line = sourceLine(row.source);
+
+  return (
+    /* Hairline, not the DS row default: these rows sit inside a sunken well, where
+       `border-border` would be the loudest mark in the overlay (ui-craft §1.1). */
+    <ReviewRow term={row.term} className="border-hairline">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <span
+          lang={row.valueLang}
+          className={cn(
+            "min-w-0",
+            formatClass[row.format],
+            row.tone && waitClass[row.tone],
+          )}
+        >
+          {row.value}
+        </span>
+        {row.marks.map((mark) => (
+          <Badge key={mark} variant={markVariant[mark]}>
+            {MARK_LABEL[mark]}
+          </Badge>
+        ))}
+      </div>
+
+      {/* `{source}: {answer}` — the authority's reading of *this* attribute, on the
+          attribute. No line at all means nothing checks this value, which is why the
+          absent slot is never filled with a dash. */}
+      {line ? (
+        <RowNote>
+          {line.source}
+          {": "}
+          {/* The register's answer carries the register's own tag, never the claimant's:
+              the two strings are separate answers and need not share a script, and on a
+              `differs` row borrowing the claimant's tag would be read aloud as
+              agreement (ACCESSIBILITY §13). */}
+          <span lang={line.answerLang}>{line.answer}</span>
+        </RowNote>
+      ) : null}
+
+      {row.previous ? (
+        <RowNote>
+          {row.previous.was === null ? (
+            "Added at first login"
+          ) : (
+            <>
+              {"Was "}
+              <span
+                className={cn("line-through", formatClass[row.format])}
+              >
+                {row.previous.was}
+              </span>
+            </>
+          )}
+        </RowNote>
+      ) : null}
+
+      {row.note ? <RowNote>{row.note}</RowNote> : null}
+    </ReviewRow>
+  );
+}
+
+/** Every sub-line under a value looks the same, whatever fact it carries. */
+function RowNote({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="mt-1 block text-caption tabular-nums text-muted-foreground">
+      {children}
+    </span>
+  );
+}
+
+/**
+ * A group of rows in a well, with the group's name above it.
+ *
+ * The label is scaffolding and reads as scaffolding — `text-caption` muted, so the values
+ * inside are what the eye lands on. The well is `surface-sunken` inside the dialog's own
+ * panel: depth by fill, no border, nothing nested inside anything raised (DS Laws).
+ */
+function AttributeGroup({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-2">
+      <h3 className="text-caption font-semibold text-muted-foreground">
+        {label}
+      </h3>
+      <div className="rounded-lg bg-surface-sunken p-4">{children}</div>
+    </section>
+  );
+}
+
+/**
+ * Every round this request has already been refused — newest first, all of them the same
+ * row (brief D7).
+ *
+ * The newest is always visible, because the question a resubmission asks is "did they fix
+ * what I said last time". The rest collapse, so the group cannot grow without bound on a
+ * request that has come back five times (`REG-23` sets no limit). The `Collapsible`
+ * governs how many are visible; it does not change how any of them look, which is what
+ * the version this replaces got wrong — it rendered the newest as a quote block and the
+ * older ones as timeline items, one fact with two treatments.
+ *
+ * There is no per-round "Rejected" chip: every round in this group was a rejection — an
+ * approved request leaves the queue — so the chip would mark the norm. The group's name
+ * carries it.
+ */
+function EarlierRejections({ rounds }: { rounds: RegistrationRow[] }) {
+  const [newest, ...older] = rounds;
+
+  return (
+    <AttributeGroup label="Earlier rejections">
+      <DescriptionList>
+        <AttributeRow row={newest} />
+      </DescriptionList>
+      {older.length > 0 ? (
+        <Collapsible>
+          {/* Styled off `TaskDetailPanel`'s history disclosure
+              (`components/tasks/task-detail-panel.tsx`) — the same job: a muted caption
+              that darkens on hover, one chevron that turns, and the DS focus ring.
+              `w-fit` rather than that one's full-width `justify-between`, because this
+              label is a phrase in a narrow column and a chevron parked at the far edge
+              would lose touch with it. `min-h-10` keeps the DS's 40px floor on a target
+              an officer reaches on a tablet. */}
+          <CollapsibleTrigger className="group/earlier flex min-h-10 w-fit items-center gap-1.5 rounded-lg text-left text-caption text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-focus-ring">
+            {older.length === 1
+              ? "1 earlier round"
+              : `${older.length} earlier rounds`}
+            <ChevronDownIcon
+              aria-hidden
+              className="size-4 shrink-0 transition-transform group-data-[state=open]/earlier:rotate-180"
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <DescriptionList>
+              {older.map((row) => (
+                <AttributeRow key={row.id} row={row} />
+              ))}
+            </DescriptionList>
+          </CollapsibleContent>
+        </Collapsible>
+      ) : null}
+    </AttributeGroup>
+  );
+}
+
 /**
  * The one guarded act on the screen, and the overlay's one teal button.
  *
@@ -543,123 +661,14 @@ function ApproveConfirm({
 }
 
 /**
- * What the Bar Council register said, stated as a machine reading (`REG-13`).
- *
- * The default is silent. On the ~nine rows in ten where the register agrees, this is one
- * muted line and no mark at all — a green "verified" chip would spend colour marking the
- * norm, and the officer still has to look at the photograph either way.
- *
- * When it disagrees it is `warning` **with words**, never a tint alone and never
- * `destructive`. A register that holds a different name is a finding that needs a human,
- * not a verdict, and destructive treatment would have the machine reject before anybody
- * looked at the card. The repo has already learned this in this exact role — see
- * `scrutiny/flag-composer.tsx` on pre-filling a defect assertion on the officer's behalf.
- *
- * When it cannot be reached, it says so plainly and **blocks nothing**: the evidence
- * `REG-14` names is the photograph, which is in the next column.
- */
-function BarCouncilLine({
-  lookup,
-  claimedName,
-  claimedNameLang,
-  barRegistrationId,
-}: {
-  lookup: BarCouncilLookup;
-  claimedName: string;
-  claimedNameLang?: string;
-  barRegistrationId: string;
-}) {
-  if (lookup.state === "agrees") {
-    return (
-      <p className="text-body-compact text-muted-foreground">
-        {lookup.entry.bar} register:{" "}
-        {/* The register's name carries the register's own tag, never the claimant's: the
-            two strings are separate answers and need not share a script (`BarCouncilLookup`
-            in `lib/employee/register-advocates.ts`). */}
-        <span lang={lookup.entryNameLang}>{lookup.entry.name}</span>.
-      </p>
-    );
-  }
-
-  if (lookup.state === "unavailable") {
-    return (
-      <p className="text-body-compact text-muted-foreground">
-        The Bar Council register could not be reached. Decide from the card.
-      </p>
-    );
-  }
-
-  if (lookup.state === "not-found") {
-    return (
-      <Alert variant="warning">
-        <AlertTitle>This number is not in the register</AlertTitle>
-        <AlertDescription>
-          The Bar Council register has no entry against{" "}
-          <span className="font-mono tabular-nums">{barRegistrationId}</span>.
-          The register is not complete, so this is ordinary — the card is what
-          decides it.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
-  return (
-    <Alert variant="warning">
-      <AlertTitle>The register has a different name against this number</AlertTitle>
-      <AlertDescription>
-        {lookup.entry.bar} holds{" "}
-        <span className="font-mono tabular-nums">{lookup.entry.barNumber}</span>{" "}
-        against{" "}
-        {/* The whole sentence is that these two names differ, so each is spoken in its
-            own script — this is the one place borrowing the claimant's tag would be read
-            aloud as agreement. */}
-        <span lang={lookup.entryNameLang} className="font-medium">
-          {lookup.entry.name}
-        </span>
-        . This request was made in the name{" "}
-        <span lang={claimedNameLang} className="font-medium">
-          {claimedName}
-        </span>
-        . Check the card before deciding.
-      </AlertDescription>
-    </Alert>
-  );
-}
-
-/** "Was 9847051204" / "Added at first login" — what changed, under the value it changed to. */
-function WasLine({
-  edit,
-  mono = false,
-}: {
-  edit: { was: string | null } | undefined;
-  mono?: boolean;
-}) {
-  if (!edit) return null;
-  return (
-    <span className="block text-caption text-muted-foreground">
-      {edit.was === null ? (
-        "Added at first login"
-      ) : (
-        <>
-          {"Was "}
-          <span className={cn("line-through", mono && "font-mono tabular-nums")}>
-            {edit.was}
-          </span>
-        </>
-      )}
-    </span>
-  );
-}
-
-/**
- * The photograph itself, and the two things that happen to a served file.
+ * The photograph itself.
  *
  * It is an `<img>` inside `DocumentPreview`'s composed well rather than the well's `src`
  * branch, which renders an `<iframe>`. An iframe reports neither load nor failure, and
  * both states are ones this screen has to answer: a card photograph is a file coming down
- * a court's connection, so it is sometimes slow, and sometimes it is not there. The well,
- * the sticky header, Download and Full view are all still `DocumentPreview`'s — only the
- * element inside the well changed.
+ * a court's connection, so it is sometimes slow, and sometimes it is not there. The well
+ * and its two actions are still `DocumentPreview`'s — only the element inside the well
+ * changed.
  *
  * A failure says so in words and keeps Download reachable. **It does not block the
  * decision**: the officer may hold the card another way, and an empty box that left them
