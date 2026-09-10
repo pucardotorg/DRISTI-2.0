@@ -33,6 +33,7 @@ npm run sync:ui -- --tokens-only   # refresh token CSS
 npm run check:tokens               # no hardcoded colours / invent tokens
 npm run check:typography           # named DS roles in product composition
 npm run check:ui-sync              # primitives + globals must match DS
+npm run check:spacing              # spacing stays on the ladder
 npm run check:rails                # Claude and Cursor agent rails must not drift
 ```
 
