@@ -47,7 +47,7 @@ If it fails: `npm install`, then `npm run check:ui-sync` and sync whatever it re
 as drifting.
 
 **Never edit `ds.lock.json` by hand, and never bump it on a feature branch.** Moving
-the whole repo to a newer DS is `npm run ds:bump`, run on main, committed and
+the whole repo to a newer DS is `npm run ds:bump`, run on `design`, committed and
 reviewed like any other change — it changes how every screen looks. Adopting a DS
 change mid-feature without the team is the thing the pin exists to stop.
 
@@ -98,7 +98,7 @@ iteration and every one after it, on every branch — load the `ui-craft` skill
 (`.claude/skills/ui-craft/SKILL.md` / `.cursor/skills/ui-craft/SKILL.md`) alongside
 `pull-ui-from-ds`, apply its layering model (canvas → chrome → panel → well) and run its
 pre-flight checklist on the **render** before reporting done. If the skill file is
-missing on the branch you are on, restore it from `main` before touching UI (do not build
+missing on the branch you are on, restore it from `design` before touching UI (do not build
 without it). Subagents that build UI must be handed the skill explicitly.
 
 ## 4. Review

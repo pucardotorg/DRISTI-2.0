@@ -29,7 +29,7 @@ Then invoke the `ui-craft` skill — every build, every iteration, on every bran
 carries the taste rules the gates cannot: the layering model (canvas → chrome → panel →
 well), strokes, type hierarchy, elevation. Compose to it, and run its pre-flight
 checklist on the render before you report done. If the skill file is missing on your
-branch, restore it from `main` first.
+branch, restore it from `design` first.
 
 Foundations live at `{DS}/src/app/(docs)/foundations/<name>/page.tsx` — eight of them:
 `laws`, `typography`, `spacing`, `colors`, `elevation`, `radius`, `icons`,

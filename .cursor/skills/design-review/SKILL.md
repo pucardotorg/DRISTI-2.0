@@ -27,8 +27,8 @@ loads it in dev when the URL carries `?design=1`. Full usage:
    `.claude/rules/dev-server.md`).
 2. **Tool present on this branch?** Both `apps/dristi-app/public/design-mode.js`
    and the loader wired in `src/app/layout.tsx` must exist. If the branch
-   predates them, restore from main:
-   `git checkout main -- apps/dristi-app/public/design-mode.js apps/dristi-app/src/components/design-mode-loader.tsx`
+   predates them, restore from `design`:
+   `git checkout design -- apps/dristi-app/public/design-mode.js apps/dristi-app/src/components/design-mode-loader.tsx`
    (and wire the loader into layout if missing). If only the loader is missing,
    give the user the console fallback from docs/design-mode.md instead.
 3. **Hand over the link**: `http://127.0.0.1:3000/<route>?design=1` — the route
