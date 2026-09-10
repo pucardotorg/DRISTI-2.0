@@ -1,10 +1,12 @@
 "use client";
 
 import {
-  rowActivation,
-  rowOpener,
-  rowOpenerClass,
-} from "@/lib/employee/row-activation";
+  TABLE_CELL,
+  TABLE_HEAD,
+  TABLE_HEAD_ROW,
+  tableBodyClass,
+  tableRowClass,
+} from "@/components/chrome/table-plate";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -21,19 +23,12 @@ import {
   type AdvocateRegistration,
   type WaitTone,
 } from "@/lib/employee/register-advocates";
+import {
+  rowActivation,
+  rowOpener,
+  rowOpenerClass,
+} from "@/lib/employee/row-activation";
 import { cn } from "@/lib/utils";
-
-/* The same table treatment as the register queue, the copy-application queue and the two
- * signing queues — header separated by fill rather than a second stroke, rows by hairline,
- * the panel edge as the only full-strength border on the screen (ui-craft §1.1). The
- * classes are restated rather than exported because when the advocate shell moves onto the
- * shared `components/chrome` frame, this treatment is what belongs there, and the
- * court-side tables should collapse onto it together rather than one of them becoming the
- * other's parent. */
-const headClass =
-  "h-10 bg-surface-sunken px-4 py-3 text-caption font-semibold text-muted-foreground";
-const cellClass =
-  "border-b border-hairline px-4 py-3 align-middle text-left text-body-compact";
 
 /** Plain at rest; the exception gets the ink. See `registrationWaitTone`. */
 const waitClass: Record<WaitTone, string> = {
@@ -81,36 +76,32 @@ export function RegisterAdvocatesTable({
     <Table className="w-full border-separate border-spacing-0 text-body-compact">
       <TableHeader>
         {/* The panel insets this table by p-6, so the header strip is a well, not a
-            full-bleed band — it rounds itself (ui-craft §4). `border-separate` means each
-            cell paints its own fill, so the radius goes on the end cells rather than the
-            row. */}
-        <TableRow className="hover:bg-transparent [&>th:first-child]:rounded-l-lg [&>th:last-child]:rounded-r-lg">
-          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+            full-bleed band — it rounds itself (`TABLE_HEAD_ROW`, ui-craft §4). */}
+        <TableRow className={TABLE_HEAD_ROW}>
+          <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
             Application number
           </TableHead>
-          <TableHead className={cn(headClass, "min-w-48 whitespace-normal")}>
+          <TableHead className={cn(TABLE_HEAD, "min-w-48 whitespace-normal")}>
             Full name
           </TableHead>
-          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+          <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
             Bar registration ID
           </TableHead>
           {/* "Request type", not "Kind" — the court-side columns are named after the
               thing they hold ("Application type", "Process type"), and a header has to
               stand on its own above an empty cell. */}
-          <TableHead className={cn(headClass, "whitespace-nowrap")}>
+          <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
             Request type
           </TableHead>
-          <TableHead className={cn(headClass, "whitespace-nowrap text-right")}>
+          <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap text-right")}>
             Days waiting
           </TableHead>
         </TableRow>
       </TableHeader>
-      {/* `border-separate` stays even without a sticky column — the header well needs each
-          cell to paint its own fill for the end cells to round (above). It puts the row
-          stroke on the cell, so the DS TableBody rule that clears the last row targets the
-          wrong element. Reach the cells directly, or the final row doubles its line
-          against the panel edge. */}
-      <TableBody className="[&_tr:last-child_td]:border-b-0">
+      {/* Given the same options as the rows, because half the treatment has to ask about a
+          row's neighbours and a row cannot — see `table-plate.ts`. Hover, no selection:
+          this queue's rows open a request and none of them is picked. */}
+      <TableBody className={tableBodyClass()}>
         {/* The header is a well, not a band welded to the rows — it needs the panel's fill
             under it or its rounded bottom corners read as cut off (ui-craft §4).
             `border-separate` has no per-edge row gap, so the gap is one inert row held out
@@ -121,7 +112,7 @@ export function RegisterAdvocatesTable({
         {rows.map((request) => {
           const kind = requestKindLabel(request);
           return (
-            <TableRow key={request.id} {...rowActivation("bg-card")}>
+            <TableRow key={request.id} {...rowActivation(tableRowClass())}>
               {/* The row's only opener, and now the whole row's — a click anywhere in the
                   row presses this button (`rowActivation`), so the officer no longer has
                   to find the one cell that answered.
@@ -134,12 +125,12 @@ export function RegisterAdvocatesTable({
                   from the *row's* hover now, wherever the pointer sits, because an
                   underline that only appeared under the pointer is what taught officers
                   that the underline was the target. See `rowOpenerClass`. */}
-              <TableCell className={cn(cellClass, "whitespace-nowrap")}>
+              <TableCell className={cn(TABLE_CELL, "whitespace-nowrap")}>
                 <button
                   type="button"
                   onClick={() => onOpen(request)}
                   {...rowOpener}
-                className={cn(rowOpenerClass, "tabular-nums")}
+                  className={cn(rowOpenerClass, "tabular-nums")}
                 >
                   <span className="sr-only">Review </span>
                   {request.applicationNumber}
@@ -151,13 +142,13 @@ export function RegisterAdvocatesTable({
                   rides the name so a screen reader does not read Malayalam letters with an
                   English voice (ACCESSIBILITY §13). */}
               <TableCell
-                className={cn(cellClass, "min-w-48 font-medium whitespace-normal")}
+                className={cn(TABLE_CELL, "min-w-48 font-medium whitespace-normal")}
                 lang={request.fullNameLang}
               >
                 {request.fullName}
               </TableCell>
               <TableCell
-                className={cn(cellClass, "tabular-nums whitespace-nowrap")}
+                className={cn(TABLE_CELL, "tabular-nums whitespace-nowrap")}
               >
                 {request.barRegistrationId}
               </TableCell>
@@ -168,7 +159,7 @@ export function RegisterAdvocatesTable({
                   ui-craft §4 rations. The row already has exactly one status cue, the
                   wait, and what these chips carry is a *kind* — the words tell the two
                   apart without a second colour. */}
-              <TableCell className={cn(cellClass, "whitespace-nowrap")}>
+              <TableCell className={cn(TABLE_CELL, "whitespace-nowrap")}>
                 {kind ? <Badge variant="secondary">{kind}</Badge> : null}
               </TableCell>
               {/* The wait is the column's fact, and the number is the encoding — the
@@ -176,7 +167,7 @@ export function RegisterAdvocatesTable({
                   is a compared number. */}
               <TableCell
                 className={cn(
-                  cellClass,
+                  TABLE_CELL,
                   "text-right tabular-nums whitespace-nowrap",
                   waitClass[registrationWaitTone(request.daysWaiting)],
                 )}

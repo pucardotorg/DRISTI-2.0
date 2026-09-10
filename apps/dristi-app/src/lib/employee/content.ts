@@ -54,9 +54,12 @@ export const COURT_ROLE_LABEL: Record<CourtRole, string> = {
  * actor under a court's own vocabulary is an open question for `actors.md`, not
  * something this constant gets to settle.
  *
- * Choosing a seat changes **who the rail says you are and nothing else** — same rail,
- * same queues, same screens. What each seat's work actually is comes later, from
- * product; until then the switch must not pretend to be a different product.
+ * Choosing a seat changes who the rail says you are and **what a row offers** — same
+ * rail, same queues, same screens, and nothing granted or hidden: the cause list gives
+ * the bench's three session controls to the seat that would use them and the typist a
+ * row that ends at its order (`court-role.ts`, `hearings-table.tsx`). That is a view
+ * rule and not a permission. What each seat's work actually is beyond the sitting comes
+ * later, from product; until then the switch must not pretend to be a different product.
  */
 export const COURT_SEATS: CourtRole[] = ["bench-clerk", "typist"];
 

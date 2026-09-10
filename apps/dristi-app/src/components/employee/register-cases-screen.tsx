@@ -7,7 +7,11 @@ import { CounselCell } from "@/components/employee/counsel-cell";
 import { ListFooter } from "@/components/employee/list-footer";
 import { QueueAnnouncer } from "@/components/employee/queue-announcer";
 import { QueueSearchField } from "@/components/employee/queue-search-field";
-import { RegisterCasesTable } from "@/components/employee/register-cases-table";
+import { rowActivation } from "@/lib/employee/row-activation";
+import {
+  RegisterCaseLink,
+  RegisterCasesTable,
+} from "@/components/employee/register-cases-table";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -18,7 +22,6 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import {
-  causeTitle,
   counselFor,
   PAGE_SIZE,
   type HearingsPageSize,
@@ -237,7 +240,8 @@ function RegisterCasesEmpty({
  * A queue read on a phone is still the cause, its number and how long it has
  * waited — the advocates drop to their own line rather than forcing a four-column
  * table through a 375px screen. Days are spelled out because there is no column
- * header to name the unit.
+ * header to name the unit. The cause opens the complaint's file here too: a phone is
+ * where a clerk is most likely to be reading a queue they cannot act on otherwise.
  */
 function RegisterCasesItemList({ rows }: { rows: RegisterCase[] }) {
   return (
@@ -245,11 +249,17 @@ function RegisterCasesItemList({ rows }: { rows: RegisterCase[] }) {
       {rows.map((matter) => (
         <li
           key={matter.id}
-          className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-4"
+          {...rowActivation(
+            "flex flex-col gap-2 rounded-lg bg-surface-sunken p-4 transition-colors hover:bg-accent-strong",
+          )}
         >
-          <p className="min-w-0 text-body-compact font-medium">
-            {causeTitle(matter)}
-          </p>
+          {/* The same opener as the table's first cell, in the box a stacked row
+              wants: `min-h-10` for the touch target, and the item's own line rather
+              than a cell to fill. */}
+          <RegisterCaseLink
+            matter={matter}
+            className="flex min-h-10 min-w-0 items-center"
+          />
           <p className="text-caption text-muted-foreground">
             <span className="tabular-nums">{matter.caseNumber}</span>
             {" · "}

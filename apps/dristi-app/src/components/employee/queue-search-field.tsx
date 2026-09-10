@@ -67,6 +67,10 @@ export function QueueSearchField({
         <InputGroupAddon>
           <SearchIcon aria-hidden />
         </InputGroupAddon>
+        {/* WebKit draws its own cross inside a search input. Ours has to exist anyway —
+            Firefox draws none, the native one is not reliably reachable from the keyboard,
+            and it cannot be given an accessible name — so the native one is turned off
+            rather than left to sit beside a second cross that does the same thing. */}
         <InputGroupInput
           ref={ref}
           type="search"
@@ -74,6 +78,7 @@ export function QueueSearchField({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
+          className="[&::-webkit-search-cancel-button]:appearance-none"
         />
         {typed ? (
           <InputGroupAddon align="inline-end">

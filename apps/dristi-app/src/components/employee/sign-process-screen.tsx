@@ -5,6 +5,7 @@ import {
   ArrowRightIcon,
   FileCheck2Icon,
   SearchXIcon,
+  XIcon,
 } from "lucide-react";
 
 import { ListFooter } from "@/components/employee/list-footer";
@@ -56,6 +57,7 @@ import {
   DEFAULT_PROCESS_STAGE,
   filterProcesses,
   formatProcessDate,
+  groupSelectionByCase,
   PROCESS_CHANNELS,
   PROCESS_LINE,
   PROCESS_STAGES,
@@ -63,11 +65,14 @@ import {
   processesAdvancing,
   processesAt,
   processesElsewhere,
+  processIdsForCase,
   processStage,
+  singleCaseMatch,
   rebaseFilters,
   todayIsoDay,
   type CourtProcess,
   type ProcessFilters,
+  type SelectedCase,
   type ProcessStage,
   type ProcessStageId,
 } from "@/lib/employee/sign-process";
@@ -130,6 +135,9 @@ export function SignProcessScreen() {
   const [open, setOpen] = React.useState<CourtProcess | null>(null);
   const [bulkOpen, setBulkOpen] = React.useState(false);
   const [notice, setNotice] = React.useState("");
+  /* What the last Enter did with the cover in the clerk's hand. Spoken, not shown — the
+     chip arriving in the tray is what says it on screen. */
+  const [picked, setPicked] = React.useState("");
   /* What the act just moved, so the confirmation's success step can still offer the
      papers. Ids rather than rows: by the time that button can be pressed the rows have
      been stamped, and a copy taken before the act would hand the bench ten processes
@@ -159,6 +167,18 @@ export function SignProcessScreen() {
      stale id is dropped rather than counted. */
   const selected = stageRows.filter((process) => selectedIds.has(process.id));
 
+  /* The same selection counted the way the clerk counts it — by envelope. One cover per
+     case, so a case is an envelope however much process is inside it.
+
+     Derived plainly, the way `rows` and `selected` above it are. A `useMemo` here is
+     refused whatever its body does — `stageRows` comes back from an imported call and is
+     handed to more of them, so the compiler can never establish that nothing mutates it,
+     and a dependency it cannot call immutable makes the memo unpreservable. It then
+     declines to optimise the whole component rather than this one line, which is what
+     `react-hooks/preserve-manual-memoization` reports. Grouping is one Map over a single
+     stage's rows: the order of work those two lines already do on every render. */
+  const selectedCases = groupSelectionByCase(stageRows, selectedIds);
+
   /* Only asked when this stage has come up empty under a filter — the one moment the
      answer changes what the screen should say. */
   const elsewhere =
@@ -187,11 +207,79 @@ export function SignProcessScreen() {
     setSelectedIds(new Set());
     setPage(1);
     setNotice("");
+    setPicked("");
   }
 
+  /**
+   * The filter controls changed — all four of them, as they are used.
+   *
+   * **The box is a lookup and so are the selects.** A clerk typing a case number off an
+   * envelope already knows the answer they want, and every keystroke is a better guess at
+   * it; a clerk picking a process type is asking a one-part question that is complete the
+   * moment it is picked. Neither has an in-between state worth holding, so neither waits
+   * for a button, and there is no moment where what the controls hold and what the table
+   * is showing disagree.
+   *
+   * The last Enter's word about a cover goes with the query it was typed against: once
+   * the number has changed, "KL-…-2026 added to the pile" is about a case the box no
+   * longer names.
+   */
   function changeFilters(next: ProcessFilters) {
+    if (next.query !== filters.query) setPicked("");
     setFilters(next);
     setPage(1);
+  }
+
+  /**
+   * Enter, in the search box: put this envelope on the pile.
+   *
+   * The clerk's hands are on the keyboard with a cover in front of them, so the gesture
+   * that ends a lookup should be the gesture that records it. Type the number, press
+   * Enter, the case joins the pile and the box empties ready for the next cover. The
+   * checkboxes still work and still feed the same pile — this is the fast path, not the
+   * only one.
+   *
+   * **It commits only when the number names one case.** A cover is one per case, so one
+   * case is one envelope and adding it is unambiguous; two cases still matching means the
+   * clerk has not finished typing, and guessing between them would put the wrong court's
+   * process into a signing batch. So an ambiguous Enter does nothing — the list is already
+   * showing what has been typed — and the clerk keeps typing.
+   *
+   * A case already on the pile is said out loud rather than silently ignored: a second
+   * cover for a case whose process is already picked is a thing that happens, and the
+   * clerk needs to know which of the two it was.
+   */
+  function submitSearch() {
+    const query = filters.query.trim();
+    /* Both refusals used to press Search on the way out. There is no Search: the table is
+       already showing what the box says, so an Enter that names no single case has nothing
+       left to do and the clerk keeps typing. */
+    if (!stage.reconcilesCovers || !query) return;
+
+    const matches = singleCaseMatch(stageRows, { ...filters, query });
+    if (!matches) return;
+
+    const caseNumber = matches[0].caseNumber;
+    const already = matches.every((process) => selectedIds.has(process.id));
+    if (!already) {
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        for (const process of matches) next.add(process.id);
+        return next;
+      });
+    }
+
+    /* The box empties on the way out, because the next thing the clerk does is read the
+       next cover. Clearing it also puts the table back, which is one deliberate change
+       following one deliberate act rather than a list moving while nobody asked. */
+    setFilters((current) => ({ ...current, query: "" }));
+    setPage(1);
+    setNotice("");
+    setPicked(
+      already
+        ? `${caseNumber} is already on the pile.`
+        : `${caseNumber} added to the pile.`,
+    );
   }
 
   function clearFilters() {
@@ -219,6 +307,31 @@ export function SignProcessScreen() {
       }
       return next;
     });
+  }
+
+  /**
+   * Take an envelope back out of the pile.
+   *
+   * A cover is one per case, so removing an entry removes the whole case — every process
+   * of it that is at this stage, whether or not the table is currently showing them.
+   * Untick two of three and the entry stays, reading `2`; untick the entry and all three
+   * go, because the entry *is* the envelope.
+   */
+  function removeCase(caseNumber: string) {
+    setNotice("");
+    const ids = processIdsForCase(stageRows, caseNumber);
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      for (const id of ids) next.delete(id);
+      return next;
+    });
+  }
+
+  /* Put the whole pile down. Distinct from the filters' Clear, which puts the *question*
+     down — hence "Clear selection" on the tray rather than a second bare "Clear". */
+  function clearSelection() {
+    setNotice("");
+    setSelectedIds(new Set());
   }
 
   /**
@@ -316,6 +429,7 @@ export function SignProcessScreen() {
                   searchRef={searchRef}
                   onChange={changeFilters}
                   onClear={clearFilters}
+                  onSubmit={submitSearch}
                 />
 
                 {/* Mounted whatever the tab is doing, including empty — see
@@ -326,6 +440,33 @@ export function SignProcessScreen() {
                   total={rows.length}
                 />
 
+                {/* The pile, above the list it was picked from — and outside the branch
+                    below, so searching a case with nothing at this stage empties the
+                    table without emptying the clerk's hands.
+
+                    Shown only when it holds something. An empty box announcing that it is
+                    empty is chrome asking to be read; the pile explains itself the moment
+                    there is a pile. It briefly carried a placeholder to stop the box
+                    *appearing* on the first tick and shoving the table out from under the
+                    cursor — but with Enter as the way covers go on, the clerk's hands stay
+                    in the search box and the table is not what they are aiming at. The
+                    tray and the restored table arrive together, as one change following
+                    one act. */}
+                {stage.reconcilesCovers && selectedCases.length > 0 ? (
+                  <ProcessSelectionTray
+                    cases={selectedCases}
+                    processCount={selected.length}
+                    onRemoveCase={removeCase}
+                    onClearSelection={clearSelection}
+                  />
+                ) : null}
+
+                {/* One height for both branches, so narrowing a search does not walk the
+                    footer and the page up the screen under the clerk. Ten rows is taller
+                    than this, so a full tab is unaffected; the floor catches the last few
+                    keystrokes — the ones that take a result from five rows to one — which
+                    are exactly the keystrokes the clerk is watching. */}
+                <div className="flex min-h-96 min-w-0 flex-col">
                 {pageRows.length === 0 ? (
                   <ProcessEmpty
                     stage={stage}
@@ -380,6 +521,7 @@ export function SignProcessScreen() {
                     />
                   </div>
                 )}
+                </div>
               </section>
             )}
           </TabsContent>
@@ -442,6 +584,18 @@ export function SignProcessScreen() {
         }}
         onReturnFocus={returnFocus}
       />
+
+      {/* What the last Enter did with the cover in the clerk's hand — the one thing on
+          this screen the eye cannot catch, since the tray arrives silently and a second
+          cover for a case already picked changes nothing on screen at all. Polite, and
+          outside every panel so it survives the tab it was spoken on.
+
+          It says nothing about the list: what the search narrowed to is `QueueAnnouncer`'s
+          sentence, once per pause rather than once per keystroke, and two regions
+          reporting the same filtering would be read out twice (ACCESSIBILITY §5). */}
+      <p aria-live="polite" className="sr-only">
+        {picked}
+      </p>
     </div>
   );
 }
@@ -449,6 +603,11 @@ export function SignProcessScreen() {
 /**
  * Type, channel, hearing date and free text, then search — the reference's controls, in
  * the reference's order, laid out the way the sibling queues lay out theirs.
+ *
+ * **The box does not wait for the button.** A case number is a lookup and it applies as
+ * it is typed; the three selects compose a question and still apply on Search. The
+ * button is therefore live exactly when a *select* is pending, which is what makes the
+ * split legible rather than arbitrary — see `changeDraft`.
  *
  * Two of them answer to the stage. The hearing-date picker is absent on the first tab,
  * as the reference draws it. The channel select is absent there too, which the reference
@@ -463,7 +622,9 @@ export function SignProcessScreen() {
  * Every control carries a visible label. The reference labels the search box with the
  * things it searches, which is a hint rather than a name; ACCESSIBILITY §12 wants a
  * permanent label, so "Search cases" is the deviation, and the smallest one available.
- * The placeholder keeps the reference's own words.
+ * The placeholder names the one field the box actually matches — case number — and on
+ * the tab where Enter puts a cover on the pile it names that too: a keyboard gesture
+ * nobody is told about is a keyboard gesture nobody uses.
  *
  * All four controls apply as they are used, and the Search button is gone. Nothing in the
  * row has a meaningless in-between state — two selects, a calendar and a text box — and
@@ -477,17 +638,25 @@ function ProcessFiltersForm({
   searchRef,
   onChange,
   onClear,
+  onSubmit,
 }: {
   stage: ProcessStage;
   filters: ProcessFilters;
   searchRef: React.RefObject<HTMLInputElement | null>;
   onChange: (filters: ProcessFilters) => void;
   onClear: () => void;
+  /** Enter in the box. On the stage that reconciles covers it is the pile's fast path. */
+  onSubmit: () => void;
 }) {
   return (
     <form
       className="flex min-w-0 flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
-      onSubmit={(event) => event.preventDefault()}
+      onSubmit={(event) => {
+        /* A lone text input inside a `<form>` submits implicitly, and there is no submit
+           button left to catch it — so Enter is handled here or it reloads the page. */
+        event.preventDefault();
+        onSubmit();
+      }}
     >
       <div className="flex min-w-0 flex-col gap-2">
         <Label htmlFor="sign-process-type" className="w-fit text-body">
@@ -584,7 +753,9 @@ function ProcessFiltersForm({
         ref={searchRef}
         value={filters.query}
         onChange={(query) => onChange({ ...filters, query })}
-        placeholder="case name or number"
+        placeholder={
+          stage.reconcilesCovers ? "case number, then Enter" : "case number"
+        }
       />
 
       {/* The only button left on the row. "Clear filters" rather than the reference's
@@ -595,6 +766,106 @@ function ProcessFiltersForm({
         Clear filters
       </Button>
     </form>
+  );
+}
+
+/**
+ * The pile of envelopes, on screen.
+ *
+ * The clerk works this stage one cover at a time: pick one up, type its case number,
+ * press Enter, put it down, pick up the next — or tick it in the table, which feeds the
+ * same pile. The screen used to lose that work between searches: the picked rows scroll
+ * away the moment the next number is typed, and the only surviving evidence was a count
+ * on the bar. Seven envelopes in, there was no way to tell whether the third had been
+ * picked, picked twice, or missed.
+ *
+ * So the accumulation the clerk was holding in their head lives here instead, and it
+ * survives search, paging and every filter change. It is not a second selection: these
+ * are the same rows the checkboxes hold, read back in the unit the clerk holds them in.
+ *
+ * **Counted by envelope, acted on by process.** A cover is one per case, so the tray
+ * counts cases — that is the number the clerk can check against the stack still on the
+ * desk, and the only check available at this stage, because nothing but the covers knows
+ * how many covers arrived. The bar goes on counting process, because that is what gets
+ * sent for signature. Both numbers are true and the tray says both rather than picking
+ * the one that makes a tidier sentence.
+ *
+ * **A well, not a bordered box.** It sits inside the panel that already lifts off the
+ * page, so the third layer is a sunken fill and the entries are flat white on it — no
+ * stroke anywhere, and nothing nested inside a shadow (ui-craft §4).
+ */
+function ProcessSelectionTray({
+  cases,
+  processCount,
+  onRemoveCase,
+  onClearSelection,
+}: {
+  cases: SelectedCase[];
+  processCount: number;
+  onRemoveCase: (caseNumber: string) => void;
+  onClearSelection: () => void;
+}) {
+  return (
+    <section
+      aria-label="Cases picked to send for signature"
+      className="flex flex-col gap-3 rounded-lg bg-surface-sunken p-4"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {/* One line, two counts, one weight: the numbers carry the foreground and the
+            words stay muted, so the pair reads as a count rather than as a sentence
+            with numbers in it. */}
+        <p className="text-body-compact text-muted-foreground">
+          <span className="font-medium tabular-nums text-foreground">
+            {cases.length}
+          </span>{" "}
+          {plural(cases.length, "case", "cases")} picked{" · "}
+          <span className="font-medium tabular-nums text-foreground">
+            {processCount}
+          </span>{" "}
+          {plural(processCount, "process", "processes")}
+        </p>
+        {/* "Clear selection", not "Clear": the filters already own a Clear, and the two
+            put down different things — the question, and the pile. */}
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
+          className="max-md:h-10"
+          onClick={onClearSelection}
+        >
+          Clear selection
+        </Button>
+      </div>
+      <ul className="flex flex-wrap items-center gap-1.5">
+        {cases.map((entry) => (
+          <li key={entry.caseNumber}>
+            {/* The DS's own chip shape — its combobox chip, inverted: that one is a
+                sunken fill on a white field, this one is a white fill on a sunken well,
+                which is the same step in the other direction. Below `md` it grows to the
+                40px the DS asks of a touch target (ACCESSIBILITY §8). */}
+            <span className="flex h-10 items-center gap-1.5 rounded-md bg-card pl-2.5 pr-1 text-caption md:h-8">
+              <span className="tabular-nums">{entry.caseNumber}</span>
+              {/* How much process is inside this envelope. Same treatment on every
+                  entry, including the ones holding a single process — a count that
+                  appears only sometimes is a count the eye has to interpret. */}
+              <span className="tabular-nums text-muted-foreground">
+                {entry.processes.length}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                className="max-md:size-10"
+                aria-label={`Take ${entry.caseNumber} out of the selection`}
+                onClick={() => onRemoveCase(entry.caseNumber)}
+              >
+                <XIcon aria-hidden />
+              </Button>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

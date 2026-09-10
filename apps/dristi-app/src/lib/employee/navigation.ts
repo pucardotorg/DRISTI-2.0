@@ -13,7 +13,7 @@ import { DELAY_CONDONATION_QUEUE_COUNT } from "./delay-condonation";
 import { hearingById, TODAYS_HEARING_COUNT } from "./hearings";
 import { OTHER_APPLICATIONS_QUEUE_COUNT } from "./other-applications";
 import { REGISTER_ADVOCATES_QUEUE_COUNT } from "./register-advocates";
-import { REGISTER_QUEUE_COUNT } from "./register-cases";
+import { registerCaseById, REGISTER_QUEUE_COUNT } from "./register-cases";
 import { findFiling, SCRUTINY_QUEUE_COUNT } from "./scrutiny/queue";
 import { RESCHEDULING_QUEUE_COUNT } from "./rescheduling-request";
 import { SCHEDULING_QUEUE_COUNT } from "./schedule";
@@ -288,61 +288,77 @@ export const COURT_NAV_GROUPS: CourtNavGroup[] = [
 export const COURT_HOME = { href: "/employee", label: "Court home" } as const;
 
 /**
- * A row is current when its href is this page. Today's hearings also owns the two
- * routes nested under one of its listings — that listing's case overview
- * (`/employee/hearings/<id>`) and the order composer under it
- * (`/employee/hearings/<id>/order`). Both are still the day's list seen closer up,
- * not a new destination.
+ * The queues that own routes nested under them, and how each one tells a real child
+ * from a sibling that merely looks like one.
  *
- * The nested segment is resolved against the cause list rather than matched as a bare
- * `[^/]+`, which would steal `/employee/hearings/schedule` and
- * `/employee/hearings/bulk-reschedule` — siblings, not children. Asking `hearingById`
- * is the one test that cannot go stale on the next route: a third sibling added
- * tomorrow will not be a listing id either, so it will not be captured either, and
- * nobody has to remember to add it to a list of exceptions here. An id no cause list
- * holds gets no section, which is the truth about it and the same answer both screens
- * behind these routes give.
+ * Today's hearings owns a listing's case overview (`/employee/hearings/<id>`) and the
+ * order composer under it (`/employee/hearings/<id>/order`). Scrutiny owns one filing's
+ * workbench (`/employee/scrutiny/<filing no.>`). Register cases owns one waiting
+ * complaint's file (`/employee/register-cases/<id>`). None of them is a new destination
+ * — each is its queue seen closer up.
+ *
+ * The nested segment is resolved against the queue's own data rather than matched as a
+ * bare `[^/]+`, which would steal `/employee/hearings/schedule` and
+ * `/employee/hearings/bulk-reschedule` — siblings, not children. Asking the queue is
+ * the one test that cannot go stale on the next route: a sibling added tomorrow will
+ * not be a listing id or a complaint id either, so it will not be captured either, and
+ * nobody has to remember to add it to a list of exceptions here. An id no queue holds
+ * gets no section, which is the truth about it and the same answer the screens behind
+ * these routes give.
  *
  * It sits with the data rather than in the rail because the rail is no longer the only
  * thing that asks. The top bar's trail works out which section it is standing in from
  * the same answer, and two implementations of "which row is this page" would eventually
- * disagree — about these two routes first, since they are the ones whose answer is not
+ * disagree — about these routes first, since they are the ones whose answer is not
  * simply their own href.
  */
-const NESTED_LISTING = /^\/employee\/hearings\/([^/]+)(?:\/order)?\/?$/;
-
 /**
- * The scrutiny workbench, `/employee/scrutiny/<filing no.>`. Same shape and same guard
- * as the hearings listing above: the segment counts only when it names a filing the
- * queue actually holds, so a typed URL that names nothing gets no section rather than a
- * trail that claims a place the officer is not in.
+ * Whether the scrutiny queue holds the filing a path names.
  *
  * A filing number carries slashes (`F/AHM/2026/00341`), so the segment is percent-encoded
- * in the path and has to be decoded before the queue is asked about it.
+ * in the path and has to be decoded before the queue is asked about it. Every other
+ * nested segment is an id that survives a path intact, which is why this is the one row
+ * below that names a guard rather than asking its queue in a line.
  */
-const NESTED_SCRUTINY = /^\/employee\/scrutiny\/([^/]+)\/?$/;
-
-function scrutinyFilingIn(pathname: string): string | undefined {
-  const nested = NESTED_SCRUTINY.exec(pathname);
-  if (!nested) return undefined;
+function scrutinyHolds(segment: string): boolean {
   let decoded: string;
   try {
-    decoded = decodeURIComponent(nested[1]);
+    decoded = decodeURIComponent(segment);
   } catch {
     // A malformed escape is not a filing number.
-    return undefined;
+    return false;
   }
-  return findFiling(decoded)?.no;
+  return findFiling(decoded) !== undefined;
 }
+
+const NESTED_ROUTES: {
+  queue: string;
+  pattern: RegExp;
+  holds: (id: string) => boolean;
+}[] = [
+  {
+    queue: "/employee/hearings",
+    pattern: /^\/employee\/hearings\/([^/]+)(?:\/order)?\/?$/,
+    holds: (id) => hearingById(id) !== undefined,
+  },
+  {
+    queue: "/employee/scrutiny",
+    pattern: /^\/employee\/scrutiny\/([^/]+)\/?$/,
+    holds: scrutinyHolds,
+  },
+  {
+    queue: "/employee/register-cases",
+    pattern: /^\/employee\/register-cases\/([^/]+)\/?$/,
+    holds: (id) => registerCaseById(id) !== undefined,
+  },
+];
 
 export function isCourtNavActive(pathname: string, href: string): boolean {
   if (pathname === href) return true;
-  if (href === "/employee/scrutiny") {
-    return scrutinyFilingIn(pathname) !== undefined;
-  }
-  if (href !== "/employee/hearings") return false;
-  const nested = NESTED_LISTING.exec(pathname);
-  return nested !== null && hearingById(nested[1]) !== undefined;
+  const nested = NESTED_ROUTES.find((entry) => entry.queue === href);
+  if (!nested) return false;
+  const segment = nested.pattern.exec(pathname);
+  return segment !== null && nested.holds(segment[1]);
 }
 
 /** One step of the trail. */
@@ -385,6 +401,10 @@ export type CourtCrumb = {
  *   the page and genuinely somewhere to return to. The section has no page of its own,
  *   so it borrows the queue's href rather than sitting in the trail as text a click
  *   cannot follow.
+ * - `/employee/register-cases/<id>` — root, `Actions`, then `Register cases`. The same
+ *   shape for the same reason: the heading names a complaint, so the queue it is
+ *   waiting in is above the page. This trail is also the whole of the way back from a
+ *   complaint's file, which is why that screen carries no back control of its own.
  *
  * A route this file does not know gets the root as a link and stops. That is the whole of
  * what can be said honestly about it, and it is still the way home. The two standalone

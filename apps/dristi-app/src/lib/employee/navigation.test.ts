@@ -29,6 +29,24 @@ describe("courtTrail", () => {
     assert.deepEqual(courtTrail("/employee/hearings/h-241/order"), back);
   });
 
+  it("on a complaint nested under the register queue, makes Actions a way back", () => {
+    assert.deepEqual(courtTrail("/employee/register-cases/r-1840"), [
+      { label: "Court home", href: "/employee" },
+      { label: "Actions", href: "/employee/register-cases" },
+      { label: "Register cases", href: "/employee/register-cases" },
+    ]);
+  });
+
+  it("does not treat an unknown complaint id as nested", () => {
+    /* The nested segment resolves against the queue, so a stale link matches no row
+       at all and gets the way home and nothing else — rather than claiming to sit
+       under a complaint that is not there. The screen behind it says the same thing
+       in its own words. */
+    assert.deepEqual(courtTrail("/employee/register-cases/r-nope"), [
+      { label: "Court home", href: "/employee" },
+    ]);
+  });
+
   it("does not treat a hearings sibling as a nested listing", () => {
     assert.deepEqual(courtTrail("/employee/hearings/schedule"), [
       { label: "Court home", href: "/employee" },

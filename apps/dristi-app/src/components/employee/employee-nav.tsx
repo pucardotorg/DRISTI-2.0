@@ -613,11 +613,11 @@ function initialsOf(name: string): string {
  * this is still not a route — it is a menu, because the one setting the court side
  * actually has is small enough to answer in place.
  *
- * **Two seats, and the choice changes who the rail says you are and nothing else**
- * (`COURT_SEATS`). Same rail, same queues, same screens, nothing granted and nothing
- * hidden — what a typist's work is as against a bench clerk's comes from product, and
- * this build must not answer that by quietly showing a different app. The menu is
- * honest by being small.
+ * **Two seats** (`COURT_SEATS`). Same rail, same queues, same screens, nothing granted
+ * and nothing hidden; what differs is what a cause-list row offers — the bench's session
+ * controls, or a row that ends at its order (`court-role.ts`). Beyond the sitting, what a
+ * typist's work is as against a bench clerk's comes from product, and this build must not
+ * answer that by quietly showing a different app. The menu is honest by being small.
  *
  * A radio group rather than two items: the seats are one mutually exclusive answer, and
  * the menu has to show which one is being worked in without being opened twice. `w-auto

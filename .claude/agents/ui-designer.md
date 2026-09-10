@@ -120,9 +120,10 @@ it is yours:
 
 ```bash
 npm run check:tokens && npm run check:typography && npm run check:ui-sync && npm run check:spacing
+npm run check:table-rows           # one table treatment, not sixteen copies
 ```
 
-All four pass — or `npm run lint -w @pucar/dristi-app`, same gate. `check:spacing`
+All five pass — or `npm run lint -w @pucar/dristi-app`, same gate. `check:spacing`
 tolerates a recorded baseline of pre-existing off-ladder values and fails only on a new
 one — so if it fails, you wrote it. Snap to the nearest rung. Never run it with
 `--update` to make your own failure go away; that flag records a cleanup, it does not

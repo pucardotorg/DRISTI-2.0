@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { CAUSE_LIST } from "./hearings";
+import { createOrderItem } from "./order-items";
 import { applicationsForListing } from "./listing-applications";
 import {
   appearancesFor,
   assembleApplications,
   assembleAttendance,
-  assembleItemText,
+  assembleItems,
   assembleNextListing,
   assembleOrder,
   EMPTY_ORDER_DRAFT,
@@ -76,21 +77,63 @@ describe("assembleNextListing", () => {
   });
 });
 
-describe("assembleItemText", () => {
-  it("is pending on the text, not the markup — an empty editor still holds a break", () => {
-    const block = assembleItemText({ html: "<br>", text: "   " });
+describe("assembleItems", () => {
+  it("says so when the order has no item, rather than printing nothing", () => {
+    const block = assembleItems([]);
     assert.equal(block.pending, true);
-    assert.equal(block.body, "The item has not been dictated.");
+    assert.equal(block.body, "No item has been added.");
+    assert.equal(block.items, undefined);
   });
 
-  it("keeps the formatting the bench put in, alongside the plain words", () => {
-    const block = assembleItemText({
-      html: "<ol><li>Notice to the accused.</li></ol>",
-      text: "Notice to the accused.",
-    });
+  it("numbers the items by position — item two is paragraph two", () => {
+    const block = assembleItems([
+      createOrderItem(hearing, "summons", "a"),
+      createOrderItem(hearing, "cost", "b"),
+    ]);
+    assert.deepEqual(
+      block.items?.map((entry) => [entry.number, entry.heading]),
+      [
+        [1, "Summons"],
+        [2, "Cost"],
+      ],
+    );
     assert.equal(block.pending, false);
-    assert.equal(block.body, "Notice to the accused.");
-    assert.equal(block.html, "<ol><li>Notice to the accused.</li></ol>");
+  });
+
+  it("is pending on the text, not the markup — an empty editor still holds a break", () => {
+    const block = assembleItems([
+      { id: "a", type: "others", text: { html: "<br>", text: "   " } },
+    ]);
+    assert.equal(block.pending, true);
+    assert.equal(block.items?.[0].pending, true);
+    assert.equal(block.items?.[0].html, "");
+    assert.match(block.items?.[0].body ?? "", /nothing has been written/);
+  });
+
+  it("keeps a chosen item in the order even before it is written", () => {
+    /* The court passed it — the typist said so by adding it. An order that dropped the
+       paragraph would be the screen deciding which items are worth printing. */
+    const block = assembleItems([
+      createOrderItem(hearing, "summons", "a"),
+      { id: "b", type: "others", text: { html: "", text: "" } },
+    ]);
+    assert.equal(block.items?.length, 2);
+    assert.equal(block.items?.[1].number, 2);
+  });
+
+  it("keeps the formatting the typist put inside one item", () => {
+    const block = assembleItems([
+      {
+        id: "a",
+        type: "notice",
+        text: {
+          html: "<ol><li>Notice to the accused.</li></ol>",
+          text: "Notice to the accused.",
+        },
+      },
+    ]);
+    assert.equal(block.items?.[0].html, "<ol><li>Notice to the accused.</li></ol>");
+    assert.equal(block.items?.[0].body, "Notice to the accused.");
   });
 });
 
@@ -105,10 +148,16 @@ describe("assembleOrder", () => {
     assert.ok(bare);
     const order = assembleOrder(bare, {
       ...EMPTY_ORDER_DRAFT,
-      itemText: {
-        html: "Notice to the accused.",
-        text: "Notice to the accused.",
-      },
+      items: [
+        {
+          id: "a",
+          type: "notice",
+          text: {
+            html: "<p>Notice to the accused.</p>",
+            text: "Notice to the accused.",
+          },
+        },
+      ],
     });
     assert.deepEqual(
       order.blocks.map((block) => block.heading),
