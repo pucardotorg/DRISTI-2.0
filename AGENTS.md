@@ -6,6 +6,12 @@ layered on top of identical national law.
 
 **Docs map:** [docs/README.md](docs/README.md)
 
+**Branches** (`pucardotorg/dristi-fe`): three long-lived — `main` (default, dev team),
+`design` (design team), `develop` (dev team). Merges land only through PRs; a PR into
+`design` needs the design owner's approval. Design work cuts from `origin/design` and PRs
+back into `design` — `git checkout -b feature/<kebab-case> origin/design` — never stacked
+on another feature, never committed straight to a long-lived branch.
+
 | Layer | Path |
 |---|---|
 | Dristi App | [apps/dristi-app](apps/dristi-app) |
