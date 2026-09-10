@@ -119,9 +119,25 @@
   root.id = "__dm-root";
   document.body.appendChild(root);
 
+  /* A Radix modal (every review overlay in this app) closes on a pointer press
+     outside itself and pulls focus back inside on focusin. The panel is outside
+     itself — it lives on document.body — so touching the panel dismissed the very
+     dialog under review, and Select could not be reached with a dialog open.
+
+     So the tool's own subtree stops these events before they reach the document
+     listeners that Radix installs. Design mode's own handlers are unaffected: they
+     are all registered on document in the CAPTURE phase, which runs before this. */
+  ["pointerdown", "mousedown", "touchstart", "pointerup", "mouseup", "click", "focusin"].forEach(
+    function (type) {
+      root.addEventListener(type, function (ev) {
+        ev.stopPropagation();
+      });
+    }
+  );
+
   var css = document.createElement("style");
   css.textContent =
-    "#__dm-root{all:initial;font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;font-size:12px;line-height:1.45;color:#e8e6e3;}" +
+    "#__dm-root{all:initial;font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;font-size:12px;line-height:1.45;color:#e8e6e3;pointer-events:auto;}" +
     "#__dm-root *{box-sizing:border-box;font-family:inherit;}" +
     "#__dm-panel{position:fixed;top:64px;right:12px;width:256px;max-height:calc(100vh - 88px);overflow-y:auto;background:#1c1a18;border:1px solid #3a3733;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.45);z-index:2147483000;padding:10px;}" +
     "#__dm-panel h1{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#a8a29b;margin:0 0 8px;display:flex;align-items:center;justify-content:space-between;cursor:move;user-select:none;}" +
