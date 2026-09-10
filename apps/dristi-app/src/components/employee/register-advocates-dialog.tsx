@@ -191,7 +191,27 @@ const STAGE_BADGE: Record<
 };
 
 /**
- * The entrance each stage makes. Forward is the request progressing — it arrives from the
+ * **What actually changes when a stage changes** — and the answer to the owner's note
+ * that approving takes two screens that feel like one act (2026-09-11).
+ *
+ * There are five stages but only three *scenes*. Confirming and having confirmed are the
+ * same scene: the card the officer is looking at does not go anywhere, does not slide, and
+ * is not replaced — a strip resolves at the top of it and the footer changes. Nothing else
+ * moves. The second screen is the first screen with a stamp on it, which is as close to
+ * one step as a guarded act can honestly get.
+ *
+ * Only a real change of scene slides.
+ */
+const SCENE: Record<Stage, "review" | "approve" | "reject"> = {
+  review: "review",
+  approve: "approve",
+  approved: "approve",
+  reject: "reject",
+  rejected: "reject",
+};
+
+/**
+ * The entrance each scene makes. Forward is the request progressing — it arrives from the
  * right, the direction it is going. Back arrives from the left, the direction it came
  * from. `fill-mode-both` holds the first frame so nothing flashes at its final position
  * before the animation starts; `motion-reduce:animate-none` respects the OS setting and
@@ -307,14 +327,16 @@ function RequestBody({
           each one mounts fresh and plays its entrance. */}
       <div className="relative min-h-0 flex-1 overflow-hidden bg-muted dark:bg-background">
         <div
-          key={stage}
+          key={SCENE[stage]}
           className={cn("flex h-full min-h-0 flex-col", SLIDE[direction])}
         >
           {stage === "review" ? (
             <ReviewStage request={request} factsRef={factsRef} />
-          ) : stage === "reject" ? (
-            <RejectStage
+          ) : (
+            <DecisionStage
+              stage={stage}
               request={request}
+              noun={noun}
               reason={reason}
               touched={touched}
               reasonRef={reasonRef}
@@ -322,17 +344,6 @@ function RequestBody({
                 setReason(value);
                 setTouched(true);
               }}
-            />
-          ) : stage === "approve" ? (
-            <FocusedStage>
-              <IdentityCard request={request} eyebrow="You are approving" />
-            </FocusedStage>
-          ) : (
-            <SettledStage
-              stage={stage}
-              request={request}
-              noun={noun}
-              reason={reason}
             />
           )}
         </div>
@@ -520,171 +531,239 @@ function EvidenceColumn({ request }: { request: AdvocateRegistration }) {
   );
 }
 
-/* ───────────────────────────── stage: reject ────────────────────────────── */
+/* ──────────────────────────── the decision ──────────────────────────────── */
 
 /**
- * One question, asked at the size of the act.
+ * The act, and having acted — **one card, in one place**.
  *
- * The owner's note on the first build of this stage: *"the typography and UX design of
- * this text box and how this is a rejection workflow — it's not feeling like one… bring
- * attention to the fact that you are rejecting and you're leaving a comment. Not through
- * text exposition again, but through better layout and typography"* (2026-09-11).
+ * Owner, 2026-09-11: *"the two approval screens or rejection screens feel redundant to me.
+ * Is there any way to optimize it better, where it's not two steps but feels like one
+ * step? Maybe masking it with motion."* And, of the settled state: *"it looks a little dull
+ * and sad"*, and of the rejection: *"too alarming with the red big header, bold text and
+ * everything. Tone it down, don't make it dramatic. Just clean, minimal, crafted."*
  *
- * So the hierarchy does the telling. Who is being rejected sits at the top, quiet — a
- * `compact` identity card, because the officer has just read all of it on the previous
- * stage and needs only to know they are still on the same person. Under it the question
- * is a title-s heading in destructive ink with the DS's own destructive mark
- * beside it, and the box under *that* is deep enough to invite a paragraph rather than
- * a word. Nothing explains what a reason is for.
+ * Both notes are answered by the same move: **the confirmation and the outcome are the
+ * same object.** The card is built once for the scene (`SCENE`) and survives the act, so
+ * pressing Confirm does not replace a screen with another screen. What happens is that the
+ * strip across its top resolves — from a neutral "You are approving" to a tinted "Account
+ * created" — the body settles from a control into a record, and the card takes the raised
+ * shadow it had only borrowed on hover. Nothing translates, nothing unmounts, and the
+ * officer's eye never has to find its place again.
  *
- * The ink is the DS's third status treatment, and it is carried by a heading that says
- * "rejecting" — never colour alone.
+ * The strip is also where the drama went. A settled state used to open with a 48px disc
+ * and a title-size line in destructive ink, centred: an interstitial for a decision this
+ * officer takes forty times a day. The status now lives in a 16px mark and one line of
+ * body text on a pale tint — the DS's muted treatment, doing what a muted treatment is
+ * for. The semantics the owner asked for the round before (green for approved, red for
+ * rejected) are all still there; only their volume changed.
  */
-function RejectStage({
+function DecisionStage({
+  stage,
   request,
+  noun,
   reason,
   touched,
   reasonRef,
   onChange,
 }: {
+  stage: Exclude<Stage, "review">;
   request: AdvocateRegistration;
+  noun: string;
   reason: string;
   touched: boolean;
   reasonRef: React.RefObject<HTMLTextAreaElement | null>;
   onChange: (value: string) => void;
 }) {
+  const rejecting = stage === "reject" || stage === "rejected";
+  const settled = stage === "approved" || stage === "rejected";
   const empty = reason.trim() === "";
   const id = `reject-${request.id}`;
+  /* Name and number are the card's own heading; whatever else the flow collected is the
+     list under the rule. It stays after the act rather than being trimmed away — a card
+     that loses two rows the moment you press the button is a card that was replaced. */
+  const [, , ...rest] = identityRows(request);
 
   return (
     <FocusedStage>
-      <IdentityCard request={request} compact />
+      <StageCard flush settled={settled}>
+        <StatusStrip
+          stage={stage}
+          noun={noun}
+          rejecting={rejecting}
+          settled={settled}
+        />
 
-      <StageCard className="gap-3">
-        <Field data-invalid={touched && empty}>
-          <FieldLabel htmlFor={id} className="gap-2">
-            <CircleXIcon
-              aria-hidden
-              className="size-5 shrink-0 text-destructive-ink"
-            />
-            <span className="text-title-s font-semibold text-destructive-ink">
-              Why are you rejecting this?
-            </span>
-          </FieldLabel>
-          <Textarea
-            id={id}
-            ref={reasonRef}
-            className="min-h-40 text-body"
-            placeholder="e.g. The name on the Bar ID card is different from the name you typed. Please check and submit again."
-            value={reason}
-            onChange={(event) => onChange(event.target.value)}
-          />
-          {/* The gate, only once it has been tripped. Red on a box nobody has attempted
-              yet reads as a scolding, and a line stating the rule before it is broken is
-              the exposition this stage exists without. */}
-          {touched && empty ? (
-            <FieldError>Write a reason first.</FieldError>
-          ) : null}
-        </Field>
+        <div className="flex items-center gap-4 px-4 py-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <p
+              lang={request.fullNameLang}
+              className="text-title-s font-semibold text-balance"
+            >
+              {request.fullName}
+            </p>
+            <p className="font-mono text-body-compact tabular-nums text-muted-foreground">
+              {request.barRegistrationId}
+            </p>
+          </div>
+          {/* The card the whole decision turned on, at the size of a stamp. It is what
+              keeps this from reading as a receipt: the officer is vouching for a person
+              against a photograph, and the photograph is still here while they do it. Not
+              decoration — the fifth submitted value (`REG-14`), the same file the review
+              stage opens full size. */}
+          <CardThumbnail request={request} />
+        </div>
+
+        {rejecting ? (
+          <div className="border-t border-hairline px-4 py-4">
+            {settled ? (
+              /* The box does not leave — it fills in. What was a control becomes a well of
+                 the same footprint holding the same words, which is what keeps the card
+                 from collapsing 120px at the moment the design is claiming that nothing
+                 moves (measured on the render). No label above it: the strip already says
+                 the reason was sent, so the well beneath is not ambiguous, and a caption
+                 here is the scaffolding the previous round removed. */
+              <div className="min-h-32 rounded-lg bg-surface-sunken p-3 text-body-compact whitespace-pre-line text-pretty animate-in fade-in-0 duration-500 motion-reduce:animate-none">
+                {reason}
+              </div>
+            ) : (
+              <Field data-invalid={touched && empty}>
+                {/* Body weight, foreground ink, no mark. The stage is already a rejection
+                    — the dialog title says so and the footer's button is destructive — so
+                    a title-size line in red was the third telling, and the loudest. */}
+                <FieldLabel htmlFor={id} className="text-body font-medium">
+                  Why are you rejecting this?
+                </FieldLabel>
+                <Textarea
+                  id={id}
+                  ref={reasonRef}
+                  className="min-h-32 text-body"
+                  placeholder="e.g. The name on the Bar ID card is different from the name you typed. Please check and submit again."
+                  value={reason}
+                  onChange={(event) => onChange(event.target.value)}
+                />
+                {/* The gate, only once it has been tripped. Red on a box nobody has
+                    attempted yet reads as a scolding, and a line stating the rule before
+                    it is broken is exposition. */}
+                {touched && empty ? (
+                  <FieldError>Write a reason first.</FieldError>
+                ) : null}
+              </Field>
+            )}
+          </div>
+        ) : rest.length > 0 ? (
+          <div className="border-t border-hairline px-4">
+            <DescriptionList>
+              {rest.map((row) => (
+                <FactRowView key={row.id} row={row} />
+              ))}
+            </DescriptionList>
+          </div>
+        ) : null}
       </StageCard>
+
+      {/* The court has not built the act, so the screen does not mime it — said once, at
+          the end, outside the card that carries the record's own facts.
+
+          It is **rendered before the act too, and hidden**, so the space it will take is
+          already spent. Appearing from nothing pushed the (vertically centred) card 20px
+          up at the exact moment the whole design is claiming nothing moves — measured on
+          the render. Reserving the line costs nothing and buys a card that is genuinely
+          still. */}
+      <p
+        aria-hidden={!settled}
+        className={cn(
+          "text-caption text-center text-pretty text-muted-foreground",
+          settled
+            ? "animate-in fade-in-0 duration-500 motion-reduce:animate-none"
+            : "invisible",
+        )}
+      >
+        {rejecting
+          ? "Not part of this build — the reason was not sent to anyone."
+          : "Not part of this build — no account is opened and nobody is told."}
+      </p>
     </FocusedStage>
   );
 }
 
-/* ───────────────────────────── stage: settled ───────────────────────────── */
+/**
+ * The Bar ID card, small.
+ *
+ * It removes itself when the file will not open rather than leaving a broken frame beside
+ * a name — the review stage is where a missing photograph is explained in words, and this
+ * is not the place to raise it a second time.
+ */
+function CardThumbnail({ request }: { request: AdvocateRegistration }) {
+  const [failed, setFailed] = React.useState(false);
+  if (failed) return null;
+
+  return (
+    /* eslint-disable-next-line @next/next/no-img-element -- a served court document, not
+       a site asset: it has no build-time dimensions and must not be re-encoded. */
+    <img
+      src={request.photo.src}
+      alt=""
+      aria-hidden
+      onError={() => setFailed(true)}
+      className="h-12 w-20 shrink-0 rounded-md border border-hairline bg-surface-sunken object-cover"
+    />
+  );
+}
 
 /**
- * The end of the request: one card, and nothing stacked beside it.
+ * The one thing that changes when the act is performed.
  *
- * The first build made this three cards under three caption labels — "Identity", "What
- * you wrote" — and the owner read the labels as the thing making it cheap: *"these kind
- * of subheadings is making this entire rejection and approval thing feel very cheap"*
- * (2026-09-11). They were right in a way worth writing down: a caption above a card
- * holding two rows is scaffolding around something too small to need it, and three of
- * them in a column is scaffolding pretending to be structure.
- *
- * So the settled state is **one object**: the outcome, a rule, who it was about, a rule,
- * and what was written. Hierarchy separates them, not headings.
- *
- * **The outcome is a heading, not a sentence with a name in it.** "Account created" and
- * "Reason sent to the advocate" are the same strings on every request; who it happened to
- * is the identity beneath, where a name is a value and can be scanned in the same place
- * every time (owner: *"calling out each name, is that scalable UI?"*).
+ * Before: a sunken strip naming what is about to happen. After: the same strip in the
+ * status's own muted pair, with a 16px mark and one line saying what did. Keyed on the
+ * stage so the swap re-mounts and plays its entrance — a fade and a millimetre of rise,
+ * which is the whole of the "motion" the owner asked for and as much as a court screen
+ * should spend on a decision taken forty times a day.
  */
-function SettledStage({
+function StatusStrip({
   stage,
-  request,
   noun,
-  reason,
+  rejecting,
+  settled,
 }: {
-  stage: "approved" | "rejected";
-  request: AdvocateRegistration;
+  stage: Exclude<Stage, "review">;
   noun: string;
-  reason: string;
+  rejecting: boolean;
+  settled: boolean;
 }) {
   const approved = stage === "approved";
 
   return (
-    <FocusedStage>
-      <StageCard flush>
-        <div className="flex flex-col items-center gap-3 px-6 py-8 text-center">
-          <span
-            aria-hidden
-            className={cn(
-              "flex size-12 items-center justify-center rounded-full",
-              approved
-                ? "bg-success-muted text-success-muted-foreground"
-                : "bg-destructive-muted text-destructive-muted-foreground",
-            )}
-          >
-            {approved ? (
-              <CircleCheckIcon className="size-6" />
-            ) : (
-              <CircleXIcon className="size-6" />
-            )}
-          </span>
+    <div
+      key={stage}
+      className={cn(
+        "flex items-center gap-2 px-4 py-2.5 text-body-compact animate-in fade-in-0 duration-500 motion-reduce:animate-none",
+        settled
+          ? "slide-in-from-top-1"
+          : "bg-surface-sunken text-muted-foreground",
+        approved && "bg-success-muted text-success-muted-foreground",
+        stage === "rejected" &&
+          "bg-destructive-muted text-destructive-muted-foreground",
+      )}
+    >
+      {settled ? (
+        <>
+          {approved ? (
+            <CircleCheckIcon aria-hidden className="size-4 shrink-0" />
+          ) : (
+            <CircleXIcon aria-hidden className="size-4 shrink-0" />
+          )}
           {/* `role="status"` gets the outcome spoken: focus lands on the header title,
               which announces itself and nothing below it. */}
-          <p
-            role="status"
-            className={cn(
-              "text-title-s font-semibold text-balance",
-              approved ? "text-success-ink" : "text-destructive-ink",
-            )}
-          >
+          <span role="status" className="font-medium">
             {approved ? "Account created" : `Reason sent to the ${noun}`}
-          </p>
-        </div>
-
-        {/* Who it was about. Two facts, unlabelled, because a name and a registration
-            number under an outcome need no caption to be read as the subject of it. */}
-        <div className="flex flex-col gap-0.5 border-t border-hairline px-6 py-4">
-          <p
-            lang={request.fullNameLang}
-            className="text-body font-semibold text-balance"
-          >
-            {request.fullName}
-          </p>
-          <p className="font-mono text-body-compact tabular-nums text-muted-foreground">
-            {request.barRegistrationId}
-          </p>
-        </div>
-
-        {approved ? null : (
-          <blockquote className="border-t border-hairline px-6 py-4 text-body-compact whitespace-pre-line text-pretty">
-            {reason}
-          </blockquote>
-        )}
-      </StageCard>
-
-      {/* The court has not built the act, so the screen does not mime it — said once, at
-          the end, outside the card that carries the record's own facts. */}
-      <p className="text-caption text-center text-pretty text-muted-foreground">
-        {approved
-          ? "Not part of this build — no account is opened and nobody is told."
-          : "Not part of this build — the reason was not sent to anyone."}
-      </p>
-    </FocusedStage>
+          </span>
+        </>
+      ) : (
+        <span className="font-medium">
+          {rejecting ? "You are rejecting" : "You are approving"}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -720,18 +799,27 @@ function FocusedStage({ children }: { children: React.ReactNode }) {
 function StageCard({
   className,
   flush = false,
+  settled = false,
   children,
 }: {
   className?: string;
   /** The card's own padding is off; the children draw their own rules edge to edge. */
   flush?: boolean;
+  /**
+   * The act has been performed. The card keeps the raised shadow it otherwise borrows on
+   * hover — the quietest way to say a thing that was a form is now a record.
+   */
+  settled?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <Card
       size="sm"
       className={cn(
-        "border-hairline transition-shadow hover:shadow-raised has-focus-visible:shadow-raised",
+        "border-hairline transition-shadow",
+        settled
+          ? "shadow-raised"
+          : "hover:shadow-raised has-focus-visible:shadow-raised",
         flush && "gap-0 py-0",
       )}
     >
@@ -743,66 +831,6 @@ function StageCard({
         </CardContent>
       )}
     </Card>
-  );
-}
-
-/**
- * Who this request is about, as the thing on the stage rather than a labelled table.
- *
- * The owner on the first build of the approve stage: *"this looks too timid. The whole
- * 'you are approving' is too small, and this looks like a plain table… better typography
- * to bring attention to what you are approving"* (2026-09-11). The answer is not a bigger
- * label — it is that **the person is the heading**. The name takes the title-s role, the
- * registration number sits under it in mono, and the contact details the officer may
- * still want are a quiet list under a rule.
- *
- * `compact` is the same object at reading weight, for a stage where the identity is
- * context rather than subject — the rejection composer, where the act is the focus.
- */
-function IdentityCard({
-  request,
-  eyebrow,
-  compact = false,
-}: {
-  request: AdvocateRegistration;
-  /** A caption above the name, where the stage does not already say what it is doing. */
-  eyebrow?: string;
-  compact?: boolean;
-}) {
-  /* Name and number are the heading; whatever else the flow collected is the list. */
-  const [, , ...rest] = identityRows(request);
-
-  return (
-    <StageCard flush>
-      <div className="flex flex-col gap-1 px-4 py-4">
-        {eyebrow ? (
-          <p className="text-caption font-semibold text-muted-foreground">
-            {eyebrow}
-          </p>
-        ) : null}
-        <p
-          lang={request.fullNameLang}
-          className={cn(
-            "text-balance",
-            compact ? "text-body font-semibold" : "text-title-s font-semibold",
-          )}
-        >
-          {request.fullName}
-        </p>
-        <p className="font-mono text-body-compact tabular-nums text-muted-foreground">
-          {request.barRegistrationId}
-        </p>
-      </div>
-      {compact || rest.length === 0 ? null : (
-        <div className="border-t border-hairline px-4">
-          <DescriptionList>
-            {rest.map((row) => (
-              <FactRowView key={row.id} row={row} />
-            ))}
-          </DescriptionList>
-        </div>
-      )}
-    </StageCard>
   );
 }
 
