@@ -86,7 +86,7 @@ Micro steps inside controls only. No `p-5` / `gap-10` / arbitrary px. Controls `
 npm run check:ds-fresh             # first — am I on the pinned DS?
 npm run sync:ui -- <component>     # copy from local DS
 npm run sync:ui -- --tokens-only   # refresh globals.css
-npm run check:tokens && npm run check:typography && npm run check:ui-sync
+npm run check:tokens && npm run check:typography && npm run check:ui-sync && npm run check:spacing
 ```
 
 Screens/flows only in `apps/dristi-app`. DS wins over invent-visual preferences.
