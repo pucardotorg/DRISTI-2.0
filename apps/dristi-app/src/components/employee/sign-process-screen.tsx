@@ -4,14 +4,20 @@ import * as React from "react";
 import {
   ArrowRightIcon,
   FileCheck2Icon,
-  SearchIcon,
   SearchXIcon,
 } from "lucide-react";
 
 import { ListFooter } from "@/components/employee/list-footer";
+import { QueueAnnouncer } from "@/components/employee/queue-announcer";
+import { QueueSearchField } from "@/components/employee/queue-search-field";
 import { SignBulkConfirmDialog } from "@/components/employee/sign-bulk-confirm-dialog";
 import { SignProcessDialog } from "@/components/employee/sign-process-dialog";
 import { SignProcessTable } from "@/components/employee/sign-process-table";
+import {
+  rowActivation,
+  rowOpener,
+  rowOpenerClass,
+} from "@/lib/employee/row-activation";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -23,12 +29,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Field, FieldLabel } from "@/components/ui/field";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -114,13 +114,12 @@ export function SignProcessScreen() {
   );
   const stage = processStage(stageId);
 
-  /* The reference filters on a button rather than as you type, so the clerk composes a
-     query and then asks for it. `draft` is what the controls hold; `applied` is what the
-     table is showing. */
-  const [draft, setDraft] = React.useState<ProcessFilters>(() =>
-    defaultProcessFilters(stage),
-  );
-  const [applied, setApplied] = React.useState<ProcessFilters>(() =>
+  /* One state, not a draft and an applied one: the line answers the controls as they are
+     used — type, channel, returnable day and free text alike, so the row has one rule
+     rather than four controls on two. Every change resets to page one; the old Search
+     button did that, and a keystroke that narrows the tab to four rows must not leave the
+     clerk on page three of nothing. */
+  const [filters, setFilters] = React.useState<ProcessFilters>(() =>
     defaultProcessFilters(stage),
   );
   const [pageSize, setPageSize] = React.useState<HearingsPageSize>(PAGE_SIZE);
@@ -143,7 +142,7 @@ export function SignProcessScreen() {
   const actRef = React.useRef<HTMLButtonElement>(null);
 
   const stageRows = processesAt(line, stageId);
-  const rows = filterProcesses(stageRows, applied);
+  const rows = filterProcesses(stageRows, filters);
 
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
   const currentPage = Math.min(page, pageCount);
@@ -151,8 +150,10 @@ export function SignProcessScreen() {
   const pageRows = rows.slice(start, start + pageSize);
 
   const defaults = defaultProcessFilters(stage);
-  const isFiltered = isPendingFilterChange(applied, defaults);
-  const canSearch = isPendingFilterChange(draft, applied);
+  /* Still the shared check, and still the question it was written for: whether what the
+     table is showing is narrower than the tab's own default view. Only the *other* caller
+     — a Search button asking whether it had work to do — is gone. */
+  const isFiltered = isPendingFilterChange(filters, defaults);
 
   /* What the bar will act on: the selection, minus anything that has since moved on. A
      stale id is dropped rather than counted. */
@@ -162,7 +163,7 @@ export function SignProcessScreen() {
      answer changes what the screen should say. */
   const elsewhere =
     rows.length === 0 && isFiltered
-      ? processesElsewhere(line, applied, stageId)
+      ? processesElsewhere(line, filters, stageId)
       : [];
 
   /**
@@ -177,26 +178,24 @@ export function SignProcessScreen() {
    */
   function changeStage(next: ProcessStageId, carry?: ProcessFilters) {
     const nextStage = processStage(next);
-    const filters = carry
-      ? rebaseFilters(carry, stage, nextStage)
-      : defaultProcessFilters(nextStage);
     setStageId(next);
-    setDraft(filters);
-    setApplied(filters);
+    setFilters(
+      carry
+        ? rebaseFilters(carry, stage, nextStage)
+        : defaultProcessFilters(nextStage),
+    );
     setSelectedIds(new Set());
     setPage(1);
     setNotice("");
   }
 
-  function applyFilters() {
-    setApplied(draft);
+  function changeFilters(next: ProcessFilters) {
+    setFilters(next);
     setPage(1);
   }
 
   function clearFilters() {
-    setDraft(defaults);
-    setApplied(defaults);
-    setPage(1);
+    changeFilters(defaults);
   }
 
   function toggle(process: CourtProcess) {
@@ -313,12 +312,18 @@ export function SignProcessScreen() {
               <section className="flex min-w-0 flex-col gap-6 rounded-xl border border-hairline bg-card shadow-raised p-6">
                 <ProcessFiltersForm
                   stage={stage}
-                  draft={draft}
+                  filters={filters}
                   searchRef={searchRef}
-                  onDraftChange={setDraft}
-                  onApply={applyFilters}
+                  onChange={changeFilters}
                   onClear={clearFilters}
-                  canSearch={canSearch}
+                />
+
+                {/* Mounted whatever the tab is doing, including empty — see
+                    `QueueAnnouncer`. */}
+                <QueueAnnouncer
+                  from={start + 1}
+                  to={start + pageRows.length}
+                  total={rows.length}
                 />
 
                 {pageRows.length === 0 ? (
@@ -327,7 +332,7 @@ export function SignProcessScreen() {
                     isFiltered={isFiltered}
                     elsewhere={elsewhere}
                     onClear={clearFilters}
-                    onGoToStage={(next) => changeStage(next, applied)}
+                    onGoToStage={(next) => changeStage(next, filters)}
                   />
                 ) : (
                   <div className="flex min-w-0 flex-col gap-4">
@@ -459,40 +464,39 @@ export function SignProcessScreen() {
  * things it searches, which is a hint rather than a name; ACCESSIBILITY §12 wants a
  * permanent label, so "Search cases" is the deviation, and the smallest one available.
  * The placeholder keeps the reference's own words.
+ *
+ * All four controls apply as they are used, and the Search button is gone. Nothing in the
+ * row has a meaningless in-between state — two selects, a calendar and a text box — and
+ * nothing here re-queries: the filter narrows rows the browser already holds, inside a tab
+ * that has already narrowed them. Removing it also leaves the tab one strong fill instead
+ * of two, and it is the one in the bar that actually moves a process.
  */
 function ProcessFiltersForm({
   stage,
-  draft,
+  filters,
   searchRef,
-  onDraftChange,
-  onApply,
+  onChange,
   onClear,
-  canSearch,
 }: {
   stage: ProcessStage;
-  draft: ProcessFilters;
+  filters: ProcessFilters;
   searchRef: React.RefObject<HTMLInputElement | null>;
-  onDraftChange: (filters: ProcessFilters) => void;
-  onApply: () => void;
+  onChange: (filters: ProcessFilters) => void;
   onClear: () => void;
-  canSearch: boolean;
 }) {
   return (
     <form
       className="flex min-w-0 flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onApply();
-      }}
+      onSubmit={(event) => event.preventDefault()}
     >
       <div className="flex min-w-0 flex-col gap-2">
         <Label htmlFor="sign-process-type" className="w-fit text-body">
           Process type
         </Label>
         <Select
-          value={draft.type}
+          value={filters.type}
           onValueChange={(value) =>
-            onDraftChange({ ...draft, type: value as ProcessFilters["type"] })
+            onChange({ ...filters, type: value as ProcessFilters["type"] })
           }
         >
           <SelectTrigger id="sign-process-type" className="w-full sm:w-52">
@@ -515,10 +519,10 @@ function ProcessFiltersForm({
             Delivery channel
           </Label>
           <Select
-            value={draft.channel}
+            value={filters.channel}
             onValueChange={(value) =>
-              onDraftChange({
-                ...draft,
+              onChange({
+                ...filters,
                 channel: value as ProcessFilters["channel"],
               })
             }
@@ -557,14 +561,14 @@ function ProcessFiltersForm({
           </span>
           <div role="group" aria-labelledby="sign-process-hearing-label">
             <DatePicker
-              key={draft.hearingDate || "any-day"}
+              key={filters.hearingDate || "any-day"}
               value={
-                draft.hearingDate ? parseIsoDay(draft.hearingDate) : undefined
+                filters.hearingDate ? parseIsoDay(filters.hearingDate) : undefined
               }
               placeholder="Any day"
               onValueChange={(next) =>
-                onDraftChange({
-                  ...draft,
+                onChange({
+                  ...filters,
                   hearingDate: next ? isoDay(next) : "",
                 })
               }
@@ -574,43 +578,22 @@ function ProcessFiltersForm({
         </div>
       ) : null}
 
-      {/* `Field` rather than a bare `Label htmlFor` beside an `Input id`. The DS `Input`
-          destructures `id` out of its props and only puts it back through
-          `useFieldControlProps`, which returns nothing when there is no `Field`
-          context — so an `id` handed to an `Input` outside a `Field` is dropped and the
-          label points at an element that does not exist. `Field` supplies the context,
-          and the label and the control agree on one generated id. Upstream DS bug; see
-          `HearingsFilters`. */}
-      <Field className="min-w-0 sm:w-72">
-        <FieldLabel className="text-body">Search cases</FieldLabel>
-        <InputGroup>
-          <InputGroupAddon>
-            <SearchIcon aria-hidden />
-          </InputGroupAddon>
-          <InputGroupInput
-            ref={searchRef}
-            type="search"
-            autoComplete="off"
-            value={draft.query}
-            onChange={(event) =>
-              onDraftChange({ ...draft, query: event.target.value })
-            }
-            placeholder="case name or number"
-          />
-        </InputGroup>
-      </Field>
+      <QueueSearchField
+        label="Search cases"
+        className="sm:w-72"
+        ref={searchRef}
+        value={filters.query}
+        onChange={(query) => onChange({ ...filters, query })}
+        placeholder="case name or number"
+      />
 
-      <div className="flex items-center gap-2">
-        <Button type="submit" disabled={!canSearch}>
-          Search
-        </Button>
-        {/* "Clear" rather than the reference's "Clear search": it returns the type and
-            the date to this tab's default view as well, and a label that named only the
-            search would undersell what the control does. */}
-        <Button type="button" variant="ghost" onClick={onClear}>
-          Clear
-        </Button>
-      </div>
+      {/* The only button left on the row. "Clear filters" rather than the reference's
+          "Clear search": it returns the type and the date to this tab's default view as
+          well, so a label naming only the search would undersell what it does — and it
+          stays for exactly that reason, since the box's own `×` reaches the text alone. */}
+      <Button type="button" variant="ghost" onClick={onClear}>
+        Clear filters
+      </Button>
     </form>
   );
 }
@@ -822,12 +805,7 @@ function ProcessItemList({
         return (
           <li
             key={process.id}
-            className="flex cursor-pointer gap-3 rounded-lg bg-surface-sunken p-4"
-            onClick={(event) => {
-              const target = event.target as HTMLElement;
-              if (target.closest("button, a, [role=checkbox], label")) return;
-              onOpen(process);
-            }}
+            {...rowActivation("flex gap-3 rounded-lg bg-surface-sunken p-4 transition-colors hover:bg-accent-strong")}
           >
             {/* The DS box expands its own hit area to 40×40; the name it carries is the
                 process and its case, not the column, because a row read aloud has no
@@ -843,7 +821,8 @@ function ProcessItemList({
               <button
                 type="button"
                 onClick={() => onOpen(process)}
-                className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
+                {...rowOpener}
+                className={rowOpenerClass}
               >
                 <span className="sr-only">Read the {inline} in </span>
                 {causeTitle(process)}

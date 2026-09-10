@@ -2,6 +2,11 @@
 
 import { CounselCell } from "@/components/employee/counsel-cell";
 import {
+  rowActivation,
+  rowOpener,
+  rowOpenerClass,
+} from "@/lib/employee/row-activation";
+import {
   Table,
   TableBody,
   TableCell,
@@ -93,7 +98,7 @@ export function OtherApplicationsTable({
           <td colSpan={5} className="h-2 p-0" />
         </tr>
         {rows.map((application) => (
-          <TableRow key={application.id} className="bg-card hover:bg-card">
+          <TableRow key={application.id} {...rowActivation("bg-card")}>
             {/* The row's one emphasised cell, and its opener. The name keeps the
                 court's quiet dress — no teal — and earns its underline on hover and
                 focus, where a pointer or a keyboard has actually asked. The teal link
@@ -105,7 +110,8 @@ export function OtherApplicationsTable({
               <button
                 type="button"
                 onClick={() => onOpen(application)}
-                className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
+                {...rowOpener}
+                className={rowOpenerClass}
               >
                 <span className="sr-only">Review </span>
                 {causeTitle(application)}

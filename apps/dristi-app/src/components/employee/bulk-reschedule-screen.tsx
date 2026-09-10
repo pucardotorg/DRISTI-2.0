@@ -5,13 +5,14 @@ import {
   ArrowRightIcon,
   CalendarCheck2Icon,
   CalendarX2Icon,
-  SearchIcon,
   SearchXIcon,
 } from "lucide-react";
 
 import { ChromeAlertDialogContent } from "@/components/chrome/app-chrome";
 
 import { BulkRescheduleTable } from "@/components/employee/bulk-reschedule-table";
+import { QueueAnnouncer } from "@/components/employee/queue-announcer";
+import { QueueSearchField } from "@/components/employee/queue-search-field";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -32,13 +33,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Field, FieldLabel } from "@/components/ui/field";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
-import { isPendingFilterChange } from "@/lib/employee/filter-state";
 import {
   filterReschedulable,
   newDateProblem,
@@ -65,26 +59,16 @@ const NEVER_CHANGES = () => () => {};
 const readToday = () => isoDay(new Date());
 
 /** What the filter controls hold. `null` on either end means "the day the court is on". */
-type RangeDraft = { from: string | null; to: string | null; query: string };
+type RangeFilters = { from: string | null; to: string | null; query: string };
 
-const EMPTY_DRAFT: RangeDraft = { from: null, to: null, query: "" };
+const EMPTY_FILTERS: RangeFilters = { from: null, to: null, query: "" };
 
-function resolveRange(draft: RangeDraft, today: string) {
-  return { from: draft.from ?? today, to: draft.to ?? today, query: draft.query };
-}
-
-/**
- * Whether these controls are asking for something the table is not already showing.
- *
- * Resolved before it is compared, which is the whole reason this screen has a wrapper
- * rather than calling the shared check directly: an untouched end of the range is `null`
- * and a deliberately picked today is a date string, and those are the same request.
- */
-function isPendingSearch(draft: RangeDraft, applied: RangeDraft, today: string) {
-  return isPendingFilterChange(
-    resolveRange(draft, today),
-    resolveRange(applied, today),
-  );
+function resolveRange(filters: RangeFilters, today: string) {
+  return {
+    from: filters.from ?? today,
+    to: filters.to ?? today,
+    query: filters.query,
+  };
 }
 
 function plural(count: number, one: string, many: string): string {
@@ -118,11 +102,13 @@ export function BulkRescheduleScreen() {
     readToday,
   );
 
-  /* The reference filters on a button rather than as you type, so the bench composes a
-     query and then asks for it. `draft` is what the controls hold; `applied` is what the
-     table is showing. Clear resets both. */
-  const [draft, setDraft] = React.useState<RangeDraft>(EMPTY_DRAFT);
-  const [applied, setApplied] = React.useState<RangeDraft>(EMPTY_DRAFT);
+  /* One state, not a draft and an applied one: the board answers the controls as they are
+     used. Both ends of the range are calendars, which hand over a whole day or nothing —
+     there is no half-picked date whose intermediate state would be meaningless — and the
+     search is free text, so all three can apply on change and the row has one rule rather
+     than two. Nothing here re-queries anything expensive: the range is a filter over
+     rows already in the browser. */
+  const [filters, setFilters] = React.useState<RangeFilters>(EMPTY_FILTERS);
 
   /**
    * Selection is held as what the bench has taken *out*, not what it has put in.
@@ -141,7 +127,7 @@ export function BulkRescheduleScreen() {
   const [bulkDate, setBulkDate] = React.useState<string | null>(null);
   const [bulkError, setBulkError] = React.useState<string | null>(null);
 
-  const range = resolveRange(applied, today);
+  const range = resolveRange(filters, today);
   const rows = filterReschedulable(reschedulableHearings(today), range);
   const selectedRows = rows.filter((row) => !excluded.has(row.id));
 
@@ -160,17 +146,18 @@ export function BulkRescheduleScreen() {
   }).length;
   const ready = selectedRows.length > 0 && missing === 0 && stuck === 0;
 
-  const isSearched = applied.query.trim() !== "";
-  const canSearch = isPendingSearch(draft, applied, today);
+  const isSearched = filters.query.trim() !== "";
 
-  function applyFilters() {
-    setApplied(draft);
+  /* Narrowing the board does not commit anything, so it also clears the one thing on the
+     screen that could be stale afterwards: a complaint about a date the bench tried to
+     write onto a selection that has since changed. */
+  function changeFilters(next: RangeFilters) {
+    setFilters(next);
     setBulkError(null);
   }
 
   function clearFilters() {
-    setDraft(EMPTY_DRAFT);
-    setApplied(EMPTY_DRAFT);
+    setFilters(EMPTY_FILTERS);
     setExcluded(new Set());
     setNewDates({});
     setBulkDate(null);
@@ -179,14 +166,13 @@ export function BulkRescheduleScreen() {
 
   /** Moving one end of the range past the other carries the other end with it. */
   function changeRange(end: "from" | "to", next: string) {
-    setDraft((current) => {
-      const from = current.from ?? today;
-      const to = current.to ?? today;
-      if (end === "from") {
-        return { ...current, from: next, to: next > to ? next : to };
-      }
-      return { ...current, to: next, from: next < from ? next : from };
-    });
+    const from = filters.from ?? today;
+    const to = filters.to ?? today;
+    changeFilters(
+      end === "from"
+        ? { ...filters, from: next, to: next > to ? next : to }
+        : { ...filters, to: next, from: next < from ? next : from },
+    );
   }
 
   function toggleRow(id: string, next: boolean) {
@@ -248,16 +234,16 @@ export function BulkRescheduleScreen() {
           cause list uses. Nothing inside draws a second frame. */}
       <section className="flex min-w-0 flex-col gap-6 rounded-xl border border-hairline bg-card shadow-raised p-6">
         <RangeFilters
-          draft={draft}
+          filters={filters}
           today={today}
-          onQueryChange={(query) =>
-            setDraft((current) => ({ ...current, query }))
-          }
+          onQueryChange={(query) => changeFilters({ ...filters, query })}
           onRangeChange={changeRange}
-          onApply={applyFilters}
           onClear={clearFilters}
-          canSearch={canSearch}
         />
+
+        {/* Mounted whatever the board is doing, including empty — see `QueueAnnouncer`.
+            This screen paginates nothing, so the whole range is what is showing. */}
+        <QueueAnnouncer from={1} to={rows.length} total={rows.length} />
 
         {rows.length === 0 ? (
           <NothingToMove
@@ -329,44 +315,37 @@ export function BulkRescheduleScreen() {
  * the accessibility floor treats a placeholder as a hint rather than a label
  * (ACCESSIBILITY §12).
  *
- * "Search" carries the primary fill, at the court's request. The Ration Teal Law rations
- * per *visual region*, and the filter row is a region the bench works in before it ever
- * reaches the commit bar — but three teal buttons on one screen is still more than this
- * screen used to spend, so the button earns its weight by being **off** unless it has
- * work to do: it enables only when these controls hold a request the table is not already
- * answering. At rest it is a filled shape that plainly cannot be pressed, not a standing
- * invitation competing with the act at the bottom of the page.
+ * All three controls apply as they are used, and the Search button is gone. It had been
+ * argued for on the grounds that a range is composed before it is asked for — but a
+ * calendar hands over a whole day or nothing, so there was never a half-formed range to
+ * protect, and the filter only narrows rows the browser already holds. Nothing is
+ * re-queried and nothing is committed: moving the board is the act at the bottom of the
+ * page, behind its own confirmation, and it is untouched.
  *
- * Disabled rather than aria-disabled, matching the other two buttons on this screen. The
- * browser then also declines to submit on Enter, so the keyboard path and the pointer
- * path agree about when there is nothing to ask for.
+ * Removing it also spends the screen's teal properly. This page used to paint two strong
+ * fills — Search here and Reschedule in the commit bar — on a reading of the Ration Teal
+ * Law that rations per visual region. With Search gone the page has one, and it is the
+ * one that moves twenty listings.
  */
 function RangeFilters({
-  draft,
+  filters,
   today,
   onQueryChange,
   onRangeChange,
-  onApply,
   onClear,
-  canSearch,
 }: {
-  draft: RangeDraft;
+  filters: RangeFilters;
   today: string;
   onQueryChange: (query: string) => void;
   onRangeChange: (end: "from" | "to", day: string) => void;
-  onApply: () => void;
   onClear: () => void;
-  canSearch: boolean;
 }) {
-  const range = resolveRange(draft, today);
+  const range = resolveRange(filters, today);
 
   return (
     <form
       className="flex min-w-0 flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onApply();
-      }}
+      onSubmit={(event) => event.preventDefault()}
     >
       {/* `DatePicker` owns its trigger and takes no `id`, so each visible label names a
           group around it rather than pointing `htmlFor` at a control that does not exist.
@@ -384,34 +363,21 @@ function RangeFilters({
         onChange={(day) => onRangeChange("to", day)}
       />
 
-      {/* `Field` rather than a bare `Label htmlFor` beside an `Input id`: the DS `Input`
-          only restores an `id` through `useFieldControlProps`, which returns nothing
-          outside a `Field`, so a label would point at an element that does not exist.
-          Upstream DS bug — today's cause list documents it at length. */}
-      <Field className="min-w-0 sm:w-64">
-        <FieldLabel className="text-body">Search cases</FieldLabel>
-        <InputGroup>
-          <InputGroupAddon>
-            <SearchIcon aria-hidden />
-          </InputGroupAddon>
-          <InputGroupInput
-            type="search"
-            autoComplete="off"
-            value={draft.query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="case name or number"
-          />
-        </InputGroup>
-      </Field>
+      <QueueSearchField
+        label="Search cases"
+        className="sm:w-64"
+        value={filters.query}
+        onChange={onQueryChange}
+        placeholder="case name or number"
+      />
 
-      <div className="flex items-center gap-2">
-        <Button type="submit" disabled={!canSearch}>
-          Search
-        </Button>
-        <Button type="button" variant="ghost" onClick={onClear}>
-          Clear
-        </Button>
-      </div>
+      {/* The only button left on the row, and it undoes more than the search box's own
+          `×` does: the range goes back to today, and so do the selection and every new
+          date written onto it. Labelled for that rather than for the text it also
+          happens to clear. */}
+      <Button type="button" variant="ghost" onClick={onClear}>
+        Clear filters
+      </Button>
     </form>
   );
 }

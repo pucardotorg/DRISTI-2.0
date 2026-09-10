@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  rowActivation,
+  rowOpener,
+  rowOpenerClass,
+} from "@/lib/employee/row-activation";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
@@ -135,7 +140,7 @@ export function SignBailBondsTable({
             <TableRow
               key={bond.id}
               data-state={selected ? "selected" : undefined}
-              className="bg-card"
+              {...rowActivation("bg-card")}
             >
               <TableCell className={cn(cellClass, "w-12")}>
                 {/* Named for the bond, not the column: with two bonds to a case, "Select
@@ -150,13 +155,14 @@ export function SignBailBondsTable({
                   `text-foreground` rather than the reference's teal underline: the teal is
                   rationed for the one strong action on the screen, and a column of
                   underlined teal case names is the colour ui-craft §2 spends elsewhere.
-                  The underline arrives on hover and focus, where it is an affordance
-                  rather than decoration. */}
+                  The underline now arrives on the *row's* hover, wherever the pointer
+                  sits, and on this control's own focus — see `rowOpenerClass`. */}
               <TableCell className={cn(cellClass, "min-w-56 whitespace-normal")}>
                 <button
                   type="button"
                   onClick={() => onOpen(bond)}
-                  className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
+                  {...rowOpener}
+                className={rowOpenerClass}
                 >
                   <span className="sr-only">
                     {`Read the bail bond of ${bond.litigant} in `}

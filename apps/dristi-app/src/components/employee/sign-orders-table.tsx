@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  rowActivation,
+  rowOpener,
+  rowOpenerClass,
+} from "@/lib/employee/row-activation";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -155,12 +160,7 @@ export function SignOrdersTable({
             <TableRow
               key={order.id}
               data-state={selected ? "selected" : undefined}
-              className="cursor-pointer bg-card"
-              onClick={(event) => {
-                const target = event.target as HTMLElement;
-                if (target.closest("button, a, [role=checkbox], label")) return;
-                onOpen(order);
-              }}
+              {...rowActivation("bg-card")}
             >
               <TableCell className={cn(cellClass, "w-12")}>
                 {/* A signed order has nothing to select. The cell stays for the column,
@@ -176,15 +176,17 @@ export function SignOrdersTable({
               {/* The row's opener, matching Sign forms. Quiet `text-foreground` rather
                   than a teal underline: the teal is rationed for the one strong action
                   on the screen, and eighteen underlined teal names down a column is the
-                  colour ui-craft §4 spends it on instead. The underline arrives on hover
-                  and focus, where it is an affordance rather than decoration. */}
+                  colour ui-craft §4 spends it on instead. The underline now arrives on
+                  the *row's* hover, wherever the pointer sits, and on this control's
+                  own focus — see `rowOpenerClass`. */}
               <TableCell
                 className={cn(cellClass, "min-w-56 font-medium whitespace-normal")}
               >
                 <button
                   type="button"
                   onClick={() => onOpen(order)}
-                  className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
+                  {...rowOpener}
+                className={rowOpenerClass}
                 >
                   <span className="sr-only">
                     {pending ? "Read and sign " : "Read "}

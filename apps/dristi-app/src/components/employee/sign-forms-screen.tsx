@@ -1,12 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { FolderCheckIcon, SearchIcon, SearchXIcon } from "lucide-react";
+import { FolderCheckIcon, SearchXIcon } from "lucide-react";
 
 import { ListFooter } from "@/components/employee/list-footer";
+import { QueueAnnouncer } from "@/components/employee/queue-announcer";
+import { QueueSearchField } from "@/components/employee/queue-search-field";
 import { SignBulkConfirmDialog } from "@/components/employee/sign-bulk-confirm-dialog";
 import { SignFormDialog } from "@/components/employee/sign-form-dialog";
 import { SignFormsTable } from "@/components/employee/sign-forms-table";
+import {
+  rowActivation,
+  rowOpener,
+  rowOpenerClass,
+} from "@/lib/employee/row-activation";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -18,12 +25,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Field, FieldLabel } from "@/components/ui/field";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -32,7 +33,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { isPendingFilterChange } from "@/lib/employee/filter-state";
 import {
   causeTitle,
   isoDay,
@@ -71,13 +71,12 @@ import {
  * no document is written, no provider is called, and nothing persists past a reload.
  */
 export function SignFormsScreen() {
-  /* The reference filters on a button rather than as you type, so the bench composes a
-     query and then asks for it. `draft` is what the controls hold; `applied` is what
-     the table is showing. Clear resets both. */
-  const [draft, setDraft] = React.useState<SignFormFilters>(
-    EMPTY_SIGN_FORM_FILTERS,
-  );
-  const [applied, setApplied] = React.useState<SignFormFilters>(
+  /* One state, not a draft and an applied one: the list answers the controls as they
+     are used — every one of them, so the screen has a single rule rather than a live
+     one and a deferred one. Every change resets to page one; the old Search button did
+     that, and a keystroke that narrows the list to four rows must not leave the reader
+     on page three of nothing. */
+  const [filters, setFilters] = React.useState<SignFormFilters>(
     EMPTY_SIGN_FORM_FILTERS,
   );
   const [pageSize, setPageSize] = React.useState<HearingsPageSize>(PAGE_SIZE);
@@ -99,14 +98,14 @@ export function SignFormsScreen() {
   const signRef = React.useRef<HTMLButtonElement>(null);
 
   const remaining = SIGN_FORM_QUEUE.filter((form) => !signedIds.has(form.id));
-  const rows = filterSignForms(remaining, applied);
+  const rows = filterSignForms(remaining, filters);
 
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
   const currentPage = Math.min(page, pageCount);
   const start = (currentPage - 1) * pageSize;
   const pageRows = rows.slice(start, start + pageSize);
   const isFiltered =
-    applied.process !== "all" || applied.createdOn !== "" || applied.query !== "";
+    filters.process !== "all" || filters.createdOn !== "" || filters.query !== "";
 
   /**
    * What is selected *and* still in the list.
@@ -120,18 +119,18 @@ export function SignFormsScreen() {
   const selectedForms = rows.filter((form) => picked.has(form.id));
   const selectedIds = new Set(selectedForms.map((form) => form.id));
 
-  const canSearch = isPendingFilterChange(draft, applied);
-
-  function applyFilters() {
-    setApplied(draft);
+  function changeFilters(next: SignFormFilters) {
+    setFilters(next);
     setPage(1);
   }
 
   function clearFilters() {
-    setDraft(EMPTY_SIGN_FORM_FILTERS);
-    setApplied(EMPTY_SIGN_FORM_FILTERS);
+    changeFilters(EMPTY_SIGN_FORM_FILTERS);
+    /* The date picker holds its own selection and cannot be told to forget it, so Clear
+       remounts it — see `SignFormsFilters`. Unchanged by the move to live filtering:
+       picking a date now applies straight away, but putting the control back to "any
+       date" is still a remount. */
     setDateKey((key) => key + 1);
-    setPage(1);
   }
 
   function toggle(form: SignForm) {
@@ -211,13 +210,18 @@ export function SignFormsScreen() {
             inside draws a second frame. */}
         <section className="flex min-w-0 flex-col gap-6 rounded-xl border border-hairline bg-card shadow-raised p-6">
           <SignFormsFilters
-            draft={draft}
+            filters={filters}
             dateKey={dateKey}
             searchRef={searchRef}
-            onDraftChange={setDraft}
-            onApply={applyFilters}
+            onChange={changeFilters}
             onClear={clearFilters}
-            canSearch={canSearch}
+          />
+
+          {/* Mounted whatever the list is doing, including empty — see `QueueAnnouncer`. */}
+          <QueueAnnouncer
+            from={start + 1}
+            to={start + pageRows.length}
+            total={rows.length}
           />
 
           {pageRows.length === 0 ? (
@@ -363,40 +367,33 @@ export function SignFormsScreen() {
  * the bar below. Search drops to outline.
  */
 function SignFormsFilters({
-  draft,
+  filters,
   dateKey,
   searchRef,
-  onDraftChange,
-  onApply,
+  onChange,
   onClear,
-  canSearch,
 }: {
-  draft: SignFormFilters;
+  filters: SignFormFilters;
   /** Bumped by Clear to remount the date picker — see below. */
   dateKey: number;
   searchRef: React.Ref<HTMLInputElement>;
-  onDraftChange: (filters: SignFormFilters) => void;
-  onApply: () => void;
+  onChange: (filters: SignFormFilters) => void;
   onClear: () => void;
-  canSearch: boolean;
 }) {
   return (
     <form
       className="flex min-w-0 flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onApply();
-      }}
+      onSubmit={(event) => event.preventDefault()}
     >
       <div className="flex min-w-0 flex-col gap-2">
         <Label htmlFor="sign-forms-process" className="w-fit text-body">
           Process type
         </Label>
         <Select
-          value={draft.process}
+          value={filters.process}
           onValueChange={(value) =>
-            onDraftChange({
-              ...draft,
+            onChange({
+              ...filters,
               process: value as SignFormFilters["process"],
             })
           }
@@ -435,8 +432,8 @@ function SignFormsFilters({
             key={dateKey}
             placeholder="Any date"
             onValueChange={(next) =>
-              onDraftChange({
-                ...draft,
+              onChange({
+                ...filters,
                 createdOn: next ? isoDay(next) : "",
               })
             }
@@ -445,40 +442,22 @@ function SignFormsFilters({
         </div>
       </div>
 
-      {/* `Field` rather than a bare `Label htmlFor` beside an `Input id`. The DS `Input`
-          destructures `id` out of its props and only puts it back through
-          `useFieldControlProps`, which returns nothing when there is no `Field`
-          context — so an `id` handed to an `Input` outside a `Field` is dropped and the
-          label points at an element that does not exist. `Field` supplies the context,
-          and the label and the control agree on one generated id. Upstream DS bug; see
-          `HearingsFilters`. */}
-      <Field className="min-w-0 sm:w-72">
-        <FieldLabel className="text-body">Search cases</FieldLabel>
-        <InputGroup>
-          <InputGroupAddon>
-            <SearchIcon aria-hidden />
-          </InputGroupAddon>
-          <InputGroupInput
-            ref={searchRef}
-            type="search"
-            autoComplete="off"
-            value={draft.query}
-            onChange={(event) =>
-              onDraftChange({ ...draft, query: event.target.value })
-            }
-            placeholder="case name, number or advocate"
-          />
-        </InputGroup>
-      </Field>
+      <QueueSearchField
+        label="Search cases"
+        className="sm:w-72"
+        ref={searchRef}
+        value={filters.query}
+        onChange={(query) => onChange({ ...filters, query })}
+        placeholder="case name, number or advocate"
+      />
 
-      <div className="flex items-center gap-2">
-        <Button type="submit" disabled={!canSearch}>
-          Search
-        </Button>
-        <Button type="button" variant="ghost" onClick={onClear}>
-          Clear
-        </Button>
-      </div>
+      {/* The only button left on the row. It stays because it undoes more than the
+          search box's own `×` does — it returns every control here to the view the
+          screen opens on — and it is labelled for that rather than for the text it
+          also happens to clear. */}
+      <Button type="button" variant="ghost" onClick={onClear}>
+        Clear filters
+      </Button>
     </form>
   );
 }
@@ -551,7 +530,7 @@ function SignFormsItemList({
       {rows.map((form) => (
         <li
           key={form.id}
-          className="flex items-start gap-3 rounded-lg bg-surface-sunken p-4"
+          {...rowActivation("flex items-start gap-3 rounded-lg bg-surface-sunken p-4 transition-colors hover:bg-accent-strong")}
         >
           <Checkbox
             checked={selectedIds.has(form.id)}
@@ -563,7 +542,8 @@ function SignFormsItemList({
             <button
               type="button"
               onClick={() => onOpen(form)}
-              className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
+              {...rowOpener}
+                className={rowOpenerClass}
             >
               <span className="sr-only">Read and sign </span>
               {causeTitle(form)}

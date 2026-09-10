@@ -1,6 +1,11 @@
 "use client";
 
 import {
+  rowActivation,
+  rowOpener,
+  rowOpenerClass,
+} from "@/lib/employee/row-activation";
+import {
   Table,
   TableBody,
   TableCell,
@@ -98,7 +103,7 @@ export function SignADiaryTable({
           <td colSpan={3} className="h-2 p-0" />
         </tr>
         {rows.map((entry) => (
-          <TableRow key={entry.id} className="bg-card">
+          <TableRow key={entry.id} {...rowActivation("bg-card")}>
             <TableCell
               className={cn(cellClass, "tabular-nums whitespace-nowrap")}
             >
@@ -108,13 +113,14 @@ export function SignADiaryTable({
                 `text-foreground` rather than the reference's teal underline: the teal is
                 rationed for the one strong action on the screen, and a column of
                 underlined teal paragraphs is not what ui-craft §4 spends it on. The
-                underline arrives on hover and focus, where it is an affordance rather
-                than decoration. */}
+                underline now arrives on the *row's* hover, wherever the pointer sits,
+                and on this control's own focus — see `rowOpenerClass`. */}
             <TableCell className={cn(cellClass, "min-w-80 whitespace-normal")}>
               <button
                 type="button"
                 onClick={() => onOpen(entry)}
-                className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
+                {...rowOpener}
+                className={rowOpenerClass}
               >
                 <span className="sr-only">
                   Read and sign the entry in {entry.caseNumber}.{" "}

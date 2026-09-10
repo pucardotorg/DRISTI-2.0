@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  rowActivation,
+  rowOpener,
+  rowOpenerClass,
+} from "@/lib/employee/row-activation";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -116,17 +121,25 @@ export function RegisterAdvocatesTable({
         {rows.map((request) => {
           const kind = requestKindLabel(request);
           return (
-            <TableRow key={request.id} className="bg-card">
-              {/* The row's only opener. Quiet `text-foreground` rather than the
-                  reference's teal underline: the teal on this page is rationed for Search,
-                  and fourteen underlined teal numbers down a column is not what ui-craft
-                  §4 spends it on. The underline arrives on hover and focus, where it is an
-                  affordance rather than decoration. */}
+            <TableRow key={request.id} {...rowActivation("bg-card")}>
+              {/* The row's only opener, and now the whole row's — a click anywhere in the
+                  row presses this button (`rowActivation`), so the officer no longer has
+                  to find the one cell that answered.
+
+                  Quiet `text-foreground` rather than the reference's teal underline. This
+                  used to be argued as "the teal is rationed for Search"; Search is gone
+                  and the page has no primary at all (brief D9), so the argument is simply
+                  that fourteen underlined teal numbers down a column is not what ui-craft
+                  §4 spends colour on. The underline still arrives on hover and focus — but
+                  from the *row's* hover now, wherever the pointer sits, because an
+                  underline that only appeared under the pointer is what taught officers
+                  that the underline was the target. See `rowOpenerClass`. */}
               <TableCell className={cn(cellClass, "whitespace-nowrap")}>
                 <button
                   type="button"
                   onClick={() => onOpen(request)}
-                  className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground tabular-nums underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
+                  {...rowOpener}
+                className={cn(rowOpenerClass, "tabular-nums")}
                 >
                   <span className="sr-only">Review </span>
                   {request.applicationNumber}

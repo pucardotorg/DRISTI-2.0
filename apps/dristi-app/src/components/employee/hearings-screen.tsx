@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CalendarX2Icon, SearchIcon, SearchXIcon, VideoIcon } from "lucide-react";
+import { CalendarX2Icon, SearchXIcon, VideoIcon } from "lucide-react";
 
 import { CounselCell } from "@/components/employee/counsel-cell";
 import { HearingOverviewDialog } from "@/components/employee/hearing-overview-dialog";
@@ -11,9 +11,12 @@ import {
   HearingsTable,
 } from "@/components/employee/hearings-table";
 import { ListFooter } from "@/components/employee/list-footer";
+import { QueueAnnouncer } from "@/components/employee/queue-announcer";
+import { QueueSearchField } from "@/components/employee/queue-search-field";
 import { useCourtRole } from "@/components/employee/use-court-role";
 import { useCourtToday } from "@/components/employee/use-court-today";
 import { useHearingSession } from "@/components/employee/use-hearing-session";
+import { rowActivation } from "@/lib/employee/row-activation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -25,12 +28,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Field, FieldLabel } from "@/components/ui/field";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -47,7 +44,6 @@ import {
 } from "@/components/ui/tooltip";
 import type { CourtRole } from "@/lib/employee/content";
 import { seatHasBenchControls } from "@/lib/employee/court-role";
-import { isPendingFilterChange } from "@/lib/employee/filter-state";
 import {
   markHearingEnded,
   markHearingOngoing,
@@ -107,11 +103,12 @@ export function HearingsScreen() {
   const [day, setDay] = React.useState<string | null>(null);
   const activeDay = day ?? today;
 
-  /* The reference filters on a button rather than as you type, so the bench composes a
-     query and then asks for it. `draft` is what the controls hold; `applied` is what the
-     table is showing. Clear resets both. */
-  const [draft, setDraft] = React.useState<HearingFilters>(EMPTY_FILTERS);
-  const [applied, setApplied] = React.useState<HearingFilters>(EMPTY_FILTERS);
+  /* One state, not a draft and an applied one: the board answers the controls as they are
+     used — status, purpose and free text alike, so the row has one rule rather than a live
+     date beside three deferred filters. Every change resets to page one; the old Search
+     button did that, and a keystroke that narrows the list to four rows must not leave the
+     reader on page three of nothing. */
+  const [filters, setFilters] = React.useState<HearingFilters>(EMPTY_FILTERS);
   const [pageSize, setPageSize] = React.useState<HearingsPageSize>(PAGE_SIZE);
   const [page, setPage] = React.useState(1);
   /* Which listing the bench has called, which it has ended, and which it has passed
@@ -138,7 +135,7 @@ export function HearingsScreen() {
   );
 
   const listed = withHearingSession(hearingsForDay(activeDay, today), session);
-  const rows = filterHearings(listed, applied);
+  const rows = filterHearings(listed, filters);
 
   /* All three announcements stay with the list, because the bench stays with it —
      Start hearing opens an overlay over this screen rather than navigating off it.
@@ -211,26 +208,23 @@ export function HearingsScreen() {
   const start = (currentPage - 1) * pageSize;
   const pageRows = rows.slice(start, start + pageSize);
   const isFiltered =
-    applied.status !== "all" ||
-    applied.purpose !== "all" ||
-    applied.query !== "";
+    filters.status !== "all" ||
+    filters.purpose !== "all" ||
+    filters.query !== "";
 
-  const canSearch = isPendingFilterChange(draft, applied);
   /* Read from `listed`, not from `rows`: a filter set to Scheduled drops the matter
      the bench has just called out of the filtered list, and the overlay reading it
      should not close because of that. */
   const openHearing = listed.find((hearing) => hearing.id === openHearingId) ?? null;
 
-  function applyFilters() {
-    setApplied(draft);
+  function changeFilters(next: HearingFilters) {
+    setFilters(next);
     setPage(1);
   }
 
   function clearFilters() {
-    setDraft(EMPTY_FILTERS);
-    setApplied(EMPTY_FILTERS);
+    changeFilters(EMPTY_FILTERS);
     setDay(null);
-    setPage(1);
   }
 
   return (
@@ -252,16 +246,21 @@ export function HearingsScreen() {
           uses. Nothing inside draws a second frame. */}
       <div className="flex min-w-0 flex-col gap-6 rounded-xl border border-hairline bg-card p-6 shadow-raised">
         <HearingsFilters
-          draft={draft}
-          onDraftChange={setDraft}
+          filters={filters}
+          onChange={changeFilters}
           day={activeDay}
           onDayChange={(next) => {
             setDay(next);
             setPage(1);
           }}
-          onApply={applyFilters}
           onClear={clearFilters}
-          canSearch={canSearch}
+        />
+
+        {/* Mounted whatever the list is doing, including empty — see `QueueAnnouncer`. */}
+        <QueueAnnouncer
+          from={start + 1}
+          to={start + pageRows.length}
+          total={rows.length}
         />
 
         {pageRows.length === 0 ? (
@@ -340,7 +339,7 @@ export function HearingsScreen() {
 }
 
 /**
- * Status, purpose, day and free text — then apply.
+ * Status, purpose, day and free text — all of them live.
  *
  * Filters only. The court-level action lives in the page header (`JoinVideoCourt`), so
  * this row holds nothing that is not a way of narrowing the list. Wraps rather than
@@ -351,46 +350,45 @@ export function HearingsScreen() {
  * style (ACCESSIBILITY §12: placeholders may hint format, they are not labels) — so the
  * labels are the deviation, and the smallest one available.
  *
- * "Search" is `secondary`, not teal. Join VC in the page header is the screen's one
- * primary — the court-level act this view exists for — and Search yields to it the same
- * way it does on Bulk reschedule. It stays `aria-disabled` with a tooltip that says why
- * (video conferencing is not part of this build); the primary paint still names the
- * hierarchy, and the disabled state names the honesty.
+ * The Search button is gone, and its absence settles an inconsistency that was already
+ * here: the hearing date filters the moment it was picked while the other three waited to
+ * be asked for, so half this row behaved one way and half the other. All four now apply on
+ * change. Nothing in the row has a meaningless in-between state — two selects, a calendar
+ * and a text box — which is the test for whether a control can go live.
+ *
+ * That also settles the teal. Search carried `bg-primary` here despite the paragraph that
+ * used to claim otherwise, so the board showed two strong fills at once: Search and Join
+ * VC. Removing it leaves Join VC as the screen's single primary, which is what the Ration
+ * Teal Law wanted — the court-level act this view exists for. It stays `aria-disabled`
+ * with a tooltip that says why (video conferencing is not part of this build).
  */
 function HearingsFilters({
-  draft,
-  onDraftChange,
+  filters,
+  onChange,
   day,
   onDayChange,
-  onApply,
   onClear,
-  canSearch,
 }: {
-  draft: HearingFilters;
-  onDraftChange: (filters: HearingFilters) => void;
+  filters: HearingFilters;
+  onChange: (filters: HearingFilters) => void;
   day: string;
   onDayChange: (day: string) => void;
-  onApply: () => void;
   onClear: () => void;
-  canSearch: boolean;
 }) {
   return (
     <form
     className="flex min-w-0 flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
-    onSubmit={(event) => {
-      event.preventDefault();
-      onApply();
-    }}
+    onSubmit={(event) => event.preventDefault()}
     >
       <div className="flex min-w-0 flex-col gap-2">
         <Label htmlFor="hearings-status" className="w-fit text-body">
           Status
         </Label>
         <Select
-          value={draft.status}
+          value={filters.status}
           onValueChange={(value) =>
-            onDraftChange({
-              ...draft,
+            onChange({
+              ...filters,
               status: value as HearingFilters["status"],
             })
           }
@@ -414,10 +412,10 @@ function HearingsFilters({
           Purpose
         </Label>
         <Select
-          value={draft.purpose}
+          value={filters.purpose}
           onValueChange={(value) =>
-            onDraftChange({
-              ...draft,
+            onChange({
+              ...filters,
               purpose: value as HearingFilters["purpose"],
             })
           }
@@ -454,39 +452,21 @@ function HearingsFilters({
         </div>
       </div>
 
-      {/* `Field` rather than a bare `Label htmlFor` beside an `Input id`. The DS `Input`
-          destructures `id` out of its props and only puts it back through
-          `useFieldControlProps`, which returns nothing when there is no `Field`
-          context — so an `id` handed to an `Input` outside a `Field` is dropped and the
-          label points at an element that does not exist. `Field` supplies the context,
-          and the label and the control agree on one generated id. Upstream DS bug; the
-          advocate's cases search is currently broken this exact way. */}
-      <Field className="min-w-0 sm:w-52">
-        <FieldLabel className="text-body">Search cases</FieldLabel>
-        <InputGroup>
-          <InputGroupAddon>
-            <SearchIcon aria-hidden />
-          </InputGroupAddon>
-          <InputGroupInput
-            type="search"
-            autoComplete="off"
-            value={draft.query}
-            onChange={(event) =>
-              onDraftChange({ ...draft, query: event.target.value })
-            }
-            placeholder="case name or number"
-          />
-        </InputGroup>
-      </Field>
+      <QueueSearchField
+        label="Search cases"
+        className="sm:w-52"
+        value={filters.query}
+        onChange={(query) => onChange({ ...filters, query })}
+        placeholder="case name or number"
+      />
 
-      <div className="flex items-center gap-2">
-        <Button type="submit" disabled={!canSearch}>
-          Search
-        </Button>
-        <Button type="button" variant="ghost" onClick={onClear}>
-          Clear
-        </Button>
-      </div>
+      {/* The only button left on the row. It stays because it undoes more than the search
+          box's own `×` does — status, purpose and the day go back to the board the screen
+          opens on — and it is labelled for that rather than for the text it also happens
+          to clear. */}
+      <Button type="button" variant="ghost" onClick={onClear}>
+        Clear filters
+      </Button>
     </form>
   );
 }
@@ -598,7 +578,7 @@ function HearingsItemList({
         return (
           <li
             key={hearing.id}
-            className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-4"
+            {...rowActivation("flex flex-col gap-2 rounded-lg bg-surface-sunken p-4 transition-colors hover:bg-accent-strong")}
           >
             <p className="min-w-0 text-body-compact font-medium">
               <span className="text-muted-foreground tabular-nums">

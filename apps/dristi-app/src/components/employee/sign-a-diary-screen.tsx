@@ -4,8 +4,14 @@ import * as React from "react";
 import { BookCheckIcon, CalendarXIcon, NotebookPenIcon } from "lucide-react";
 
 import { ListFooter } from "@/components/employee/list-footer";
+import { QueueAnnouncer } from "@/components/employee/queue-announcer";
 import { SignADiaryDialog } from "@/components/employee/sign-a-diary-dialog";
 import { SignADiaryTable } from "@/components/employee/sign-a-diary-table";
+import {
+  rowActivation,
+  rowOpener,
+  rowOpenerClass,
+} from "@/lib/employee/row-activation";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -16,7 +22,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { isPendingFilterChange } from "@/lib/employee/filter-state";
 import {
   causeTitle,
   formatCourtDay,
@@ -87,13 +92,11 @@ export function SignADiaryScreen() {
   const [register, setRegister] = React.useState<ADiaryEntry[]>(() =>
     aDiaryEntries(today),
   );
-  /* The reference filters on a button rather than as you pick, so the bench chooses a day
-     and then asks for it. `draft` is what the control holds; `applied` is what the table
-     is showing. Clear resets both to today. */
-  const [draft, setDraft] = React.useState<ADiaryFilters>(
-    DEFAULT_A_DIARY_FILTERS,
-  );
-  const [applied, setApplied] = React.useState<ADiaryFilters>(
+  /* One state, not a draft and an applied one: picking a day shows that day's register.
+     A calendar hands over a whole date or nothing — there is no half-typed day whose
+     intermediate state would be meaningless — so there was never anything for a Search
+     button to wait for. Every change resets to page one. */
+  const [filters, setFilters] = React.useState<ADiaryFilters>(
     DEFAULT_A_DIARY_FILTERS,
   );
   const [pageSize, setPageSize] = React.useState<HearingsPageSize>(PAGE_SIZE);
@@ -105,8 +108,8 @@ export function SignADiaryScreen() {
   const [announcement, setAnnouncement] = React.useState("");
   const headingRef = React.useRef<HTMLHeadingElement>(null);
 
-  const appliedDay = resolveADiaryDay(applied, today);
-  const rows = filterADiary(register, applied, today);
+  const shownDay = resolveADiaryDay(filters, today);
+  const rows = filterADiary(register, filters, today);
   const open = register.find((entry) => entry.id === openId) ?? null;
 
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
@@ -114,20 +117,13 @@ export function SignADiaryScreen() {
   const start = (currentPage - 1) * pageSize;
   const pageRows = rows.slice(start, start + pageSize);
 
-  const canSearch = isPendingFilterChange(
-    { dated: resolveADiaryDay(draft, today) },
-    { dated: appliedDay },
-  );
-
-  function applyFilters() {
-    setApplied(draft);
+  function changeFilters(next: ADiaryFilters) {
+    setFilters(next);
     setPage(1);
   }
 
   function showToday() {
-    setDraft(DEFAULT_A_DIARY_FILTERS);
-    setApplied(DEFAULT_A_DIARY_FILTERS);
-    setPage(1);
+    changeFilters(DEFAULT_A_DIARY_FILTERS);
   }
 
   /** Record the corrected words. The entry stays unsigned and stays in the register. */
@@ -194,17 +190,22 @@ export function SignADiaryScreen() {
           Nothing inside draws a second frame. */}
       <section className="flex min-w-0 flex-col gap-6 rounded-xl border border-hairline bg-card shadow-raised p-6">
         <SignADiaryFilters
-          draft={draft}
+          filters={filters}
           today={today}
-          onDraftChange={setDraft}
-          onApply={applyFilters}
+          onChange={changeFilters}
           onClear={showToday}
-          canSearch={canSearch}
+        />
+
+        {/* Mounted whatever the list is doing, including empty — see `QueueAnnouncer`. */}
+        <QueueAnnouncer
+          from={start + 1}
+          to={start + pageRows.length}
+          total={rows.length}
         />
 
         {pageRows.length === 0 ? (
           <SignADiaryEmpty
-            day={appliedDay}
+            day={shownDay}
             today={today}
             hasUnsigned={register.length > 0}
             onShowToday={showToday}
@@ -265,41 +266,41 @@ export function SignADiaryScreen() {
 }
 
 /**
- * Which day's register is on screen — the reference's one control, and its two buttons.
+ * Which day's register is on screen — the reference's one control.
  *
- * "Search" keeps the reference's teal. The Ration Teal Law allows one strong action per
- * view, and unlike the two signing queues above it this screen has no bulk act to spend
- * it on: asking for a day *is* what the bench does here, so the teal stays where the
- * reference put it.
+ * The Search button is gone, and this is the screen where it was least defensible: the
+ * control is a calendar, so the only thing it can hand over is a whole day, and the
+ * button existed to re-ask for a day the bench had already named. Picking one now shows
+ * it. There is no meaningless in-between state to protect, which is the test for whether
+ * a control can go live.
  *
- * "Clear" rather than the reference's "Clear search": it returns the register to today
- * rather than emptying the control, and a label naming only the search would undersell
- * what it does.
+ * That leaves the page with no `bg-primary` at all. Search used to carry it on the
+ * argument that asking for a day *is* the act here — but that act is now the picker
+ * itself, and the Ration Teal Law does not ask for a strong fill where there is no
+ * button to put one on. Signing happens one entry at a time in the overlay, where the
+ * teal already is. Nothing was promoted to fill the gap.
+ *
+ * "Show today" rather than the reference's "Clear search": it returns the register to
+ * today rather than emptying a control, and it stays because the picker's own clear does
+ * not say what clearing a mandatory day means.
  */
 function SignADiaryFilters({
-  draft,
+  filters,
   today,
-  onDraftChange,
-  onApply,
+  onChange,
   onClear,
-  canSearch,
 }: {
-  draft: ADiaryFilters;
+  filters: ADiaryFilters;
   today: string;
-  onDraftChange: (filters: ADiaryFilters) => void;
-  onApply: () => void;
+  onChange: (filters: ADiaryFilters) => void;
   onClear: () => void;
-  canSearch: boolean;
 }) {
-  const day = resolveADiaryDay(draft, today);
+  const day = resolveADiaryDay(filters, today);
 
   return (
     <form
       className="flex min-w-0 flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onApply();
-      }}
+      onSubmit={(event) => event.preventDefault()}
     >
       {/* `DatePicker` owns its trigger and takes no `id`, so the visible label names a
           group around it rather than pointing `htmlFor` at a control that does not exist.
@@ -321,21 +322,19 @@ function SignADiaryFilters({
             onValueChange={(next) =>
               /* Clearing the picker itself means today: the register always shows one
                  day, and "no day" is not a view this screen has. */
-              onDraftChange({ dated: next ? isoDay(next) : null })
+              onChange({ dated: next ? isoDay(next) : null })
             }
             className="w-full sm:w-52"
           />
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Button type="submit" disabled={!canSearch}>
-          Search
-        </Button>
-        <Button type="button" variant="ghost" onClick={onClear}>
-          Clear
-        </Button>
-      </div>
+      {/* The only button left on the row, and it is not an undo: the register always
+          shows exactly one day, so there is no "no day" for a clear to return to. It
+          names what it does instead. */}
+      <Button type="button" variant="ghost" onClick={onClear}>
+        Show today
+      </Button>
     </form>
   );
 }
@@ -430,11 +429,15 @@ function SignADiaryItemList({
   return (
     <ul className="flex flex-col gap-3">
       {rows.map((entry) => (
-        <li key={entry.id} className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-4">
+        <li
+          key={entry.id}
+          {...rowActivation("flex flex-col gap-2 rounded-lg bg-surface-sunken p-4 transition-colors hover:bg-accent-strong")}
+        >
           <button
             type="button"
             onClick={() => onOpen(entry)}
-            className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
+            {...rowOpener}
+                className={rowOpenerClass}
           >
             <span className="sr-only">
               Read and sign the entry in {entry.caseNumber}.{" "}

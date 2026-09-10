@@ -4,6 +4,10 @@ import Link from "next/link";
 import { CircleCheckIcon, EllipsisVerticalIcon, FilePlusIcon } from "lucide-react";
 
 import { CounselCell } from "@/components/employee/counsel-cell";
+import {
+  rowActivation,
+  rowOpener,
+} from "@/lib/employee/row-activation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -135,8 +139,9 @@ export function HearingCaseLink({
   return (
     <Link
       href={`/employee/hearings/${hearing.id}`}
+      {...rowOpener}
       className={cn(
-        "rounded-sm text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline",
+        "rounded-sm text-body-compact font-medium text-foreground underline-offset-4 outline-none group-hover/row:underline focus-visible:underline focus-visible:ring-3 focus-visible:ring-focus-ring",
         className
       )}
     >
@@ -500,7 +505,7 @@ export function HearingsTable({
           <td colSpan={8} className="h-2 p-0" />
         </tr>
         {rows.map((hearing) => (
-          <TableRow key={hearing.id} className="bg-card">
+          <TableRow key={hearing.id} {...rowActivation("bg-card")}>
             <TableCell
               className={cn(cellClass, "w-16 tabular-nums text-muted-foreground")}
             >

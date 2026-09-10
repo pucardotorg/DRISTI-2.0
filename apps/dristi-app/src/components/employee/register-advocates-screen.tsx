@@ -1,11 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { SearchIcon, SearchXIcon, UserCheckIcon } from "lucide-react";
+import { SearchXIcon, UserCheckIcon } from "lucide-react";
 
 import { ListFooter } from "@/components/employee/list-footer";
+import { QueueAnnouncer } from "@/components/employee/queue-announcer";
+import { QueueSearchField } from "@/components/employee/queue-search-field";
 import { RegisterAdvocateDialog } from "@/components/employee/register-advocates-dialog";
 import { RegisterAdvocatesTable } from "@/components/employee/register-advocates-table";
+import {
+  rowActivation,
+  rowOpener,
+  rowOpenerClass,
+} from "@/lib/employee/row-activation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,13 +23,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Field, FieldLabel } from "@/components/ui/field";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
-import { isPendingFilterChange } from "@/lib/employee/filter-state";
 import { PAGE_SIZE, type HearingsPageSize } from "@/lib/employee/hearings";
 import {
   EMPTY_REGISTER_ADVOCATES_FILTERS,
@@ -73,13 +73,12 @@ const waitClass: Record<WaitTone, string> = {
  * access is granted or withheld, no reason is sent, and nothing persists past a reload.
  */
 export function RegisterAdvocatesScreen() {
-  /* The court side filters on a button rather than as you type, so the officer composes a
-     query and then asks for it. `draft` is what the control holds; `applied` is what the
-     table is showing. Clear resets both. */
-  const [draft, setDraft] = React.useState<RegisterAdvocatesFilters>(
-    EMPTY_REGISTER_ADVOCATES_FILTERS,
-  );
-  const [applied, setApplied] = React.useState<RegisterAdvocatesFilters>(
+  /* One state, not a draft and an applied one: the list answers the box as it is typed,
+     so there is never a moment where what the officer has written and what the table is
+     showing disagree. Every change resets to page one — the old Search button did that,
+     and a keystroke that narrows thirty-nine requests to four must not leave the reader
+     on page three of nothing. */
+  const [filters, setFilters] = React.useState<RegisterAdvocatesFilters>(
     EMPTY_REGISTER_ADVOCATES_FILTERS,
   );
   const [pageSize, setPageSize] = React.useState<HearingsPageSize>(PAGE_SIZE);
@@ -94,25 +93,21 @@ export function RegisterAdvocatesScreen() {
   const remaining = REGISTER_ADVOCATES_QUEUE.filter(
     (request) => !decidedIds.has(request.id),
   );
-  const rows = filterRegistrations(remaining, applied);
+  const rows = filterRegistrations(remaining, filters);
 
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
   const currentPage = Math.min(page, pageCount);
   const start = (currentPage - 1) * pageSize;
   const pageRows = rows.slice(start, start + pageSize);
-  const isFiltered = applied.query.trim() !== "";
+  const isFiltered = filters.query.trim() !== "";
 
-  const canSearch = isPendingFilterChange(draft, applied);
-
-  function applyFilters() {
-    setApplied(draft);
+  function changeFilters(next: RegisterAdvocatesFilters) {
+    setFilters(next);
     setPage(1);
   }
 
   function clearFilters() {
-    setDraft(EMPTY_REGISTER_ADVOCATES_FILTERS);
-    setApplied(EMPTY_REGISTER_ADVOCATES_FILTERS);
-    setPage(1);
+    changeFilters(EMPTY_REGISTER_ADVOCATES_FILTERS);
   }
 
   /** Both decisions end here: the row leaves the demo queue, and nothing else happens. */
@@ -162,12 +157,16 @@ export function RegisterAdvocatesScreen() {
           second frame. */}
       <section className="flex min-w-0 flex-col gap-6 rounded-xl border border-hairline bg-card shadow-raised p-6">
         <RegistrationFilters
-          draft={draft}
+          filters={filters}
           searchRef={searchRef}
-          onDraftChange={setDraft}
-          onApply={applyFilters}
-          onClear={clearFilters}
-          canSearch={canSearch}
+          onChange={changeFilters}
+        />
+
+        {/* Mounted whatever the list is doing, including empty — see `QueueAnnouncer`. */}
+        <QueueAnnouncer
+          from={start + 1}
+          to={start + pageRows.length}
+          total={rows.length}
         />
 
         {pageRows.length === 0 ? (
@@ -236,7 +235,7 @@ export function RegisterAdvocatesScreen() {
 }
 
 /**
- * One text box, then search — the whole filter row.
+ * One text box, filtering as it is typed — the whole filter row.
  *
  * The reference sliced this queue by *User Type*, whose only value on this screen is
  * Advocate, and by *Application Number* alone, which is the one identifier an officer is
@@ -246,67 +245,44 @@ export function RegisterAdvocatesScreen() {
  * question reached them. The visible label is "Search requests" so it does not promise
  * less than it does (ACCESSIBILITY §12 wants a permanent label either way).
  *
- * "Search" is the teal one here. The Ration Teal Law allows one strong action per visual
- * region, and this page has no page-level act to spend it on — there is no bulk approve
- * (see the screen doc) — so it goes to the only committing control present, exactly as
- * `RegisterCasesScreen` does. In the overlay the teal is Approve.
+ * The Search button is gone. With one box there is nothing to compose before asking, so
+ * it only ever stood between the officer and the answer — and at thirty-nine pending it
+ * stood there once per lookup. The way back to the whole queue is the `×` inside the box
+ * (`QueueSearchField`), which is why there is no "Clear search" beside it either: on this
+ * screen the search *is* the filters, and two controls for one undo is one too many.
+ *
+ * **The page now has no teal at all, and the brief already argued that it should not.**
+ * Search was its only `bg-primary`; D9 says the Ration Teal Law has nothing to spend it
+ * on here, because this page has no page-level act — there is no bulk approve (see the
+ * screen doc), and the decision is taken in the overlay, where the teal is Approve.
+ * Nothing was promoted to fill the gap.
+ *
+ * The form element stays so Enter in the box is swallowed rather than reloading the page:
+ * a lone text input inside a `<form>` submits implicitly, and there is no submit handler
+ * left to catch it.
  */
 function RegistrationFilters({
-  draft,
+  filters,
   searchRef,
-  onDraftChange,
-  onApply,
-  onClear,
-  canSearch,
+  onChange,
 }: {
-  draft: RegisterAdvocatesFilters;
+  filters: RegisterAdvocatesFilters;
   searchRef: React.Ref<HTMLInputElement>;
-  onDraftChange: (filters: RegisterAdvocatesFilters) => void;
-  onApply: () => void;
-  onClear: () => void;
-  canSearch: boolean;
+  onChange: (filters: RegisterAdvocatesFilters) => void;
 }) {
   return (
     <form
       className="flex min-w-0 flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onApply();
-      }}
+      onSubmit={(event) => event.preventDefault()}
     >
-      {/* `Field` rather than a bare `Label htmlFor` beside an `Input id`. The DS `Input`
-          destructures `id` out of its props and only puts it back through
-          `useFieldControlProps`, which returns nothing when there is no `Field` context —
-          so an `id` handed to an `Input` outside a `Field` is dropped and the label points
-          at an element that does not exist. `Field` supplies the context, and the label
-          and the control agree on one generated id. Upstream DS bug; see `HearingsFilters`. */}
-      <Field className="min-w-0 sm:w-96">
-        <FieldLabel className="text-body">Search requests</FieldLabel>
-        <InputGroup>
-          <InputGroupAddon>
-            <SearchIcon aria-hidden />
-          </InputGroupAddon>
-          <InputGroupInput
-            ref={searchRef}
-            type="search"
-            autoComplete="off"
-            value={draft.query}
-            onChange={(event) =>
-              onDraftChange({ ...draft, query: event.target.value })
-            }
-            placeholder="name, Bar registration ID or application number"
-          />
-        </InputGroup>
-      </Field>
-
-      <div className="flex items-center gap-2">
-        <Button type="submit" disabled={!canSearch}>
-          Search
-        </Button>
-        <Button type="button" variant="ghost" onClick={onClear}>
-          Clear search
-        </Button>
-      </div>
+      <QueueSearchField
+        label="Search requests"
+        className="sm:w-96"
+        ref={searchRef}
+        value={filters.query}
+        onChange={(query) => onChange({ ...filters, query })}
+        placeholder="name, Bar registration ID or application number"
+      />
     </form>
   );
 }
@@ -382,12 +358,13 @@ function RegistrationItemList({
         return (
           <li
             key={request.id}
-            className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-4"
+            {...rowActivation("flex flex-col gap-2 rounded-lg bg-surface-sunken p-4 transition-colors hover:bg-accent-strong")}
           >
             <button
               type="button"
               onClick={() => onOpen(request)}
-              className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground tabular-nums underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
+              {...rowOpener}
+                className={cn(rowOpenerClass, "tabular-nums")}
             >
               <span className="sr-only">Review </span>
               {request.applicationNumber}

@@ -1,6 +1,11 @@
 "use client";
 
 import {
+  rowActivation,
+  rowOpener,
+  rowOpenerClass,
+} from "@/lib/employee/row-activation";
+import {
   Table,
   TableBody,
   TableCell,
@@ -82,14 +87,15 @@ export function ReschedulingRequestTable({
           <td colSpan={4} className="h-2 p-0" />
         </tr>
         {rows.map((request) => (
-          <TableRow key={request.id} className="bg-card">
+          <TableRow key={request.id} {...rowActivation("bg-card")}>
             <TableCell
               className={cn(cellClass, "min-w-64 font-medium whitespace-normal")}
             >
               <button
                 type="button"
                 onClick={() => onOpen(request)}
-                className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
+                {...rowOpener}
+                className={rowOpenerClass}
               >
                 <span className="sr-only">Review </span>
                 {causeTitle(request)}

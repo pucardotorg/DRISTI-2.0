@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  rowActivation,
+  rowOpener,
+  rowOpenerClass,
+} from "@/lib/employee/row-activation";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
@@ -133,7 +138,7 @@ export function SignEvidenceTable({
             <TableRow
               key={row.id}
               data-state={selected ? "selected" : undefined}
-              className="bg-card"
+              {...rowActivation("bg-card")}
             >
               <TableCell className={cn(cellClass, "w-12")}>
                 <Checkbox
@@ -146,15 +151,17 @@ export function SignEvidenceTable({
                   `text-foreground` rather than the reference's teal underline: the teal is
                   rationed for the one strong action on the screen, and twenty-five
                   underlined teal names down a column is the colour ui-craft §4 spends it
-                  on instead. The underline arrives on hover and focus, where it is an
-                  affordance rather than decoration. */}
+                  on instead. The underline now arrives on the *row's* hover, wherever
+                  the pointer sits, and on this control's own focus — see
+                  `rowOpenerClass`. */}
               <TableCell
                 className={cn(cellClass, "min-w-64 font-medium whitespace-normal")}
               >
                 <button
                   type="button"
                   onClick={() => onOpen(row)}
-                  className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
+                  {...rowOpener}
+                className={rowOpenerClass}
                 >
                   <span className="sr-only">{`Read and sign ${document}, ${exhibit}, in `}</span>
                   {causeTitle(row)}
