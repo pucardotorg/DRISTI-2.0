@@ -1,1063 +1,1531 @@
 # Register cases
 
-Status: building
-Updated: 2026-09-10
-Source: docs/product/product-foundation.md · docs/product/domain/journey.md ·
-docs/product/domain/actors.md · docs/product/open-questions.md ·
-user in this conversation (2026-09-02): screenshot of the legacy Register
-Cases list; “get the sense of the idea and, using our table container,
-please design this section”; owner (Abhiram) 2026-09-10: the complaint
-file critique recorded in §5a and §14
-DS read: `vendor/pucar-design-system` (pin `ds.lock.json` →
-`pucardotorg/dristi-design-system` e0cadea6b9d4) — `AGENTS.md`,
-`ACCESSIBILITY.md`, `RESPONSIVE.md`, foundations `laws` / `typography` /
-`spacing` / `colors` / `elevation`, `table` / `button` / `empty` / `field` /
-`input-group` / `pagination` / `select` / `label` / `description-list` /
-`accordion` / `attachment` / `item` / `timeline` / `badge`
-Skills read: `ui-craft` §0–§5 (layering, stroke, type, spacing ladder),
-`propose-ui-brief` + `references/staff-ux-thinking.md` (nine passes)
+Status: draft — **the complaint's screen is rebuilt again, from the owner's glancing
+framing.** The queue stands as built. §5a-i **A** (2026-09-11 night) is the current design;
+§5a-i **B** (2026-09-11 evening) is the two-pane work, which survives as the *dig-in* view
+rather than the landing; §5a-ii is everything before it, each item with a verdict.
+Updated: 2026-09-11
+Source: docs/product/product-foundation.md (Kerala spine, L72–74) ·
+docs/product/domain/journey.md (§138/§142 chain, L30–39) ·
+docs/product/domain/actors.md (L38, L45, L48) · docs/product/open-questions.md ·
+docs/product/domain/practice-notes.md (`ke-scrutiny-officer-2026-07`) ·
+user in this conversation (2026-09-02): screenshot of the legacy Register Cases list ·
+owner (Abhiram) 2026-09-10: the complaint-file critique recorded in §5a-ii and §14 ·
+**owner (Abhiram) 2026-09-11: the Job, quoted in full in §4** ·
+**owner (Abhiram) 2026-09-11 (night): the glancing framing, quoted in full in §1**
+DS read: `vendor/pucar-design-system`, pin `ds.lock.json` =
+`e0cadea6b9d459bd3c58eed840974c6c610ad624`, `remote: pucardotorg/dristi-design-system`.
+**`npm run check:ds-fresh` was not run — this session has no shell.** The pin is verified
+as a fact in the repo, not as the checked-out HEAD. Run it before opening a DS file.
+Files opened for this revision: `AGENTS.md` (precedence, rules 1–10, 6a, the token-meaning
+table), `src/components/ui/banner.tsx` (variants and their fixed icons),
+`src/components/ui/item.tsx` (row primitive, variants and slots), foundations `colors`
+(the semantic mapping — `warning-ink` / `success-ink` are *text and icon, never a fill*),
+foundations `icons` (the allowlist, `size-4` in controls, colour via text utilities and
+never decorative teal), and the `src/components/ui/` catalog re-globbed — **67 components**.
+Earlier revisions also read `ACCESSIBILITY.md`, `RESPONSIVE.md`, foundations `laws` /
+`typography` / `spacing` / `elevation`, and `table` / `button` / `empty` / `field` /
+`input-group` / `pagination` / `select` / `label` / `description-list` / `accordion` /
+`attachment` / `item` / `timeline` / `badge` / `document-slot`.
+Skills read: `propose-ui-brief` + `references/staff-ux-thinking.md` (nine passes),
+`ui-craft` §0–§5.
 
-Code read: `apps/dristi-app/src/components/employee/schedule-screen.tsx`,
-`schedule-table.tsx`, `hearings-screen.tsx`, `hearings-table.tsx`,
+Code read for this revision: `lib/employee/case-review.ts` (whole file, re-read at
+`d885d30` — the seven decidable checks in D15 are counted off it) ·
+`components/employee/register-advocates-dialog.tsx` (`ReviewStage`, `EvidenceColumn`, the
+stage machine) · `docs/design/proposals/register-advocates.md` (**D23** — "a finding opens
+where it is stated" — D24, D25, D26).
+Earlier revisions read: `components/employee/case-review-screen.tsx`,
+`components/employee/scrutiny/case-workbench.tsx`, `scrutiny/flag-composer.tsx`,
+`scrutiny/bundle-view.tsx`, `scrutiny/history-sheet.tsx`, `lib/employee/register-cases.ts`,
+`schedule-screen.tsx`, `schedule-table.tsx`, `hearings-screen.tsx`, `hearings-table.tsx`,
 `list-footer.tsx`, `lib/employee/schedule.ts`, `lib/employee/navigation.ts`,
-`components/employee/case-review-screen.tsx`, `lib/employee/case-review.ts`,
-`components/cases/document-preview.tsx`,
-`components/cases/submission-record-dialog.tsx`,
-`components/employee/application-review-dialog.tsx`,
-`components/employee/register-advocates-dialog.tsx`,
-`components/employee/scrutiny/bundle-view.tsx`,
-`lib/filing/types.ts`, `lib/filing/README.md`,
-`/Users/abhiramrajilan/Desktop/account-creation-handover.md` (REG-13, REG-14)
+`components/cases/document-preview.tsx`, `components/cases/submission-record-dialog.tsx`,
+`components/employee/application-review-dialog.tsx`, `lib/filing/types.ts`,
+`lib/filing/README.md`, `/Users/abhiramrajilan/Desktop/account-creation-handover.md`
+(REG-13, REG-14).
 
 ---
 
 ## 1. Context
 
-**Where this sits.** Register cases is the first row in the rail's
-**Actions** group, next to Approve copy application. Hearings already
-ships three list screens that share one furniture: page title on the
-page, **one** lifted panel (`rounded-xl border-hairline bg-card
-shadow-raised p-6`) holding filters, table and `ListFooter`. This
-screen is the next row down that group of work.
+**Where this sits.** Register cases is a row in the rail's **Actions** group, beside
+Scrutinise submitted cases and Approve copy application. It carries a queue of complaints
+(`/employee/register-cases`) and, behind each cause title, that complaint's own screen
+(`/employee/register-cases/<id>`). The queue is settled and unchanged by this revision.
 
-**The reference (screenshot, 2026-09-02).** A page titled Register
-Cases: one labelled search (“Case Name or No, Advocate”), a teal Search
-and a Clear Search text control, then a four-column table — Case Name
-(underlined links), Case Number, Advocates, Days Since Submitted (every
-value rust/orange) — and a pager. Three rows; the rail badge reads 3.
-The rest of the chrome is the legacy sidebar, not in scope.
+**Where it sits in the case's life.** `product-foundation.md` L72–74 gives the Kerala
+spine: 1 filing → **2 scrutiny & defect check (Registry; before numbering / cognizance)**
+→ 3 cognizance & issue of process. This screen is the seam between 2 and 3.
+`domain/actors.md` L38 and L45 name the actor at that seam: the **Judicial Magistrate of
+the First Class** — "it takes cognizance of the complaint". `journey.md` L34 gives the
+act: "The Magistrate takes cognizance of the offence on the complaint" (BNSS §210, §223,
+NI Act §145).
 
-**In scope:** the list — title, search, table/item list, days-waiting
-column, empty states, pagination, wiring the rail row. **Since
-2026-09-09, also the complaint's own file** behind a cause title
-(`/employee/register-cases/<id>`) — see §5a.
+**Who this is for — confirmed by the owner, 2026-09-11.** *"this is the screen a
+magistrate sees after it passes through scrutiny."* This resolves who logs in **for this
+screen**, and it agrees with `actors.md` L38 independently. It does **not** resolve
+`docs/product/open-questions.md` L9–12 product-wide, and this brief does not claim it does.
 
-**Out of scope:** performing registration / taking cognizance (a real
-judicial act this build does not do); Approve copy application;
-changing the Actions group itself.
+### The framing that decides the shape — owner (Abhiram), 2026-09-11 (night)
 
-**Ownership (2026-09-10).** The complaint file is Neer's screen
-(court-side owner). This revision is made on `feature/register-advocates`
-at the product owner's (Abhiram's) instruction. Neer's reasoning is kept
-wherever it survives; every change is attributed in §14. **His `Job:
-unconfirmed` is untouched** — nothing in this revision defines what
-registration is. It only removes what was invented.
+Quoted in full, because every decision in §5a-i A is measured against it:
 
-**Who this is for.** Who logs in is still unanswered
-(`docs/product/open-questions.md`). The court-side demo runs as a JMFC
-magistrate (`lib/employee/content.ts`); that is a demo identity, not a
-product fact. This is a staff worklist, so the brief designs for a
-professional repeat user (throughput, density) and flags that in §12.
+> "the judge or the magistrate does not have a lot of time to sit and verify a lot of
+> these kind of things. So the design should be very friendly and not cognitively taxing.
+> It shouldn't look overwhelming. It should be very simple to navigate, very to the
+> point… He already has a lot of other things to manage. So this shouldn't become an
+> overhead on him. This is just a final check, almost like how in GitHub and everything,
+> the people who do pull requests, they do all the work. The reviewer will just glance
+> through something. So this is that equivalent of the glancing experience that you need
+> to design for."
 
-**Where the file's facts come from (confirmed 2026-09-10, ux-designer).**
-The e-filing model `lib/filing/types.ts` is the registry of attributes a
-§138 complaint actually carries — `Complainant`, `Accused`,
-`ChequeDetails`, `DemandNotice`, `Jurisdiction`, `Witness`, `AdrPrayer`,
-`IntakeSlot`, `SignState`. It is the *contract* the filing front end
-writes and the seam a backend replaces (`lib/filing/README.md`). This
-screen reads the other end of that model, so it is the source §5a cites.
-Advocate identity traces further, to the account-creation handover:
-`REG-13` (Bar registration ID, looked up against the Bar Council
-database) and `REG-14` (photo of the Bar ID card).
+**What it changes, in one sentence.** The screen's job is not to let him check; it is to
+tell him **what has already been checked, and what could not be.** In the pull-request
+analogy the reviewer does not re-run the contributor's work: they read a title, trust the
+automated checks, skim what changed, and look closely only where something snags. The
+version of §5a written an hour earlier — two panes, twenty-nine checkable claim rows, one
+document at a time — is a *better verification tool*, which is the scrutiny officer's job
+in a nicer wrapper and exactly what "not as exhaustive as the scrutiny officer's flow"
+(§4) forbids. That is problem 20, and it is mine.
+
+**The material fact that makes the new shape buildable today.**
+`lib/employee/case-review.ts`, as committed at `d885d30`, already computes the §138 chain
+and already knows the file's gaps. Seven of the magistrate's questions are decidable by
+machine right now, over fields the registry holds and constants the module already
+exports — enumerated with their derivations in **D15**. So the exception list is real, not
+aspirational: `r-1333` fails the presentation window, `r-1588` is late with no application
+to condone, `r-1490` is missing the accused's ID proof *and* has no advocate on record,
+`r-330` and `r-1654` carry a part payment. The demo data exercises every branch and no new
+fixture is needed.
+
+**A second owner statement, relayed and deliberately unresolved.** Separately from the
+framing above, the owner has said *"we should guide him to either dismiss or accept the
+case."* That may be loose phrasing for the send-back this brief builds, or it may mean
+**Dismiss is a real third outcome** after all. **§12.9 is not resolved here** and it is the
+first thing in §12 for that reason: it is the one open question that would change a
+control on the screen.
+
+**What the previous rounds got wrong, and why.** Four rounds have now landed on this
+screen. The first three polished a *file to be read* while `Job: unconfirmed` sat at the
+top of the brief. The fourth had the Job and still built the wrong instrument, because
+having the Job is not the same as having the *posture*: "a quick verification of does this
+information match with another" was read as *give him the best comparison surface*, and
+the owner meant *give him a glance and a way in*. Worth writing down rather than quietly
+fixing: **the attribute census was clean, the Job was quoted, and the screen was still
+wrong — because nothing had said how much of the reader's attention the screen was
+entitled to.**
+
+**Ownership.** The complaint screen is Neer's (court-side owner). This revision is made on
+`feature/register-advocates` at `d885d30` at the product owner's instruction. Neer's
+reasoning is kept wherever it survives; every change is attributed in §14.
+
+**In scope:** the queue list (settled); the complaint's **glance** (the landing); the
+complaint's **full file** (the dig-in view, which is the two-pane work relocated); the two
+outcomes and their capture; the header; and what happens to the reading index and the case
+timeline. One feature, one brief; neither view is spun off.
+
+**Out of scope:** the scrutiny workbench (`/employee/scrutiny`, a different queue with a
+different object); the advocate's side of a returned complaint; what a registered complaint
+is renumbered as (§12.4); notification delivery (register-advocates §12.1).
 
 ---
 
 ## 2. Problem
 
-1. **The row is a dead end.** The rail already names Register cases and
-   carries a count (4 in the transcribed nav, 3 on the screenshot). The
-   control says it goes nowhere. *(Resolved 2026-09-09 — the row opens
-   the list, the cause title opens the file.)*
-2. **The reference is a flat white page.** Title, search and table sit
-   on the same sheet with no panel. Hearings and Schedule already
-   solved this shape with one lifted table container. A second layout
-   for the same kind of queue would be two products. *(Resolved.)*
-3. **The reference leans on placeholders and colour.** The search has
-   no visible field label that matches DS ACCESSIBILITY §12. Days are
-   orange on every row with no other encoding — colour alone. Case
-   names are links to a registration flow this build does not have.
-   *(Resolved by §5.4 and §5.6.)*
+Numbered so decisions and reviewers can cite them. Problems 1–12 are the early rounds' and
+are kept with their resolution; 13–19 are the evening revision's; **20–23 are this
+revision's**, found by re-running the nine passes against the glancing framing.
 
-**The complaint file's own problems (found 2026-09-10, owner critique +
-the nine passes).** Numbered from 4 so decisions can cite them:
+1. **The row is a dead end.** *(Resolved 2026-09-09 — the row opens the list, the cause
+   title opens the screen.)*
+2. **The reference is a flat white page.** *(Resolved — one lifted panel, matching Hearings
+   and Schedule.)*
+3. **The reference leans on placeholders and colour.** *(Resolved by §5.4 and §5.6.)*
+4. **The file's structure is hidden behind a control nobody sees.** *(Resolved 2026-09-10 —
+   the accordion is gone; §5a-ii.2a.)*
+5. **The value column is 14 pixels wide at 1280.** *(Resolved 2026-09-10 — terms became
+   attribute names, the row switches on the container; §5a-ii.4/4a.)*
+6. **Nineteen of the file's facts are not attributes.** *(Resolved 2026-09-10/11 — cut; the
+   census returns **zero invented attributes**, §5a-iii.)*
+7. **Two facts are prose standing in for a field.** *(Resolved — `replied` is a `YesNo`,
+   `grounds` is `condonationReason`, the Synopsis is cut.)*
+8. **Six type levels down one reading column.** *(Resolved — four sizes; §7.)*
+9. **The document tile is the wrong component.** *(Resolved 2026-09-11 — e-filing's
+   `DocumentSlot` + `ThumbnailButton`, on the owner's ruling.)*
+10. **The reading column is the narrowest of three.** *(Resolved 2026-09-10; reopened as
+    problem 18; **closed by D17** — the file view has two columns, not four.)*
+11. **The tint marks the norm.** *(Resolved — the confirmations `Alert` is one fact row.)*
+12. **One off-ladder size.** *(Resolved — `size-9` → `size-8`.)*
 
-4. **The file's structure is hidden behind a control nobody sees.** All
-   five sections are open at first paint, so the `AccordionTrigger`
-   chevron is the only thing saying they fold. The owner: “it wasn't
-   very apparent to me that litigant details, case-specific details,
-   etc. are collapsible accordions until I saw it.” The control is
-   invisible when it matters and irrelevant when it is seen — the clerk
-   is reading the whole file. *(Pass 6, pattern census: the disclosure
-   is the one interaction on this screen with no sibling; every other
-   region is a plain panel.)*
-5. **The value column is 14 pixels wide at 1280.** The term column is
-   pinned at a fixed `17rem` (`FACT_ROW` in `case-review-screen.tsx`)
-   because the terms are the e-filing form's own questions — “Date the
-   fifteen days from service were complete”. Measured on the render:
-   `grid-template-columns: 272px 14px`; a phone number wraps one
-   character per line. Derived independently: at 1280 the rail takes
-   272px, the page 64px of padding, the two side rails 240 + 272 and
-   two 32px gaps — the reading column is ≈368px, its panel ≈318px
-   inside, its well ≈286px, and a 272px term track plus a 16px gap
-   leaves nothing. *(Pass 4, real weather — the row was designed
-   against the viewport, not against the column it lives in.)*
-6. **Nineteen of the file's facts are not attributes.** Eleven have no
-   field behind them anywhere (“Case category: Criminal”, the accused's
-   power of attorney, “Additional details about the cheque”, full/part
-   liability, total owed, the Synopsis, the accused's filed letter and
-   its document, a document's page count, and two timeline steps).
-   Four restate another row. Two are the same on every complaint DRISTI
-   will ever hold. Two — a filename and a file size — name an upload no
-   store holds. Full accounting in §5a Attributes. *(Pass 9, attribute
-   census — the owner's ask: “everything should come from an attribute
-   that is traceable, and we shouldn't be inventing new attributes
-   everywhere.”)*
-7. **Two facts are prose standing in for a field.** “Date of reply to
-   the notice” holds either a date or the sentence “No reply received” —
-   one slot, two types, and the real attribute (`DemandNotice.replied`,
-   a `YesNo`) never appears. “Grounds stated” prints one of two composed
-   sentences depending on whether a document arrived, where
-   `Jurisdiction.condonationReason` is the field. The Synopsis is the
-   pure case: two paragraphs, machine-picked by outcome, filterable by
-   nothing. *(Pass 9.)*
-8. **Six type levels down one reading column.** `text-title-l` →
-   `text-title-s` → `text-body` 600 → `text-body` 500 → `text-body-compact`
-   → `text-body` 500 again for values, with the section numbers doing the
-   hierarchy the sizes should. Inside one group panel that is three
-   weights (600/500/400) against `ui-craft` §1.3's two, and the *value*
-   is set larger and heavier than its own term — fifteen rows of
-   emphasis, so nothing is emphasised. The owner: “some tokens of
-   typography also look a little off … check all the typography and
-   spacing usage here.”
-9. **The document tile is the wrong component, and part of it is
-   fiction.** `Attachment` tiles draw an 80×107 page facsimile that is
-   deliberately illegible, then caption it with a derived filename and
-   `1 page · 121 KB`. None of them opens. Ten court-side dialogs already
-   use the app's one `DocumentPreview`
-   (`components/cases/document-preview.tsx`). *(Pass 7, sibling sweep:
-   the same fact — a document on a court file — has two renderings on
-   the same side of the app.)*
-10. **The reading column is the narrowest of three.** Index 240 +
-    timeline 272 = 512px of chrome against 368px of file at 1280. The
-    two rails, which hold five links and seven dates, outweigh the
-    document the screen exists to read. *(Pass 2, domain layout.)*
-11. **The tint marks the norm.** The `Alert variant="info"` carrying the
-    complainant's two confirmations appears on every complaint, because
-    the filing cannot be submitted without them. *(Pass 5 — signal is
-    deviation; this one restates the default in the view's scarcest
-    colour.)*
-12. **One off-ladder size.** The group icon tile is `size-9` (36px);
-    the ladder is `0.5 · 1 · 1.5 · 2 · 2.5 · 3 · 4 · 6 · 8 · 12 · 16`
-    (`AGENTS.md` rule 7a). Everything else on the screen is on it.
+**The file's problems as a magistrate's instrument (found 2026-09-11 evening; passes 1, 2,
+5, 7, 9).** The owner's diagnosis was the frame: *"It became a data dump where neither can
+he cross-verify anything nor can he just quickly approve because so much data is thrown on
+his face."*
+
+13. **The one act the screen exists for cannot be performed on it.** Opening a document
+    opens a modal — `CaseDocuments` renders `<Dialog>` → `ChromeDialogContent`, which draws
+    a `scrim` over the page (`case-review-screen.tsx` L974–982, L1098). At the exact moment
+    the magistrate wants to compare an entered value with its source, **the entered value
+    is covered by the source.** *(Pass 1. Fixed by D1, which now governs the file view.)*
+14. **Nothing tells him whether this file has anything wrong with it.** The file already
+    knows: `CaseFact.exception`, `CaseDocument.state === "absent"`, `CaseAbsence`, and a
+    `CaseChain` whose statutory windows `case-review.test.ts` asserts across all 35. None of
+    it was summarised anywhere. To learn that `r-1588`'s delay-condonation application was
+    never uploaded he had to read to group 6 of 10. **The fast path cost the same as the
+    slow one.** *(Fixed by D14/D15.)*
+15. **The statutory chain is the second section; the first screenful is a phone number.**
+    Section order was the e-filing form's, so the cheque began after ten rows. *(Pass 2.
+    Fixed by D4, and by D18 for the glance.)*
+16. **Both decisions are dead, and one of them is the wrong act.** `Dismiss case` was never
+    traced to anything and is not one of the two outcomes the owner named. *(Pass 3. Fixed
+    by D9 — but see §12.9, which this revision raises rather than settles.)*
+17. **Fifteen of the forty-seven values on this file have no source document.** Counted on
+    `r-1840` (§5a-iii): 29 checkable against a document, 3 computed from two checkable
+    dates, **15 declared-only**. Six of the fifteen are the entire witness group, the one
+    group in the model carrying no `documents` array. *(Pass 9. This is the split that
+    decides what a surface can honestly promise — see problem 23.)*
+18. **Two of the three columns serve reading, and neither serves verification.** 448px of
+    permanent chrome at 1280 for a four-entry index and a seven-step timeline, two of whose
+    steps no store holds. *(Fixed by D7/D8, and the columns are down to two under D17.)*
+19. **The norm is marked in three places while the one exception is at row 14.** A
+    one-member status `Badge`; `meta="Filed"` on eighteen document rows; a `Documents`
+    caption on ten lists — against one `CaseFact.exception` buried in the cheque group.
+    *(Pass 5. Fixed by D3/D6.)*
+
+**The glance's problems (found 2026-09-11 night; all nine passes re-run).**
+
+20. **The screen I proposed an hour ago is a better instrument for the job the magistrate
+    delegated.** Two panes, twenty-nine checkable rows, one document at a time: that is the
+    scrutiny officer's task with better furniture. The owner's own line is *"not as
+    exhaustive as how the scrutiny officer's flow is"*, and the pull-request framing (§1)
+    makes the reason explicit — the reviewer does not re-run the contributor's work.
+    *(Pass 1, re-walked: a magistrate between two hearings, not an officer at a desk. **My
+    defect, and the reason this revision exists.**)*
+21. **A clean file said nothing, and nothing cannot be told from "not checked".** D2 made
+    the check region render zero rows on 32 of 35 complaints; §11 logged the cost and
+    accepted it. Under the glancing framing that trade inverts: the fast path is supposed to
+    be *trust*, and trust needs a stated basis. **Muting the norm is not deleting it** — one
+    line for a norm is not twelve green ticks for it. *(Pass 5, corrected.)*
+22. **The machine already decides seven of the magistrate's questions and the screen
+    surfaced one.** `case-review.ts` at `d885d30` holds the presentation window
+    (`depositedInTime`, surfaced only as row 14 of the cheque group), the notice window, the
+    accrual, the delay and whether its application arrived, the absent slots, counsel, and
+    the payment status. Everything else on the landing was a claim awaiting a human.
+    *(Pass 9: the attributes existed; the surfacing did not.)*
+23. **Nothing said what could not be checked.** Fifteen declared-only values (problem 17),
+    and **no check reads a document** — every one of them compares entered data with other
+    entered data. So an absence of flags reads as *the file has been verified*, which it is
+    not. On a screen that can cost someone their case, an unstated limit on a machine
+    reading is the defect that survives every audit. *(Pass 9 + consequence sizing.)*
 
 ---
 
 ## 3. Objective
 
-- The rail's Register cases row opens a list the bench can already
-  recognise from Schedule hearing.
-- A complaint in that queue is findable by cause, number or advocate
-  without a second filter axis the reference never had.
-- How long each complaint has waited is readable as a number, not only
-  as a colour.
-- **The file (2026-09-10):** every fact on it can be named as a field of
-  the e-filing model or a product-doc citation; the structure of the
-  file is visible without operating a control; and a fact row is legible
-  at the width of the column it is actually in, not at the width of the
-  window. Observable: zero rows in §5a without a source; no
-  `grid-template-columns` track under 8rem at 1280; the file column no
-  longer the narrowest of the three.
+No longer provisional — the Job is confirmed (§4) and the posture is stated (§1).
 
-*Provisional while Job is unconfirmed:* what the clerk is reading *for*
-is not settled, so “the file is legible and traceable” is as far as this
-objective can honestly go. It does not claim the file is sufficient for
-a decision — see §12.1.
+- **The common visit is one screenful and one act.** Observable: on `r-1840` at 1280×800 —
+  identity, the check line, the way into the file, and both controls, **without scrolling**;
+  no region below the fold on a complaint with nothing flagged.
+- **The screen says what ran and what it found, on every file, in one line.** Observable: on
+  32 of 35 complaints the check region is exactly one line and zero rows; and its words
+  never say the complaint is in order, only what the checks did.
+- **The screen states its own limit.** Observable: one caption, on every file, saying the
+  checks read entered data and not documents (problem 23).
+- **A finding names the entered value and the source that would settle it, where it is
+  stated.** Observable: on `r-1333` the row opens onto the two dates and the two documents,
+  and reaching either is one control.
+- **Reading the whole file is deliberate, not the default.** Observable: one control, one
+  route; nothing on the glance opens an overlay.
+- **Both outcomes are the two the owner named**, and the third is an open question rather
+  than a dimmed control (§12.9).
 
 ---
 
 ## 4. Job
 
-**Job: unconfirmed.** Product has not said what Register cases is *for*
-beyond the rail label and the screenshot. Do not invent a slogan.
-**Unchanged 2026-09-10** — nothing in this revision defines the act.
+**Confirmed — owner (Abhiram), 2026-09-11.** Quoted, not paraphrased, and not re-opened.
 
-**What the screenshot shows, attributed:** a queue of complaints with a
-cause title, a number, advocates, and days since submitted. The user
-asked to compose that list in the court-side table container, not to
-design the act of registering.
+> "this is the screen a magistrate sees after it passes through scrutiny. So sometimes a
+> magistrate might spot something and send it back for correction again. A lot of the
+> times he'll just register the case directly only."
 
-**Hypothesis (not settled):** after scrutiny and before numbering /
-cognizance (`docs/product/product-foundation.md` Kerala spine step 2–3),
-complaints wait to be taken on the court's register. CMP numbers in the
-demo follow that reading (`lib/employee/schedule.ts` already treats
-`CMP/…` as pre-cognizance). Treat as provisional.
+> "The annotation and history and everything, I don't think the magistrate needs to see,
+> which is why he delegated that work in the first place in manual scrutiny. In automated
+> scrutiny, that process will anyway not happen. So in case of both, it's almost like a
+> situation of if he wants to dig in, then he can see the entered information against the
+> original source."
+
+> "This round is almost like a light scrutiny, scrutiny light in a way… he becomes a
+> scrutinizer… we should make it fast and easy, not as exhaustive as how the scrutiny
+> officer's flow is. It's almost like a quick verification of does this information match
+> with another, and he'll quickly check and then register the case or send it back for
+> correction again. That sending it back will go to the advocate."
+
+**In the terms the product already uses.** The complaint has passed scrutiny
+(`product-foundation.md` L73) and stands before the magistrate for cognizance
+(`journey.md` L34, BNSS §210). The act is a **confirmation that the entered data matches
+its source document**, with two outcomes: **register** (the common one, taken directly)
+and **send back for correction**, which goes to **the advocate**.
+
+**What this Job is not**, stated by the owner rather than inferred:
+
+- **Not the scrutiny workbench.** No annotation, no defect log, no scrutiny history. He
+  delegated that work; under automated scrutiny it will not exist as a human step at all.
+  `components/employee/scrutiny/` is the same act at full scale *with* that tooling, and
+  it is explicitly what this screen must not become.
+- **Not a file to be read end to end.** "Fast and easy… not as exhaustive." Reading is the
+  dig-in path, not the default.
+- **Not a place to dismiss a complaint.** Two outcomes were named; dismissal was not one
+  of them (problem 16, D9, §12.9).
+
+**What remains open and is not resolved here:** whether product records a scrutiny
+*outcome* the magistrate's screen could carry (§12.10), and whether "register" writes a
+new number (§12.4). The design below works without either.
+
+**Who logs in product-wide is still open** (`open-questions.md` L9–12). This brief
+resolves it for this screen only, on the owner's word, and says so.
 
 ---
 
 ## 5. Decisions
 
-1. **Same screen as Schedule hearing.** Title on the page, one lifted
-   panel, search then table then `ListFooter`. Rejected: a second
-   filter card, or a table that draws its own frame inside the panel
-   (box-in-box; ui-craft §4). *Rule:* compose what already exists.
-2. **Search only — no stage filter.** The reference has one control.
-   Stage belongs to cases already on file (Schedule hearing). A
-   complaint waiting to be registered is in one state. *Judgment.*
-3. **Search is the teal action.** One primary per view (Ration Teal).
-   There is no court-level act above the list (Join VC lives on Today's
-   hearings). Matches Schedule hearing. Clear is ghost. *Law.*
-4. **Visible field label.** `Field` + `FieldLabel` “Search cases”;
-   placeholder hints “case name, number or advocate”. Deviation from
-   the reference, forced by ACCESSIBILITY §12. Smallest available.
-5. **Four columns: case name, case number, advocates, days since
-   submitted.** The reference's columns. Advocates use `CounselCell`.
-   *Judgment + existing pattern.*
-   **Superseded 2026-09-09:** the case name is now a link
-   (`RegisterCaseLink`), because the file behind it exists. It wears the
-   cause list's own quiet-name dress — underlined on hover and focus,
-   never painted — so thirty-five of them do not read as a column of
-   links. The row's `hover:bg-card` cancellation went with it: the DS
-   hover now tells the truth.
-6. **Days are a number, right-aligned, `tabular-nums`, in
-   `text-warning-ink`.** The screenshot paints the wait rust/orange;
-   `warning-ink` is the DS token for that role (status text on a
-   neutral ground, 4.5:1). The number is the encoding; the colour
-   agrees with the reference rather than standing in for it
-   (ACCESSIBILITY §3: never colour alone). Every row uses the same
-   treatment — one presentation per data type (ui-craft §2). No
-   threshold, no badge. *DS colors + judgment.*
-7. **No actions column.** Registering is a real act this build does not
-   perform. A disabled Register button would be furniture around a
-   hole — the same call `ScheduleTable` already made. *Judgment.* Still
-   true: the decisions live at the foot of the complaint's own file,
-   where the clerk has just read the thing they are deciding about.
-8. **Demo data is 35 CMP complaints, longest wait first.** Enough to
-   page at 10 / 20 / 30. Count is derived from the list so the rail
-   cannot disagree. Parties are Kollam fixtures that do not overlap
-   the scheduling queue. Several rows have no counsel, matching the
-   empty Advocates cell on the screenshot. *Judgment; volume asked
-   2026-09-02.*
-9. **Phone: stacked items, not a four-column table.** Same answer as
-   Schedule hearing. Days spelled out (“281 days since submitted”)
-   because there is no column header. *RESPONSIVE.*
+### 5.1 — The queue (unchanged by this revision)
+
+The list at `/employee/register-cases` is settled and nothing below touches it. Kept
+verbatim from the 2026-09-02 pass:
+
+1. **Same screen as Schedule hearing.** Title on the page, one lifted panel, search then
+   table then `ListFooter`. Rejected: a second filter card, or a table that draws its own
+   frame inside the panel (box-in-box; ui-craft §4). *Rule:* compose what already exists.
+2. **Search only — no stage filter.** The reference has one control. Stage belongs to
+   cases already on file. A complaint waiting to be registered is in one state. *Judgment.*
+3. **Search is the teal action.** One primary per view (Ration Teal). Clear is ghost. *Law.*
+4. **Visible field label.** `Field` + `FieldLabel` "Search cases". Forced by
+   ACCESSIBILITY §12.
+5. **Four columns: case name, case number, advocates, days since submitted.** The case name
+   is a link (`RegisterCaseLink`) wearing the cause list's quiet-name dress.
+6. **Days are a number, right-aligned, `tabular-nums`, in `text-warning-ink`.** *Reopened by
+   the sibling sweep — see D12.*
+7. **No actions column.** Registering is a real act; a disabled Register button on every row
+   would be furniture around a hole. The decision lives at the foot of the complaint's
+   screen.
+8. **Demo data is 35 CMP complaints, longest wait first.**
+9. **Phone: stacked items, not a four-column table.** *RESPONSIVE.*
 
 ---
 
-## 5a. The complaint's file (added 2026-09-09; revised 2026-09-10)
+## 5a. The complaint's screen
 
-Owner asked for the legacy Register Cases → View screen, with the
-left panel kept constant. Built at
-`/employee/register-cases/[caseId]` — `case-review-screen.tsx` over
-`lib/employee/case-review.ts`.
+Four parts, in one section, because code comments cite `§5a.N`:
 
-**Passes run (2026-09-10):** all nine of
-`.claude/skills/propose-ui-brief/references/staff-ux-thinking.md`, in the
-skill's order — Tuesday, domain layout, **attribute census (third)**,
-control vocabulary, real weather, exception vs. norm, pattern census,
-sibling sweep, render judgment. Findings are problems 4–12. **Pass 8 is
-discharged only in part and must be re-run on the built screen:** this
-session has no shell, so no screenshot was taken and
-`npm run check:ds-fresh` was not run — the pin was read from
-`ds.lock.json` instead. The one render measurement this revision leans
-on is the owner's own (`grid-template-columns: 272px 14px` at 1280),
-which the layout arithmetic in problem 5 reproduces independently. The
-builder runs `check:ds-fresh` before touching a DS file and re-runs
-pass 8 at 1280, 1440 and 375 before reporting done.
+- **5a-i A** — the **glance** (2026-09-11 night): `D13`…`D22`. The current landing.
+- **5a-i B** — the **full file** (2026-09-11 evening): `D1`…`D12`, each with a verdict.
+  Most of them stand; what changed is *where they apply* — they now describe the dig-in
+  view, not the landing.
+- **5a-ii** — the 2026-09-09 / 09-10 / 09-11 decisions as written, each with a verdict.
+  Nothing is deleted; `§5a.4b`, `§5a.6`, `§5a.8`, `§5a.9a`, `§5a.10` all still resolve.
+- **5a-iii** — the Attributes table, now with a **Surfaced** column.
 
-1. **Three columns at `lg`: reading index · the file · the case
-   timeline.** The index is `sticky` at `--chrome-sticky-top`, marks
-   the section being read (`aria-current`), and its entries jump to a
-   section. The reference lets it scroll away; keeping it put was the
-   owner's ask and the point of a five-part file. Below `lg` it becomes
-   the first panel rather than disappearing — chrome must not vanish
-   (`ui-craft` §0).
+**Passes run (2026-09-11 night):** all nine of
+`.claude/skills/propose-ui-brief/references/staff-ux-thinking.md`, in the skill's order —
+Tuesday, domain layout, **attribute census (third)**, control vocabulary, real weather,
+exception vs. norm, pattern census, sibling sweep, render judgment. Findings are problems
+20–23 and the sweep in D22. **Pass 8 is not discharged and is not claimed:** this session
+has no shell, so nothing was curled, no screenshot was taken, and `npm run check:ds-fresh`
+was not run. Every width below is arithmetic from the known chrome (256px rail,
+`p-6 md:p-8` page padding). **What the builder must measure is listed in §11**, and the
+render can veto any of it.
 
-   **The tracks are rebalanced (2026-09-10, judgment).**
-   `lg:grid-cols-[minmax(0,13rem)_minmax(0,1fr)_minmax(0,15rem)]`,
-   replacing `15rem / 1fr / 17rem`. Measured: at 1280 the old split gave
-   240 + 272 = 512px of rail against **368px** of file, and at 1440,
-   512 against 528 — the document the screen exists to read was the
-   narrowest column on it (problem 10). The new split gives the file
-   **448px** at 1280 and **608px** at 1440. The index holds five entries
-   at `text-body-compact`; “Case specific details” wraps to two lines in
-   208px, which its `min-h-10` rows already allow. Rejected: dropping the
-   timeline below `lg` only (it is the one place the §138 clock is
-   visible, and problem 10 is a proportion problem, not a presence
-   problem). Given up: two-line index entries at 1280.
+---
 
-   **What decides the marked entry, in order.** A click *claims* the
-   entry: the reader has said where they are going, so the index says so
-   at once and keeps saying so until they scroll somewhere themselves
-   (wheel, touch, or a key that scrolls). Under that, an
-   `IntersectionObserver` tracks the section the page is actually in —
-   the first one inside a band from the heading's own resting offset down
-   to 45% of the viewport, decided from **every** section's current state
-   rather than from one callback's batch. Last, the end of the scroll is
-   its own answer: once the page has no scroll left, the marked entry is
-   the *last* section on screen instead of the first.
+### 5a-i A — the glance, 2026-09-11 (night)
 
-   Neither the claim nor the end-of-scroll rule is decoration over a
-   working observer: the last sections are the short ones, so the page
-   runs out of scroll before their headings can reach any reading line —
-   measured on `r-1840`, the last heading would need 167px more than the
-   document has. No band, wherever placed, can read the bottom of a
-   document as anything but the section above the last one.
+#### D13 — Push back first: the landing is not a verification surface, and that is the whole revision
 
-   The end is read from the scroll position, not from "the foot is in
-   view": on a narrow viewport the last section is tall enough that the
-   end of the column appears while the reader is still properly inside
-   the section above it, and the first build of this rule marked the
-   wrong entry there. A 1px sentinel at the end of the reading column
-   says only when the position is worth watching, so the `scroll`
-   listener is attached for the last screenful and removed again. *Added
-   2026-09-09.*
+**Supersedes my own D1 as a description of the landing.** D1 was right that a document must
+open beside its claims and never over them; it was wrong that the *landing* is where claims
+and documents meet. A screen that presents twenty-nine checkable rows has handed the
+magistrate the scrutiny officer's job with better furniture (problem 20).
 
-   **The `open` state and the jump-opens-a-folded-section behaviour go
-   with the accordion (item 2a). The claim, the observer and the
-   end-of-scroll rule all stay exactly as they are** — they are about
-   where the reader *is*, not about what is folded, and they are the best
-   reasoning in this brief.
-2. **Five numbered sections, sentence case.** Litigant details · Case
-   specific details · Additional details · Submissions from the
-   accused · Payment details. The reference numbers two sections "4";
-   Title Case does not survive the Laws.
+So the landing inverts. **It does not let him check; it tells him what has been checked and
+what could not be.** Three regions and two acts, in this order:
 
-   **2a. Not collapsible (confirmed by the owner, 2026-09-10).** The
-   `Accordion` / `AccordionItem` / `AccordionTrigger` / `AccordionContent`
-   goes; each section becomes a plain region — `<section>` with an `h2`,
-   keeping `id={anchorFor(section.id)}` and
-   `scroll-mt-(--chrome-sticky-top)` so the index still lands on it.
-   Every section was open by default and the sticky index already
-   navigates, so the fold hid what the clerk is there to read while its
-   own affordance stayed invisible (problem 4). Removing it also removes
-   three workarounds it forced: the `not-last:border-b-0` variant reset,
-   the `h-auto` cancellation of Radix's non-remeasured
-   `--radix-accordion-content-height`, and the `flushSync` that had to
-   commit an unfold before a scroll could reach it. Rejected: keeping
-   the accordion and adding a visible “collapse all” control — that
-   spends a control on a state nobody asked for. Given up: the ability to
-   fold away a section already checked; nobody has asked for it, and the
-   index is the way back. *Owner (Abhiram), 2026-09-10.*
-3. **One lifted panel per group, and one well inside it for the
-   content** — whether that content is several named records (a party,
-   a cheque, an advocate) or the group's own facts plus the documents
-   backing them. The fill is what separates a group's parts; nothing
-   inside carries a border. A group with nothing on the file keeps
-   no well — a sunken box around one muted sentence is a grey void, and
-   the sentence is the whole content. *Revised 2026-09-09.*
+1. **Who and how much** — the header: the complaint's identity and the money (D18).
+2. **What the machine found** — one line always, and a row per finding (D14, D15, D16).
+3. **The way in** — one control to the full file (D17).
+4. **The act** — Register, or send back for correction (D9, unchanged).
 
-   **Unchanged in substance 2026-09-10; two spacing corrections.** With
-   the accordion gone the section rhythm is stated directly rather than
-   inherited: reading column `flex flex-col gap-8`, each section
-   `flex flex-col gap-4` (h2 → groups), groups `gap-6`. Heading sits
-   closer to its content (4) than groups sit to each other (6), which sit
-   closer than sections (8) — spacing before strokes, `ui-craft` §1.1,
-   and no rule is needed anywhere. And the group's icon tile drops from
-   the off-ladder `size-9` to `size-8` with its `size-4` icon
-   (problem 12; `AGENTS.md` rule 7a).
-4. **Fact rows use the DS `DescriptionList` at its own default column.**
-   `FACT_ROW`'s `sm:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]` is
-   deleted. The DS default is
-   `grid-cols-[minmax(7rem,10rem)_1fr] gap-4 py-3`, and it works the
-   moment the terms stop being the form's questions — see item 4a. The
-   `border-b border-border` the DS row ships still drops to
-   `border-hairline`: fifteen rows at full strength would be the darkest
-   marks on the page (`ui-craft` §1.1).
+The full file — every entered value, every document, each openable beside its claims — is
+one control away and is exactly the screen D1–D12 designed. **That work is not discarded;
+it is demoted from landing to destination**, which is what "if he wants to dig in, then he
+can see the entered information against the original source" (§4) actually describes.
 
-   **The row switches on the container, not the viewport
-   (2026-09-10, judgment).** `@container` on the well; the two-column
-   grid applies at `@xs` (20rem) and the row stacks below it. This is
-   the direct fix for problem 5: `sm:` asks how wide the *window* is,
-   and the window was never the constraint — the reading column was. At
-   1280 the well is ≈350px wide inside the rebalanced tracks, so rows
-   are two-column with a 112–160px term and a 174px value; at 1440,
-   160 and 334; on a 375 phone the well is ≈245px and the rows stack,
-   which is the same answer the old `sm:` rule gave for the right
-   reason. Container queries are already Dristi's idiom
-   (`scrutiny/bundle-view.tsx` uses `@md:`). Rejected: stacking every
-   row always (fifteen two-line rows per group, and the term/value pair
-   stops being scannable); rejected: a wider fixed term column (the same
-   defect at a different number).
+*Rule:* the owner's glancing framing (§1); §4's "not as exhaustive as how the scrutiny
+officer's flow is"; pass 5 applied to a whole screen rather than to a badge.
+*Rejected — keep the two panes and shorten the list.* Any subset of twenty-nine rows is
+still an invitation to check, and choosing the subset is the design inventing which facts
+matter, which is the thing D2 was careful not to do.
+*Rejected — a wizard of one check per step.* Ten interactions to confirm nothing, on the
+common file, and a sequence the domain does not have.
+*Given up:* a magistrate who wants to read the whole complaint pays one navigation for it.
+That is the trade the framing asks for, stated plainly rather than hidden: the common visit
+gets cheaper and the rare one gets one click dearer.
+*Fixes problems 20, 21, 22, 23.*
 
-   **4a. A term is the attribute's name, not the form's question
-   (confirmed by the owner, 2026-09-10).** “Date when the 15 days from
-   service of legal demand notice was complete” becomes **“Notice period
-   ended”**; “Date of return as per the cheque return memo” becomes
-   **“Returned on”**; “Power of attorney given to somebody else” becomes
-   **“Power of attorney”**. The fix is upstream of layout — with
-   attribute names, the DS default column holds and both the `FACT_ROW`
-   override and the 14px bug disappear at once. The full renaming is
-   the `slot` column of §5a Attributes. *Note for the record:* a “terms
-   shortened to noun phrases” pass was built and then reverted on Neer's
-   branch on 2026-09-09 at **his** session's request; this one is made at
-   the product owner's, which is why it stands.
+#### D14 — The check ledger: one line on every complaint, rows only for findings
+
+**Supersedes D2's silence.** D2 made the region render *nothing* on a clean file. That was
+pass 5 applied honestly and it produced problem 21: silence is indistinguishable from "no
+check ran", so the fast path had no stated basis. The correction is proportion, not volume.
+
+On **every** complaint, one line, in the same place, in the same words:
+
+> **Seven checks ran on the entered data. Nothing flagged.**
+> *(caption)* Checks compare entered values with each other. No document was read.
+
+When something fires, the same line counts it — *"Seven checks ran on the entered data. Two
+need a look."* — and each finding takes one row beneath it (D16). Nothing else changes;
+there is no second layout for a flagged file.
+
+Three rules the copy obeys, and each one is load-bearing:
+
+- **It is the system's finding, never the court's claim.** It says what ran and what it
+  found. It never says the complaint is in order, never says "safe to register", and never
+  recommends an outcome. `flag-composer.tsx`'s own lesson — *"pre-filling a defect
+  assertion on the officer's behalf is the machine making the claim"* — binds harder here,
+  because the reader is a judge.
+- **It states its own limit.** The caption is the answer to problem 23 and it is why the
+  line can be trusted at all: seven checks over entered dates, amounts and slots, and not
+  one of them opens a document. Constant on every file, and it stays, because it is
+  *guidance*, not an attribute restating the norm (`ui-craft` §1.6; the skill's "facts are
+  attributes; guidance is copy").
+- **A pass is never a mark.** No green tick per check, no `success` tint, no per-group
+  cleared state. Twelve green ticks on thirty-two files is the norm marked, which
+  `register-advocates` already rejected and §5a-ii.10 already killed once on this screen.
+  The passes collapse into the count in one sentence; only failures take rows.
+
+*Rule:* pass 5 (signal is deviation — *proportioned*, not deleted); AGENTS rule 6 (three
+treatments per status, and none of them is "a tick on everything"); ACCESSIBILITY §3 (never
+colour alone — every finding is words first).
+*Rejected — `Banner variant="success"` on a clean file.* A green band on 32 of 35
+complaints is the tinted `Alert` that was cut on 2026-09-10 wearing a new colour.
+*Rejected — a percentage or a score.* A number the court did not compute and cannot defend.
+*Given up:* the line is one more constant region than D2 had. Accepted: it is one line, and
+it is the only thing standing between a fast register and an unexamined one.
+*Fixes problems 14, 21, 23.*
+
+#### D15 — What a check is: seven, closed, machine-decidable today, and two-valued in severity
+
+Every check is a boolean over fields the registry holds, derived from constants
+`case-review.ts` already exports. **Nothing here is a new attribute** — the module computes
+six of the seven internally today and surfaces one of them (`depositedInTime`).
+
+| # | The check, as a question | Derivation in `case-review.ts` | Class | Fires on |
+|---|---|---|---|---|
+| 1 | Was the cheque deposited within three months of its date? | `daysBetween(chequeOn, depositedOn) ≤ PRESENTATION_WINDOW_DAYS` (90) — already `DEPOSIT_LIMIT` / `CaseFact.exception` | flag | **`r-1333`** |
+| 2 | Was the notice sent within thirty days of the return? | `daysBetween(returnedOn, noticeSentOn) ≤ NOTICE_WINDOW_DAYS` (30) | flag | none in the demo data — the chain is built inside the window, and the check stays because a real registry is not |
+| 3 | Was the complaint filed after the fifteen days ran? | `submittedOn > accruedOn`, where `accruedOn = noticeServedOn + PAYMENT_WINDOW_DAYS` (15), asserted across all 35 by `case-review.test.ts` | flag | none in the demo data; a premature complaint is not maintainable |
+| 4 | Was it filed within the month, or is an application to condone on the file? | `sinceAccrual ≤ FILING_WINDOW_DAYS` (30) `\|\| !missing.includes("delay-application")` | flag | **`r-1588`** |
+| 5 | Is every document the form required on the file? | `IntakeSlot.file === null` over required slots (§12.16) | flag | **`r-1490`** (the accused's ID proof) |
+| 6 | Is an advocate on record? | `counselFor(complaint, "complainant").length > 0` | **note** | **`r-1490`** — a complaint in person, which is lawful |
+| 7 | Has anything been paid against the cheque? | `DemandNotice.paymentStatus === "part"` (+ `partAmount`) | **note** | **`r-330`, `r-1654`** |
+
+**Severity is two-valued and derived, never authored:** `"flag" | "note"`. A **flag** is a
+statutory or completeness failure and takes `warning-ink`; a **note** is a lawful condition
+with a consequence for the reading or for the act, and takes plain ink. Appearing in person
+is not a defect and must never be inked as one — but the magistrate has to know it, because
+it is the send-back's missing recipient (§12.12). Two values, one enum, no third.
+
+**Order when several fire:** flags in statutory order (1, 2, 3, 4, 5), then notes (6, 7).
+Deterministic, so two magistrates reading the same complaint see the same list.
+
+**No check says the same thing twice.** When the absent document *is* the delay-condonation
+application, check 4 names it and check 5 does not count it again. That rule exists because
+one fact with two treatments inside one region is the pass-7 defect this brief has now
+caught four times.
+
+**No eighth check, and specifically not these.** The cheque's return reason is not tested
+(§138 requires insufficiency of funds or an amount exceeding the arrangement, but the
+registry holds a `string` — §12.7, open). Jurisdiction is not tested: §142(2) turns on where
+the payee's bank sits, and nothing in the product maps a branch to a court. Inventing either
+would be the machine asserting law it cannot compute.
+
+*Rule:* `journey.md` §1–3 for every window; NI Act §138(a)/(b)/(c), §142(b); the module's
+own exported constants; pass 9 (a check whose inputs are not fields is a fabricated fact).
+*Rejected:* a `CaseCheck` model richer than `{id, class, values[], documents[]}` — a
+severity ladder, a "cleared" state, an assignee. Each is scrutiny tooling.
+*Given up:* checks 2 and 3 never fire on the demo, so a reviewer cannot see them work. Named
+in §10 rather than fixed by bending a fixture: the chain's integrity is asserted by tests
+and bending it to demo a check would teach the reader the wrong law.
+
+#### D16 — The exception row: the finding, then the entered values, then the document that would settle it
+
+This is the one place the claim-vs-source pattern still earns its keep, and it is **not
+re-derived** — it is `register-advocates` **D23** ("a finding opens where it is stated")
+applied to a different queue:
+
+- **The row** states the finding in words, in `warning-ink` for a flag and plain ink for a
+  note, with the count or the gap in it — *"Cheque deposited 99 days after its date — outside
+  the three months §138(a) allows."* The row is the `CollapsibleTrigger`, `min-h-10`, with a
+  chevron.
+- **The detail** opens underneath and holds two things and nothing else: the **entered
+  values the check read**, as a small `DescriptionList` (`Cheque dated` · `Deposited on` ·
+  the gap), and the **documents that would settle it**, as `DocumentSlot` +
+  `ThumbnailButton` rows — the same document row the owner set on 2026-09-11.
+- **Opening a document leaves the glance.** It navigates to the full file with that document
+  in the pane and that group in view (D17). The glance itself opens nothing over itself
+  (D20).
+
+*Rule:* `register-advocates` D23 (owner, 2026-09-11 — *"Can you provide the information of
+what is not matching if I click here?"*); DS `Collapsible`; ACCESSIBILITY §8 (`min-h-10`
+trigger).
+*Rejected:* stating the values inline, unfolded. Two findings × four values is the data dump
+returning at the top of the screen.
+*Rejected:* a document opening in a `Sheet` on the glance — it covers the row that asked the
+question, which is problem 13 in miniature.
+*Given up:* seeing the numbers behind a finding without a click. Accepted, because the row
+already states the finding in words: only the working is hidden, never the conclusion.
+
+#### D17 — The full file is one control and one route, and it is the screen D1–D12 designed
+
+One control, honestly named: **"Open the full file"**, `Button variant="outline"`, with the
+counts beside it in caption ink — *41 entered values · 18 documents* (both derived, both
+real). It goes to `/employee/register-cases/<id>/file`.
+
+That view is **exactly** the two-pane layout of D1, D4, D5, D6, D11 — claims left, one
+document right from `xl`, a `Sheet` below it, statutory order, nothing folded away. Deep
+links from a finding (D16) carry the group and the document: `…/file?doc=<slot>#<group>`.
+
+**Why a route and not an expansion or an overlay.** An expansion makes the landing a mode,
+and a mode needs a second control to leave and a memory of which mode you are in. An overlay
+re-introduces the scrim D1 removed. A route gives Back for free — the trail, the browser,
+and the breadcrumb the owner already ruled on (`BreadcrumbPage` carries the current step:
+*Register cases › CMP/1840/2025 › Full file*) — and it is linkable, which a finding's deep
+link needs.
+
+**The decision band is on both views.** A magistrate who digs in must be able to act where
+he ends up; sending him back to the glance to press Register would be the wizard D13
+rejected, arriving by the back door.
+
+*Rule:* owner §4 ("if he wants to dig in"); the owner's breadcrumb ruling, 2026-09-11;
+RESPONSIVE §6 for the sub-`xl` behaviour (unchanged from D11).
+*Rejected:* two tabs (`Tabs`) over one route. Tabs say "two equal views of one thing"; these
+are a landing and a dig-in, and the ratio is 32:3.
+*Given up:* one more IA node, and a magistrate who wants the file always pays one
+navigation. Named in §11.
+
+#### D18 — The header identifies the complaint and carries the money
+
+Kept from D3: the case number on its own identity line, the cause title as `h1`, and
+label-over-value cells under a hairline. No eyebrow, no separators, and **no status
+`Badge`** — `CASE_REVIEW_STATUS` is a one-member enum true of every row in this queue.
+
+**One addition, and it is mine, not the owner's: `Amount`.** Four cells —
+**Court · Amount · Submitted · Waiting**. The cheque amount is the fact that sizes the
+consequence of the act, it comes free from `ChequeDetails.amount`, and on a glance built to
+be resolved without scrolling it is the difference between recognising a matter and reading
+one. `tabular-nums`, like every other amount on the court side.
+
+**Nothing else joins it.** Not the cause-of-action date, not the filing date, not the
+statutory chain: check 3 and check 4 already speak when those matter, and a chain summary
+under the title is the "cognizance chain" region D4 rejected, moved upstairs.
+
+*Rule:* pass 5 (§5a-ii.4b's constant-column rule, applied to the one constant it missed);
+`ui-craft` §2 on hierarchy.
+*Rejected:* five or six cells. Every extra cell is a fact the reader must decide is not for
+him.
+*Given up:* nothing, except that `Amount` is a change the owner has not seen. One cell,
+reverses in a line. **Flagged for him in §14.**
+
+#### D19 — The act, unchanged — and the third outcome is the owner's question, not mine
+
+D9 stands in full: **Send back for correction** (ghost, left) and **Register case** (teal,
+right), sticky at the foot of both views, both `aria-disabled` until §12.4; Register takes a
+confirmation stage of the page rather than a modal-on-modal; send-back takes the required
+free-text reason of D10, soft `destructive`, never `destructive-solid`.
+
+**What this revision adds is a flag, not a decision.** The owner has separately said *"we
+should guide him to either dismiss or accept the case"* (relayed, §1). That is either loose
+phrasing for send-back or a third outcome. **This brief does not resolve it and does not
+quietly reinstate `Dismiss`** — an act with no product basis is furniture, and inventing a
+judicial outcome is the one thing a design brief must never do. It is **§12.9**, first in
+the list, and it is the only open question that changes a control on the screen.
+
+*Rule:* owner §4; `register-advocates` §12.7's precedent for stopping at exactly this door.
+*Given up:* the band may need a third control after the owner answers. Accepted: adding one
+is a smaller change than shipping one nobody could trace.
+
+#### D20 — Nothing on the glance opens an overlay, and that is the pattern census's rule
+
+The glance has three interactive things: a finding's disclosure, the way into the full file,
+and the two acts. **None of them draws a scrim.** Documents open in the file view's pane;
+the timeline lives on the file view (D21); the register confirmation and the send-back
+composer are *stages of the page*, which is `register-advocates` D17/D21 and already
+approved.
+
+Stated as a membership rule because pass 6 exists to catch the exception that arrives later:
+*on this screen, an overlay is only ever the document `Sheet` below `xl` on the file view.*
+Anything else that wants a `Dialog` is a finding that this brief got the shape wrong.
+
+*Rule:* pass 6; RESPONSIVE §6 (the overlay table).
+*Given up:* nothing. This is a constraint on future work, not a cost paid now.
+
+#### D21 — The reading index stays cut; the timeline leaves the glance entirely
+
+**The index does not come back.** D7 deleted it because the check region performs the only
+jump the fast path needs. On a screen designed to be resolved in one glance there is nothing
+left to index: five entries, and the whole screen is one screenful.
+
+**One correction to D7, and it matters for the build.** D7 deleted the sections'
+`scroll-mt-(--chrome-sticky-top)` along with the index machinery. That was wrong: the file
+view's deep links (D16, D17) land on a group under a sticky chrome, so **the section `id`s
+and their `scroll-mt` both stay.** What goes is `useReadingSection`, `readingLine`,
+`READING_LINE` and `SCROLL_KEYS`.
+
+**The timeline is not on the glance at all.** Two of its seven steps are header cells said
+twice, two are spine events no store holds, one is conditional, and one tells the magistrate
+that the decision he is here to take has not been taken. It survives where D8 put it —
+behind a `Sheet` trigger, `history-sheet.tsx`'s precedent — **on the file view only**, so it
+is reachable by someone who went looking for history and invisible to everyone else.
+
+*Rule:* pass 9 (an event no store holds is kept, but never resident); pass 7
+(`history-sheet.tsx` as the sibling).
+*Rejected:* a "submitted / scrutinised / waiting" strip on the glance. Two of its three
+steps are unbacked and the third is a header cell.
+*Given up:* the wait's history at a glance. Mitigated: the two facts that decide anything —
+submitted, waiting — are header cells on both views.
+*Fixes problem 18.*
+
+#### D22 — Sibling sweep for the new region
+
+Pass 7, run pairwise against the two surfaces that already do this work.
+
+| Fact / act | This glance | Register advocates (`ReviewStage`) | Scrutiny workbench | Verdict |
+|---|---|---|---|---|
+| A machine finding about a submitted record | one row, words first, `warning-ink`, detail behind a disclosure | identical — D23's `FactRow` with a `detail` | a `Banner` plus a per-field flag composer | **Closed by inheritance.** The glance takes register-advocates' grammar verbatim; the workbench's is the officer's tooling and stays his. |
+| "Nothing is wrong with this record" | one counted line, neutral ink | nothing rendered (D19 there) | — | **Divergent, deliberately.** The advocate queue is eight values on one screen, so absence is self-evident; this file is 47 values behind a control, so absence has to be *stated*. Recorded rather than reconciled. |
+| A document on a court file | `DocumentSlot` + `ThumbnailButton` in a finding's detail; `DocumentPreview` in the file view's pane | `DocumentPreview variant="quiet" surface="card"` | `bundle-view.tsx` reader | **Not a defect — three roles** (index / reading / annotating). `submission-record-dialog.tsx`'s `Item variant="outline"` is the fourth rendering and is still the one that should go. |
+| Days waiting | uncoloured on both views (owner, 2026-09-11) | escalating `waitTone` | flat `warning-ink` on the queue | **Three treatments of one fact.** Still open, still logged in `register-advocates` §11; a queue-wide pass, not this one. |
+| Sending work back to an advocate | free text, required, one box (D10) | free text, required, one box (`REG-22`) | field-scoped `DOC_REASONS` | **Closed.** Same shape, same gate, same no-exposition rule. |
+
+*Fixes:* nothing on its own. This is the pass that stops the next round forking again.
+
+---
+
+### 5a-i B — the full file, 2026-09-11 (evening)
+
+**Nothing here is deleted.** D1–D12 were written as the landing; they are now the **dig-in
+view**, and most of them are unaffected by the move. Each carries a verdict.
+
+#### D1 — A document opens beside its claims, never over them
+
+> **STANDS as the file view; SUPERSEDED as the landing (D13).** The pairing is right and it
+> is why problem 13 is fixed. What was wrong is that it was the first thing a magistrate
+> met.
+
+The file view is two panes from `xl`: the claims, and one document. The claims column does
+not move when a document opens; the pane is sticky and holds exactly one document, whichever
+was last asked for. *Rule:* the shape exists twice on the court side —
+`register-advocates-dialog.tsx` `ReviewStage` (claim-left / evidence-right, each column
+scrolling on its own) and `scrutiny/case-workbench.tsx` (selecting a field scrolls the
+bundle to the document it was read from, L102–109). **The pairing is not invented here.**
+*Rejected:* a stepped review, one pair at a time; all eighteen documents inline;
+`ResizablePanelGroup` (annotation tooling for a forty-field task).
+*Given up:* below `xl` the two panes cannot coexist — open-read-close (D11).
+
+#### D2 — The check region: the exceptions speak, the norm is silent
+
+> **SUPERSEDED by D14/D15.** The derivation was right and is reused; **the silence was
+> wrong** (problem 21) and the four checks are now seven. Kept in the record because D14 is
+> only legible as a correction to it: D2's four checks were
+> `PRESENTATION_WINDOW_DAYS`, `NOTICE_WINDOW_DAYS`, `FILING_WINDOW_DAYS` and a count of
+> absent slots, each derived from constants the module already exported, and each of those
+> four survives as checks 1, 2, 4 and 5.
+
+Its three "deliberately nots" survive intact and D14 obeys all three: **not** a cleared /
+checked state (that is the magistrate doing the scrutiny officer's work); **not** a verdict
+(`flag-composer.tsx`'s rule — the machine never makes the claim); **not** a tint on every
+file (§5a-ii.10's precedent — the `Alert` that spoke on all 35 was cut for exactly that).
+The line D14 adds is neutral, uncounted as a status, and one sentence long.
+
+#### D3 — The header carries nothing true of every complaint
+
+> **STANDS, extended by D18.** The status `Badge` is cut; `Court` stays on the owner's
+> 2026-09-10 ruling with the argument for cutting it recorded in §11; `Amount` joins.
+
+#### D4 — The order is the statute's, not the form's
+
+> **STANDS, on the file view.** Section 2 becomes section 1 — one line in `caseReviewFor`'s
+> `sections` array:
+
+| # | Section | Groups |
+|---|---|---|
+| 1 | The cheque and the notice *(was "Case specific details")* | cheque · debt · demand notice · delay condonation *(conditional)* |
+| 2 | Litigant details | complainant · accused |
+| 3 | Additional details | witnesses · complaint · advocates |
+| 4 | Payment details | payment |
+
+The rename is still **proposed, not ruled**: "Case specific details" is the e-filing form's
+label for its own second step, and §5a-ii.4a's rule (a term is the attribute's name, not the
+form's question) applies to a heading with more force because it is bigger. One string.
+*Rejected:* a "cognizance chain" summary region above the sections — it would restate twelve
+values that are already rows. **Reorder, do not summarise.** *(And note what D14 changes
+about that reasoning: a summary is a duplicate only when the rows are beside it. The check
+ledger is not a summary of the rows — it is seven booleans none of the rows state.)*
+*Given up:* the advocate's filing side reads the same complaint in the filing order. Logged
+in §11 as a real divergence, accepted because the two readers ask different questions.
+*Fixes problem 15.*
+
+#### D5 — Every fact stays on the surface of the file view. Nothing is folded away
+
+> **STANDS, and D13 is what finally answers the "data dump".** The obvious response —
+> collapse the contact details — is the accordion, which the owner cut on 2026-09-10:
+> *"it wasn't very apparent to me that litigant details, case-specific details, etc. are
+> collapsible accordions until I saw it"* (§5a-ii.2a).
+
+All 41 rows stay, unfolded, in one scrolling column **on the file view**. What changed is
+that the file view is no longer what a magistrate meets first — which is the fix D5 was
+reaching for and could not deliver from inside the file. *Rejected:* progressive disclosure
+of the fifteen declared-only facts (the accordion at group scale; and they include the
+addresses a jurisdiction question turns on). *Given up:* a shorter file. The file is exactly
+as long as it was; it is now behind a door.
+
+#### D6 — The document rows stay in the claims column, lose the norm, and load the pane
+
+> **STANDS.** `DocumentSlot` + `ThumbnailButton` (owner, 2026-09-11); an absent slot keeps
+> the geometry and reads **"Not on file"**; rows open the pane, not a dialog; `meta="Filed"`
+> (18 rows) and the `Documents` caption (10 lists) are cut. The same row is what a finding's
+> detail uses on the glance (D16), which is one component doing one job in two places.
+
+How a magistrate knows which document proves which fact: **order** — the cheque group's
+facts run cheque → deposit → return, and its three documents are the cheque, the proof of
+deposit and the return memo, in that order. *Rejected:* a per-fact `CaseFact.source` link
+(the scrutiny model's `FlatField.doc`) — real, precise, and the officer's precision on a
+screen asked to be lighter. **Still the first thing to add if the render says a fourteen-row
+group is too coarse.** *Given up:* certainty on the two weak pairs (nature of the debt / why
+the cheque was issued, both against one "Proof of the debt or liability").
+
+#### D7 — The reading index goes
+
+> **STANDS, corrected by D21.** The index and `useReadingSection` / `readingLine` /
+> `READING_LINE` / `SCROLL_KEYS` go; **the section `id`s and their
+> `scroll-mt-(--chrome-sticky-top)` stay** — the file view's deep links land under sticky
+> chrome and need them.
+
+**What is preserved for the record**, because it was the most carefully established thing in
+this brief and it is retired with its control, not disproved: a click *claims* the marked
+entry until the reader scrolls; under that, the last section whose heading crossed a reading
+line a third down the viewport; under both, the end of the scroll is its own answer (on
+`r-1840` the last heading would need 167px more than the document has). Verified over CDP —
+40/40 index clicks, 60/60 scroll positions, three viewports. **If the index ever returns,
+return this with it rather than rebuilding it.**
+
+#### D8 — The case timeline leaves the standing layout for a control
+
+> **STANDS, narrowed by D21:** the `Sheet` lives on the **file view only**, never on the
+> glance. Seven steps, of which two duplicate header cells, two name spine events no store
+> holds, and one is the unmade decision.
+
+#### D9 — Two outcomes: Register, and Send back for correction
+
+> **STANDS — see D19 for the one thing this revision adds** (§12.9, the owner's separate
+> "dismiss or accept" line, flagged and unresolved).
+
+Register is irreversible and takes a confirmation **stage of the page** (not an
+`AlertDialog` on top of it) — owner, 2026-09-10: *"instead of a modal-on-modal interaction…
+it's progressing to the next state"*. Send back is reversible and takes no confirmation
+beyond its reason; soft `destructive`, never `destructive-solid`, which the DS reserves for a
+confirmed irreversible act. Both `aria-disabled` until §12.4; no helper line (cut by the
+owner 2026-09-09 and it does not come back).
+
+#### D10 — The send-back reason is one required free-text box, and it does not name an attribute
+
+> **STANDS.** `Field` + visible `FieldLabel` + `Textarea` + `FieldError` on the gate once
+> tripped — `register-advocates` `RejectStage` verbatim, which is itself `FlagComposer`'s
+> shape. Nothing new is composed.
+
+Two rules inherited rather than re-argued: **a reason is required** (`flag-composer.tsx`:
+*"officers leave one-word remarks and advocates travel to court to decode them"*; `REG-22`
+says the same), and **no exposition** (the label asks the question and stops; the error
+appears only after a box has been typed in and emptied). Whether the reason should name the
+attribute at fault is **§12.11**, not decided here. *Rejected:* reason chips —
+`FlagComposer`'s `DOC_REASONS` is the *scrutiny officer's* closed defect taxonomy, and a
+second one for a magistrate is an invented field. **The no-advocate case is §12.12**, and
+the interim behaviour is that the control states it has no recipient rather than sending
+nowhere.
+
+#### D11 — Below `xl` the pane becomes a Sheet, and no third mechanism appears
+
+> **STANDS, for the file view.** At 1280 the content box is 1280 − 256 (rail) − 64
+> (`md:p-8`) = 960; less a 32px gap, a `minmax(20rem,26rem)` pane leaves the claims
+> **512–608px**. At 1024 the same sum leaves 272px — the exact defect problem 10 fixed — so
+> the split starts at **`xl`**, not `lg`. Below it: one column, and a document opens in a
+> `Sheet` (a `Drawer` on phone, RESPONSIVE §6). **Nothing opens a modal `Dialog`** (now D20's
+> membership rule).
+
+#### D12 — Sibling sweep (evening)
+
+> **STANDS, extended by D22.** Its four findings are unchanged: days-waiting has three
+> treatments across three surfaces (open, queue-wide); `DocumentSlot` vs `DocumentPreview`
+> is two roles and not a defect; send-back grammar is closed; the decision's end state is a
+> stage everywhere. Its fifth line is the rule worth keeping: **show the slot when the form
+> asked the question, omit it when the flow never collects it.**
+
+---
+
+### 5a-ii — the prior decisions, and what became of each
+
+**Nothing here is deleted.** These record real reasoning and the owner's earlier rulings,
+and code comments cite them by number.
+
+1. **Three columns at `lg`: reading index · the file · the case timeline.**
+   > **SUPERSEDED by D1, D7, D8, D21.** Both rails go. The tracks-rebalancing argument
+   > (13rem / 1fr / 15rem, replacing 15 / 1fr / 17) was correct against its own problem —
+   > at 1280 the old split gave 512px of rail against **368px** of file — and it is what made
+   > problem 10 resolvable at all. Retired because the problem changed, not because it was
+   > wrong. The claim/observer/end-of-scroll rule is preserved in D7.
+
+2. **Five numbered sections, sentence case.**
+   > **PARTLY SUPERSEDED.** Section 4 (submissions from the accused) was cut by the owner on
+   > 2026-09-11 — the accused cannot file before registration — leaving four. **D4 reorders
+   > those four and proposes renaming the first.** Sentence case and the ban on two sections
+   > numbered "4" stand.
+
+   **2a. Not collapsible (owner, 2026-09-10).** Every section was open by default and the
+   sticky index already navigated, so the fold hid what the reader came for while its own
+   affordance stayed invisible (problem 4). Removing it also removed three workarounds: the
+   `not-last:border-b-0` variant reset, the `h-auto` cancellation of Radix's non-remeasured
+   `--radix-accordion-content-height`, and the `flushSync` that had to commit an unfold
+   before a scroll could reach it.
+   > **STANDS, and is load-bearing for D5.**
+
+3. **One lifted panel per group, one block inside it per record.** The panel is the frame;
+   records are stacked blocks with a hairline between them and nothing draws a second edge.
+   Reading column `gap-8`, section `gap-4`, groups `gap-6`; icon tile `size-8`.
+   > **STANDS**, on the file view.
+
+4. **Fact rows use the DS `DescriptionList` at its own default column**, with the two-column
+   grid applied at `@xs` on the **container** rather than `sm:` on the window, and the row
+   stroke dropped to `border-hairline`.
+   > **STANDS, and matters more now** — the claims column narrows to 512px under D1, and a
+   > rule that switches on the block's width rather than the window's is what makes that
+   > survivable. The 2026-09-10 note is the sentence to keep: `sm:` "asks how wide the
+   > *window* is, and the window was never the constraint".
+
+   **4a. A term is the attribute's name, not the form's question (owner, 2026-09-10).**
+   "Date when the 15 days from service of legal demand notice was complete" → **"Notice
+   period ended"**; "Date of return as per the cheque return memo" → **"Returned on"**.
+   > **STANDS, and D4 extends it to section headings.**
+
 5. **Identity facts at the top are one caption line, not a grid.**
-   *(Revised 2026-09-10.)* Decision 4 below the header (item 4b) removes
-   Case category and Case type, which leaves Court and Submitted on —
-   two facts. A five-column `DescriptionList` of label-above-value
-   holding two facts is a grid drawn around nothing, so they join the
-   eyebrow the number and the wait already occupy:
-   `CMP/1840/2025 · Kollam JMFC-II · Submitted 4 Dec 2024 · 281 days
-   waiting`, at `text-caption` 500 `text-muted-foreground`, the wait in
-   `text-warning-ink`, dates and numbers `tabular-nums`. `IdentityFact`
-   and the header `DescriptionList` are deleted. The status stays a
-   `Badge` beside the `h1` — it is a closed enum with one member and it
-   is the one thing on the header that could change. Rejected: keeping
-   two label-above-value cells (a two-cell grid is a list with
-   ceremony). Given up: the explicit word “Court” before the court's
-   name; a court name in Kerala is self-identifying, and the alternative
-   was a label at the same size as its value.
+   > **SUPERSEDED by the owner (2026-09-11), then by D3 and D18.** The eyebrow is gone; the
+   > number is an identity line; the cells are Court · Amount · Submitted · Waiting.
 
-   **4b. The header's constants go (confirmed by the owner,
-   2026-09-10).** “Case category: Criminal” and “Case type: S.138,
-   Negotiable Instruments Act, 1881” are identical on every complaint
-   DRISTI will ever hold — the registry proves it: `FilingDraft.caseType`
-   is the one-value union `"s138"`. This is the constant-column defect
-   already killed on the queues. Court and Submitted on stay; Court is
-   constant *within this queue* (it is the signed-in court) but not
-   within the product, and the owner kept it.
-6. **Documents use the app's `DocumentPreview`** (confirmed by the
-   owner, 2026-09-10), replacing the `Attachment` tiles. *Revised
-   2026-09-10; supersedes the 2026-09-09 version of this item.*
+   **4b. The header's constants go (owner, 2026-09-10).** "Case category: Criminal" and
+   "Case type: S.138, Negotiable Instruments Act, 1881" are identical on every complaint
+   DRISTI will ever hold — `FilingDraft.caseType` is the one-value union `"s138"`.
+   > **STANDS**; D3 applied it to the status badge, the one constant it had not reached.
 
-   **The list, then the document.** The nearest sibling is
-   `components/cases/submission-record-dialog.tsx`, which is the app's
-   answer to “a record with several documents on it”: an `Item
-   variant="outline"` list naming each document, and one
-   `DocumentPreview` for the one being read. A document that is not on
-   file renders as a non-interactive `Item` reading **“Not on file”** —
-   the same treatment, in the same component, that the sibling already
-   gives a document with no source. So each group's documents become
-   that list. There is no room for eighteen inline wells in a 448px
-   column, so opening a row opens **one** document dialog —
-   `ChromeDialogContent` + `DocumentPreview variant="quiet" height="fill"`
-   with `source={{ kind: "composed", … }}`, which is exactly what
-   `employee/register-advocates-dialog.tsx` composes for the Bar ID card.
-   No third way is introduced; both idioms already exist on the court
-   side.
+6. **Documents use the app's `DocumentPreview`** (owner, 2026-09-10) — a list of `Item` rows
+   and one dialog for the document being read; the facsimile survives as `composed` content,
+   bounded and deliberately illegible; derived filename, page count and file size cut
+   because no court-side store holds them.
+   > **PARTLY SUPERSEDED, twice.** The `Item` list became e-filing's `DocumentSlot` +
+   > `ThumbnailButton` (owner, 2026-09-11) — that stands and is D6's starting point — and
+   > **D1 replaced the dialog with the pane**. What survives untouched, and is the best part
+   > of this item: a facsimile says "a page of this kind is on the file" and is
+   > **deliberately not legible**, because readable text would be fabricating a court
+   > record; **an absence is never dressed as a blank sheet**; and the six shapes stay, for
+   > Neer's reason — a reader tells a cheque from a demand notice without reading. The cut
+   > of filename, page count and size stands: a plausible fixture in the shape of a field is
+   > worse than no field.
 
-   **What survives from Neer's version, and why.** The page facsimile
-   (`PageFacsimile` and its six `*Marks` shapes) stays, as the
-   `composed` content of the well rather than as an 80×107 tile —
-   bounded (`w-64`, centred) so a bounded drawing does not become a
-   full-page one. His two rules stay with it and are the best part of
-   the old item: a facsimile says “a page of this kind is on the file”
-   and is **deliberately not legible**, because readable text would be
-   fabricating a court record; and **an absence is never dressed as a
-   blank sheet** — an absent document gets no paper at all. Six shapes
-   rather than one icon, for his reason: a clerk tells a cheque from a
-   demand notice without reading.
+7. **Register / Dismiss are pinned, real, and honestly dead.** "Admit" goes; the word is
+   *register*, matching the rail, the queue and the timeline.
+   > **PARTLY SUPERSEDED by D9/D19.** "Register" stands. **Dismiss is cut**, and whether it
+   > returns is **§12.9**, the owner's to answer. `aria-disabled` stands until §12.4.
 
-   **What goes.** The derived filename, the page count and the file
-   size (`id-proof-complainant.pdf · 1 page · 121 KB`). There is no
-   court-side document store; `StoredFileRef` holds a name and a size on
-   the *filer's* side and nothing holds a page count anywhere, so all
-   three were fixtures wearing a field's clothes (problem 6). Download
-   is not passed, so `resolveDownload` omits the button rather than
-   shipping it dead — the same honesty as the decision band. And the
-   advocate's document is relabelled from “ID proof” to **“Bar ID
-   card”**, which is what `REG-14` collects and what the file holds;
-   `REG-13`/§5.2 of the handover record that address and ID proof are
-   *not* collected at advocate registration.
+8. **Particulars are derived from the queue row, not transcribed** — the §138 chain worked
+   backwards so all 35 complaints open a file that is internally consistent and legally
+   coherent, asserted by `case-review.test.ts`. **A derived *value* is legitimate demo data;
+   a derived *attribute* is not.**
+   > **STANDS, and D15 is its dividend.** The chain that exists only to keep the demo honest
+   > is what lets seven statutory questions be answered without a single new field.
 
-   *Given up:* the twelve-tile-per-page overview a grid of thumbnails
-   gave, and one click to see a page. *Risk accepted:* the quiet variant
-   keeps its own “Full view” inside a dialog that is already big — the
-   same duplication `register-advocates-dialog` ships, and matching the
-   sibling beats a local exception (§11).
-7. **Register / Dismiss are pinned, real, and honestly dead.**
-   *(Revised 2026-09-10 — confirmed by the owner.)* The footer reads
-   **Register case** / **Dismiss case**. “Admit” goes: the rail row, the
-   queue, this brief and the timeline's last step all say *register*, and
-   a fourth verb for the same act on the one screen that performs it is
-   how two vocabularies start. Both stay `aria-disabled`; no helper line.
-   The owner cut the “not connected yet” copy (2026-09-09) — dimming
-   carries the unbuilt state, and a tooltip would hide the same fact
-   behind hover (ACCESSIBILITY §7). One teal, on Register.
-   *(Pass 3, control vocabulary: the word on the control is now the word
-   the user would say aloud, and the same word the nav uses.)*
-8. **Particulars are derived from the queue row, not transcribed.** The
-   §138 chain is worked backwards from today minus the row's wait, so
-   every one of the 35 complaints opens a file that is internally
-   consistent and legally coherent (deposit inside three months, notice
-   inside thirty days, accrual exactly fifteen days after service —
-   asserted in `case-review.test.ts` across the whole queue). Only the
-   *states* are named per row in `CASE_FILE_MARKS`: a stopped payment,
-   a part-liability cheque, no witness, a missing application.
+9. **The right-hand timeline carries traceable events only** — five steps each naming a
+   source, plus the current wait and the unmade decision. *Placed before the magistrate* and
+   *Letter from the accused received* deleted (owner, 2026-09-10): neither is anywhere in
+   `docs/product/`.
+   > **PARTLY SUPERSEDED by D8/D21.** The trimming was right and the two cuts stay cut. The
+   > panel is a `Sheet` on the file view and is absent from the glance.
 
-   **Clarified 2026-09-10:** a derived *value* is legitimate demo data; a
-   derived *attribute* is not. `CASE_FILE_MARKS` is the demo's way of
-   choosing values, and every mark must land in a field the registry
-   holds. Three do (`returnReason` → `ChequeDetails.returnReason`;
-   `delayed` → `Jurisdiction.causeDate`/`filingDate`; `missing` →
-   `IntakeSlot.file === null`). `witnesses` maps to the `Witness[]`
-   length. `replied` maps to `DemandNotice.replied`. **`partialLiability`
-   does not map to anything** and is re-pointed at
-   `DemandNotice.paymentStatus` / `partAmount`, which is the real field
-   for “part of it was paid”. **`accusedSubmissions` maps to nothing at
-   all** and goes (item 9a). §5a Attributes marks which is which.
-9. **The right-hand timeline carries traceable events only.**
-   *(Revised 2026-09-10 — confirmed by the owner.)* Five steps, each an
-   event the product records, plus the current wait and the decision
-   that has not been made:
+   **9a. The accused's invented submission goes with it**, and section 4 with it.
+   > **STANDS — resolved by the owner, 2026-09-11.**
 
-   | Step | Source |
-   |---|---|
-   | Complaint submitted | `FilingDraft.status: "filed"` + `submittedAt`; Kerala spine step 1 (`product-foundation.md` L72) |
-   | Court fee received | `SignState.paid` / `paidAt` / `paidAmount`; spine step 1 — “court fee on filing” |
-   | Delay condonation application filed | `Jurisdiction.condonationReason` + the application's `IntakeSlot`; conditional, and only when the application is actually on the file |
-   | Taken up for scrutiny | Spine step 2, “Scrutiny & defect check (Registry; before numbering / cognizance)” (L73) |
-   | Scrutiny completed | Spine step 2 |
-   | Waiting to be registered | Derived from `daysSinceSubmitted` — the queue's own current state |
-   | Registration decision · Not made | The act this build does not perform (§5.7) |
+10. **The complainant's confirmations become fact rows, not a tinted alert.** The
+    `Alert variant="info"` appeared on **every** complaint, spending the view's scarcest
+    resource restating the default.
+    > **STANDS, and it is still the precedent every check region is measured against.** The
+    > distinction D14 relies on: that `Alert` restated a *fact* that was already a row, in a
+    > *tint*, on every file. D14's line states a *machine action* nothing else states, in
+    > neutral ink, in one sentence. If a future round finds itself tinting it, this item is
+    > the reason not to.
 
-   **Deleted:** *Placed before the magistrate* and *Letter from the
-   accused received*. Neither appears anywhere in `docs/product/` — the
-   spine goes filing → scrutiny → **cognizance**, with no placement step
-   between, and nothing in the product records a letter from an accused
-   who has not been summoned. Ordering stays oldest-first, matching the
-   case history on a listing's overview: two orderings for the same kind
-   of column on the same side of the app is how two screens start
-   disagreeing about which end is the present.
-
-   **9a. The accused's invented submission goes with it.** The
-   `accusedSubmissions` mark, its fact (“Filed: A letter asking that the
-   complaint not be entertained”) and its document are cut for the same
-   reason as the timeline step. Section 4 therefore always reads
-   “Nothing on record — the accused has not been summoned yet”, which is
-   *product copy answering a question the court asks*, not a fact with a
-   missing source. **Flagged, not decided:** a section whose answer is
-   fixed by where the complaint sits in the flow may not deserve a
-   section. It stays for now because the reference has it and because
-   §12.3 (when a complaint enters this queue) is open; if product
-   answers that the accused can never have filed before registration,
-   the section should be cut and the file becomes four parts. *ux-designer;
-   raised for the owner.*
-10. **The complainant's confirmations become fact rows, not a tinted
-    alert.** *(Added 2026-09-10.)* The `Alert variant="info"` carrying
-    “The complainant has confirmed …” appears on **every** complaint,
-    because the filing cannot be submitted without both declarations —
-    it spends the view's scarcest resource restating the default
-    (problem 11; `ui-craft` §1.4, pass 5). And its second bullet is the
-    return reason already stated two rows above, rewritten into a
-    sentence (`RETURN_REASONS[…].sworn` exists only to make that sentence
-    read). So: one fact row in the cheque group — term **“Deposited
-    within three months”**, value **“Confirmed by the complainant”**
-    (closed enum: confirmed / not confirmed, checkable against
-    `presentDate − dateOnCheque`) — and the second bullet is deleted as a
-    duplicate. `CaseConfirmations` and `RETURN_REASONS.sworn` go with it.
-    Rejected: keeping the alert and un-tinting it (a notice that reports
-    nothing is still a notice).
-
-**Deviations from the reference, logged:**
+**Deviations from the legacy reference, logged:**
 
 | Reference | Here | Why |
 |---|---|---|
-| `‹ Back` link | none | The trail is the way back on the court side; the page is never a step in it (`lib/employee/navigation.ts`) |
+| `‹ Back` link | none | The trail is the way back on the court side (`lib/employee/navigation.ts`) |
 | `Download` action | cut | Promises a document bundle that does not exist |
 | "View on map" on addresses | cut | No map |
-| Breadcrumb ends in "View" | ends in "Register cases" | The heading names the complaint; a crumb repeating the page is what `courtTrail` exists to prevent |
-| Timeline newest-first, three placeholder steps | oldest-first; five traceable events, the current wait, and the unmade decision | One ordering for one kind of column; every step now names a source (§5a.9) |
-| Title Case, two sections numbered "4" | sentence case, 1–5 | Laws; the duplicate number is a defect |
-| Collapsible sections | plain regions | §5a.2a — every section was open, and the control was invisible until found |
-| Placeholder filings (`asdf`, a stylesheet in the return reason) | Kollam parties, CMP numbers, real §138 vocabulary | §6 below |
+| Breadcrumb ends in "View" | ends in the case identifier, then "Full file" | Owner, 2026-09-11; D17 |
+| Timeline newest-first, three placeholder steps | oldest-first, traceable steps, behind a control, on the file view only | D8, D21 |
+| Title Case, two sections numbered "4" | sentence case, 1–4 | Laws; the duplicate number is a defect |
+| Collapsible sections | plain regions | §5a-ii.2a |
+| Sections in the filing form's order | the statute's order | D4 |
+| Documents open over the file | documents open beside it | D1 |
+| The whole file on arrival | a glance, and the file behind one control | **D13** |
+| `Dismiss` | `Send back for correction` | D9 — and §12.9 is open |
+| Placeholder filings (`asdf`, a stylesheet in the return reason) | Kollam parties, CMP numbers, real §138 vocabulary | §6 |
 
 ---
 
-## 5a. Attributes (value → source → type → slot)
+### 5a-iii — Attributes (value → source → type → checked against → surfaced → slot)
 
-**How to read this.** *Source* is the field a real backend would hold —
-`lib/filing/types.ts` is the e-filing contract (`lib/filing/README.md`:
-“`types.ts` is the contract… the seams are where engineering swaps the
-local implementation for DRISTI's services”) — or a `docs/product/`
-citation, or a `REG-nn` requirement. *Type* is `data` · `closed enum` ·
-`user free text` · `product copy`. A **derived value** off
-`CASE_FILE_MARKS` or the §138 chain is fine where the attribute is real;
-a derived *attribute* is not, and is marked ✂.
+**How to read this.** *Source* is the field a real backend would hold (`lib/filing/types.ts`
+is the e-filing contract), a `docs/product/` citation, or a `REG-nn` requirement. *Type* is
+`data` · `closed enum` · `derived check` · `user free text` · `product copy` ·
+`presentation`. **`Checked against`** is the document *on this file* a magistrate could read
+the value off; `—` means **declared-only: nothing on the file can confirm it.**
+**`Surfaced`** is this revision's addition and the column D13 turns on:
 
-**Totals: 107 rows. 11 have no source at all** (✂ invented). Four more
-restate another row, two are constant on every record DRISTI will hold,
-and two name an upload no store holds — 19 removals in all, against 4
-real attributes added and 6 terms renamed or retyped.
+| Value | Meaning |
+|---|---|
+| `glance` | on the landing, before any control is touched |
+| `glance·fired` | on the landing **only when a check fires** — a finding's row or its detail |
+| `file` | on the full file view, one control away |
+| `sheet` | behind the timeline `Sheet`, on the file view |
+| `stage` | on the send-back or confirmation stage |
+| `cut` | not rendered anywhere |
 
-### Header
+**Counted on `r-1840`** (delayed, a reply on record, two witnesses, one advocate, nothing
+missing), because a table counted over every branch counts nothing.
 
-| Value | Source | Type | Slot |
-|---|---|---|---|
-| `CMP/1840/2025` | `RegisterCase.caseNumber`; issued at filing as `SignState.caseFileNumber` | data | eyebrow, `tabular-nums` |
-| `Rajan Krishnan v. Quilon Cashew Exports` | derived: `Complainant.name` v `Accused.name` | data (derived value, real attributes) | `h1` |
-| `281 days waiting` | derived: today − `submittedAt` | data (derived) | eyebrow, `warning-ink` |
-| `Submitted 4 Dec 2024` | `FilingDraft.submittedAt` / queue row | data | eyebrow |
-| `Kollam JMFC-II` | `CURRENT_STAFF.court` (session) | data — constant *within* this queue, not within the product | eyebrow |
-| `Waiting to be registered` | `CASE_REVIEW_STATUS` — the queue's one state | closed enum (one member today) | `Badge` |
-| ~~`Criminal`~~ | **none** ✂ | — | cut (§5a.4b) |
-| ~~`S.138, Negotiable Instruments Act, 1881`~~ | `FilingDraft.caseType` — the one-value union `"s138"` | constant on every record | cut (§5a.4b) |
+| | Count |
+|---|---|
+| Values in the body (41 fact rows + 6 record headings) | **47** |
+| Header values | 5 (+1 cut) |
+| Machine checks (D15) | **7** |
+| Document rows | **18** |
+| Timeline steps (behind a control, file view only) | 7 |
+| **Rows with no source at all** | **0** |
+| Rows whose source is a product doc but **no store holds them** | **2** (`Taken up for scrutiny`, `Scrutiny completed`) |
+| Body values **checkable** against a document in their own record or group | **29** |
+| Body values **computed** from two checkable dates | **3** |
+| Body values **declared-only** | **15** |
+| **Values a magistrate sees before he can act, on a clean complaint** | **5 header values + 1 check line + 2 counts = 8** |
 
-### 1 · Litigant details
+The last row is the design, in one number: **47 body values became 8 before the act**, and
+the other 39 are one control away. The 15 declared-only values are why the check line's
+caption exists (problem 23) — no check reads a document, and nothing on this file can
+confirm a mobile number, a police station or a witness at all.
 
-| Value | Source | Type | Slot |
-|---|---|---|---|
-| Complainant's name | `Complainant.name` | data | record heading |
-| `Individual` | `Complainant.type` | closed enum | record tag |
-| Mobile number | `Complainant.mobile` | data | `Mobile` |
-| Email | `Complainant.email` | data | `Email` |
-| Age | `Complainant.age` | data | `Age` |
-| Permanent address | `Complainant.perm` | data | `Permanent address` |
-| Current address | `Complainant.res`, shown when `permSame === "no"` | data | `Current address` — **today both rows print the same string under two labels** |
-| `No` | `Complainant.poa` | closed enum (`YesNo`) | `Power of attorney` (was “Power of attorney given to somebody else”) |
-| ID proof | `IntakeSlot.docType: "id-proof"` | data (file ref) | document row |
-| Affidavit u/s 225 BNSS | `Intake.supporting` slot | data | document row |
-| Accused's name | `Accused.name` | data | record heading |
-| `Company` | `Accused.type` + `entType` | closed enum + user free text | record tag |
-| Authorised signatory | `Accused.reps[].name` — an **array** under S-141 | data | `Authorised signatory` |
-| Mobile number | `Accused.contacts[].mobile` (array) | data | `Mobile` |
-| Email | `Accused.contacts[].email` | data | `Email` |
-| Registered office | `Accused.addresses[]` (array) | data | `Registered office` |
-| ~~`No`~~ (accused's power of attorney) | **none** ✂ — `poa` exists on `Complainant` only | — | cut |
-| ID proof | `IntakeSlot.docType: "id-proof"` | data | document row |
-| Company documents | `Intake.supporting` slot | data | document row |
+#### Header
 
-### 2 · Case specific details
+| Value | Source | Type | Checked against | Surfaced | Slot |
+|---|---|---|---|---|---|
+| `CMP/1840/2025` | `RegisterCase.caseNumber`; issued at filing as `SignState.caseFileNumber` | data | — | glance · file | identity line, `tabular-nums` |
+| `Rajan Krishnan v. Quilon Cashew Exports` | `causeTitle()` over `Complainant.name` / `Accused.name` | data (derived value, real attributes) | complainant's ID proof · accused's company documents | glance · file | `h1` |
+| `Kollam JMFC-II` | `CURRENT_STAFF.court` (session) | data — constant *within* this queue | — | glance · file | cell "Court" |
+| **Cheque amount** | `ChequeDetails.amount` | data | the cheque | **glance** · file | cell "Amount", `tabular-nums` — **added by D18** |
+| `4 Dec 2024` | `FilingDraft.submittedAt` | data | — | glance · file | cell "Submitted" |
+| `281 days` | derived: today − `submittedAt` | data (derived) | — | glance · file | cell "Waiting" |
+| ~~`Waiting to be registered`~~ | `CASE_REVIEW_STATUS` — one member, true of every row here | closed enum, single-valued | — | **cut** (D3) | — |
 
-| Value | Source | Type | Slot |
-|---|---|---|---|
-| `Cheque no. 483920` | `ChequeDetails.chequeNumber` | data | record heading |
-| ~~Signatory of the dishonoured cheque~~ | `Accused.reps[]` — **restates the Authorised signatory row** | duplicate | cut |
-| Cheque amount | `ChequeDetails.amount` | data | `Amount` |
-| Date of the cheque | `dateOnCheque` | data | `Cheque dated` |
-| ~~Payee name on the cheque~~ | derived = `Complainant.name` — **restates the complainant record and the cause title** | duplicate | cut |
-| Payee bank | `Jurisdiction.payeeBankName` | data | `Payee bank` |
-| Payee bank branch | `Jurisdiction.payeeBankBranch` | data | `Payee branch` |
-| Payee IFSC | `Jurisdiction.ifsc` | data | `Payee IFSC` |
-| Payer bank | `ChequeDetails.bankName` | data | `Payer bank` |
-| Payer bank branch | `ChequeDetails.bankBranch` | data | `Payer branch` |
-| Payer IFSC | `ChequeDetails.ifsc` | data | `Payer IFSC` |
-| Date deposited | `presentDate` | data | `Deposited on` |
-| Date of return | `returnDate` | data | `Returned on` (was “Date of return as per the cheque return memo”) |
-| `Funds insufficient` | `ChequeDetails.returnReason` | **user free text** in the registry (machine-prefilled from the memo); the screen renders a 3-value enum | `Return reason` — flagged in §12.7 |
-| Police station (payee bank) | `Jurisdiction.payeePolice` | data | `Police station — payee bank` |
-| Police station (drawer bank) | `Jurisdiction.drawerPolice` | data | **added** — today one unqualified row stands for two fields |
-| ~~Additional details about the cheque~~ | **none** ✂ — no such field on `ChequeDetails`; empty on every record | — | cut |
-| `Confirmed by the complainant` | the filing declaration; checkable against `presentDate − dateOnCheque ≤ 90` | closed enum | **added** as `Deposited within three months` (was half a tinted Alert — §5a.10) |
-| ~~“returned because of the insufficiency of funds”~~ | `RETURN_REASONS[…].sworn` — **restates the Return reason row as a sentence** | duplicate / prose | cut |
-| Dishonoured cheque | `IntakeSlot.docType: "cheque-front"` | data | document row |
-| Proof of deposit | `Intake.supporting` slot | data | document row |
-| Cheque return memo | `IntakeSlot.docType: "return-memo"` | data | document row |
-| Nature of the debt | `DemandNotice.natureDebt` | user free text | `Nature of the debt` |
-| ~~Cheque received for full or part liability~~ | **none** ✂ | — | cut |
-| ~~Amount covered by the cheque~~ | `ChequeDetails.amount` — **restates the cheque amount** | duplicate | cut |
-| ~~Total amount claimed to be owed~~ | **none** ✂ | — | cut |
-| `Part payment made` | `DemandNotice.paymentStatus` (`"" \| "none" \| "part"`) | closed enum | **added** — the real field the `partialLiability` mark should have pointed at |
-| Part payment amount | `DemandNotice.partAmount` | data | **added**, shown when `paymentStatus === "part"` |
-| Why the cheque was issued | `DemandNotice.whyIssued` | user free text | replaces “Additional details of the debt or liability” |
-| Proof of the debt or liability | `Intake.supporting` slot | data | document row |
-| Date dispatched | `DemandNotice.dispatchDate` | data | `Notice dispatched` |
-| Date of service | `DemandNotice.deliveryDate` | data | `Notice served` |
-| `Yes` / `No` | `DemandNotice.replied` (`YesNo`) | closed enum | `Reply received` — **today a date, or the sentence “No reply received”, in one slot** (problem 7) |
-| Notice period ended | `Jurisdiction.causeDate` | data | `Notice period ended` (was “Date the fifteen days from service were complete”) |
-| Legal demand notice | `IntakeSlot.docType: "demand-notice"` | data | document row |
-| Proof of dispatch | `"dispatch-proof"` | data | document row |
-| Proof of service | `"delivery-proof"` | data | document row |
-| Reply to the notice | `"notice-reply"` | data | document row |
-| `No` | derived: `filingDate − causeDate > 30` (`FILING_WINDOW_DAYS`, §142(b)) | closed enum | `Filed within one month` |
-| Days beyond the month | derived from the same two dates | data | `Days beyond the month` |
-| Grounds stated | `Jurisdiction.condonationReason` | user free text | `Grounds` — **today one of two composed sentences** (problem 7) |
-| Delay condonation application | `Intake.supporting` slot | data | document row |
+#### The check ledger (D14, D15)
 
-### 3 · Additional details
+| Value | Source | Type | Checked against | Surfaced | Slot |
+|---|---|---|---|---|---|
+| "Seven checks ran on the entered data." | the count of `CaseCheck[]` — derived | product copy over a derived count | — | **glance, always** | the ledger's first line |
+| "Nothing flagged." / "Two need a look." | count of fired checks | derived count | — | **glance, always** | same line |
+| "Checks compare entered values with each other. No document was read." | product copy — the limit, stated (problem 23) | product copy | — | **glance, always** | `text-caption` under the line |
+| Deposited outside the three months | `daysBetween(chequeOn, depositedOn) > PRESENTATION_WINDOW_DAYS`; §138(a) | derived check, class `flag` | the cheque + the proof of deposit | glance·fired | finding row → detail |
+| Notice sent more than thirty days after the return | `daysBetween(returnedOn, noticeSentOn) > NOTICE_WINDOW_DAYS`; §138(b) | derived check, `flag` | return memo + proof of dispatch | glance·fired | finding row → detail |
+| Complaint filed before the fifteen days ran | `submittedOn ≤ accruedOn`; §138(c) | derived check, `flag` | proof of service | glance·fired | finding row → detail |
+| Filed outside the month with no application to condone | `sinceAccrual > FILING_WINDOW_DAYS && missing.includes("delay-application")`; §142(b) | derived check, `flag` | — (the absence *is* the finding) | glance·fired | finding row → detail |
+| *N* required documents not on file | count of `IntakeSlot.file === null` over required slots (§12.16) | derived count, `flag` | — | glance·fired | finding row → detail (the slots, named) |
+| No advocate on record | `counselFor(complaint,"complainant").length === 0` | derived check, class **`note`** | the vakalatnama slot's absence | glance·fired | finding row; plain ink, never `warning-ink` |
+| Part payment made against the cheque | `DemandNotice.paymentStatus === "part"` + `partAmount` | derived check, **`note`** | — | glance·fired | finding row → detail (amount, balance) |
+| The values a fired check read | the rows below, unchanged | data | as their own rows | glance·fired | the detail's `DescriptionList` |
+| The documents that would settle a finding | the group's own `CaseDocument[]` | data | — | glance·fired | `DocumentSlot` rows in the detail → open in the file view's pane |
 
-| Value | Source | Type | Slot |
-|---|---|---|---|
-| Witness's name | `Witness.fullName` | data | record heading |
-| Speaks to | `Witness.prove` | user free text | `Speaks to` — real attribute, but the demo prints one constant string on every witness |
-| Mobile number | `Witness.contacts[].mobile` | data | `Mobile` |
-| ~~Synopsis~~ | **none** ✂ — two paragraphs composed by outcome (`marks.replied`) | — | cut (problem 7) |
-| Prayer | `AdrPrayer.finalRelief` | user free text | `Prayer` |
-| Additional details | `AdrPrayer.otherDetails` | user free text | `Other details` |
-| Complaint | `Intake.supporting` slot | data | document row |
-| Affidavit u/s 223 BNSS | `Intake.supporting` slot | data | document row |
-| Advocate's name | `Advocate.name` | data | record heading |
-| `For the complainant` | `Advocate.forComplainants` | data | record tag |
-| Bar registration | `Advocate.barNumber`; `REG-13` (looked up against the Bar Council database) | data | `Bar registration` |
-| Bar ID card | `REG-14` (photo of Bar ID card) | data | document row — **relabelled** from “ID proof”; the handover records that ID proof is *not* collected at registration |
-| Vakalatnama | `IntakeSlot.docType: "vakalatnama"` | data | document row |
+#### The way into the file (D17)
 
-### 4 · Submissions from the accused
+| Value | Source | Type | Checked against | Surfaced | Slot |
+|---|---|---|---|---|---|
+| "Open the full file" | product copy — the control's name | product copy | — | glance | `Button variant="outline"` |
+| `41 entered values · 18 documents` | counts over `CaseReview.sections` | derived counts | — | glance | `text-caption` beside the control |
 
-| Value | Source | Type | Slot |
-|---|---|---|---|
-| ~~“A letter asking that the complaint not be entertained”~~ | **none** ✂ | — | cut (§5a.9a) |
-| ~~Letter from the accused~~ | **none** ✂ | — | cut (document) |
-| “Nothing on record — the accused has not been summoned yet” | the flow: no summons before registration (`product-foundation.md` spine 3–4) | **product copy** | group empty state — guidance, correctly not a fact |
+#### 1 · The cheque and the notice *(was section 2)*
 
-### 5 · Payment details
+**Cheque details** — documents: Dishonoured cheque · Proof of deposit · Cheque return memo
 
-| Value | Source | Type | Slot |
-|---|---|---|---|
-| Court fee paid | `SignState.paidAmount` | data | `Court fee paid` |
-| Receipt number | `SignState.paymentRef` | data | `Receipt number` |
-| Payment receipt | `Intake.supporting` slot | data | document row |
+| Value | Source | Type | Checked against | Surfaced | Slot |
+|---|---|---|---|---|---|
+| `Cheque no. 483920` | `ChequeDetails.chequeNumber` | data | the cheque | file | record heading |
+| Cheque amount | `ChequeDetails.amount` | data | the cheque | **glance** · file | `Amount` |
+| Date of the cheque | `dateOnCheque` | data | the cheque | file · glance·fired (check 1) | `Cheque dated` |
+| Payee bank | `Jurisdiction.payeeBankName` | data | proof of deposit | file | `Payee bank` |
+| Payee bank branch | `Jurisdiction.payeeBankBranch` | data | proof of deposit | file | `Payee branch` — **and the §142(2) jurisdiction fact** |
+| Payee IFSC | `Jurisdiction.ifsc` | data | proof of deposit | file | `Payee IFSC` |
+| Payer bank | `ChequeDetails.bankName` | data | the cheque | file | `Payer bank` |
+| Payer bank branch | `ChequeDetails.bankBranch` | data | the cheque | file | `Payer branch` |
+| Payer IFSC | `ChequeDetails.ifsc` | data | the cheque | file | `Payer IFSC` |
+| Date deposited | `presentDate` | data | proof of deposit | file · glance·fired (check 1) | `Deposited on` |
+| Date of return | `returnDate` | data | the return memo | file · glance·fired (check 2) | `Returned on` |
+| `Funds insufficient` | `ChequeDetails.returnReason` (3-value enum on screen; a `string` in the registry) | closed enum — **§12.7** | the return memo | file | `Return reason` |
+| Police station (payee bank) | `Jurisdiction.payeePolice` | data | **—** | file | `Police station — payee bank` |
+| Police station (drawer bank) | `Jurisdiction.drawerPolice` | data | **—** | file | `Police station — drawer bank` |
+| `Yes` / `No` | derived: `daysBetween(chequeOn, depositedOn) ≤ PRESENTATION_WINDOW_DAYS`; §138(a) | derived check | the two dates above, each on a document | file (**check 1 is its glance form**) | `Deposited within three months`; `exception` ink when No |
 
-### Timeline
+**Debt or liability details** — document: Proof of the debt or liability
 
-| Value | Source | Type | Slot |
-|---|---|---|---|
-| Complaint submitted | `FilingDraft.submittedAt`; spine step 1 | data | `TimelineItem status="past"` |
-| Court fee received | `SignState.paid` / `paidAt`; spine step 1 | data | past |
-| Delay condonation application filed | `Jurisdiction.condonationReason` + the application slot | data (conditional) | past |
-| Taken up for scrutiny | spine step 2 (`product-foundation.md` L73) — **no store holds it today** | data (unbacked) | past |
-| Scrutiny completed | spine step 2 — no store today | data (unbacked) | past |
-| Waiting to be registered · “281 days so far” | derived from `daysSinceSubmitted` | closed enum (the current state) + derived detail | `status="current"` |
-| Registration decision · “Not made” | the unbuilt act (§5.7) | product copy | `status="future"` |
-| ~~Placed before the magistrate~~ | **none** ✂ — the spine runs scrutiny → cognizance with no placement step | — | cut (owner) |
-| ~~Letter from the accused received~~ | **none** ✂ | — | cut (owner) |
+| Value | Source | Type | Checked against | Surfaced | Slot |
+|---|---|---|---|---|---|
+| Nature of the debt | `DemandNotice.natureDebt` (closed list, `lib/filing/options.ts`) | closed enum | proof of the debt *(weak pair)* | file | `Nature of the debt` |
+| `No payment made` / `Part payment made` | `DemandNotice.paymentStatus` | closed enum | **—** | file · glance·fired (check 7) | `Payment against the cheque` |
+| Part payment amount | `DemandNotice.partAmount`, when `paymentStatus === "part"` | data | **—** | file · glance·fired (check 7) | `Part payment amount` |
+| Why the cheque was issued | `DemandNotice.whyIssued` (closed list) | closed enum | proof of the debt *(weak pair)* | file | `Why the cheque was issued` |
 
-### Every document row (applies ~18 times)
+**Legal demand notice** — documents: Legal demand notice · Proof of dispatch · Proof of service · Reply to the notice
 
-| Value | Source | Type | Slot |
-|---|---|---|---|
-| The court's label for the document | `IntakeSlot.label` | closed enum (the form's slot list) | `ItemTitle` |
-| `Filed` / `Not on file` | `IntakeSlot.file !== null` | closed enum | `ItemDescription` |
-| Which page shape to draw | derived from `IntakeSlot.docType` (11 members → 6 shapes) | presentation, not a fact | facsimile |
-| ~~`return-memo-06-08-2025.pdf`~~ | `StoredFileRef.name` exists on the *filer's* side; **no court-side store**, so the value was generated | attribute real, value fabricated | cut |
-| ~~`1 page · 121 KB`~~ | page count: **none anywhere** ✂. Size: `StoredFileRef.size`, fabricated by `fileSize()` | — / fabricated | cut |
+| Value | Source | Type | Checked against | Surfaced | Slot |
+|---|---|---|---|---|---|
+| Date dispatched | `DemandNotice.dispatchDate` | data | proof of dispatch | file · glance·fired (check 2) | `Notice dispatched` — **§138(b) starts here** |
+| Date of service | `DemandNotice.deliveryDate` | data | proof of service | file · glance·fired (check 3) | `Notice served` — **§138(c) starts here** |
+| `Yes` / `No` | `DemandNotice.replied` (`YesNo`) | closed enum | the reply slot's own filled/absent state | file | `Reply received` |
+| Notice period ended | `Jurisdiction.causeDate` = served + `PAYMENT_WINDOW_DAYS`; §138(c) | data (derived) | the service date, on a document | file · glance·fired (checks 3, 4) | `Notice period ended` — **the cause of action** |
 
-### Real attributes the file does **not** show
+**Delay condonation application** *(only on a late file)* — document: Delay condonation application
 
-Not a proposal — a record of what the registry holds so the next reader
-can see the gap rather than invent a field: `DemandNotice.modeService`,
-`tracking`, `delivered`, `nonDeliveryReason`; `Jurisdiction.otherPending`
-+ `otherCases` (other proceedings between the same parties);
-`AdrPrayer.adr` and `interimRelief`; `Witness.designation`, `age`,
-`addresses`; `Complainant.poaHolder` (the PoA holder's own record, when
-`poa === "yes"`); `Accused.jurisdiction`; `SignState.paidAt`.
-Whether a registering court reads any of them is §12.6.
+| Value | Source | Type | Checked against | Surfaced | Slot |
+|---|---|---|---|---|---|
+| Days beyond the month | derived: `sinceAccrual − FILING_WINDOW_DAYS`; §142(b) | data (derived) | the two dates, each on a document | file · glance·fired (check 4) | `Days beyond the month` |
+| Grounds stated | `Jurisdiction.condonationReason` | user free text | **the application itself** | file | `Grounds`; no value when the application is not on file |
+
+#### 2 · Litigant details
+
+**Complainant** — documents: ID proof · Affidavit u/s 225 BNSS
+
+| Value | Source | Type | Checked against | Surfaced | Slot |
+|---|---|---|---|---|---|
+| Complainant's name | `Complainant.name` | data | ID proof | glance (in the cause title) · file | record heading |
+| `Individual` / `Company` | `Complainant.type` (`LITIGANT_TYPES`) | closed enum | ID proof / company documents | file | record `Badge` |
+| Authorised signatory *(entity only)* | `Complainant.reps[].name` | data | company documents | file | `Authorised signatory` |
+| Mobile number | `Complainant.mobile` | data | **—** | file | `Mobile` |
+| Email | `Complainant.email` | data | **—** | file | `Email` |
+| Age *(individual only)* | `Complainant.age` | data | ID proof *(§12.13)* | file | `Age` |
+| Permanent address *(individual only)* | `Complainant.perm` | data | ID proof *(§12.13)* | file | `Permanent address` |
+| Current address *(individual only)* | `Complainant.res`, when `permSame === "no"` | data | **—** | file | `Current address` |
+| Registered office *(entity only)* | `Complainant.perm` | data | company documents | file | `Registered office` |
+| `Yes` / `No` | `Complainant.poa` (`YesNo`) | closed enum | **— and there is no PoA slot on the form** | file | `Power of attorney` — **§12.14** |
+
+**Accused** — documents: ID proof · Company documents
+
+| Value | Source | Type | Checked against | Surfaced | Slot |
+|---|---|---|---|---|---|
+| Accused's name | `Accused.name` | data | company documents | glance (cause title) · file | record heading |
+| `Company` | `Accused.type` | closed enum | company documents | file | record `Badge` |
+| Authorised signatory | `Accused.reps[].name` — an **array** under S-141 | data | company documents | file | `Authorised signatory` |
+| Mobile number | `Accused.contacts[].mobile` (array) | data | **—** | file | `Mobile` |
+| Email | `Accused.contacts[].email` (array) | data | **—** | file | `Email` |
+| Registered office | `Accused.addresses[]` (array) | data | company documents | file | `Registered office` |
+
+#### 3 · Additional details
+
+**Witness details** — **no documents on this group, in the model** (`CaseRecord.documents` unset)
+
+| Value | Source | Type | Checked against | Surfaced | Slot |
+|---|---|---|---|---|---|
+| Witness's name (×2 on `r-1840`) | `Witness.fullName` | data | **—** | file | record heading |
+| Speaks to (×2) | `Witness.prove` (`WITNESS_PROVES`, 4 values) | closed enum | **—** | file | `Speaks to` |
+| Mobile number (×2) | `Witness.contacts[].mobile` | data | **—** | file | `Mobile` |
+
+**Complaint** — documents: Complaint · Affidavit u/s 223 BNSS
+
+| Value | Source | Type | Checked against | Surfaced | Slot |
+|---|---|---|---|---|---|
+| Additional details | `AdrPrayer.otherDetails` | user free text | the complaint | file | `Other details`; absent on most files |
+
+**Advocate details** — documents: Bar ID card · Vakalatnama
+
+| Value | Source | Type | Checked against | Surfaced | Slot |
+|---|---|---|---|---|---|
+| Advocate's name | `Advocate.name` | data | the vakalatnama | file | record heading |
+| Bar registration | `Advocate.barNumber`; `REG-13` | data | **the Bar ID card** — the pair `register-advocates` verifies | file | `Bar registration` |
+| *(the absence of any advocate)* | `counselFor(...)` empty → `CaseAbsence "none-on-record"` | closed enum | — | **glance·fired (check 6)** · file | finding row; group absence |
+
+#### 4 · Payment details — document: Payment receipt
+
+| Value | Source | Type | Checked against | Surfaced | Slot |
+|---|---|---|---|---|---|
+| Court fee paid | `SignState.paidAmount` | data | the receipt | file | `Court fee paid` |
+| Receipt number | `SignState.paymentRef` | data | the receipt | file | `Receipt number` |
+
+#### Every document row (18 on `r-1840`)
+
+| Value | Source | Type | Checked against | Surfaced | Slot |
+|---|---|---|---|---|---|
+| The court's label for the document | `IntakeSlot.label` | closed enum (the form's slot list) | — | file · glance·fired (in a finding's detail) | `DocumentSlot` label |
+| Which page shape to draw | derived from `IntakeSlot.docType` (11 members → 6 shapes) | **presentation, not a fact** | — | file · glance·fired | `ThumbnailButton` facsimile |
+| `Not on file` | `IntakeSlot.file === null` | closed enum | — | file · **glance·fired (check 5 names it)** | absent row; **the row is the finding** |
+| ~~`Filed`~~ | `IntakeSlot.file !== null` — true of every row that renders one | closed enum, single-valued in context | — | **cut** (D6) | — |
+| ~~`Documents`~~ | none — a caption on ten identical lists | product copy | — | **cut** (D6) | — |
+
+#### Timeline (behind a control, file view only — D8, D21)
+
+| Value | Source | Type | Checked against | Surfaced | Slot |
+|---|---|---|---|---|---|
+| Complaint submitted | `FilingDraft.submittedAt`; spine step 1 | data | — | sheet | past — **duplicates the header cell** |
+| Court fee received | `SignState.paid` / `paidAt`; spine step 1 | data | the payment receipt | sheet | past |
+| Delay condonation application filed | `Jurisdiction.condonationReason` + the application slot | data (conditional) | the application | sheet | past |
+| Taken up for scrutiny | `product-foundation.md` L73 — **no store holds it** | data (unbacked) | — | sheet | past |
+| Scrutiny completed | L73 — **no store holds it** | data (unbacked) | — | sheet | past |
+| Waiting to be registered · "281 days so far" | derived from `daysSinceSubmitted` | closed enum + derived detail | — | sheet | current — **duplicates the header cell** |
+| Registration decision · "Not made" | the unbuilt act (§5.7, §12.4) | product copy | — | sheet | future |
+
+#### The send-back stage (D10)
+
+| Value | Source | Type | Checked against | Surfaced | Slot |
+|---|---|---|---|---|---|
+| The magistrate's reason | the officer's own words in a required slot; `REG-22`'s shape | **user free text** | — | stage | `Textarea`; carried to the advocate |
+| "Why are you sending this back?" | product copy — the question, and nothing after it | product copy | — | stage | `FieldLabel` |
+| "Write a reason first." | product copy — the gate, only once tripped | product copy | — | stage | `FieldError` |
+| ~~the attribute at fault~~ | **not built** — `register-advocates` §12.10 / this brief §12.11 | — | — | **cut** | owner's call, not taken here |
+
+#### Real attributes the file still does not show
+
+A record of what the registry holds, so the next reader sees the gap rather than invents a
+field: `DemandNotice.modeService`, `tracking`, `delivered`, `nonDeliveryReason`;
+`Jurisdiction.otherPending` + `otherCases`; `AdrPrayer.adr` and `interimRelief`;
+`Witness.designation`, `age`, `addresses`; **`Complainant.poaHolder`** (§12.14);
+`Accused.jurisdiction`; `SignState.paidAt`. Whether a magistrate taking cognizance reads any
+of them is §12.6.
 
 ---
 
 ## 6. What I cut (and why)
 
-- **A Register row action, even disabled.** Registering is not built.
-- **A stage / status filter.** Not on the reference; would invent an
-  axis.
-- **Painting only the longest wait in warning-ink.** Would make sibling
-  days look like different kinds of fact.
-- **A second framed box for search.** Filters belong inside the list
-  panel.
-- **Copying the screenshot's dummy names and `KL-00…` numbers.** The
-  court side already speaks CMP / Kollam parties; a third vocabulary
-  would be the first thing a clerk noticed.
+**Cut from the landing, 2026-09-11 (night):**
 
-**Cut from the file, 2026-09-10:**
+- **The twenty-nine-row claim surface, as the landing.** The single largest cut in this
+  brief, and it is a cut of my own work from an hour earlier. A screen that offers rows to
+  be checked has handed the magistrate the scrutiny officer's job. It survives intact as the
+  full file (D17) — demoted, not deleted.
+- **A green tick per passing check**, and any per-group "verified" state. Twelve marks on
+  thirty-two clean files is the norm marked; the passes collapse into one counted line
+  (D14). This is the cut a reasonable person would most want back, and §5a-ii.10 is the
+  precedent for refusing.
+- **A score, a percentage, or any word that says the complaint is in order.** The machine
+  reports what it ran; the court decides what it means.
+- **A document strip on the glance.** Eighteen thumbnails under the header is a data dump
+  with pictures; the checks name the documents that matter, and the rest are one click away.
+- **The case timeline, from the glance entirely** (D21). Two of its seven steps are header
+  cells said twice; two are events no store holds.
+- **The reading index** — still cut (D7), with `useReadingSection`, `readingLine`,
+  `READING_LINE` and `SCROLL_KEYS`. **Un-cut on review: the section `id`s and their
+  `scroll-mt`**, which the file view's deep links need (D21).
+- **A third severity, and a "cleared" state.** Two values, `flag` and `note`, both derived.
+- **Any overlay on the glance** (D20).
+- **An eighth check on the cheque's return reason or on jurisdiction.** Neither is decidable
+  from what the registry holds; both are §12.7 and §5a-iii's own record.
 
-- **Eleven invented attributes**, listed ✂ in §5a: the case category;
-  the accused's power of attorney; “Additional details about the
-  cheque”; full-or-part liability and the total owed; the Synopsis; the
-  accused's filed letter and its document; a document's page count; and
-  the two timeline steps the owner named.
-- **Four duplicates.** The cheque's signatory (the accused's record has
-  it), the payee's name (the cause title has it), the amount covered by
-  the cheque (the cheque has it), and the sworn return reason (the row
-  above has it, unrhetorically).
-- **Two constants.** Case category and case type are the same on every
-  §138 complaint; `FilingDraft.caseType` being a one-value union is the
-  proof, not an opinion.
-- **The filename, page count and size on every document tile.** A
-  plausible fixture in the shape of a field is worse than no field: it
-  invites a reader to trust it and a builder to keep it.
-- **The tinted confirmations alert.** It marked the norm (§5a.10).
-- **The accordion, and the three workarounds it required.**
-- **`IdentityFact` and the header's five-column `DescriptionList`.**
-  Two facts do not need a grid.
-- **A “collapse all” control**, which is what a reasonable person adds
-  when told the accordion is invisible. The right answer was fewer
-  controls, not a louder one.
-- **A per-group document *grid*.** Twelve thumbnails give a good
-  overview and cost a component the app does not otherwise use; the
-  sibling's list-plus-preview is the idiom, and one idiom beats a
-  better-in-isolation second one.
-- **Not cut, deliberately:** section 4, which will always read “nothing
-  on record”. It is flagged in §5a.9a for the owner rather than removed
-  under a product question that is still open (§12.3).
+**Cut in the evening round, kept cut:** the modal document dialog (`Dialog`,
+`ChromeDialogContent`, `CaseDocumentBody` and its two focus workarounds); `Dismiss case`
+(pending §12.9); the `Waiting to be registered` badge; `meta="Filed"` on eighteen rows and
+the `Documents` caption on ten lists; a "cognizance chain" summary region; a per-fact
+`CaseFact.source` link; reason chips on the send-back; `ResizablePanelGroup`; progressive
+disclosure of the fifteen declared-only facts.
 
-**The long-label / other-language case.** Terms are now attribute names,
-which is what makes translation survivable: “Notice period ended” has
-room to triple in Malayalam inside a `minmax(7rem,10rem)` track that can
-also stack, where “Date when the 15 days from service of legal demand
-notice was complete” had none in any language. The container query is
-what enforces it — a term that outgrows its track at a given column
-width stacks at that width, whatever the window is doing.
+**Cut in earlier rounds, kept cut:** nineteen invented attributes, four duplicates, two
+constants, the filename / page count / file size on every document tile, the tinted
+confirmations `Alert`, the accordion and its three workarounds, `IdentityFact` and the
+header's five-column `DescriptionList`, a "collapse all" control, a per-group document grid,
+section 4, `Prayer`, `Filed within one month`, and the advocate's constant record tag.
+
+**Not cut, deliberately:** every one of the 41 fact rows (D5 — on the file view); the
+eighteen document rows; `Court` in the header (an owner ruling; the argument for cutting it
+is in §11 for him, not applied over him); and the caption stating the checks' limit, which
+is the one piece of constant copy this brief defends (problem 23).
+
+**The long-label / other-language case.** Terms are attribute names, which is what makes
+translation survivable: "Notice period ended" can triple in Malayalam inside a
+`minmax(7rem,10rem)` track that can also stack. **The glance's own exposure is different and
+new:** a finding is a *sentence*, not a term — "Cheque deposited 99 days after its date —
+outside the three months §138(a) allows" is the longest string on the landing and it will
+grow by half again in Malayalam. It must wrap to two or three lines inside its row without
+pushing the chevron off, and the row must stay a `min-h-10` target when it does. First thing
+to measure (§11).
 
 ---
 
 ## 7. Layout & hierarchy
 
-**The queue** (unchanged):
+**The queue** (unchanged): page `p-6 md:p-8`, `gap-8`; one lifted panel
+(`rounded-xl border border-hairline bg-card p-6 shadow-raised`) holding filters, table and
+`ListFooter`; primary is Search.
 
-- Page: `p-6 md:p-8`, `gap-8` between title and panel.
-- Title: `text-title sm:text-title-l font-semibold` “Register cases”.
-  Supporting line: the queue count in `text-body text-muted-foreground`.
-- Panel: `rounded-xl border-hairline bg-card shadow-raised p-6 gap-6`.
-- Filters: `gap-4`, wrap, labels above controls, Search + Clear at the
-  end of the row (`items-end`).
-- Table: header well `bg-surface-sunken` rounded on the end cells;
-  `h-2` spacer row; rows `border-b border-hairline`; last row cleared.
-- Footer: shared `ListFooter`.
-- Primary: Search. Everything else recedes.
+### The glance — `/employee/register-cases/<id>`
 
-**The complaint's file** (revised 2026-09-10):
+- **Canvas:** `bg-muted dark:bg-background` — `FilingMain`'s recipe, on the owner's
+  2026-09-11 overrule of `ui-craft` §1.0. Panels are the only white.
+- **Page:** `p-6 md:p-8 pb-0`, `gap-6` between the three regions (tighter than the file
+  view's `gap-8`: three short panels that must read as one object, not four sections).
+- **One column at every width.** No grid, no rails, no split. The glance is the same shape
+  on a phone and on a bench desktop, which is the only region of this feature that is.
+- **Header panel:** one lifted sheet at page width. Identity line → `h1` → hairline → four
+  label-over-value cells (`grid-cols-2 sm:grid-cols-4`): Court · Amount · Submitted ·
+  Waiting.
+- **Check ledger panel:** directly under it, page width, `p-6 gap-3`.
+  - Line one: `size-4` icon (`ShieldCheckIcon`, allowlisted) in `text-muted-foreground` +
+    the counted sentence in `text-body-compact`. **Neutral ink, no tint, on every file.**
+  - Caption under it: `text-caption text-muted-foreground` — the limit (D14).
+  - Then zero or more finding rows in an `ItemGroup`, `gap-2`: each an `Item
+    variant="outline"` acting as a `CollapsibleTrigger`, `min-h-10`, with `ItemMedia
+    variant="icon"` (`CircleAlertIcon` in `warning-ink` for a flag; `InfoIcon` in
+    `muted-foreground` for a note), the finding in `text-body-compact` (`warning-ink` for a
+    flag, `foreground` for a note), and a chevron at the end.
+  - **The detail** opens inside the row's own bounds: `pt-3 gap-3`, a `DescriptionList` of
+    the values read, then the `DocumentSlot` rows. No second frame — the row is already a
+    bordered object, and a well inside it is the box-in-box `ui-craft` §4 forbids.
+  - **No status fill anywhere in this panel.** Ink and words only. That is what retires the
+    evening round's `Banner`-on-`bg-muted` contrast risk (AGENTS 6a): there is no tint on a
+    tint, because there is no tint.
+- **The way in:** a row under the ledger — `Button variant="outline"` "Open the full file"
+  (`h-10`, `FileSearchIcon` at `size-4`) with `41 entered values · 18 documents` in
+  `text-caption text-muted-foreground` beside it, wrapping under it below `sm`.
+- **Decision band:** `sticky bottom-0 z-30`, `border-t border-hairline bg-card`,
+  `px-6 py-3 md:px-8 md:py-4`, `flex-col-reverse … sm:flex-row sm:justify-end` (the DS
+  `DialogFooter` order). Send back (ghost) then Register (teal).
 
-- Page: `p-6 md:p-8`, header panel then the three-column grid, `gap-8`.
-- Grid at `lg`:
-  `grid-cols-[minmax(0,13rem)_minmax(0,1fr)_minmax(0,15rem)] gap-6 lg:gap-8`.
-  **Measured widths of the middle column: 448px at 1280, 608px at 1440**
-  (page 1008/1168 − 64 padding − 208 − 240 − 64 of gaps). Its panel is
-  ≈382px / ≈542px inside; its well ≈350px / ≈510px. Every row metric
-  below is designed for those numbers, not for the viewport.
-  Below `lg`: index, timeline, file, stacked.
-- Header panel: one lifted sheet at page width. Eyebrow caption line →
-  `h1` + status `Badge`. No fact grid.
-- Reading column: `flex flex-col gap-8`; each section
-  `<section id=… class="flex flex-col gap-4 scroll-mt-(--chrome-sticky-top)">`
-  with an `h2` and its group panels at `gap-6`. No accordion, no rules.
-- Group panel: lifted panel, `p-6 gap-4`; `size-8` sunken icon tile +
-  `h3`; then one sunken well per record and one for the group's own
-  facts and documents.
-- Well: `rounded-lg bg-surface-sunken p-4 gap-3`, `@container`,
-  borderless (`ui-craft` §4, box-in-box ban).
-- Documents inside the well: a `text-caption` “Documents” label, then a
-  stacked `Item variant="outline"` list at `gap-2`.
-- Decision band: sticky footer, `border-t border-hairline bg-card`,
-  Dismiss case (ghost) then Register case (teal), both `aria-disabled`.
+**Arithmetic for "no scrolling" at 1280×800** (owed a render check, §11): chrome top bar 64 +
+breadcrumb ≈ 40 + page top padding 32 + header panel ≈ 150 + 24 + ledger (clean) ≈ 96 + 24 +
+the way-in row 40 + the sticky band 72 = **≈ 542px** against 800. Two findings add ≈ 96px and
+it still holds. **This is the objective's one measurable claim and the first thing to
+verify.**
 
-**The type hierarchy — six levels down to four sizes.** Each does one
-job; hierarchy is carried by size *and* colour, not by the section
-numbers (`ui-craft` §3, DS typography “hierarchy comes from size and
-weight”):
+### The full file — `/employee/register-cases/<id>/file`
+
+Unchanged from the evening round, except that it is a destination:
+
+- Page `p-6 md:p-8 pb-0`, `gap-8`. Same header panel, plus the timeline `Sheet` trigger with
+  the cells.
+- Body grid: below `xl` one column; at `xl` and up
+  `xl:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)] xl:gap-8`, the document pane
+  `xl:sticky xl:top-(--chrome-sticky-top) xl:self-start`, each column scrolling on its own —
+  the `ReviewStage` recipe.
+- Claims column: `flex flex-col gap-8`; `<section>` `flex flex-col gap-4` with an `h2` and
+  `scroll-mt-(--chrome-sticky-top)`; group panels `gap-6`; group panel `p-6 gap-4`, `size-8`
+  sunken icon tile + `h3`; records stacked with `border-t border-hairline pt-4`;
+  `@container` on the record block.
+- Document pane: `DocumentPreview variant="quiet" surface="card" height="fill"` with a
+  `composed` facsimile — `EvidenceColumn`'s composition verbatim. **Empty state:** a quiet
+  line naming what the pane is for; **pre-loaded only when arrived at by a finding's deep
+  link**, which is the one time a starting point is asserted by the reader rather than by
+  the screen.
+- Same decision band, same states.
+
+**Type hierarchy — four sizes, unchanged:**
 
 | Role | Token | Weight | Colour |
 |---|---|---|---|
-| Page title (one per screen) | `text-title sm:text-title-l` | 600 | foreground |
-| Section heading (`h2`, 1–5) | `text-title-s` | 600 | foreground |
-| Group heading (`h3`, panel title) | `text-body` | 600 | foreground |
-| Record name (party, cheque, advocate) | `text-body` | 500 | foreground |
-| Term | `text-body-compact` | 400 | `text-muted-foreground` |
-| Value | `text-body-compact` | 400 | foreground; `tabular-nums` when numeric; `text-muted-foreground` for “Not stated” |
-| Eyebrow / tag / “Documents” label | `text-caption` | 500 | `text-muted-foreground`; the wait in `text-warning-ink` |
+| Page title | `text-title sm:text-title-l` | 600 | foreground |
+| Section heading (`h2`, 1–4, file view) | `text-body` | 600 | foreground *(owner, 2026-09-11)* |
+| Group heading (`h3`) | `text-body` | 600 | foreground |
+| Record name · check line · finding | `text-body-compact` | 500 / 400 | foreground; `warning-ink` on a flag |
+| Term · value | `text-body-compact` | 400 | muted / foreground; `tabular-nums` when numeric |
+| Header cell label · counts · the limit caption | `text-caption` | 500 / 400 | `text-muted-foreground` |
 
-Two changes from today, both on the value: it drops from `text-body`
-(16) to `text-body-compact` (14) and from 500 to 400 — which is the DS
-`DescriptionList` default (`DescriptionTerm` muted, `DescriptionDetails`
-foreground, both 14) and the reason the DS default exists. Today the
-value is *larger and heavier than its own term*, so fifteen rows read as
-fifteen emphasised strings and the pair is distinguished by nothing. At
-400/400 the pair is distinguished by colour, which is `ui-craft` §1.3's
-own instruction: prefer colour over a third weight. Weights per
-component then hold at two — the panel is 600 (title) + 500 (record
-name); the well is 500 (record name) + 400 (rows). `text-body-compact`
-is sanctioned here and only here: DS typography allows it for “dense
-staff tables — opt-in, never citizen-facing default”, and this is a
-staff worklist (§1, who this is for). Rejected: keeping 16px values for
-readability — at a 350px well that buys two-line values on half the
-rows, and the DS already decided this pair.
+**Hierarchy, stated once.** On the glance: the cause title, then the check line, then the
+act. A finding, when there is one, is the only coloured thing on the screen. The way into
+the file is deliberately quiet — it is the rare path. On the file view the loudest thing is
+whatever the reader navigated to; the pane is never loud, because it is the thing the claims
+are read *against*.
 
 ---
 
 ## 8. Components (DS name → region)
 
-| Region | DS |
-|---|---|
-| Page title | `text-title` / `text-title-l` |
-| List panel | composed `section` with panel classes (not a nested Card) |
-| Search | `Field` + `FieldLabel` + `InputGroup` / `InputGroupInput` |
-| Search / Clear | `Button` primary / ghost |
-| Table | `Table` + header well / hairline rows |
-| Advocates | existing `CounselCell` |
-| Empty | `Empty` + `EmptyMedia` icon |
-| Pagination | `ListFooter` (`Pagination` + `Select`) |
+**The queue** (unchanged): `text-title` / `text-title-l` · composed panel `section` ·
+`Field` + `FieldLabel` + `InputGroup` · `Button` primary / ghost · `Table` · `CounselCell` ·
+`Empty` + `EmptyMedia` · `ListFooter` (`Pagination` + `Select`).
 
-The complaint's file:
+**The glance:**
 
 | Region | DS / app component |
 |---|---|
-| Header, index, timeline, group panels | composed `section` / `nav` with the panel classes |
-| Case status | `Badge variant="secondary"` |
-| Section (1–5) | plain `<section>` + `h2` — **`Accordion` removed** |
-| Fact rows | `DescriptionList` / `DescriptionRow` / `DescriptionTerm` / `DescriptionDetails`, DS default columns |
-| Record / document well | `div` on `bg-surface-sunken` (DS well, borderless) |
-| Document list | `Item` / `ItemContent` / `ItemTitle` / `ItemDescription`, `variant="outline"` — the `submission-record-dialog` idiom |
-| Document viewer | `ChromeDialogContent` + app `DocumentPreview variant="quiet" height="fill"` with a `composed` source — the `register-advocates-dialog` idiom |
-| Page facsimile | `PageFacsimile` in DS `paper` tokens, kept from the current build, bounded inside the well |
-| Case timeline | `Timeline` / `TimelineItem` |
-| Decision band | `Button` primary + ghost, `aria-disabled` |
-| **Removed** | `Attachment` + `AttachmentMedia` / `Content` / `Title` / `Description`; `Alert` (`CaseConfirmations`); `Accordion*` |
+| Header, ledger panels | composed `section` with the court-side panel classes (not a nested `Card`) |
+| Header cells | `dl` / `div` / `dt` / `dd` — the HTML5 grouping form, as built |
+| Check line + limit caption | plain `p` at `text-body-compact` / `text-caption`, with a `size-4` lucide icon from the allowlist |
+| Finding rows | `ItemGroup` + `Item variant="outline"` + `ItemMedia variant="icon"` + `ItemContent` (DS `item.tsx`) |
+| A finding's disclosure | `Collapsible` / `CollapsibleTrigger asChild` on the `Item` / `CollapsibleContent` — `register-advocates` D23's mechanism |
+| A finding's values | `DescriptionList` / `DescriptionRow` / `DescriptionTerm` / `DescriptionDetails` |
+| A finding's documents | `DocumentSlot` (DS) + `ThumbnailButton` (`filing/upload/thumbnail.tsx`), as links into the file view |
+| The way in | `Button variant="outline"` |
+| Decision band | `Button` primary + ghost |
+| **Not used on the glance** | `Dialog`, `Sheet`, `Drawer`, `Banner`, `Alert`, `Badge`, `Timeline`, `Tabs`, `Accordion` |
+
+**The full file:** unchanged from the evening round — composed panels, `DescriptionList`,
+`Badge variant="secondary"` for litigant type, `DocumentSlot` + `ThumbnailButton`,
+`PageFacsimile` in DS `paper` tokens, `DocumentPreview variant="quiet" surface="card"
+height="fill"` for the pane, `Sheet` (`Drawer` on phone) below `xl`, `Sheet` + `Timeline` /
+`TimelineItem` for the history, `Field` + `FieldLabel` + `Textarea` + `FieldError` for the
+send-back stage.
+
+**Why not `Banner` for the check line** — the honest answer, because it is the obvious
+choice. `banner.tsx` binds an icon to each variant (`variant="neutral"` → `MegaphoneIcon`,
+`success` → `CircleCheckIcon`) and fills the row (`bg-surface-sunken` or a status `-muted`).
+A megaphone announcing a completed check is wrong, and every other variant is a tint on 35
+of 35 files. The line is therefore composed from type and one icon, not from a component
+whose semantics do not fit. **This is a DS observation, not a licence** — §13.3.
+
+Every DS name above exists in `vendor/pucar-design-system/src/components/ui/` (catalog
+re-globbed — 67 components). **Nothing new is proposed.**
 
 ---
 
 ## 9. Spacing
 
-`p-6` panel, `gap-6` panel stack, `gap-8` page sections, `gap-4` filter
-row and table-to-footer, `px-4 py-3` cells, `h-10` controls. Ladder
-only.
+Ladder only (`0.5 · 1 · 1.5 · 2 · 2.5 · 3 · 4 · 6 · 8 · 12 · 16`), micro steps inside
+controls only:
 
-The file, audited against the ladder 2026-09-10
-(`0.5 · 1 · 1.5 · 2 · 2.5 · 3 · 4 · 6 · 8 · 12 · 16`, micro steps inside
-controls only): page `p-6 md:p-8`; page stack `gap-8`; grid `gap-6
-lg:gap-8`; reading column `gap-8`; section `gap-4`; groups `gap-6`;
-panel `p-6 gap-4`; well `p-4 gap-3`; rows `py-3` with `gap-4` between
-term and value; documents `gap-2`; index rows `min-h-10 px-3 py-2`;
-decision band `px-6 py-3 md:px-8 md:py-4`. **One off-ladder value found
-and fixed: `size-9` on the group icon tile → `size-8`** (problem 12).
-Radius nesting holds: panels `rounded-xl` (14) → wells and `Item` rows
-`rounded-lg` (10) → nothing smaller nested inside them (`ui-craft` §4).
+**Glance:** page `p-6 md:p-8 pb-0` · page stack `gap-6` · panels `p-6` · header cells
+`gap-4`, `gap-1` inside a cell · ledger `gap-3` · finding rows `gap-2`, each `Item` at the
+DS's own `px-3 py-2.5` (a micro step inside a control) with `min-h-10` · a finding's detail
+`pt-3 gap-3`, its document rows `gap-2` · the way-in row `gap-3` · decision band
+`px-6 py-3 md:px-8 md:py-4`, `gap-3` between controls · controls `h-10`.
+
+**File view:** body grid `gap-6 xl:gap-8` · claims column `gap-8` · section `gap-4` · groups
+`gap-6` · panel `p-6 gap-4` · record block `gap-3` separated by `border-t border-hairline
+pt-4` above a `gap-4` · fact rows `py-3`, `gap-4` term-to-value (`gap-1` stacked) · document
+rows `gap-2`, each `DocumentSlot` at `p-4`.
+
+Radius nesting: panels `rounded-xl` → rows, wells and controls `rounded-lg` → the facsimile's
+own frame `rounded-md` (`ui-craft` §4). The document pane is a container: `rounded-xl`.
+
+**One thing to watch:** the pane's `minmax(20rem,26rem)` is a *width* on the grid, not a
+spacing value, and it is on the rem scale rather than the spacing ladder — which is correct
+(`RESPONSIVE.md` rule 2 asks for `minmax` and `min-w-0` over fixed pixels).
 
 ---
 
 ## 10. States (empty / loading / error / partial / long-label)
 
-**The queue** (unchanged):
+**The queue** (unchanged): empty "Nothing waiting" (`FolderCheck`); filtered empty "No
+matters match this search" + Clear search; no loading or error (demo data); a side with no
+vakalat omitted; cause title wraps.
 
-- **Empty queue:** “Nothing waiting” — the court is up to date; no
-  action. Icon `FolderCheck`.
-- **Filtered empty:** “No matters match this search” + Clear search.
-- **Loading / error:** none — demo data, no backend.
-- **Partial:** a side with no vakalat is omitted (`CounselCell` already).
-- **Long label:** cause title wraps (`whitespace-normal`); corporate
-  accused in the demo; search field `min-w-0`.
+**The complaint's screen:**
 
-**The complaint's file:**
-
-- **Unknown id:** the `Empty` + “Back to register cases” page that
-  already ships (`CaseReviewMissing`).
-- **Empty group** (no witness, no advocate on record): the group panel
-  keeps its heading and states the absence in one muted `text-body`
-  line, with no well around it (§5a.3).
-- **Empty fact:** “Not stated” in `text-muted-foreground`, never a blank
-  cell — the form asked the question and the filer answered nothing,
-  which is itself a fact the court is reading. Kept from Neer's build.
-- **Absent document:** a non-interactive `Item` reading “Not on file”.
-  No paper, no facsimile, no filename — an absence is never dressed as a
-  blank scan (kept from §5a.6).
-- **Partial file:** `r-1588` (delayed, application never uploaded) and
-  `r-1490` (no advocate, accused's ID proof missing) are the rows to
-  check; both must read as *incomplete*, not as broken.
-- **Loading / error:** none — derived data, no backend. When a document
-  store arrives, the well's own states apply (`DocumentPreview` already
-  renders a failure in words and keeps Download reachable).
-- **Long label / other language:** covered in §6. The two regions that
-  can still break are the index entry (two lines at 208px, allowed by
-  `min-h-10`) and the timeline label at 192px, which wraps. The
-  eyebrow's four items wrap as a group at 375px.
-- **N items (pass 4):** `Accused.reps[]`, `contacts[]` and
-  `addresses[]` are arrays, and S-141 means an institution can carry
-  several people in charge — today one of each is rendered. Every one is
-  a record in its group's well, numbered when there is more than one,
-  which is the pattern the complainant and witness records already use.
+| State | What the screen does |
+|---|---|
+| **Unknown id** | `CaseReviewMissing` — `Empty` + "Back to register cases", as built. Both routes |
+| **The common complaint (32 of 35)** | Header, one check line, one caption, the way in, the band. **No finding rows, no scrolling, no colour.** This is the state the design is for and the one to judge it on |
+| **`r-1333`** | One flag row: the cheque was deposited outside §138(a)'s three months. Opens onto `Cheque dated` · `Deposited on` · the gap, and the cheque and the proof of deposit |
+| **`r-1588`** | One flag row: filed beyond the month with no application to condone on the file. **Check 5 does not also count that slot** (D15). Opens onto `Notice period ended` · `Days beyond the month` and the absent application, which is not a control |
+| **`r-1490`** | One flag (the accused's ID proof is not on file — `CASE_FILE_MARKS` names `accused-id-proof`) **and one note** (no advocate on record — the complainant appears in person). The note is plain ink, and the send-back control states it has no recipient (§12.12) |
+| **`r-330`, `r-1654`** | One note: a part payment was made against the cheque; the detail carries the cheque amount, the part amount and the balance |
+| **Checks 2 and 3 never fire** | True of all 35 today, because `chainFor` builds every complaint inside §138(b)'s thirty days and after §138(c)'s fifteen. The checks stay: a real registry is not a generated chain. **A reviewer cannot see them work, and the fixtures must not be bent to make them** (D15) |
+| **A finding whose detail has no document** | Check 4's application and check 6's vakalatnama are *absences*. The detail states the absence in words and offers no control — an absent row is not a control (as built) |
+| **Empty group** *(file view)* | Panel keeps its heading and states the absence through the closed `CaseAbsence.reason` + optional explanation copy, no well |
+| **Empty fact** *(file view)* | "Not stated" in `text-muted-foreground`, never a blank cell |
+| **Document pane, nothing opened** | A quiet line naming what the pane is for. Never a skeleton. Pre-loaded **only** when arrived at from a finding's deep link |
+| **Loading / error** | None — derived data, no backend. When a document store arrives, `DocumentPreview`'s own states apply. **The check ledger needs its own third state then**: "checks could not run", which must read as *unknown*, never as *passed* — the one state this design would be dangerous without (§11) |
+| **N records (pass 4)** | `Accused.reps[]`, `contacts[]`, `addresses[]` are arrays; S-141 allows several people in charge. Three advocates means 22 documents on the file view and **still one check-6 row** — the ledger's length is bounded by seven, whatever the file holds. That is the property that makes the glance survive a bulk-filing state |
+| **Long label / Malayalam** | The glance's exposure is the *finding sentence* (§6), which must wrap to three lines inside a `min-h-10` row without displacing the chevron. The file view's is the `minmax(7rem,10rem)` term track inside a 512px claims column |
+| **200% zoom** | At 200% a 1280 viewport is 40rem: the glance is unchanged (it is one column at every width) and the file view falls to its single-column sheet form. The glance's "no scrolling" claim **does not survive 200%** and is not claimed there |
+| **~375px phone** | Glance: one column, cells `grid-cols-2`, the way-in caption wraps under the button. File view: one column, documents in a `Drawer` |
+| **Send back, no reason typed** | Register unaffected; the send-back's own control is held and says why once the box has been touched and emptied |
+| **Send back, no advocate on record** | **Undesigned — §12.12.** Interim: the control states it has no recipient rather than sending nowhere |
 
 ---
 
 ## 11. Risks accepted
 
-- The list can be mistaken for a place where registration happens. The
-  missing action is the honesty; a caption that over-explains would
-  dress up the gap.
-- `warning-ink` on every days cell is a coloured mark per visible row. At
-  10 per page that is above the craft budget of ~3 status marks; accepted
-  so the column stays one fact.
-- **The document dialog carries a “Full view” inside a dialog that is
-  already near full size** — `DocumentPreview`'s quiet variant offers it
-  and there is no prop to suppress it. `register-advocates-dialog` ships
-  the same duplication; matching the sibling beats a local exception.
-- **The facsimile is a drawing, and at well size it reads more like a
-  wireframe than a scan.** Bounded to `w-64` and centred to keep it from
-  filling the well. Accepted because the alternative — legible facsimile
-  text — fabricates a court record, which is the one thing a demo of a
-  case file must not do.
-- **Two timeline steps (scrutiny taken up, scrutiny completed) name real
-  spine events that no store holds**, so their dates are derived from
-  the wait. Kept because the spine is a product fact and the events are
-  the ones the queue sits between; flagged here so nobody reads them as
-  live.
-- **Section 4 will always read “nothing on record”** until §12.3 is
-  answered. Flagged, not cut (§5a.9a).
-- **Losing the fold** costs a reader with a very long file the ability to
-  put a checked section away. The index is the mitigation.
+- **A magistrate can register without opening a single document, and this design makes that
+  easy.** That is the pull-request posture the owner asked for, and it is a real transfer of
+  trust from the reader to the machine and to scrutiny. Three things hold the line: the
+  ledger states what ran, the caption states that **no document was read**, and the words
+  never say the complaint is in order. The Kerala practice note
+  (`ke-scrutiny-officer-2026-07`) is about what happens when a gate is nominal — **a real
+  control on this is product's to specify, not design's to imply.**
+- **Every check reads entered data against entered data.** A forged cheque, a wrong date
+  typed consistently across two fields, or a document that is a photograph of the wrong page
+  passes all seven. Stated on the screen (D14) and repeated here because it is the risk that
+  will not show up in any test.
+- **The checks are machine claims and could be wrong.** Against a real backend a bad date
+  makes the ledger assert a defect that is not there. They are `warning`, never
+  `destructive`; they never block; they never recommend an outcome.
+- **When checks cannot run, silence would be lethal.** Today they always run (derived data).
+  The moment a store is involved, "could not run" must render as its own state and never
+  collapse into "nothing flagged" (§10). Whoever wires the backend owns this.
+- **One more IA node.** The complaint now has two routes. A magistrate who always wants the
+  file pays one navigation forever. Accepted on the 32:3 ratio; if the ratio is wrong, the
+  fix is to make the file the landing again — every decision for it is preserved in §5a-i B.
+- **`Amount` in the header is my addition** (D18), not an owner ruling. One cell.
+- **`Court` stays in the header** though it is constant within the queue. The owner kept it
+  on 2026-09-10; the argument for cutting it is §5a-ii.4b's own, recorded rather than
+  applied.
+- **Days waiting has three treatments across three sibling surfaces** (D12, D22). A real
+  pass-7 defect, already logged in `register-advocates` §11. Accepted until someone
+  reconciles all three in one pass.
+- **The file's order and the filing side's order disagree** (D4). Accepted because the two
+  readers ask different questions; named so nobody "fixes" one to match the other.
+- **Two timeline steps name spine events no store holds.** Kept, now behind a control on the
+  file view only.
+- **The facsimile is a drawing** and at pane size reads more like a wireframe than a scan.
+  Accepted: legible facsimile text would fabricate a court record.
+- **Pass 8 is not discharged.** No shell this session — no curl, no screenshot, no
+  `check:ds-fresh`. **What the builder must measure, at 375 / 1024 / 1280 / 1440 and 200%
+  zoom, before reporting done:**
+  1. **The glance resolves without scrolling on `r-1840` at 1280×800.** §7's ≈542px is
+     arithmetic. If it fails, the cut is the header's fourth cell, not the caption.
+  2. **A finding row with a three-line Malayalam sentence** — does it stay a `min-h-10`
+     target, does the chevron stay put, does the disclosure still read as one object?
+  3. **`Item variant="outline"` on the `bg-muted` canvas inside a white panel** — the row's
+     `border-border` against `bg-card`: is the finding row legibly a row, or a hairline lost
+     in a panel? (`ui-craft` §3; measure, do not assert.)
+  4. **`warning-ink` text and a `warning-ink` icon on `bg-card`** — the DS tunes this pair to
+     4.5:1 on the white page; confirm it on the panel, in both modes.
+  5. The file view's sticky pane against the sticky decision band, and whether
+     `height="fill"` resolves against a definite container here — the 2026-09-10 build found
+     `fill` needs one and fell back to `height="default"`.
+  6. Focus order on the glance: check line → each finding trigger → the way in → send back →
+     register. And that arriving at the file view **from a finding** moves focus to the
+     opened group, not to the top of the page.
+  7. Whether the file view's claims column, with both rails gone, reads as an
+     undifferentiated scroll. **D7's reversal condition, now scoped to the file view:** if it
+     does, the index returns *there*, never on the glance.
 
 ---
 
 ## 12. Open questions for product
 
-1. **What is this screen's job?** Taking cognizance, numbering a
-   complaint, or something else the registry does?
-2. **Who does it?** Magistrate, bench clerk, scrutiny officer,
-   sheristadar?
-3. **When does a complaint enter this queue?** After e-filing, after
-   scrutiny, after defects are cleared? *(Now also decides whether
-   section 4 should exist at all — §5a.9a.)*
-4. **What does Register do**, when it exists — and what number does
-   the complaint receive? A `CMP` complaint taken on file is renumbered
-   as a summary trial (`ST/…`), and nobody has said by what rule. This
-   is what blocks wiring Register / Dismiss: the outcome cannot be
-   rendered without inventing it. The band stays, dimmed; the owner
-   cut the helper line that used to say so. The remaining alternative
-   is to drop the band, which would make the file a screen with no
-   decision on it.
-5. **When does a complaint leave this queue** — and does a dismissed
-   complaint stay readable?
-6. **Which of the registry's other fields does a registering court
-   read?** Listed at the end of §5a — mode and proof of service, other
-   pending proceedings between the parties, ADR willingness, the PoA
-   holder's own record. Each is a real attribute this file does not
-   show; none is added on a guess. *(Added 2026-09-10.)*
-7. **Is the cheque's return reason a closed list or free text?** The
-   e-filing model has it as a machine-prefilled `string`; this screen
-   renders three values. If the bank's memo phrases are a fixed set, the
-   registry should say so and both ends can be filtered; if not, this
-   screen is showing an enum that does not exist. *(Added 2026-09-10.)*
-8. **Does the court side get a document store — and is the scrutiny
-   bundle reader the viewer?** The workbench already has one
-   (`employee/scrutiny/bundle-view.tsx`: pages, zoom, marks, a document
-   index). If documents here ever open for real, they should open there
-   rather than in a per-document dialog, or the court will have two
-   document readers. *(Added 2026-09-10, from the sibling sweep.)*
+**The one that changes a control, and the one to answer first:**
+
+9. **Is there a third outcome — dismissal at the threshold?** D9 cut `Dismiss case` because
+   the owner named two outcomes (§4) and the control was traced to nothing. The owner has
+   **separately** said *"we should guide him to either dismiss or accept the case"*
+   (relayed, 2026-09-11, §1). That is either loose phrasing for send-back or a real third
+   act. A magistrate can dismiss a complaint at the threshold; whether **this screen** is
+   where that happens, and what it writes, is product's. **Deliberately not resolved, and
+   not quietly reinstated** — the same door `register-advocates` §12.7 stopped at. *If the
+   answer is yes, D19's band takes a third control and the send-back's reason field almost
+   certainly becomes shared with it.*
+
+**Answered, and kept in the record rather than deleted:**
+
+1. ~~**What is this screen's job?**~~ **Answered by the owner, 2026-09-11** — quoted in full
+   in §4, with the glancing framing in §1.
+2. ~~**Who does it?**~~ **Answered by the owner, 2026-09-11** — the magistrate. Consistent
+   with `actors.md` L38/L45. Resolves the question **for this screen**, not
+   `open-questions.md` L9–12 product-wide.
+3. **When does a complaint enter this queue?** Partly answered — "after it passes through
+   scrutiny" (owner). Still open: what happens to a complaint scrutiny *returned*, and
+   whether it re-enters here or the advocate's own queue.
+
+**Still open, with UI consequences:**
+
+4. **What does Register do**, and what number does the complaint receive? A `CMP` complaint
+   taken on file is renumbered as a summary trial (`ST/…`) and nobody has said by what rule.
+   **This is what keeps both controls `aria-disabled`.**
+5. **When does a complaint leave this queue** — and does a returned complaint stay readable?
+6. **Which of the registry's other fields does a magistrate taking cognizance read?** Listed
+   at the end of §5a-iii. None is added on a guess.
+7. **Is the cheque's return reason a closed list or free text?** The registry has it as a
+   machine-prefilled `string`; the screen renders three values. **§138 requires the return to
+   be for insufficiency of funds or an amount exceeding the arrangement** — so if it is a
+   closed list, that is an eighth check; if it is free text, no machine can make it.
+8. **Does the court side get a document store — and is the scrutiny bundle reader the
+   viewer?** The workbench already has a reader (`scrutiny/bundle-view.tsx`). This screen's
+   pane is deliberately the light one, and the owner's "not as exhaustive" argues for keeping
+   it that way.
+10. **Does scrutiny produce a recorded outcome the magistrate's screen can carry?**
+    **Raised in priority by this revision.** The owner does not need the annotation or the
+    history — but *whether scrutiny passed, and whether anything was raised and cleared*, is
+    a different fact, and it is the single thing that would most justify the glance. Today
+    the ledger can only say "seven checks ran"; with a scrutiny outcome it could say what a
+    person found, which is a far stronger basis for a fast register. Nothing in the product
+    records it (the two timeline steps are unbacked). **Do not build a scrutiny-outcome
+    attribute on a guess.**
+11. **Should a send-back name the attribute it is about?** `{attribute, reason}` instead of
+    one free-text field. **This screen makes it cheaper than the advocate queue did** — the
+    vocabulary is closed in `FACT_TERMS`, the slots are keyed, and now the *findings* are a
+    closed set of seven, so a send-back raised from a finding could carry its id for free.
+    Still a **product change**: it alters what is stored and what the advocate is told. **Not
+    built.** Must be answered together with `register-advocates` §12.10 or the court side
+    ends up with two return grammars.
+12. **What happens to a send-back when there is no advocate on record?** `r-1490` is a
+    complaint in person; the owner's sentence is "that sending it back will go to the
+    advocate". Can a complaint in person be returned at all, and to whom? **A real state the
+    demo data already produces and nobody has designed** — and now check 6 puts it on the
+    landing, where it will be seen.
+13. **Which ID does "ID proof" mean, and does it carry an address and a date of birth?**
+    Three rows in §5a-iii are marked checkable against it. If the slot accepts any of several
+    IDs, the checkable count drops from 29 to 27.
+14. **Where is the power-of-attorney instrument?** `Complainant.poa` answers Yes on two
+    complaints, `poaHolder` exists in the registry and is never shown, and **there is no PoA
+    slot on the form at all.** Under §142(a) the complaint must be by the payee or holder in
+    due course, so this is not cosmetic.
+15. **What does a magistrate use this on?** Bench desktop, chambers laptop, tablet? The
+    glance is one column at every width, so it no longer *depends* on the answer — but the
+    file view's split starts at `xl`, and if the real device is a tablet in portrait the
+    dig-in path degrades to open-read-close.
+16. **Which document slots are mandatory?** Check 5 counts "required documents not on file",
+    and the model cannot distinguish *absent because not applicable* (the reply slot on a
+    complaint with no reply, which is correct and must never be flagged) from *absent because
+    nobody uploaded it*. The interim rule is `IntakeSlot.file === null` on slots the form
+    required, with the conditional reply slot excluded by construction. **A real list from
+    product replaces the interim rule.**
+17. **Does the magistrate want the unverifiable values enumerated?** Fifteen values on this
+    file have no source document (problem 17). This brief states the limit in one caption and
+    does **not** list them, on the judgment that the list is a property of the *form* and
+    identical on every complaint — the constant-column rule. If a magistrate would rather see
+    "these fifteen cannot be checked", that is a product call and one more ledger line.
+
+Items 1, 2 and 15 additionally belong in `docs/product/open-questions.md` as role and
+product-user questions; filing them there is product's call, not this brief's.
 
 ---
 
 ## 13. Gaps in the DS (if any)
 
-None blocking. Two observations for the DS repo, neither a licence to
-invent here:
+**None blocking.** The glance is composed entirely from existing primitives; nothing here
+needs a new component, and "the DS has no check-ledger primitive" is not true of a system
+that has `Item`, `Collapsible` and `DescriptionList` — it is true of a system with no
+*screen* that composes them this way, and this is that screen.
 
-1. **`AccordionContent` fixes its height from a Radix variable measured
-   at open and never remeasured**, so content that reflows is clipped
-   when the window narrows. This build worked around it with `h-auto`;
-   the workaround leaves with the accordion (§5a.2a), but the DS issue
-   stands for the next caller. Safe for a paragraph of FAQ copy, wrong
-   for anything that reflows.
-2. **`AccordionItem` ships `not-last:border-b`**, which a bare
-   `border-b-0` cannot displace because tailwind-merge treats a
-   variant-prefixed utility as a different group. Worth either dropping
-   the default or documenting the reset.
+Four observations for the DS repo, none a licence to invent here:
+
+1. **`Banner` binds its icon to its variant.** `variant="neutral"` is a `MegaphoneIcon`,
+   which is an announcement, not a report. A `neutral` banner reporting a completed machine
+   check has no correct icon in the component, so this screen composes the line instead
+   (§8). Worth either an `icon` override or a fifth variant whose semantics are "a system
+   report".
+2. **`AccordionContent` fixes its height from a Radix variable measured at open and never
+   remeasured**, so content that reflows is clipped when the window narrows. This build
+   worked around it with `h-auto`; the workaround left with the accordion, but the issue
+   stands for the next caller.
+3. **`AccordionItem` ships `not-last:border-b`**, which a bare `border-b-0` cannot displace
+   because tailwind-merge treats a variant-prefixed utility as a different group. Drop the
+   default or document the reset.
+4. **App-level, not DS:** `DocumentPreview`'s quiet variant now has three callers with the
+   same shape, and every one ships a "Full view" control inside something that already is the
+   full view. A `showFullView={false}` prop belongs in
+   `components/cases/document-preview.tsx`, which is Dristi's — the build pass, not
+   `ds-requests.md`.
 
 ---
 
@@ -1067,27 +1535,38 @@ invent here:
 |---|---|---|
 | 2026-09-02 | First pass from the legacy screenshot: compose the list in the court-side table panel; no registration act. | user asked; ux-designer |
 | 2026-09-02 | Queue grown from 4 to 35 so the table and pager can be judged at volume. | user asked |
-| 2026-09-09 | The complaint's file added behind the cause title (§5a); the case name becomes a link, superseding §5 and one of §6's cuts. Left panel kept constant per the owner's ask. | user asked; ui-designer |
-| 2026-09-09 | A details pass (records out of wells, terms shortened to noun phrases, bank rows collapsed, documents into a sunken well) was built and then reverted at the owner's request. One correctness fix from it was kept: the delay-condonation grounds row no longer cites an application that is not on the file. The reverted work is recoverable from this session's scratchpad. | user asked; ui-designer |
-| 2026-09-09 | Documents became realistic filings — per-case filenames, page count and size, and a drawn page facsimile per document kind in the DS `paper` tokens. Absent slots carry no file and no paper. | user asked; ui-designer |
-| 2026-09-09 | Two defects fixed: a group's own facts now share the record well, so the sunken block is not present on half the file and missing on the other half; and the accordion's `not-last:border-b` is reset with its own variant, removing the full-strength rule that sat flush against the last panel of every section but the last. | user reported; ui-designer |
-| 2026-09-09 | Right-hand case timeline filled with dummy registry history along the Kerala spine, still stopping before cognizance. | user asked; ui-designer |
-| 2026-09-09 | The reading index's marked entry rebuilt after the owner reported entries 3–5 lagging, skipping and never activating. Three causes, all in §5a item 1: the observer judged each callback's batch instead of the accumulated state, so a batch carrying one section entering from below outranked the section above it that had merely stopped changing; the reading line was a hard-coded 96px against a resting offset of 88px; and the last sections are too short for their headings to reach any line, which no band can fix. A click now claims the index until the reader scrolls, and the end of the scroll is its own answer. Verified over CDP: 40/40 index clicks correct across four complaints at 1440px and 375px, and 60/60 hand-scroll positions across three viewport sizes. | user reported; ui-designer |
-| 2026-09-09 | Helper line on the Admit / Dismiss band cut. The controls stay `aria-disabled`; the copy that used to say the decision is not connected is gone. | user asked; ui-designer |
-| 2026-09-10 | **Sections are no longer collapsible** (§5a.2a). All five were open by default, the index already navigates, and the fold's own affordance was invisible until found. The accordion and its three workarounds go; the index's claim / observer / end-of-scroll behaviour is untouched. | **owner (Abhiram)** |
-| 2026-09-10 | **The word is “Register”** (§5a.7). Footer reads Register case / Dismiss case, matching the nav, the queue and this brief; “Admit” goes. Both stay `aria-disabled` — the act is still undefined (§12.4). | **owner (Abhiram)** |
-| 2026-09-10 | **Timeline trimmed to traceable events** (§5a.9): five steps, each with a source, plus the current wait and the unmade decision. *Placed before the magistrate* and *Letter from the accused received* deleted — neither is anywhere in `docs/product/`, and the Kerala spine runs scrutiny → cognizance with no placement step. | **owner (Abhiram)** |
-| 2026-09-10 | **Header constants cut** (§5a.4b): case category and case type are identical on every §138 complaint — `FilingDraft.caseType` is a one-value union. Court and Submitted on stay, and with only two facts left the header's `DescriptionList` and `IdentityFact` are replaced by one caption eyebrow (§5a.5). | **owner (Abhiram)** for the cut; ux-designer for the eyebrow |
-| 2026-09-10 | **Documents move to the app's `DocumentPreview`** (§5a.6). `Attachment` tiles go; a group's documents become an `Item` list (the `submission-record-dialog` idiom) and open one `ChromeDialogContent` + `DocumentPreview variant="quiet"` with a composed source (the `register-advocates-dialog` idiom). Derived filename, page count and size cut — no court-side store holds them. The facsimile and Neer's two rules — never legible, never a blank sheet for an absence — survive. Advocate's document relabelled “Bar ID card” per `REG-14`. | **owner (Abhiram)** for the component; ux-designer for the multi-document idiom and the labels |
-| 2026-09-10 | **Terms become attribute names** (§5a.4a), so the fixed `17rem` term column and the measured 14px value column both disappear. Rows use the DS `DescriptionList` default and switch to two columns on the **container**, not the viewport (`@container` / `@xs`) — the reading column, not the window, was always the constraint. Noted for the record: an earlier “terms shortened” pass was reverted on Neer's branch on 2026-09-09 at his session's request; this one is at the product owner's. | **owner (Abhiram)**; ux-designer for the container query |
-| 2026-09-10 | **§5a Attributes table added** under the new `propose-ui-brief` rule — 107 rows, every value with a source, type and slot. **11 rows have no source** and are cut as invented attributes; 4 duplicates, 2 constants and 2 fabricated file facts go with them (19 removals). 4 real attributes added (drawer-bank police station, `paymentStatus`, `partAmount`, the deposit declaration as a row); 6 terms renamed or retyped, including the reply (a date-or-sentence slot → `DemandNotice.replied`, a `YesNo`) and the delay grounds (composed prose → `Jurisdiction.condonationReason`). The Synopsis is cut outright. | ux-designer |
-| 2026-09-10 | **The tinted confirmations `Alert` becomes one fact row** (§5a.10): it appeared on every complaint, so it marked the norm in the view's scarcest colour, and its second bullet restated the return reason as a sentence. | ux-designer |
-| 2026-09-10 | **Typography cut from six levels to four sizes** (§7). The value drops to `text-body-compact` 400 — the DS `DescriptionList` default — because it was set larger and heavier than its own term. Two weights per component now hold. | ux-designer, on the owner's “check all the typography and spacing usage here” |
-| 2026-09-10 | **Grid tracks rebalanced** to `13rem / 1fr / 15rem` (§5a.1): the reading column was the narrowest of three (368px against 512px of rails at 1280) and is now 448px at 1280, 608px at 1440. **One off-ladder value fixed:** the group icon tile `size-9` → `size-8`. | ux-designer |
-| 2026-09-10 | **The invented accused submission cut** (§5a.9a) — fact and document, matching the owner's cut of its timeline step. Section 4 now always states the absence; whether a permanently empty section should exist is flagged for the owner and tied to §12.3. | ux-designer; raised for the owner |
-| 2026-09-10 | Three open questions added (§12.6–§12.8): which other registry fields a registering court reads; whether the cheque return reason is an enum or free text; and whether the scrutiny bundle reader becomes the court's document viewer. | ux-designer |
-| 2026-09-10 | Built to §5a. Measured, not predicted: middle column **448px at 1280, 608px at 1440** (the 1008px content assumption forgot the 256px rail); fact row `160px 190px` / `160px 350px`, stacked at 375. Six deviations, each commented in place: preview `height="default"` not `fill` (fill needs a definite container; at 85dvh it left a 256px drawing in a 630px well); facsimile `w-56` not `w-64` (64 clipped the page foot under the quiet toolbar); document Item description reads "Filed" per the table, not the sibling's "Open"; `whyIssued` / `natureDebt` / `paymentStatus` are closed lists in `lib/filing/options.ts` — labels restated locally, table's "user free text" corrected; new `formatDaysWaiting` ("281 days waiting") because the queue's formatter repeats "submitted" beside the eyebrow's own Submitted date; two focus defects fixed on the render (Escape dropped focus on body — content was unmounted in the same commit that closed the dialog; and the preview well took the opening focus ring). `submission-record-dialog.tsx` has the same Escape defect — upstream, not touched. Section 4 kept pending the owner's call (§5a.9a). | ui-designer |
-| 2026-09-10 | ui-reviewer audit: ship after fixes, seven gates green. Critical: five values constant on every complaint were printed as facts in the body (`Power of attorney`, `Deposited within three months`, `Speaks to`, `Prayer`, `Filed within one month`) plus three constant record tags — the header's own rule, not applied to the body. Rulings: `Prayer` and `Filed within one month` cut (constant by construction); `Deposited within three months` becomes a real date check with a closed enum; `Power of attorney`, `Speaks to` and litigant type vary off marks that land in registry fields; a value-cardinality test now enforces it the way the term test enforces the vocabulary. Also: timeline detail slot typed (date / elapsed / state); document items drop to hairline (they were all eighteen of the page's full-strength strokes); absent row no longer hovers; duplicate `View ID proof` names disambiguated by record; 375 footer stacks Register first; group-level absence becomes a closed reason plus optional explanation copy; wait on the file loses its `warning-ink` (no sibling to compare against); `formatDaysWaiting` renamed to stop colliding with the queue's; IFSC seed no longer embeds the mobile number. Table's `paymentStatus` value corrected to the form's own `Part payment made`. | ui-reviewer / ui-designer |
-| 2026-09-11 | **Section 4 dropped.** The accused cannot file before registration, so "Submissions from the accused" read "Nothing on record" on every file forever. The file is four parts; the section returns on whatever screen shows a case after registration. | owner (Abhiram) |
-| 2026-09-11 | **Breadcrumb shows the current step, product-wide.** `courtTrail` omitted the current page on every employee route by convention; the DS `BreadcrumbPage` slot now carries it — the queue on queue pages, the case identifier on nested pages with the queue linked above. Changes every employee crumb. | owner (Abhiram) |
-| 2026-09-11 | Design-mode report, nine comments, adjudicated for round three: header facts back to labelled cells (number as identity line; Court · Submitted · Waiting as label-over-value); section headings to the sibling role `text-body` 600 (this was the only court screen at `title-s`) with group/record levels re-stepped; canvas `bg-muted` with white panels per `filing-shell.tsx` — **owner overrules ui-craft §1.0's "filled, not read" caveat, logged**; documents on e-filing's `DocumentCard`/`Thumbnail` so one component shows an uploaded document everywhere; litigant-type tag adjacent to the name as a `Badge`; index entries top-aligned; index trigger becomes the last section whose heading has crossed a reading line ~⅓ down the viewport. | owner (Abhiram) / orchestrator |
+| 2026-09-09 | The complaint's file added behind the cause title; the case name becomes a link. | user asked; ui-designer |
+| 2026-09-09 | A details pass was built and reverted at the owner's request. One correctness fix kept: the delay-condonation grounds row no longer cites an application that is not on the file. | user asked; ui-designer |
+| 2026-09-09 | Documents became realistic filings — page facsimile per kind; absent slots carry no paper. | user asked; ui-designer |
+| 2026-09-09 | Right-hand case timeline filled along the Kerala spine, stopping before cognizance. | user asked; ui-designer |
+| 2026-09-09 | The reading index's marked entry rebuilt after entries lagged and skipped. Verified over CDP: 40/40 clicks, 60/60 scroll positions. | user reported; ui-designer |
+| 2026-09-09 | Helper line on the decision band cut. | user asked; ui-designer |
+| 2026-09-10 | **Sections are no longer collapsible.** The accordion and its three workarounds go. | **owner (Abhiram)** |
+| 2026-09-10 | **The word is "Register."** "Admit" goes. | **owner (Abhiram)** |
+| 2026-09-10 | **Timeline trimmed to traceable events.** | **owner (Abhiram)** |
+| 2026-09-10 | **Header constants cut** — case category and case type are identical on every §138 complaint. | **owner (Abhiram)** |
+| 2026-09-10 | **Documents move to the app's `DocumentPreview`**; derived filename, page count and size cut. | **owner (Abhiram)** / ux-designer |
+| 2026-09-10 | **Terms become attribute names**; rows switch on the container, not the viewport. | **owner (Abhiram)**; ux-designer |
+| 2026-09-10 | **§5a Attributes table added** — 11 rows with no source cut as invented; 4 duplicates, 2 constants and 2 fabricated file facts with them. | ux-designer |
+| 2026-09-10 | **The tinted confirmations `Alert` becomes one fact row** — it appeared on every complaint. | ux-designer |
+| 2026-09-10 | **Typography cut from six levels to four sizes.** | ux-designer |
+| 2026-09-10 | **Grid tracks rebalanced** to 13rem / 1fr / 15rem; `size-9` → `size-8`. | ux-designer |
+| 2026-09-10 | Built to §5a; six deviations commented in place; two focus defects fixed on the render. | ui-designer |
+| 2026-09-10 | ui-reviewer audit: ship after fixes. Five values constant on every complaint cut or made real; a value-cardinality test now enforces it. | ui-reviewer / ui-designer |
+| 2026-09-11 | **Section 4 dropped.** The accused cannot file before registration. | owner (Abhiram) |
+| 2026-09-11 | **Breadcrumb shows the current step, product-wide.** | owner (Abhiram) |
+| 2026-09-11 | Design-mode round three: header facts back to labelled cells; section headings to `text-body` 600; canvas `bg-muted` with white panels (**owner overrules ui-craft §1.0, logged**); documents on e-filing's `DocumentSlot`/`ThumbnailButton`; litigant-type tag adjacent to the name. | owner (Abhiram) / orchestrator |
+| 2026-09-11 (evening) | **The Job is confirmed and the screen is rebuilt from it** (§4). §12.1 and §12.2 answered and kept in the record. | **owner (Abhiram)** |
+| 2026-09-11 (evening) | **D1–D12** — the document opens beside its claims (two panes from `xl`); a check region that renders nothing on 32 of 35; the statute's section order; nothing folded away; the norm goes quiet (badge, `meta="Filed"`, `Documents` caption); the index and the timeline leave the standing layout; `Dismiss` cut for **Send back for correction**; §5a-iii rewritten with a `Checked against` column (29 checkable / 3 computed / 15 declared-only / 0 invented). | ux-designer, on the owner's Job |
+| **2026-09-11 (night)** | **The glancing framing is given and becomes the brief's centre** — quoted in full in §1: the magistrate has no time, the design must not be cognitively taxing, "this is that equivalent of the glancing experience that you need to design for", the pull-request reviewer who trusts the checks and looks only where something snags. | **owner (Abhiram)** |
+| **2026-09-11 (night)** | **D13 — the landing is not a verification surface.** The two-pane, 29-row claim screen written hours earlier is **demoted from landing to destination**; the landing becomes header → check ledger → one way in → the act. Recorded as problem 20 and as **my defect**: it was a better instrument for the job the magistrate delegated. | ux-designer, on the owner's framing |
+| **2026-09-11 (night)** | **D14 — D2's silence is superseded.** A clean complaint now gets **one counted line** ("Seven checks ran on the entered data. Nothing flagged.") plus a caption stating that no document was read. Silence could not be told from "not checked" (problem 21), and an unstated limit made an absence of flags read as verification (problem 23). Passes never take rows; no green ticks, no tint, no score, no verdict. | ux-designer |
+| **2026-09-11 (night)** | **D15 — four checks become seven**, each a boolean over fields `case-review.ts` already holds at `d885d30`: presentation window, notice window, premature filing, the month and its condonation application, required documents, an advocate on record, part payment. Severity is a derived two-value enum (`flag` / `note`) — appearing in person is lawful and is never inked as a defect. No check reads a document; no check may be invented for jurisdiction or the return reason (§12.7). | ux-designer |
+| **2026-09-11 (night)** | **D16 — a finding opens where it is stated**, inheriting `register-advocates` **D23** rather than re-deriving it: the row states the finding in words, the disclosure holds the entered values it read and the documents that would settle it, and opening a document leaves the glance for the file view. | ux-designer |
+| **2026-09-11 (night)** | **D17 — one control, one route.** "Open the full file" → `/employee/register-cases/<id>/file`, with the counts beside it; findings deep-link into it (`?doc=…#group`). Rejected: tabs, an in-place mode, an overlay. The decision band exists on both views. | ux-designer |
+| **2026-09-11 (night)** | **D18 — `Amount` joins the header** (Court · Amount · Submitted · Waiting): the fact that sizes the consequence, free from `ChequeDetails.amount`. **Flagged for the owner — one cell, mine, reverses in a line.** | ux-designer |
+| **2026-09-11 (night)** | **D19 — the act is unchanged, and the third outcome is escalated.** The owner's separate *"we should guide him to either dismiss or accept the case"* is recorded in §1 and raised to the **head of §12 as §12.9**, unresolved. `Dismiss` is **not** quietly reinstated. | **owner (Abhiram)** for the statement; ux-designer for refusing to resolve it |
+| **2026-09-11 (night)** | **D20, D21 — no overlay on the glance; the index stays cut and the timeline leaves the glance for the file view only.** **One correction to D7:** the section `id`s and their `scroll-mt-(--chrome-sticky-top)` are **not** deleted — the file view's deep links need them. | ux-designer |
+| **2026-09-11 (night)** | **§5a-iii gains a `Surfaced` column** (`glance` / `glance·fired` / `file` / `sheet` / `stage` / `cut`). The number the design turns on: **47 body values become 8 before the act**, and the other 39 are one control away. | ux-designer |
+| **2026-09-11 (night)** | **Correction against the code:** `r-1490`'s missing slot is `accused-id-proof` — *the accused's* ID proof, not the complainant's (`CASE_FILE_MARKS`, `case-review.ts`). §10 and §5a-iii say so. | ux-designer |
+| **2026-09-11 (night)** | Pass 8 **not** discharged: no shell this session. Seven render checks handed to the builder in §11, headed by the glance's "no scrolling at 1280×800" claim, which is arithmetic (≈542px) and not a measurement. | ux-designer |
