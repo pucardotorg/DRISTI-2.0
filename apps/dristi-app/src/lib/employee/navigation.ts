@@ -313,103 +313,125 @@ export const COURT_HOME = { href: "/employee", label: "Court home" } as const;
  * simply their own href.
  */
 /**
- * Whether the scrutiny queue holds the filing a path names.
+ * What the scrutiny queue calls the filing a path names, or nothing.
  *
  * A filing number carries slashes (`F/AHM/2026/00341`), so the segment is percent-encoded
  * in the path and has to be decoded before the queue is asked about it. Every other
  * nested segment is an id that survives a path intact, which is why this is the one row
- * below that names a guard rather than asking its queue in a line.
+ * below that names a function rather than asking its queue in a line.
  */
-function scrutinyHolds(segment: string): boolean {
+function scrutinyFilingNumber(segment: string): string | undefined {
   let decoded: string;
   try {
     decoded = decodeURIComponent(segment);
   } catch {
     // A malformed escape is not a filing number.
-    return false;
+    return undefined;
   }
-  return findFiling(decoded) !== undefined;
+  return findFiling(decoded)?.no;
 }
 
+/**
+ * `identify` answers both questions this file asks about a nested segment, and it has to
+ * be one function to answer them consistently: *is this a real child of that queue* (the
+ * rail's active row) and *what is the record called* (the last crumb). Two functions
+ * would eventually disagree — a route the rail lit up and the trail could not name, or
+ * the reverse.
+ *
+ * It returns the record's **identifier**, never its cause title. The title is the page's
+ * own `h1`, several sizes down and a few pixels below; a crumb repeating it would restate
+ * the loudest type on the screen in the quietest, which is the defect the old
+ * omit-the-page convention was written to avoid. A case number does not restate anything.
+ */
 const NESTED_ROUTES: {
   queue: string;
   pattern: RegExp;
-  holds: (id: string) => boolean;
+  identify: (segment: string) => string | undefined;
 }[] = [
   {
     queue: "/employee/hearings",
     pattern: /^\/employee\/hearings\/([^/]+)(?:\/order)?\/?$/,
-    holds: (id) => hearingById(id) !== undefined,
+    identify: (id) => hearingById(id)?.caseNumber,
   },
   {
     queue: "/employee/scrutiny",
     pattern: /^\/employee\/scrutiny\/([^/]+)\/?$/,
-    holds: scrutinyHolds,
+    identify: scrutinyFilingNumber,
   },
   {
     queue: "/employee/register-cases",
     pattern: /^\/employee\/register-cases\/([^/]+)\/?$/,
-    holds: (id) => registerCaseById(id) !== undefined,
+    identify: (id) => registerCaseById(id)?.caseNumber,
   },
 ];
 
+/** What this path is a nested view *of*, when it is one. */
+function nestedRecordOf(pathname: string, queue: string): string | undefined {
+  const nested = NESTED_ROUTES.find((entry) => entry.queue === queue);
+  if (!nested) return undefined;
+  const segment = nested.pattern.exec(pathname);
+  return segment ? nested.identify(segment[1]) : undefined;
+}
+
 export function isCourtNavActive(pathname: string, href: string): boolean {
   if (pathname === href) return true;
-  const nested = NESTED_ROUTES.find((entry) => entry.queue === href);
-  if (!nested) return false;
-  const segment = nested.pattern.exec(pathname);
-  return segment !== null && nested.holds(segment[1]);
+  return nestedRecordOf(pathname, href) !== undefined;
 }
 
 /** One step of the trail. */
 export type CourtCrumb = {
   label: string;
   /**
-   * Where the crumb goes. Absent on a section when this page *is* one of its queues —
-   * a section is a disclosure in the rail, and there is no page called "Sign". Present
-   * on that same section when the page is nested under a queue: the section then borrows
-   * the queue's href, because that is the way back and a trail step that cannot be taken
-   * is a crumb that does not work.
+   * Where the crumb goes. Absent on three kinds of step, all of which are a place you
+   * cannot navigate to: the **current page**, which is where you already are; a
+   * **section** when this page is one of its queues, because a section is a disclosure
+   * in the rail and there is no page called "Sign"; and nothing else. Present on that
+   * same section when the page is nested under a queue — the section then borrows the
+   * queue's href, because that is the way back and a trail step that cannot be taken is
+   * a crumb that does not work.
    */
   href?: string;
 };
 
 /**
- * Where this page sits, as the steps above it — root, section, and the queue it is
- * nested under.
+ * Where this page sits, as the steps above it — and, last, the page itself.
  *
- * **The page itself is never a step.** Every one of the thirteen queue screens already
- * opens with a heading that is its rail label word for word — "Sign orders" under Sign
- * orders — so a trail ending in the same words would restate, in the quietest type on
- * the screen and eight pixels up, what the loudest type is about to say. What the heading
- * cannot say is which of the four kinds of work this is one of, and how to get back out
- * of it. That is what is left here, and all of it is a step you can actually take.
+ * **Every trail ends with the current page** (owner, 2026-09-11), rendered through the
+ * DS `BreadcrumbPage` slot: a non-link step, `aria-current="page"`, in full ink. The
+ * convention until then was the opposite — the page was never a step — on the argument
+ * that each queue screen opens with a heading that is its rail label word for word, so a
+ * last crumb would restate the loudest type on the screen in the quietest. That argument
+ * is still true of the *queue* screens and is now overruled for the whole area, because
+ * it was never true of the nested ones and because a trail whose last step is somewhere
+ * else is a trail that reads as unfinished. The nested pages are where it earns itself:
+ * their heading is a cause title, and the crumb carries the case number instead — an
+ * identifier no heading on the page repeats.
  *
  * It reads the rail's own data, so a section renamed in `COURT_NAV_GROUPS` is renamed in
- * the trail by the same edit. Nothing below names a section.
+ * the trail by the same edit. Nothing below names a section, a queue or a record.
  *
  * Three shapes come out of it:
  *
- * - `/employee` — empty. Nothing is above the court home, and the rule has no exception:
- *   a lone `Court home` crumb would restate the heading 40-odd pixels below it, which is
- *   the one thing this function exists to prevent. The bar keeps its fill and its seam
- *   and carries no trail, which is what chrome looks like at the origin.
- * - `/employee/sign-orders` — root, then `Sign`. The heading says which queue.
- * - `/employee/hearings/<id>` and `/employee/hearings/<id>/order` — root, `Hearings`,
- *   then `Today's hearings`. Both of the last two are links back to the day's list.
- *   Here the heading names a case rather than a queue, so the queue is genuinely above
- *   the page and genuinely somewhere to return to. The section has no page of its own,
- *   so it borrows the queue's href rather than sitting in the trail as text a click
- *   cannot follow.
- * - `/employee/register-cases/<id>` — root, `Actions`, then `Register cases`. The same
- *   shape for the same reason: the heading names a complaint, so the queue it is
- *   waiting in is above the page. This trail is also the whole of the way back from a
- *   complaint's file, which is why that screen carries no back control of its own.
+ * - `/employee` — still empty, and this is the one place the old argument survives
+ *   intact. There is nothing above the court home, so a trail there could only be the
+ *   single crumb `Court home`, restating the heading 40-odd pixels below it and offering
+ *   no way anywhere. The bar keeps its fill and its seam and carries no trail, which is
+ *   what chrome looks like at the origin.
+ * - `/employee/sign-orders` — root, `Sign`, then **`Sign orders`** as the current page.
+ *   The section between them is still text: it has no page of its own.
+ * - `/employee/hearings/<id>`, `/employee/hearings/<id>/order`,
+ *   `/employee/scrutiny/<filing no.>`, `/employee/register-cases/<id>` — root, the
+ *   section, the queue, then the record: `ST/241/2026`, `F/AHM/2026/00341`,
+ *   `CMP/1840/2025`. Both of the middle steps link back to the queue, which is where the
+ *   record came from and, on a complaint's file, the whole of the way back — which is why
+ *   that screen carries no back control of its own.
  *
  * A route this file does not know gets the root as a link and stops. That is the whole of
- * what can be said honestly about it, and it is still the way home. The two standalone
- * links are absent from every trail because both leave DRISTI; a route nested under one
- * of them would need its own step, on the day one exists.
+ * what can be said honestly about it, and it is still the way home — the current step is
+ * omitted rather than guessed, because a crumb naming a page this file cannot identify
+ * would be an invented label. The two standalone links are absent from every trail
+ * because both leave DRISTI; a route nested under one of them would need its own step, on
+ * the day one exists.
  */
 export function courtTrail(pathname: string): CourtCrumb[] {
   if (pathname === COURT_HOME.href) return [];
@@ -419,19 +441,18 @@ export function courtTrail(pathname: string): CourtCrumb[] {
   for (const group of COURT_NAV_GROUPS) {
     for (const item of group.items) {
       if (!item.href || !isCourtNavActive(pathname, item.href)) continue;
-      const nested = pathname !== item.href;
-      const trail: CourtCrumb[] = [
-        home,
-        nested
-          ? { label: group.label, href: item.href }
-          : { label: group.label },
-      ];
-      // The row earns a step only when it is above this page rather than being it —
-      // which is exactly when the path is not the row's own href.
-      if (nested) {
-        trail.push({ label: item.label, href: item.href });
+      // Nested exactly when the path is not the row's own href — which is also when the
+      // row is above this page rather than being it, and so becomes a link.
+      const record = nestedRecordOf(pathname, item.href);
+      if (record === undefined) {
+        return [home, { label: group.label }, { label: item.label }];
       }
-      return trail;
+      return [
+        home,
+        { label: group.label, href: item.href },
+        { label: item.label, href: item.href },
+        { label: record },
+      ];
     }
   }
 
