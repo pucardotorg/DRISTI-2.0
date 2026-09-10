@@ -790,7 +790,7 @@ stage, the `Badge` says the request's state (`Pending approval` until the act, t
   and the identity rows under it; the photograph stays, because the sentence is usually
   about the card. **Approve** is what approval grants plus the identity rows being vouched
   for, and the build caveat.
-- **Settled stages** say what happened in words, mark it with an icon in a tinted disc
+- **Settled stages** *(volume revised by D27)* say what happened in words, mark it with an icon in a tinted disc
   (`success-muted` + `UserCheck` for approved; `info-muted` + `Send` for a rejection sent
   — a message on its way, not a failure), recap the two identifying rows, echo the
   reason on a rejection, and carry the build caveat inside the card. No illustration pack
@@ -1013,9 +1013,9 @@ to be structure. So on every stage past Review:
   written.
 - **The reject stage is composed as a rejection** (the note that asked for it: *"it's not
   feeling like one… bring attention to the fact that you are rejecting and you're leaving a
-  comment, not through text exposition"*). Identity quiet at the top; the question at
-  `text-title-s` in `destructive-ink` with the DS's destructive mark beside it; a box deep
-  enough (`min-h-40`) to invite a paragraph.
+  comment, not through text exposition"*). Identity quiet at the top; a box deep enough to
+  invite a paragraph. *(The title-size question in destructive ink that this decision put
+  there was **too much** — see D27. The stage keeps its shape; the red heading is gone.)*
 - **The confirming button says what it confirms** — "Confirm approval" / "Confirm
   rejection", not the same word as the button that opened the stage: *"maybe the copy here
   should become confirm approval so that it doesn't look like nothing changed in terms of
@@ -1042,6 +1042,58 @@ card scan and a short one produce the same object.
 
 Still not the default variant's header, which sits *above* the well and restates a date
 (D15's objection stands). This one is inside the frame and carries no second heading.
+
+### D27 — **New.** The act and having acted are one card, resolving in place
+
+Owner, 2026-09-11 (late): *"the two approval screens or rejection screens feel redundant to
+me. Is there any way to optimize it better, where it's not two steps but feels like one
+step? Maybe masking it with motion."* And, of the same screens: *"it looks a little dull and
+sad"*, and *"the rejection UI seems too alarming with the red big header, bold text and
+everything. Tone it down, don't make it dramatic. Just clean, minimal, crafted."*
+
+Three complaints, one cause: confirming and having confirmed were built as two screens, and
+the second one shouted to justify its own existence.
+
+**Five stages, three scenes.** `SCENE` maps `approve`/`approved` to one scene and
+`reject`/`rejected` to another. The slide fires on a change of *scene*, so pressing Confirm
+does not remount, does not translate, and does not replace anything. The card the officer
+is looking at stays exactly where it is — measured on the render at 0px of movement on
+approve, ~15px on reject — and **one strip across its top resolves**: a neutral "You are
+approving" becomes a tinted "Account created". The footer changes with it. That is the
+whole transition, and it is as close to one step as a guarded act can honestly get.
+
+**One card holds the act on every decision stage.** Status strip · name and registration
+number · the rest. On reject the "rest" is the composer, and when it settles **the box does
+not leave — it fills in**: a `surface-sunken` well of the same footprint holding the words
+that were typed. A control becoming a record, in place, is the argument the whole scene is
+making.
+
+**The volume came down.** The 48px status disc and the centred title-size line in
+`destructive-ink` are gone; the status is a 16px mark and one line of body text on the DS's
+muted tint. The reject composer's heading loses its ink and its mark too — the dialog title
+already says "Reject this registration?" and the footer button is destructive, so a red
+title-size question was the third telling and the loudest. **The semantics D21 asked for
+survive intact**; only their volume changed. That distinction is the useful one to carry
+forward: *green and red are the meaning, size and weight are the drama, and you can cut the
+second without losing the first.*
+
+**And the dullness.** What fills the card is not decoration but the fifth submitted value:
+the Bar ID card photograph, at the size of a stamp, beside the name. The officer is
+vouching for a person against a photograph (`REG-14`), so the photograph is still there
+while they do it. It removes itself when the file will not open rather than leaving a
+broken frame beside a name.
+
+One more thing this decision buys: the settled card is no longer trimmed down to two rows.
+It keeps the contact details it showed a moment earlier, because a card that loses two rows
+when you press a button is a card that was replaced.
+
+*Rule:* owner 2026-09-11; ui-craft §2 (loudness ladder; muted tints carry status, not size);
+DS three treatments per status; ACCESSIBILITY §3 (`role="status"` on the strip's line).
+*Rejected:* removing the approve confirmation entirely to make it literally one step —
+approval grants a credential (D9) and the guard is the point; a height transition on the
+dialog itself, which animates the modal's frame around content that is not moving.
+*Given up:* ~15px of settle on reject, where a 128px composer becomes a 96px well. Reserving
+the full height would have left a well of empty space under a two-line reason.
 
 ## 6. What I cut (and why)
 
@@ -1391,6 +1443,7 @@ dependency here. Request #9 stands on its own merits for the screens that raised
 | **2026-09-10 (evening)** | **D16 added.** Request metadata is its own attribute group, not header prose; the application number stays in the header description and is not repeated; the advocate's name **leaves** the header, because printing a value under verification as the record's title asserts it. | ux-designer |
 | **2026-09-10 (evening)** | **D9 and D11 corrected for two parallel cross-cutting changes** — search filters as you type (the Search button goes away app-wide) and the whole table row becomes the click target. The queue page therefore has **no page-level primary**, which is what D9 argued was correct all along; the "teal on the queue page is Search" line is void, and two code comments asserting it must change with the rebuild. | orchestrator / ux-designer |
 | **2026-09-10 (evening)** | **§6 clarified** so the brief cannot be read as rejecting structure wholesale: the officer's rejection reason stays free text (`REG-22`) because it is *user data in a consistent slot*; what was rejected is *product copy narrating machine results*. Reason chips remain cut; a per-attribute rejection is filed as §12.10 for the owner to decide. | ux-designer |
+| **2026-09-11 (design-mode round 4)** | **One note, three complaints.** Confirming and having confirmed became one card that resolves in place — five stages, three scenes, no remount and no slide between the act and its outcome (D27). The settled state lost its 48px disc and title-size ink line for a 16px mark on a muted strip; the reject composer lost its red heading; the semantics of green and red survive at lower volume. The Bar ID photograph joins the card as a thumbnail, and the settled card keeps the rows it had a moment before. D21 and D25 amended. | owner (direction) / orchestrator |
 | **2026-09-11 (design-mode round 3)** | **Eight render comments.** Comparison tables moved behind the row that announces them, as disclosures spanning the card (D23) — which voids D20's no-duplicate-pairs rule; the lookup row renamed for the act, with the register naming itself in the column header (D24); caption group labels removed from every focused stage, the person made the heading, the settled state collapsed to one card, the reject stage recomposed in destructive ink at title size, and the confirming CTAs renamed to "Confirm approval" / "Confirm rejection" (D25); the evidence well given a framed title strip so its icons stop floating (D26). D15 amended. | owner (direction) / orchestrator |
 | **2026-09-11 (design-mode round 2)** | **Nine render comments.** The overlay's fact model rebuilt around **two shapes** — a term/value row and a comparison table on the product's own `table-plate` (D20); strikethroughs and the `Differs`/`Changed` chips deleted; the register reduced to one Request row that speaks only when it disagrees, `matches` and `OTP: verified` deleted (D19); Reject, Approve and both settled states became focused single-column stages, the settled outcome a heading rather than a sentence with a name in it, the next request moved out of the card and its number dropped, approved/rejected now green/red (D21); explanatory copy removed from the reject label and the approve stage (D8, D21); the review split widened to 3:2 and the overlay to `max-w-5xl`; the beige page built as a reversible iteration (D22). D5 superseded; §12.11 opened on whether the Bar Council lookup exists at all. | owner (direction) / orchestrator |
 | **2026-09-10 (design-mode round)** | Four render comments implemented. (1) Request-type chips colour-coded — `info` Edited, `warning` Resubmitted (D7). (2) Search placeholder sentence-cased — at the owning layer, all fourteen court-side queue placeholders. (3) Overlay body is a tinted stage with white hairline cards and a white photo well, hover-lifted (D18; `DocumentPreview surface="card"`). (4) Decision is a staged slide inside one overlay, with settled end states and "View next application" (D17; supersedes D9's `AlertDialog` and rejected conveyor, and D10's "no success dialog"). Brief D9, D10, D15 revised accordingly. | owner (direction) / orchestrator |
