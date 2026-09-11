@@ -75,7 +75,7 @@ import { cn } from "@/lib/utils";
  *
  * Every value comes from `lib/employee/case-review.ts` through one slot; every term from
  * its declared lists. Colour appears only where the file is outside a limit or another
- * complaint is pending. 14px throughout; 12px only for the two eyebrows.
+ * complaint is pending. 14px throughout; 12px only for the three panel eyebrows.
  *
  * Two acts and no third (owner, 2026-09-11). Both progress in place — the body gives way
  * to one card, the header stays, and confirming settles that same card into its outcome.
@@ -550,19 +550,23 @@ function Fact({
   children: React.ReactNode;
 }) {
   return (
+    /* Two lines, always: the label, then the value with its second part after a dot on
+       the same line — "Federal Bank · Thevally", not a third line (owner, 2026-09-11).
+       Every particular the same height is what lets the compartments' rows line up
+       across the sheet instead of reading jagged. Labels 14px muted, no 12px. */
     <DescriptionRow className={cn("flex min-w-0 flex-col gap-1 border-0 py-0", className)}>
-      <DescriptionTerm className="text-caption">{term}</DescriptionTerm>
+      <DescriptionTerm className="text-body-compact">{term}</DescriptionTerm>
       <DescriptionDetails className="min-w-0 text-body-compact">
         <span
           className={cn(
-            "block font-medium",
+            "font-medium",
             FORMAT[format],
             tone === "warning" && "text-warning-ink",
           )}
         >
           {children}
         </span>
-        {note ? <span className="block text-muted-foreground">{note}</span> : null}
+        {note ? <span className="text-muted-foreground"> · {note}</span> : null}
       </DescriptionDetails>
     </DescriptionRow>
   );
@@ -661,7 +665,7 @@ function TimelinePanel({ summary }: { summary: CaseSummary }) {
               <Span
                 label={CASE_REVIEW_STATUS}
                 value={scrutiny.daysWaiting === 0 ? "Cleared today" : days(scrutiny.daysWaiting)}
-                note={scrutiny.daysWaiting === 0 ? undefined : "Since scrutiny"}
+                note={scrutiny.daysWaiting === 0 ? undefined : "since scrutiny"}
               />
             ) : null}
           </DescriptionList>
@@ -743,18 +747,16 @@ function Span({
 }) {
   return (
     <DescriptionRow className="flex min-w-0 flex-col gap-1 border-0 py-0">
-      <DescriptionTerm className="text-caption">{label}</DescriptionTerm>
+      <DescriptionTerm className="text-body-compact">{label}</DescriptionTerm>
       <DescriptionDetails
         className={cn(
           "min-w-0 text-body-compact",
           tone === "warning" && "text-warning-ink",
         )}
       >
-        <span className="block font-medium tabular-nums">{value}</span>
+        <span className="font-medium tabular-nums">{value}</span>
         {note ? (
-          <span className={cn("block", tone !== "warning" && "text-muted-foreground")}>
-            {note}
-          </span>
+          <span className={cn(tone !== "warning" && "text-muted-foreground")}> · {note}</span>
         ) : null}
       </DescriptionDetails>
     </DescriptionRow>
@@ -766,13 +768,13 @@ function WindowSpan({ window }: { window: CaseSummaryWindow }) {
   const limit = window.limitLabel;
   switch (window.status) {
     case "within":
-      return <Span label={window.label} value={days(window.days)} note={`Within ${limit}`} />;
+      return <Span label={window.label} value={days(window.days)} note={`within ${limit}`} />;
     case "outside":
       return (
         <Span
           label={window.label}
           value={days(window.days)}
-          note={`Beyond ${limit}`}
+          note={`beyond ${limit}`}
           tone="warning"
         />
       );
@@ -781,7 +783,7 @@ function WindowSpan({ window }: { window: CaseSummaryWindow }) {
         <Span
           label={window.label}
           value={days(window.days)}
-          note={`Beyond ${limit} · condonation sought`}
+          note={`beyond ${limit} · condonation sought`}
           tone="warning"
         />
       );
@@ -790,7 +792,7 @@ function WindowSpan({ window }: { window: CaseSummaryWindow }) {
         <Span
           label={window.label}
           value="Early"
-          note="Before the cause of action arose"
+          note="before the cause of action arose"
           tone="warning"
         />
       );

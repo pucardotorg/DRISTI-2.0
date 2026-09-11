@@ -397,6 +397,11 @@ function GroupCard({
     ...chunkFacts(group.id, view.facts),
   ];
   const row = { needle, docNo, selected, onShow };
+  /* The gutter is for band names. A card none of whose bands has one — the notice, the
+     delay, the complaint, the fee, the witnesses — runs its rows from its own edge; an
+     empty 11rem gutter there was an awkward gap, bought only to line labels up with the
+     next card (owner, 2026-09-11). */
+  const gutter = chunks.some((chunk) => chunk.title);
 
   return (
     <Card
@@ -424,7 +429,7 @@ function GroupCard({
       </div>
 
       {group.empty && !needle ? (
-        <Band>
+        <Band gutter={gutter}>
           <p className="py-2 text-body-compact text-muted-foreground">
             {group.empty.explanation ??
               (group.empty.reason === "none-named" ? "None named" : "None on record")}
@@ -433,7 +438,7 @@ function GroupCard({
       ) : null}
 
       {many ? (
-        <Band>
+        <Band gutter={gutter}>
           <MatrixBand
             rowHeading="Name"
             records
@@ -451,7 +456,12 @@ function GroupCard({
       ) : null}
 
       {chunks.map((chunk, index) => (
-        <Band key={`${chunk.title ?? "rest"}-${index}`} title={chunk.title} needle={needle}>
+        <Band
+          key={`${chunk.title ?? "rest"}-${index}`}
+          title={chunk.title}
+          needle={needle}
+          gutter={gutter}
+        >
           {chunk.kind === "compare" ? (
             <MatrixBand
               columns={chunk.columns}
@@ -489,27 +499,35 @@ function recordColumns(records: RecordView[]): CaseFactTerm[] {
 /**
  * A band of a card: ruled from what is above it, its name in the gutter on a wide card
  * and above its content on a narrow one. The name's `pt-2` is the rows' own top padding,
- * so it sits on the first row's line. An untitled band keeps the gutter empty, so every
- * card's labels start on the same vertical.
+ * so it sits on the first row's line. `gutter` is the card's: when any band in it is
+ * named, every band keeps the gutter so the card's labels share one vertical; when none
+ * is, there is no gutter at all and the rows start at the card's edge.
  */
 function Band({
   title,
   needle = "",
+  gutter,
   children,
 }: {
   title?: string;
   needle?: string;
+  gutter: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <section className="grid gap-x-8 gap-y-2 border-t border-hairline px-6 py-4 md:px-8 md:py-6 @3xl:grid-cols-[11rem_minmax(0,1fr)]">
+    <section
+      className={cn(
+        "grid gap-x-8 gap-y-2 border-t border-hairline px-6 py-4 md:px-8 md:py-6",
+        gutter && "@3xl:grid-cols-[11rem_minmax(0,1fr)]",
+      )}
+    >
       {title ? (
         <h3 className="text-body-compact font-semibold @3xl:pt-2">
           <Marked text={title} needle={needle} />
         </h3>
-      ) : (
+      ) : gutter ? (
         <span aria-hidden className="hidden @3xl:block" />
-      )}
+      ) : null}
       <div className="min-w-0">{children}</div>
     </section>
   );

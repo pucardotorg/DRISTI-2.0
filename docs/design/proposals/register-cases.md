@@ -213,6 +213,8 @@ pass."*
 | D39 | **What is compared is a grid.** The payer's and payee's banks are one band — Payer's bank and Payee's bank as columns, Bank / Branch / IFSC / Police station as rows, a hairline between rows (`CASE_FILE_CHUNKS` `columns`). The witnesses are the same grid transposed: Name, Speaks to, Mobile, names read as values. On a narrow card each row stacks with its column's name before each value; the names are in the markup either way, so a screen reader never hears a value without its column. | Every bank value on one line at 1440 and 1728 |
 | D40 | **The eye is pinned to its row**, centred on the row (or on a comparison cell) whatever its height, with the value kept clear of it; it was inside the value and hung low in rows whose label sat above. The lit row takes the tables' lighter tone on hover and `accent` while its page is on show. | 26 of 26 eyes within 1px of their row's centre at all four widths |
 | D41 | **The documents panel is 24rem up to 1536px, 28rem above**, so the file keeps room for its comparisons on a laptop. | — |
+| D42 | **The band gutter is per card, not per band.** A card reserves the 11rem name column only when one of its bands has a name. Complaint, witnesses, notice and payment have none, so their labels start at the card's edge and leave no empty column. | Owner: "this awkward gap that is coming because of the layout decision" |
+| D43 | **Every Summary fact is two lines: the label, then the value with its note inline** ("Federal Bank · Thevally", "26 days · within 3 months"). Labels are 14px muted and values are 14px medium, so the rows line up across the compartments. | Owner: "It doesn't have to go to the third line… make the labels 14 pixel size and not 12" |
 
 **Deferred (owner, 2026-09-11):** the lighter hover stays on tables only. Making it the
 default hover everywhere is a design-system token change (`--accent`), measured and parked:
@@ -1962,6 +1964,7 @@ reach, not a missing primitive (§8, D24).
 | 2026-09-11 (design review) | Eight comments applied; type scale, spacing and the docked documents panel confirmed with the owner first (§0 D28–D33) | owner (Abhiram) |
 | 2026-09-11 (case file chunks) | Case file in the e-filing's order, one card per group, chunked as the e-filing's sub-cards (§0 D34–D36); global hover token deferred | owner (Abhiram) |
 | 2026-09-11 (case file craft) | No 12px; bands with a gutter and one label column; comparisons as grids; the eye centred on its row (§0 D37–D41) | owner (Abhiram) |
+| 2026-09-11 (gaps and lines) | No name column on cards whose bands have no name; Summary facts at two lines with 14px labels and notes inline (§0 D42–D43) | owner (Abhiram) |
 
 | Date | Change | Who |
 |---|---|---|
