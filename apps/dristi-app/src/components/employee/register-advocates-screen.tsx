@@ -31,8 +31,8 @@ import {
   formatDaysWaitingSpoken,
   nextInQueue,
   registrationWaitTone,
+  accountTypeVariant,
   requestKindLabel,
-  requestKindVariant,
   roleLabel,
   APPROVE_REGISTRATIONS_TITLE,
   type AdvocateRegistration,
@@ -409,11 +409,7 @@ function RegistrationItemList({
             >
               {request.fullName}
             </p>
-            {/* Role leads the line for the reason it sits beside the name in the table:
-                it says which register the number after it belongs to. */}
             <p className="text-caption text-muted-foreground">
-              {roleLabel(request.registrantKind)}
-              {" · "}
               <span className="tabular-nums">{request.registrationNumber}</span>
               {" · "}
               <span
@@ -425,16 +421,15 @@ function RegistrationItemList({
                 {formatDaysWaitingSpoken(request.daysWaiting)}
               </span>
             </p>
-            {/* The same colour map as the table (`requestKindVariant`) — one
-                presentation per fact across the two layouts. */}
-            {kind ? (
-              <Badge
-                variant={requestKindVariant(request) ?? "secondary"}
-                className="w-fit"
-              >
-                {kind}
+            {/* The table's two pills, in the table's colours: the account type in its
+                hue, the request type neutral. One presentation per fact across both
+                layouts. */}
+            <div className="flex flex-wrap gap-1.5">
+              <Badge variant={accountTypeVariant(request.registrantKind)}>
+                {roleLabel(request.registrantKind)}
               </Badge>
-            ) : null}
+              {kind ? <Badge variant="secondary">{kind}</Badge> : null}
+            </div>
           </li>
         );
       })}

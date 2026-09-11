@@ -1363,6 +1363,45 @@ categorical identity tint — but this screen no longer needs one.
 *Rule:* owner 2026-09-11; ui-craft §2 (one presentation per data type across siblings);
 the owner's recurring *"a new unique way of implementing"* objection.
 
+### D34 — **New.** Account type is a pill, read first; colour means account type and nothing else
+
+Owner, 2026-09-11: *"add the first row here as account type — clerk or advocate — with a
+pill in it, and use that same pill design in the table view also. And standardise the pill
+colour so that it's not too many colours going on. The status updates can have just a gray
+or a beige, but this account type can have different colours… What's the first thing you
+read and then you understand, okay, it's a clerk? You don't read the heading. Especially
+when you become a power user, you don't read the heading of everything. You look at the
+content immediately."*
+
+That last sentence is the correction to D33 worth keeping: **a heading is read once, then
+skipped; content is read every time.** D33 put the role in the one line every officer reads
+— and the owner's point is that a practised officer stops reading it. The signal belongs in
+the content, as a mark the eye picks up on its way to the values.
+
+- **Account type** is the first row of the Request group, its value a pill. The queue's
+  column is renamed to match ("Account type", not "Role") and shows the same pill. So does the
+  decision card, beside the registration number, and the phone list. One category, one
+  presentation, learned on the list and recognised in the record.
+- **Colour answers one question per screen.** Every pill that reports a state — *Pending
+  approval*, *Resubmitted · round N*, *Profile update* — is the DS's neutral `secondary`
+  (neutral-5, the warm grey the owner described). The only pills with a hue are the account
+  type's. D7's coloured request-type chips (owner, round one) are reversed by the owner here.
+- **The two hues.** With the states neutral, `warning` still means the wait escalation and a
+  register finding and `destructive` still means an overdue wait and a rejection, so neither
+  is free. `info` and `success` are: Advocate (the majority) takes the calmer `info`, Clerk
+  takes `success`. The one place green means something else is the settled *Approved*
+  state, where it is labelled on both sides. **This is still a borrowing** — the DS has no
+  categorical tint (§13) — and the gap is now a real one on this screen.
+- **The decisions keep green and red.** *Approved* / *Rejected* are the outcome the owner
+  asked to read as accepted or refused (D21), not a status update.
+- **D33's title stays.** It costs nothing, it is the dialog's accessible name, and it serves
+  the officer who does read headings. It is no longer the signal.
+
+*Rule:* owner 2026-09-11; ui-craft §1.4 (semantic colour is scarce — here, one meaning);
+AGENTS rule 6 (no alpha fakes, so no invented tint).
+*Measured:* the table still fits at 1280 — "Account type" is a wider header than "Role" but
+the pills are narrower than "Advocate clerk" was.
+
 ## 6. What I cut (and why)
 
 **Read this first, because the critique could be misread as "add structure everywhere":**
@@ -1673,8 +1712,8 @@ exists to name it.
 
 ## 13. Gaps in the DS (if any)
 
-**Filed 2026-09-11: a categorical tint for identity.** *(D33 no longer needs it on this
-screen; the gap is still real.)* D32 needed two roles to differ in colour, and the DS has no sanctioned family for it: `chart-1…5` are solids that AGENTS.md
+**Filed 2026-09-11: a categorical tint for identity.** *(Needed again by D34, which
+borrows `info` and `success` for the two account types.)* D32 needed two roles to differ in colour, and the DS has no sanctioned family for it: `chart-1…5` are solids that AGENTS.md
 scopes to data visualisation ("never status", and by implication never UI identity), with
 no muted pair, so a pale tile would have to be faked with an opacity modifier — which rule
 6 forbids. The build borrows `info` for clerks and leaves advocates neutral, which is
@@ -1737,6 +1776,7 @@ dependency here. Request #9 stands on its own merits for the screens that raised
 | **2026-09-10 (evening)** | **D16 added.** Request metadata is its own attribute group, not header prose; the application number stays in the header description and is not repeated; the advocate's name **leaves** the header, because printing a value under verification as the record's title asserts it. | ux-designer |
 | **2026-09-10 (evening)** | **D9 and D11 corrected for two parallel cross-cutting changes** — search filters as you type (the Search button goes away app-wide) and the whole table row becomes the click target. The queue page therefore has **no page-level primary**, which is what D9 argued was correct all along; the "teal on the queue page is Search" line is void, and two code comments asserting it must change with the rebuild. | orchestrator / ux-designer |
 | **2026-09-10 (evening)** | **§6 clarified** so the brief cannot be read as rejecting structure wholesale: the officer's rejection reason stays free text (`REG-22`) because it is *user data in a consistent slot*; what was rejected is *product copy narrating machine results*. Reason chips remain cut; a per-attribute rejection is filed as §12.10 for the owner to decide. | ux-designer |
+| **2026-09-11 (account-type pill)** | **Account type is a pill, read first** (D34): first row of the Request group, the queue's renamed column, the decision card and the phone list, all the same pill — Advocate `info`, Clerk `success`. Every state pill (*Pending approval*, *Resubmitted*, *Profile update*) goes neutral `secondary`; colour now means account type only. D7's coloured request-type chips reversed. D33's title kept as the accessible name, no longer the signal. | owner (direction) / orchestrator |
 | **2026-09-11 (role in the title)** | **D32's role mark reversed** (D33): the owner had to hunt for it, and the table's lone icon column read as cheap. The role now leads every stage title — *Review clerk registration*, *Approve clerk registration?*, *Clerk registration approved* — and every other mention is plain text. Header description back to the application number alone. `role-mark.tsx` deleted. | owner (direction) / orchestrator |
 | **2026-09-11 (role mark)** | **Advocate and clerk get a signifier** (D32): "Clerk" replaces "Advocate clerk"; a role mark — briefcase / clipboard, neutral for advocates and `info` for clerks — as a tile beside the dialog title on every stage and as a glyph in the Role column, the phone list and the decision card's identity line. The Role row leaves the Request group for the header. The rejection placeholder now names the clerk ID card for clerks. DS gap filed for a categorical identity tint (§13). | owner (direction) / orchestrator |
 | **2026-09-11 (clerks)** | **Advocate clerks join the queue; the section is renamed "Approve registrations"** (D31). Clerks read off the sign-up and the handover: same five values, a clerk registration number and clerk ID card, no register (new `none` lookup state) and never a profile update. Role returns as a column and as the first Request row; the number column becomes "Registration number"; the advocate term aligns to the sign-up's "Bar registration number"; the decision card shows the role before the number. Three demo clerks added. Name column floor lowered after six columns measured 25px over at 1280. Filter explicitly deferred by the owner pending the product-wide filter pattern. D4 and D13 amended; §12.12 and a slug risk opened. | owner (direction) / orchestrator |

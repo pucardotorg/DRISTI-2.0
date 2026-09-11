@@ -19,8 +19,8 @@ import {
 import {
   formatDaysWaiting,
   registrationWaitTone,
+  accountTypeVariant,
   requestKindLabel,
-  requestKindVariant,
   roleLabel,
   type AdvocateRegistration,
   type WaitTone,
@@ -44,16 +44,16 @@ const waitClass: Record<WaitTone, string> = {
  * what they are registering as, the registration they claim, whether this request is an
  * ordinary one, and how long the office has kept them waiting.
  *
- * **Six columns. Role came back** (2026-09-11), exactly as this comment said it would:
+ * **Six columns. Account type came back** (2026-09-11), exactly as this comment said it would:
  * the reference's *User Type* was dropped while every row was an advocate, because a
  * column whose every cell reads the same carries no information. Advocate clerks joining
  * the queue (`REG-13a`/`REG-14a`) made it a real distinction, and it sits beside the name
- * because it decides how the number after it is read. Named "Role", the sign-up's own
+ * because it decides how the number after it is read. Named "Account type" (the owner's word) — the sign-up's own
  * word for the same choice, with the sign-up's own two values.
  *
- * Unlike Request type, **Role is filled on every row**, the norm included. Request type can
+ * Unlike Request type, **Account type is filled on every row**, the norm included. Request type can
  * leave its norm blank because "first registration" is what an empty cell plainly means;
- * an empty Role cell would mean nothing at all, in a column where both values are
+ * an empty Account type cell would mean nothing at all, in a column where both values are
  * ordinary.
  *
  * **Action / "Verify" is gone** because it was a link that repeated its own row. The
@@ -87,7 +87,7 @@ export function RegisterAdvocatesTable({
           <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
             Application number
           </TableHead>
-          {/* `min-w-40`, down from 48, to pay for the Role column. Measured at 1280 — the
+          {/* `min-w-40`, down from 48, to pay for the Account type column. Measured at 1280 — the
               narrowest width the table is shown at — six columns came to 935px in a
               910px panel, and the column pushed off the edge was Days waiting, the one
               the queue is read by. The name is the column that can afford it: it wraps
@@ -97,10 +97,10 @@ export function RegisterAdvocatesTable({
             Full name
           </TableHead>
           <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
-            Role
+            Account type
           </TableHead>
           {/* "Registration number", not "Bar registration ID" — the column holds clerks'
-              numbers too, and the Role beside it says which register the number belongs
+              numbers too, and the Account type beside it says which register the number belongs
               to. The overlay keeps the specific label, where a single request is read. */}
           <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
             Registration number
@@ -168,33 +168,27 @@ export function RegisterAdvocatesTable({
               >
                 {request.fullName}
               </TableCell>
-              {/* Plain text, set like the registration number beside it. It had a glyph for
-                  one round, and a single column wearing icons in a table of plain values read
-                  as the odd one out rather than as a signal (owner, 2026-09-11). What tells a
-                  clerk from an advocate at a glance is the word itself — the two differ from
-                  their first letter — and, once a request is open, the dialog's title. */}
+              {/* **The one coloured pill in the row** — the same pill the record's
+                  Account type row shows, so it is learned here and recognised there. Every
+                  other pill on the row is neutral (see below), so colour in this table
+                  answers one question: which kind of account. */}
               <TableCell className={cn(TABLE_CELL, "whitespace-nowrap")}>
-                {roleLabel(request.registrantKind)}
+                <Badge variant={accountTypeVariant(request.registrantKind)}>
+                  {roleLabel(request.registrantKind)}
+                </Badge>
               </TableCell>
               <TableCell
                 className={cn(TABLE_CELL, "tabular-nums whitespace-nowrap")}
               >
                 {request.registrationNumber}
               </TableCell>
-              {/* Empty on the norm; the two exceptions are told apart by colour as well as
-                  by their words — `info` for an edited account, `warning` for a
-                  resubmission (`requestKindVariant`, owner ruling 2026-09-10). This
-                  spends a second colour on the row whose wait is already `destructive`
-                  ink, which ui-craft §4 rations; the owner asked for the trade, and the
-                  case for it is that "came back a fifth time" is a fact the officer has to
-                  act on differently, not decoration. The words stay, so it is never colour
-                  alone. */}
+              {/* Empty on the norm, and **neutral** on both exceptions. They were coloured
+                  for a round — `info` for a profile update, `warning` for a resubmission —
+                  and the owner then took colour back for account type alone: *"the status
+                  updates can have just a gray or a beige"* (2026-09-11). The words tell
+                  the two apart; colour is spent on one question per screen. */}
               <TableCell className={cn(TABLE_CELL, "whitespace-nowrap")}>
-                {kind ? (
-                  <Badge variant={requestKindVariant(request) ?? "secondary"}>
-                    {kind}
-                  </Badge>
-                ) : null}
+                {kind ? <Badge variant="secondary">{kind}</Badge> : null}
               </TableCell>
               {/* The wait is the column's fact, and the number is the encoding — the
                   colour only agrees with it (ACCESSIBILITY §3). Right-aligned because it

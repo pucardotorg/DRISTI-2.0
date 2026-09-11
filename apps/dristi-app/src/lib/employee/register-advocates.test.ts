@@ -21,7 +21,7 @@ import {
   rejectionDay,
   rejectionRows,
   requestKindLabel,
-  requestKindVariant,
+  accountTypeVariant,
   nextInQueue,
   requestRows,
   requestTypeValue,
@@ -375,18 +375,12 @@ describe("what the row and the overlay call things", () => {
     assert.equal(requestKindLabel(back), "Resubmitted · round 5");
   });
 
-  it("colours the two exceptions apart, and leaves the norm uncoloured", () => {
-    const first = REGISTER_ADVOCATES_QUEUE.find(
-      (r) => r.requestKind === "first",
-    );
-    const edited = REGISTER_ADVOCATES_QUEUE.find(
-      (r) => r.requestKind === "edited",
-    );
-    const back = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-118");
-    assert.ok(first && edited && back);
-    assert.equal(requestKindVariant(first), null);
-    assert.equal(requestKindVariant(edited), "info");
-    assert.equal(requestKindVariant(back), "warning");
+  it("spends colour on the account type alone — two hues, one per kind", () => {
+    // States are the neutral pill now; the only pills with a hue are the account type's,
+    // so colour on this screen answers one question (owner, 2026-09-11).
+    assert.equal(accountTypeVariant("advocate"), "info");
+    assert.equal(accountTypeVariant("clerk"), "success");
+    assert.notEqual(accountTypeVariant("advocate"), accountTypeVariant("clerk"));
   });
 
   it("counts a request with one rejection behind it as round 2", () => {
@@ -480,9 +474,8 @@ describe("shape one: a term and its value", () => {
     const back = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-118");
     assert.ok(back);
     const rows = allRows(back);
-    // 3 request facts + 4 identity rows (this one has an email) + 4 rejection rounds.
-    // (The role is not a row: it is the dialog header's, on every stage.)
-    assert.equal(rows.length, 11);
+    // 4 request facts (account type first) + 4 identity rows + 4 rejection rounds.
+    assert.equal(rows.length, 12);
     for (const row of rows) {
       assert.equal(typeof row.term, "string");
       assert.ok(row.term.length > 0, "a row with no term");
@@ -525,11 +518,12 @@ describe("shape one: a term and its value", () => {
 
   it("carries the queue cell's own escalation into the overlay's Waiting row", () => {
     for (const request of REGISTER_ADVOCATES_QUEUE) {
-      const [submitted, waiting, kind] = requestRows(request);
+      const [account, submitted, waiting, kind] = requestRows(request);
       assert.deepEqual(
-        [submitted.term, waiting.term, kind.term],
-        ["Submitted", "Waiting", "Request type"],
+        [account.term, submitted.term, waiting.term, kind.term],
+        ["Account type", "Submitted", "Waiting", "Request type"],
       );
+      assert.equal(account.tone, undefined);
       assert.equal(waiting.tone, registrationWaitTone(request.daysWaiting));
       assert.equal(waiting.value, formatWaitingDuration(request.daysWaiting));
       assert.equal(submitted.tone, undefined);
@@ -582,8 +576,8 @@ describe("the register speaks only when it disagrees", () => {
     assert.ok(clean);
     assert.equal(registerAnswer(clean), null);
     assert.equal(registerFindingRow(clean), null);
-    // …and the Request group is its three facts, with nothing appended.
-    assert.equal(requestRows(clean).length, 3);
+    // …and the Request group is its four facts, with nothing appended.
+    assert.equal(requestRows(clean).length, 4);
   });
 
   it("reaches its three answers, each as one row in the Request group", () => {
@@ -626,7 +620,7 @@ describe("the register speaks only when it disagrees", () => {
     for (const request of REGISTER_ADVOCATES_QUEUE) {
       const finding = registerFindingRow(request);
       const rows = requestRows(request);
-      assert.equal(rows.length, finding ? 4 : 3);
+      assert.equal(rows.length, finding ? 5 : 4);
       // Nothing in the Identity block mentions a register, matching or otherwise.
       for (const row of identityRows(request)) {
         assert.ok(
@@ -771,12 +765,16 @@ describe("an advocate clerk's request", () => {
     assert.equal(roleLabel("clerk"), "Clerk");
     assert.equal(roleLabel("advocate"), "Advocate");
     assert.notEqual(roleLabel("clerk")[0], roleLabel("advocate")[0]);
-    // The role is the header's, on every stage — never a row as well.
+    // The account type leads the Request group, as the pill the queue's column shows.
     for (const request of REGISTER_ADVOCATES_QUEUE) {
-      assert.equal(
-        requestRows(request).some((row) => row.id === "role"),
-        false,
-      );
+      const [account] = requestRows(request);
+      assert.equal(account.id, "accountType");
+      assert.equal(account.value, roleLabel(request.registrantKind));
+      assert.equal(account.pill, accountTypeVariant(request.registrantKind));
+      // …and no other row is a pill: one category, one presentation.
+      for (const row of requestRows(request).slice(1)) {
+        assert.equal(row.pill, undefined);
+      }
     }
   });
 
