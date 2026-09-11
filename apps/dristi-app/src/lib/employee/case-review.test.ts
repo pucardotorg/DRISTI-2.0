@@ -202,12 +202,12 @@ describe("terms are attributes the file names", () => {
         rendered += 1;
         assert.match(
           term[1].trim(),
-          /^\{[A-Za-z]+\.term\}$/,
+          /^\{[A-Za-z_]+\.term\}$/,
           `${path} writes a term rather than printing one: ${term[1].trim()}`,
         );
       }
     }
-    assert.equal(rendered, 1, "the file view's fact rows, and nothing else");
+    assert.equal(rendered, 2, "the file view's fact rows and its documents row, and nothing else");
   });
 
   it("names the summary's sections and rows from the model, and uses every name", () => {

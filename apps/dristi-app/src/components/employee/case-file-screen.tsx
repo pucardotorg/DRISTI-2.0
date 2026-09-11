@@ -2,11 +2,8 @@
 
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
-import { FileTextIcon } from "lucide-react";
-
 import { DocumentPreview } from "@/components/cases/document-preview";
 import {
-  DOCUMENT_MEDIA,
   PANEL,
   PageFacsimile,
   SCROLL_REST,
@@ -15,13 +12,13 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useIsWide } from "@/hooks/use-min-width";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   DescriptionDetails,
   DescriptionList,
   DescriptionRow,
   DescriptionTerm,
 } from "@/components/ui/description-list";
-import { DocumentSlot } from "@/components/ui/document-slot";
 import {
   Drawer,
   DrawerContent,
@@ -38,9 +35,9 @@ import {
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Timeline, TimelineItem } from "@/components/ui/timeline";
-import { ThumbnailButton } from "@/components/filing/upload/thumbnail";
 import {
   caseGroupAnchor,
+  DOCUMENTS_ROW,
   caseSlotFor,
   formatDaysWaitingLong,
   type CaseAbsence,
@@ -473,19 +470,15 @@ function CaseSectionBlock({
     <section
       id={anchorFor(section.id)}
       aria-labelledby={headingId}
-      className={cn("flex min-w-0 flex-col gap-2", SCROLL_REST)}
+      className={cn("flex min-w-0 flex-col gap-4", SCROLL_REST)}
     >
-      {/* An eyebrow, not a heading at the panels' size. The section and the group
-          titles below it were both 16px/600, so nothing told a reader which was the
-          container and which the thing contained. The section is a label for a run of
-          panels; the panel title is what a reader is looking for. */}
-      <h2
-        id={headingId}
-        className="text-caption font-semibold text-muted-foreground"
-      >
+      {/* The court side's section heading — `text-body font-semibold`, the role every
+          sibling screen uses — over a run of groups that each carry the eyebrow the
+          approved-registrations review gives its groups. Two levels, two roles. */}
+      <h2 id={headingId} className="text-body font-semibold">
         {section.title}
       </h2>
-      <div className="flex min-w-0 flex-col gap-4">
+      <div className="flex min-w-0 flex-col gap-6">
         {section.groups.map((group) => (
           <CaseGroupPanel
             key={group.id}
@@ -499,24 +492,6 @@ function CaseSectionBlock({
   );
 }
 
-/**
- * One block of the file — the cheque, the notice, who appears.
- *
- * The panel is the frame, so what is inside it is fill, spacing and one hairline: the
- * records are stacked blocks with a rule between them, and nothing draws a second edge.
- * They were sunken wells until 2026-09-11; with the canvas tinted, a well inside a panel
- * on a tinted page would be a fourth tier on a screen that is read rather than filled. A
- * rule between records is the least that says "another one of these" and costs no depth.
- *
- * The mark beside the title is still a well, and muted: twelve tinted tiles down a page
- * would spend the view's one saturated colour a dozen times over, and the icon is here
- * to make a long file scannable rather than to say anything.
- *
- * **The head is what a finding links to and what the pane follows**, so it carries the
- * anchor, the scroll offset, and a focus target — a magistrate who followed a finding
- * from the report lands *here* rather than at the top of the file, and the reading
- * observer measures this rect to decide whose documents the pane should hold (brief D26).
- */
 function CaseGroupPanel({
   group,
   selectedRow,
@@ -526,22 +501,13 @@ function CaseGroupPanel({
   selectedRow: string | undefined;
   onOpen: OpenPane;
 }) {
-  const Icon = group.icon;
   const headingId = `case-group-heading-${group.id}`;
   /* A group that holds exactly one record — the cheque, the complainant, the accused —
-     used to print the group's title and then the record's name as a second heading row
-     directly beneath it, both at 16px. The record's name is what the group is *about*,
-     so it becomes the title block's second line; only a group listing several records
-     (witnesses, advocates) keeps a heading per record, because there the names are what
-     tell the blocks apart. */
-  const sole =
-    group.records?.length === 1 ? group.records[0] : undefined;
+     names it in the eyebrow rather than as a heading of its own inside the card; only a
+     group listing several records keeps a name per record, because there the names are
+     what tell the blocks apart. */
+  const sole = group.records?.length === 1 ? group.records[0] : undefined;
 
-  /* Every block this panel holds, in reading order, so the rule between them is decided
-     once by position rather than twice by which shape the data happened to take. A
-     group's own facts are the last block; they used to sit bare on the sheet while a
-     named record sat in a well, which split the file down a line — `records` versus
-     `facts` — that is invisible to a reader and meant nothing to them. */
   const blocks: React.ReactNode[] = [
     ...(group.records ?? []).map((record, index) => (
       <CaseRecordBlock
@@ -550,13 +516,9 @@ function CaseGroupPanel({
         group={group.id}
         heading={sole ? undefined : record.heading}
         tag={sole ? undefined : record.tag}
-        /* "1." above a lone complainant counts nothing, so the ordinal appears only
-           where there is more than one of something. */
         ordinal={(group.records?.length ?? 0) > 1 ? index + 1 : undefined}
         facts={record.facts}
         documents={record.documents}
-        /* What a document row is named after in the accessible name: the record it
-           belongs to, or failing that the head it was filed under. */
         within={record.heading}
         selectedRow={selectedRow}
         onOpen={onOpen}
@@ -583,59 +545,46 @@ function CaseGroupPanel({
       id={caseGroupAnchor(group.id)}
       tabIndex={-1}
       aria-labelledby={headingId}
-      className={cn(PANEL, "flex flex-col gap-4 outline-none", SCROLL_REST)}
+      className={cn("flex min-w-0 flex-col gap-2 outline-none", SCROLL_REST)}
     >
-      <div className="flex min-w-0 items-center gap-3">
-        <span
-          className="flex size-8 shrink-0 items-center justify-center self-start rounded-lg bg-surface-sunken text-muted-foreground"
-          aria-hidden
-        >
-          <Icon className="size-4" />
-        </span>
-        <div className="flex min-w-0 flex-col">
-          <h3 id={headingId} className="min-w-0 text-body font-semibold">
-            {group.title}
-          </h3>
-          {sole?.heading ? (
-            <p className="flex min-w-0 flex-wrap items-center gap-x-2 text-body-compact text-muted-foreground">
-              <span className="min-w-0">{sole.heading}</span>
-              {sole.tag ? <Badge variant="secondary">{sole.tag}</Badge> : null}
-            </p>
-          ) : null}
-        </div>
-      </div>
+      {/* The approved-registrations review's group eyebrow, transferred: caption, muted,
+          scaffolding read as scaffolding. The record it is about, when there is one,
+          follows the name on the same line. */}
+      <h3
+        id={headingId}
+        className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-caption font-semibold text-muted-foreground"
+      >
+        <span>{group.title}</span>
+        {sole?.heading ? (
+          <>
+            <span aria-hidden>—</span>
+            <span className="font-normal">{sole.heading}</span>
+            {sole.tag ? <Badge variant="secondary">{sole.tag}</Badge> : null}
+          </>
+        ) : null}
+      </h3>
 
-      {group.empty ? <CaseAbsenceNote absence={group.empty} /> : null}
-
-      {blocks.length > 0 ? (
-        <div className="flex min-w-0 flex-col gap-4">
-          {blocks.map((block, index) => (
-            /* The rule belongs to the block below it, not between two siblings in the
-               abstract: `gap-4` above and `pt-4` below leave it centred in an even
-               32px, and the first block never carries one — the panel's own heading has
-               already separated it. */
-            <div
-              key={index}
-              className={cn("min-w-0", index > 0 && "border-t border-hairline pt-4")}
-            >
-              {block}
+      <Card size="sm" className="border-hairline shadow-raised">
+        <CardContent className="flex flex-col gap-4">
+          {group.empty ? <CaseAbsenceNote absence={group.empty} /> : null}
+          {blocks.length > 0 ? (
+            <div className="flex min-w-0 flex-col gap-4">
+              {blocks.map((block, index) => (
+                <div
+                  key={index}
+                  className={cn("min-w-0", index > 0 && "border-t border-hairline pt-4")}
+                >
+                  {block}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : null}
+          ) : null}
+        </CardContent>
+      </Card>
     </section>
   );
 }
 
-/**
- * A head of the file with nothing under it, in one shape.
- *
- * Not a bordered grey void: the panel is already the frame, and the panel's own title
- * has named the head. The reason is the file's (a closed `CaseAbsence.reason`, so an
- * empty head can be counted and translated); the sentence under it is the product's
- * voice and says what follows — that the complainant conducts the matter in person. They
- * are two lines because they are two kinds of thing (`ui-craft` §1.6).
- */
 const ABSENCE_REASONS = {
   "none-named": "None named",
   "none-on-record": "None on record",
@@ -714,27 +663,35 @@ function CaseRecordBlock({
           {tag ? <Badge variant="secondary">{tag}</Badge> : null}
         </div>
       ) : null}
-      {facts ? (
-        <CaseFactRows
-          blockId={blockId}
-          group={group}
-          facts={facts}
-          documents={documents}
-          selectedRow={selectedRow}
-          onOpen={onOpen}
-        />
-      ) : null}
-      {documents ? (
-        <CaseDocuments
-          group={group}
-          documents={documents}
-          within={within}
-          onOpen={onOpen}
-        />
-      ) : null}
+      {/* Facts and documents are one list, so the term column lines up down the whole
+          card and only the card's last row goes without a rule. */}
+      <DescriptionList>
+        {facts ? (
+          <CaseFactRows
+            blockId={blockId}
+            group={group}
+            facts={facts}
+            documents={documents}
+            selectedRow={selectedRow}
+            onOpen={onOpen}
+          />
+        ) : null}
+        {documents ? (
+          <CaseDocumentsRow
+            group={group}
+            documents={documents}
+            within={within}
+            onOpen={onOpen}
+          />
+        ) : null}
+      </DescriptionList>
     </div>
   );
 }
+
+/** One row of the file: term and value on the DS list's own metric, a hairline between rows. */
+const FACT_ROW =
+  "grid-cols-1 gap-1 border-hairline @xs:grid-cols-[minmax(7rem,10rem)_1fr] @xs:gap-4";
 
 /**
  * The file's fact rows, at the DS `DescriptionList`'s own metric — and, where a row has
@@ -779,7 +736,7 @@ function CaseFactRows({
   onOpen: OpenPane;
 }) {
   return (
-    <DescriptionList>
+    <>
       {facts.map((fact) => {
         const rowId = `${blockId}:${fact.term}`;
         const source = fact.source;
@@ -799,7 +756,7 @@ function CaseFactRows({
           <DescriptionRow
             key={fact.term}
             className={cn(
-              "grid-cols-1 gap-1 border-hairline @xs:grid-cols-[minmax(7rem,10rem)_1fr] @xs:gap-4",
+              FACT_ROW,
               lit && "-mx-2 rounded-md bg-accent px-2",
             )}
           >
@@ -868,7 +825,7 @@ function CaseFactRows({
           </DescriptionRow>
         );
       })}
-    </DescriptionList>
+    </>
   );
 }
 
@@ -897,7 +854,7 @@ function CaseFactRows({
  * same padding, no fill, no paper, nothing to press, reading "Not on file". An absence is
  * never dressed as a document.
  */
-function CaseDocuments({
+function CaseDocumentsRow({
   group,
   documents,
   within,
@@ -908,58 +865,39 @@ function CaseDocuments({
   within: string;
   onOpen: OpenPane;
 }) {
+  /* One row of the same list as the facts, not a stack of thumbnail tiles: the pane
+     beside the column already shows the documents, so the tiles were the same eighteen
+     pages drawn twice. A filed document is a name that opens it in the pane; an absent
+     one is its name and "not on file", muted, so a reader scanning the column sees which
+     slots are full before reading a word. */
   return (
-    <ul className="flex min-w-0 flex-col gap-2">
-      {documents.map((document) => (
-        <li key={document.key} className="min-w-0">
-          {document.state === "absent" ? (
-            /* The `DocumentSlot` geometry without the primitive. No fill either: the
-               filed rows are sunken and this one is not, so a reader scanning the column
-               sees which slots are full before reading a word. */
-            <div className="flex w-full items-start gap-4 rounded-lg p-4">
-              <span
-                className="flex h-14 w-11 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-muted-foreground"
-                aria-hidden
-              >
-                <FileTextIcon className="size-5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-body-compact font-medium">{document.label}</p>
-                <p className="mt-0.5 text-body-compact text-muted-foreground">
-                  Not on file
-                </p>
-              </div>
-            </div>
-          ) : (
-            <DocumentSlot
-              status="filled"
-              media="thumbnail"
-              label={document.label}
-              className={DOCUMENT_MEDIA}
-              thumbnail={
-                <ThumbnailButton
-                  /* The head the document was filed under, in the name as well as
-                     beside it. Both parties file an "ID proof" and the file lists
-                     eighteen rows in all, so a reader tabbing the page or pulling up a
-                     list of controls met "View ID proof" twice with nothing to tell them
-                     apart. The visible label stays the document's own — the row sits
-                     under a heading that supplies the rest. */
-                  label={`View ${document.label} — ${within}`}
-                  onPreview={(event) =>
-                    onOpen(
-                      { group, doc: document.key },
-                      event.currentTarget,
-                    )
+    <DescriptionRow className={FACT_ROW}>
+      <DescriptionTerm className="text-body-compact">{DOCUMENTS_ROW.term}</DescriptionTerm>
+      <DescriptionDetails className="min-w-0 text-body-compact">
+        <ul className="flex min-w-0 flex-col gap-1">
+          {documents.map((document) => (
+            <li key={document.key} className="min-w-0">
+              {document.state === "absent" ? (
+                <span className="text-muted-foreground">
+                  {document.label} — not on file
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  aria-label={`View ${document.label} — ${within}`}
+                  className="-my-2.5 flex min-h-10 w-fit min-w-10 items-center rounded-md text-left font-medium underline-offset-4 outline-none transition-colors hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring"
+                  onClick={(event) =>
+                    onOpen({ group, doc: document.key }, event.currentTarget)
                   }
                 >
-                  <PageFacsimile kind={document.kind} />
-                </ThumbnailButton>
-              }
-            />
-          )}
-        </li>
-      ))}
-    </ul>
+                  {document.label}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      </DescriptionDetails>
+    </DescriptionRow>
   );
 }
 

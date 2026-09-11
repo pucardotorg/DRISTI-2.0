@@ -143,6 +143,9 @@ export const FACT_TERMS = {
 
 export type CaseFactTerm = (typeof FACT_TERMS)[keyof typeof FACT_TERMS];
 
+/** The one row of the file that is not a fact — the documents filed under a head. */
+export const DOCUMENTS_ROW = { term: "Documents" } as const;
+
 /**
  * The four cells above the file — Court · Amount · Submitted · Waiting.
  *
