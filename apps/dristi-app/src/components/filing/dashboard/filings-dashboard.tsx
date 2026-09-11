@@ -41,7 +41,9 @@ export function FilingsDashboard() {
   const { profile } = useProfile();
   const { ready, error, readAt, drafts, filed, discard } = useDrafts();
   const { tasks, cases: taskCases } = useTasks();
-  const [confirmId, setConfirmId] = React.useState<string | null>(null);
+  // The drafts awaiting a discard confirmation — one from a row's bin, several from
+  // the selection. Empty means the dialog is closed.
+  const [confirmIds, setConfirmIds] = React.useState<string[]>([]);
 
   const showData = mounted && ready;
   const firstName = firstNameOf(profile?.name ?? "");
@@ -79,19 +81,29 @@ export function FilingsDashboard() {
       {/* Gated on the drafts read only. Cases are a static import and the tasks store
           fills the "returned" tab whenever it finishes; waiting for all three would blank
           the whole table because one tab is not ready yet. */}
-      <FilingsQueue data={data} ready={showData} onDiscard={setConfirmId} />
+      <FilingsQueue data={data} ready={showData} onDiscard={setConfirmIds} />
 
       <ConfirmDialog
-        open={confirmId !== null}
+        open={confirmIds.length > 0}
         onOpenChange={(open) => {
-          if (!open) setConfirmId(null);
+          if (!open) setConfirmIds([]);
         }}
-        title="Discard this draft?"
-        description="Everything entered and uploaded for this filing will be removed. This cannot be undone."
-        confirmLabel="Discard draft"
+        title={
+          confirmIds.length === 1
+            ? "Discard this draft?"
+            : `Discard these ${confirmIds.length} drafts?`
+        }
+        description={
+          confirmIds.length === 1
+            ? "Everything entered and uploaded for this filing will be removed. This cannot be undone."
+            : `Everything entered and uploaded for these ${confirmIds.length} filings will be removed. This cannot be undone.`
+        }
+        confirmLabel={
+          confirmIds.length === 1 ? "Discard draft" : `Discard ${confirmIds.length} drafts`
+        }
         onConfirm={() => {
-          if (confirmId) void discard(confirmId);
-          setConfirmId(null);
+          for (const id of confirmIds) void discard(id);
+          setConfirmIds([]);
         }}
       />
     </div>

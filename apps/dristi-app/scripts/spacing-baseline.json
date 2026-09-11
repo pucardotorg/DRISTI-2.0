@@ -235,10 +235,6 @@
     "px-3.5",
     "px-3.5"
   ],
-  "src/components/shell/join-case-page.tsx": [
-    "gap-5",
-    "py-10"
-  ],
   "src/components/sign-in-block.tsx": [
     "gap-10",
     "gap-10",
@@ -252,8 +248,7 @@
     "p-10"
   ],
   "src/components/tasks/filter-row.tsx": [
-    "gap-5",
-    "pl-3.5"
+    "gap-5"
   ],
   "src/components/vakalatnama/steps/review-sign.tsx": [
     "gap-5"

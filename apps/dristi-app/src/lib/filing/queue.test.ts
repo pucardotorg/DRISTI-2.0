@@ -8,6 +8,7 @@ import {
   defaultSortFor,
   draftClock,
   draftRows,
+  NO_DEADLINE,
   pageWindow,
   registeredRows,
   scrutinyRows,
@@ -32,42 +33,48 @@ function draftAt(daysAgo: number, today = TODAY): FilingDraft {
   return draft;
 }
 
-describe("draftClock — the limitation cue", () => {
-  it("says nothing when no cause of action is known", () => {
+const DATE = /^\d{2}\/\d{2}\/\d{4}$/;
+
+describe("draftClock — the File by column", () => {
+  it("says NA, and why, when no cause of action is known", () => {
     const clock = draftClock(createBlankDraft("d1"));
+    assert.equal(clock.lead, NO_DEADLINE);
     assert.equal(clock.tone, "default");
     assert.equal(clock.dueOn, "");
-    assert.match(clock.lead, /% complete$/);
-    assert.doesNotMatch(clock.lead, /File by/);
+    assert.match(clock.sub ?? "", /notice dates/i);
   });
 
-  it("counts down to the due date while in time", () => {
+  it("leads with the date and counts down under it while in time", () => {
     const clock = draftClock(draftAt(10));
-    assert.match(clock.lead, /^File by /);
-    assert.match(clock.sub, /^20 days left/);
+    assert.match(clock.lead, DATE);
+    assert.match(clock.sub ?? "", /^20 days left$/);
     assert.equal(clock.tone, "default");
   });
 
-  it("warns inside the last week without changing the words", () => {
-    const clock = draftClock(draftAt(25));
-    assert.match(clock.sub, /^5 days left/);
+  it("stays in plain ink until the last two days", () => {
+    assert.equal(draftClock(draftAt(25)).tone, "default");
+    assert.equal(draftClock(draftAt(27)).tone, "default");
+    const clock = draftClock(draftAt(28));
+    assert.match(clock.sub ?? "", /^2 days left$/);
     assert.equal(clock.tone, "warning");
   });
 
   it("singularises the last day", () => {
-    assert.match(draftClock(draftAt(29)).sub, /^1 day left/);
+    assert.match(draftClock(draftAt(29)).sub ?? "", /^1 day left$/);
   });
 
-  it("on the final day it is still in time, not late", () => {
+  it("on the final day it is due today — still in time, not late", () => {
     const clock = draftClock(draftAt(30));
-    assert.match(clock.lead, /^File by /);
+    assert.match(clock.lead, DATE);
+    assert.equal(clock.sub, "Due today");
     assert.equal(clock.tone, "warning");
   });
 
-  it("past the window it names condonation — never 'overdue' or 'barred'", () => {
+  it("past the window it keeps the date and names condonation — never 'overdue' or 'barred'", () => {
     const clock = draftClock(draftAt(45));
-    assert.match(clock.lead, /^Window closed /);
-    assert.match(clock.sub, /condonation application/);
+    assert.match(clock.lead, DATE);
+    assert.match(clock.sub ?? "", /^Window closed/);
+    assert.match(clock.sub ?? "", /condonation application/);
     assert.equal(clock.tone, "danger");
     const words = `${clock.lead} ${clock.sub}`.toLowerCase();
     for (const banned of ["overdue", "barred", "time-barred", "expired"]) {
@@ -81,7 +88,15 @@ describe("draftClock — the limitation cue", () => {
     // Served 1 Aug → the drawer's 15 days end 16 Aug → due 15 Sep.
     draft.notices[0].delivered = "yes";
     draft.notices[0].deliveryDate = "2026-08-01";
-    assert.match(draftClock(draft).lead, /^File by 15\/09\/2026$/);
+    assert.equal(draftClock(draft).lead, "15/09/2026");
+  });
+
+  it("carries completion separately, as a number and a save date", () => {
+    const [row] = draftRows([draftAt(5)]);
+    assert.ok(row.progress, "a draft row carries progress");
+    assert.ok(row.progress.percent >= 0 && row.progress.percent <= 100);
+    assert.match(row.progress.savedOn, DATE);
+    assert.doesNotMatch(row.info.lead, /% complete/);
   });
 });
 

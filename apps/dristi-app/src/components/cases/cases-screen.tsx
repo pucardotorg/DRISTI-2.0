@@ -3,12 +3,12 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
+  BookmarkIcon,
   FileSearchIcon,
-  FolderIcon,
   FolderOpenIcon,
-  ListIcon,
   SearchIcon,
   Share2Icon,
+  UserPlusIcon,
 } from "lucide-react";
 
 import { Banner } from "@/components/ui/banner";
@@ -23,56 +23,55 @@ import {
 } from "@/components/ui/empty";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Toggle } from "@/components/ui/toggle";
 import {
-  allBucketsLabel,
-  applySheetFilters,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   buildCasesHref,
+  clearedFilters,
+  isNarrowed,
   selectCases,
-  summariseBuckets,
   summariseCases,
+  type CaseStatus,
   type CasesQuery,
 } from "@/lib/cases/query";
-import { CASES_VIEWS, partiesLabel, type BucketKey, type CaseRecord, type CasesView } from "@/lib/cases/types";
+import { partiesLabel, type CaseRecord } from "@/lib/cases/types";
 import { ShareDialog } from "@/components/access/share-dialog";
 import { type AccessCase } from "@/lib/access/content";
+import { AdvocateJoinCaseDialog } from "@/components/advocate/join-case-dialog";
+import { advJoinPage } from "@/lib/advocate/content";
+import { pick } from "@/lib/onboarding/content";
 import { useLocale } from "@/components/shell/locale";
+import { useProfile } from "@/components/shell/profile";
 
-import { CasesBucketFolders } from "./cases-bucket-folders";
-import { CasesFoldersHint } from "./cases-folders-hint";
-import { CasePeekSurface } from "./case-peek";
+import { CasesFiltersButton, CasesAppliedFilters } from "./cases-filters";
+import { CasePeekPushRegion, PEEK_PUSH_CLASS } from "./case-peek";
+import { CollapsibleLabel } from "./collapsible-label";
 import { CasesListResults } from "./cases-list-results";
+import { CasesResultsSkeleton } from "./cases-list-skeleton";
 import { CasesTableColumnsMenu } from "./cases-table-columns-menu";
-import {
-  useCasesLandingView,
-  type CasesLandingView,
-} from "./use-cases-landing-view";
 import { useCasesNavigation } from "./use-cases-navigation";
-import { CasePeekProvider } from "./use-case-peek";
+import { CasePeekProvider, useCasePeek } from "./use-case-peek";
 import { CasesSelectionProvider } from "./use-cases-selection";
 
-const EMPTY_VIEW: Record<CasesView, { title: string; description: string }> = {
-  ongoing: {
-    title: "No cases yet",
-    description:
-      "A case appears here once its filing has cleared scrutiny. Drafts and returned filings stay in Filings.",
-  },
-  "long-pending": {
-    title: "Nothing in the long pending register",
-    description: "No live case is currently marked long pending.",
-  },
-  disposed: {
-    title: "No disposed cases",
-    description: "Cases move here once the court has disposed of them.",
-  },
-  bookmarked: {
-    title: "No bookmarked cases",
-    description:
-      "Bookmark a case from the list to keep it within reach. Bookmarks are yours alone.",
-  },
-};
-
+/**
+ * The Cases landing.
+ *
+ * Three rows: the page title with its one strong action (Join a case — the whole
+ * journey is a dialog, so it needs a button, not a page); the Bookmarked lens beside
+ * it as an on/off switch; and the panel, whose header carries what narrows the list —
+ * Share access for the selection, Columns, Filters, search — over the count of what
+ * matched out of the whole book. The old tab strip is gone: status is one group in
+ * the Filters sheet, since Ongoing, Long pending register and Disposed were only
+ * ever filters wearing tabs. The Folders / List presentation toggle is gone too — its
+ * folders were case stages, which the Filters sheet already carries as one group, so
+ * the view was a second door to the same room. The list is the one view now.
+ * Bookmarked stays outside the sheet because it is not a filter on the case; it is a
+ * mark the person put there, and they want it in one flip.
+ */
 export function CasesScreen({
   query,
   cases,
@@ -86,36 +85,33 @@ export function CasesScreen({
 }) {
   const router = useRouter();
   const { search, effective, go, onSearchChange } = useCasesNavigation(query);
-  const [landingView, setLandingView] = useCasesLandingView();
   const [bookmarks, setBookmarks] = React.useState<ReadonlySet<string>>(
     () => new Set(initialBookmarks)
   );
   const { locale } = useLocale();
-  const tabsListRef = React.useRef<HTMLDivElement>(null);
-
-  /* The tab track scrolls when the pills do not fit (see TabsList). Radix does
-     not bring the active pill into view, so a narrow viewport could open on
-     Disposed with Disposed sitting off the right edge. Move the track itself
-     rather than scrollIntoView, which would also scroll the page. */
-  React.useEffect(() => {
-    const list = tabsListRef.current;
-    const active = list?.querySelector<HTMLElement>('[data-state="active"]');
-    if (!list || !active) return;
-    const centred =
-      active.offsetLeft - (list.clientWidth - active.offsetWidth) / 2;
-    list.scrollLeft = Math.max(0, centred);
-  }, [query.view]);
+  const { profileRole, switchProfile } = useProfile();
 
   // Bulk share: select cases in the list, then Share access adds staff to all at once.
   const [selectedCases, setSelectedCases] = React.useState<Set<string>>(
     () => new Set()
   );
   const [shareOpen, setShareOpen] = React.useState(false);
+  const [joinOpen, setJoinOpen] = React.useState(false);
   const toggleSelected = React.useCallback((id: string) => {
     setSelectedCases((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      return next;
+    });
+  }, []);
+  const setManySelected = React.useCallback((ids: readonly string[], on: boolean) => {
+    setSelectedCases((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (on) next.add(id);
+        else next.delete(id);
+      }
       return next;
     });
   }, []);
@@ -133,25 +129,18 @@ export function CasesScreen({
     [cases, selectedCases]
   );
 
-  /** Search always finds cases, so a query temporarily shows the list. */
-  const showing: CasesLandingView = search ? "list" : landingView;
-
-  const bookTotals = summariseCases(cases, bookmarks);
-  const scoped = applySheetFilters(cases, effective, now);
-  const totals = summariseCases(scoped, bookmarks);
-  const buckets = summariseBuckets(query.view, scoped, bookmarks);
+  const totals = summariseCases(cases, bookmarks);
   const selection = selectCases({
     query: effective,
     bookmarks,
     now,
     source: cases,
   });
-  const stageFiltered = effective.stage.length > 0;
-  const stageFilter = {
-    view: effective.view,
-    value: effective.stage,
-    onChange: (stage: BucketKey[]) => go({ stage }),
-  };
+  const narrowed = isNarrowed(effective);
+  const matched = selection.total;
+  /* The long-pending flag repeats the filter when that is the only status shown. */
+  const onlyLongPending =
+    effective.status.length === 1 && effective.status[0] === "long-pending";
 
   function pageLink(page: number) {
     const href = buildCasesHref(effective, { page });
@@ -174,53 +163,60 @@ export function CasesScreen({
     });
   }
 
-  function onLandingViewChange(value: string) {
-    if (value !== "list" && value !== "folders") return;
-    setLandingView(value);
-    if (value === "folders" && search) {
-      onSearchChange("");
+  /* Filters do not sort the list as each box is ticked — the real backend cannot
+     re-sort on every keystroke, and a list that reshuffles under the sheet is its own
+     kind of noise. The sheet holds a draft; Show cases commits it, and this brief hold
+     stands in for the round trip the server will make, so the change reads as a
+     deliberate step rather than a flicker. */
+  const [filtersPending, setFiltersPending] = React.useState(false);
+  const pendingTimer = React.useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
+  React.useEffect(() => () => clearTimeout(pendingTimer.current), []);
+  const applyFilters = React.useCallback(
+    (patch: Partial<CasesQuery>) => {
+      setFiltersPending(true);
+      go(patch);
+      clearTimeout(pendingTimer.current);
+      pendingTimer.current = setTimeout(() => setFiltersPending(false), 600);
+    },
+    [go]
+  );
+
+  /* Joining is the advocate journey. A litigant joins from their own home, so the
+     same button sends them there rather than opening the advocate dialog. */
+  function joinCase() {
+    if (profileRole === "litigant") {
+      router.push("/home?join=manual");
       return;
     }
-    if (effective.page > 1) go({ page: 1 });
+    setJoinOpen(true);
+  }
+
+  function clearAll() {
+    onSearchChange("");
+    go(clearedFilters());
   }
 
   let body: React.ReactNode;
-  if (cases.length === 0 || bookTotals[query.view] === 0) {
+  if (filtersPending) {
+    body = <CasesResultsSkeleton />;
+  } else if (cases.length === 0) {
     body = (
       <Empty className="border-0 p-0">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <FolderOpenIcon aria-hidden />
           </EmptyMedia>
-          <EmptyTitle className="text-title-s font-semibold">
-            {EMPTY_VIEW[query.view].title}
-          </EmptyTitle>
+          <EmptyTitle className="text-title-s font-semibold">No cases yet</EmptyTitle>
           <EmptyDescription className="text-body">
-            {EMPTY_VIEW[query.view].description}
+            A case appears here once its filing has cleared scrutiny. Drafts and
+            returned filings stay in File a case.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
     );
-  } else if (showing === "folders") {
-    body =
-      totals[query.view] === 0 ? (
-        <Empty className="border-0 p-0">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <FileSearchIcon aria-hidden />
-            </EmptyMedia>
-            <EmptyTitle className="text-title-s font-semibold">
-              No cases match these filters
-            </EmptyTitle>
-            <EmptyDescription className="text-body">
-              Nothing here matches these filters right now.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : (
-        <CasesBucketFolders buckets={buckets} query={effective} />
-      );
-  } else if (selection.total === 0) {
+  } else if (matched === 0) {
     body = (
       <Empty className="border-0 p-0">
         <EmptyHeader>
@@ -228,20 +224,18 @@ export function CasesScreen({
             <FileSearchIcon aria-hidden />
           </EmptyMedia>
           <EmptyTitle className="text-title-s font-semibold">
-            No cases match these filters
+            No cases match
           </EmptyTitle>
           <EmptyDescription className="text-body">
             {search
-              ? "Nothing here matches this search. Try another case name or number."
-              : stageFiltered
-                ? "Nothing here matches these stages. Choose other stages, or all stages, to see every case again."
-                : "Nothing here matches these filters right now."}
+              ? "Nothing here matches this search. Try another case name or number, or clear the filters."
+              : "Nothing here matches these filters. Change them, or clear them to see every case again."}
           </EmptyDescription>
         </EmptyHeader>
-        {stageFiltered ? (
+        {narrowed ? (
           <EmptyContent>
-            <Button variant="outline" onClick={() => go({ stage: [] })}>
-              {allBucketsLabel(query.view)}
+            <Button variant="outline" onClick={clearAll}>
+              Clear all filters
             </Button>
           </EmptyContent>
         ) : null}
@@ -257,13 +251,12 @@ export function CasesScreen({
         onToggleBookmark={toggleBookmark}
         pageLink={pageLink}
         framed={false}
-        stageFilter={stageFilter}
-        hideLongPendingFlag={query.view === "long-pending"}
+        hideLongPendingFlag={onlyLongPending}
       />
     );
   }
 
-  const viewPanel =
+  const panel =
     query.demo === "error" ? (
       <Banner
         variant="error"
@@ -277,69 +270,29 @@ export function CasesScreen({
         moment.
       </Banner>
     ) : (
-      <CasePeekProvider now={now}>
-        <CasePeekSurface className="flex flex-col gap-6 rounded-xl border border-hairline bg-card shadow-raised p-6">
-        <div className="flex flex-col gap-4">
-          {/*
-            Folders/List and Columns share the header row with the section
-            title — presentation controls belong beside what they present,
-            not stacked under it. Stack first (RESPONSIVE).
-          */}
-          <div className="flex min-w-0 flex-wrap items-center justify-between gap-4">
-            <h2 className="text-title-s font-semibold">Your cases</h2>
-            <div className="flex min-w-0 flex-wrap items-center justify-end gap-3">
-              {showing === "list" ? (
-                <Button
-                  variant="outline"
-                  disabled={selectedCases.size === 0}
-                  onClick={() => setShareOpen(true)}
-                  className="shrink-0"
-                >
-                  <Share2Icon data-icon="inline-start" aria-hidden />
-                  Share access
-                  {selectedCases.size ? ` (${selectedCases.size})` : ""}
-                </Button>
-              ) : null}
-              <ToggleGroup
-                type="single"
-                variant="outline"
-                spacing={0}
-                value={showing}
-                onValueChange={onLandingViewChange}
-                className="shrink-0"
-                aria-label="Folders or list"
-              >
-                <ToggleGroupItem
-                  value="folders"
-                  aria-label="Folders"
-                  className="h-10 px-3"
-                >
-                  <FolderIcon aria-hidden />
-                  <span className="sr-only">Folders</span>
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  value="list"
-                  aria-label="List"
-                  className="h-10 px-3"
-                >
-                  <ListIcon aria-hidden />
-                  <span className="sr-only">List</span>
-                </ToggleGroupItem>
-              </ToggleGroup>
-              {showing === "list" ? <CasesTableColumnsMenu /> : null}
-            </div>
+      <div className="flex flex-col gap-6 rounded-xl border border-hairline bg-card p-6 shadow-raised">
+          {/* What narrows the list sits with the list: the selection's action,
+              the filters, the search. When the peek pushes the column, this row
+              compresses in place rather than wrapping below the title. */}
+          <CasesToolbar
+            matched={matched}
+            total={cases.length}
+            selectedCount={selectedCases.size}
+            onShare={() => setShareOpen(true)}
+            query={effective}
+            cases={cases}
+            totals={totals}
+            onApply={applyFilters}
+            search={search}
+            onSearchChange={onSearchChange}
+          />
+
+          <div className={PEEK_PUSH_CLASS}>
+            <CasesAppliedFilters query={effective} onChange={applyFilters} />
           </div>
-        </div>
 
-        {showing === "folders" &&
-        cases.length > 0 &&
-        bookTotals[query.view] > 0 ? (
-          <CasesFoldersHint />
-        ) : null}
-
-        {body}
-        </CasePeekSurface>
-      </CasePeekProvider>
+          {body}
+      </div>
     );
 
   return (
@@ -347,107 +300,203 @@ export function CasesScreen({
       value={{
         selected: selectedCases,
         toggle: toggleSelected,
-        enabled: showing === "list",
+        setMany: setManySelected,
+        enabled: true,
       }}
     >
-      <div className="flex min-w-0 flex-1 flex-col gap-8 p-6 md:p-8">
-        <header>
+      <CasePeekProvider now={now} docked>
+      <CasePeekPushRegion className="flex min-w-0 flex-1 flex-col gap-8 p-6 md:p-8">
+        {/* One plane above the panel: the title, then on the right the Bookmarked
+            lens and the page's one bg-primary action (Laws: ration teal). Bookmarked is
+            an icon toggle — a view the person turns on and off, not a command — its
+            meaning carried by a tooltip so it stays a single quiet mark beside the loud
+            teal action. It sits here rather than in the panel because it is about the
+            person, not the case, and beside Join a case because that is the other thing
+            on this page that is theirs to do. */}
+        <header
+          className={
+            "flex flex-wrap items-center justify-between gap-4 " + PEEK_PUSH_CLASS
+          }
+        >
           <h1 className="text-title-l font-semibold">Cases</h1>
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Toggle
+                  variant="outline"
+                  pressed={effective.bookmarked}
+                  onPressedChange={(bookmarked) => go({ bookmarked })}
+                  aria-label="Bookmarked cases"
+                  className="size-10 shrink-0"
+                >
+                  <BookmarkIcon
+                    aria-hidden
+                    className={effective.bookmarked ? "fill-current" : undefined}
+                  />
+                </Toggle>
+              </TooltipTrigger>
+              <TooltipContent>Bookmarked cases</TooltipContent>
+            </Tooltip>
+            <Button size="lg" onClick={joinCase} className="shrink-0">
+              <UserPlusIcon data-icon="inline-start" aria-hidden />
+              {pick(advJoinPage.cta, locale)}
+            </Button>
+          </div>
         </header>
 
-      {/*
-        Ongoing and LPR partition live cases. Bookmarked is a personal
-        marker and still overlaps the other counts.
-
-        Default TabsList (surface-sunken + hairline), never line and never
-        bg-card. Dark maps card = page, so an unbordered card chrome vanishes;
-        the sunken well plus its hairline is what reads as recessed in both
-        themes — track is now tiny marks only (progress, slider, skeleton). Each trigger must
-        own a TabsContent panel (WAI-ARIA 1.2) — the cases card is that panel.
-        Height only on TabsList (h-10). Triggers keep DS h-[calc(100%-1px)] —
-        forcing h-10 on both overflows the padded track and breaks the pill.
-        Labels stay on one line and w-max keeps the track hugging its pills
-        rather than stretching. max-w-full caps it at the column: without that
-        the track is a fixed-width trap that scrolled the whole page sideways
-        below ~1100px (RESPONSIVE: tabs may scroll when there are many
-        triggers; a layout may not force horizontal page scroll).
-      */}
-      <Tabs
-        value={query.view}
-        onValueChange={(view) => go({ view: view as CasesView })}
-        className="flex min-w-0 flex-col gap-6"
-      >
-        {/*
-          Search and views share a row on desktop so the page chrome matches
-          the full-width folder container. Stack first (RESPONSIVE). items-end
-          keeps the unlabeled tabs on the same baseline as the search field.
-        */}
-        <div className="flex flex-col gap-6 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between">
-          <div className="flex w-full min-w-0 max-w-md flex-col gap-2">
-            <Label htmlFor="cases-search" className="w-fit text-body">
-              Search cases
-            </Label>
-            <InputGroup>
-              <InputGroupAddon>
-                <SearchIcon aria-hidden />
-              </InputGroupAddon>
-              <InputGroupInput
-                id="cases-search"
-                type="search"
-                autoComplete="off"
-                value={search}
-                onChange={(event) => onSearchChange(event.target.value)}
-                placeholder="case name or number"
-              />
-            </InputGroup>
-          </div>
-
-          <TabsList
-            ref={tabsListRef}
-            variant="default"
-            aria-label="Case views"
-            /* justify-start, not the primitive's justify-center: once the
-               track can scroll, centring splits the overflow across both
-               ends and the left half is unreachable — scrollLeft cannot go
-               negative. At full width w-max still hugs the pills, so this
-               changes nothing on desktop. */
-            /* The track scrolls but shows no scrollbar. Two reasons it needs
-               saying: setting overflow-x alone forces the computed overflow-y
-               to auto, and the padded track is 2px taller than its own h-10
-               box — enough to raise a vertical scrollbar over the pills. And
-               a classic horizontal bar would eat 17px of a 40px track at
-               phone widths. A part-shown pill is the affordance instead. */
-            className="h-10 w-max max-w-full justify-start overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden group-data-horizontal/tabs:h-10"
-          >
-            {CASES_VIEWS.map((view) => (
-              <TabsTrigger
-                key={view.value}
-                value={view.value}
-                className="px-3 text-body whitespace-nowrap"
-              >
-                {view.label} ({totals[view.value]})
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
-
-        {CASES_VIEWS.map((view) => (
-          <TabsContent
-            key={view.value}
-            value={view.value}
-            className="min-w-0 text-body outline-none"
-          >
-            {view.value === query.view ? viewPanel : null}
-          </TabsContent>
-        ))}
-      </Tabs>
-      </div>
+        {panel}
+      </CasePeekPushRegion>
+      </CasePeekProvider>
       <ShareDialog
         open={shareOpen}
         onOpenChange={setShareOpen}
         cases={shareCases}
         locale={locale}
       />
+      {/* The join journey — lookup → details → code → role → vakalatnama → done —
+          runs here, over the list it will add to. Discovering mid-journey that you
+          are a party rather than a representative hands off to the same profile
+          switch the rail's foot offers. */}
+      <AdvocateJoinCaseDialog
+        open={joinOpen}
+        onOpenChange={setJoinOpen}
+        mode="manual"
+        locale={locale}
+        onJoined={() => {
+          /* The dialog's done-stage reports the outcome (joined, or waiting on an
+             approver). A joined case surfaces in this list once the backend lands. */
+        }}
+        onJoinAsLitigant={() => {
+          setJoinOpen(false);
+          if (profileRole === "advocate") switchProfile();
+          router.push("/home?join=manual");
+        }}
+      />
     </CasesSelectionProvider>
+  );
+}
+
+/**
+ * The panel's top row: what the list is (title + count) on the left, what narrows it on
+ * the right. When the peek is docked open it squeezes this column, so the row reads the
+ * peek state and compresses in place rather than wrapping under the title — Share access
+ * and Columns fall to icon buttons, Filters to its icon with the count as a corner badge,
+ * and the search narrows. A tooltip carries each icon's name so nothing is lost.
+ */
+function CasesToolbar({
+  matched,
+  total,
+  selectedCount,
+  onShare,
+  query,
+  cases,
+  totals,
+  onApply,
+  search,
+  onSearchChange,
+}: {
+  matched: number;
+  total: number;
+  selectedCount: number;
+  onShare: () => void;
+  query: CasesQuery;
+  cases: CaseRecord[];
+  totals: Record<CaseStatus | "bookmarked", number>;
+  onApply: (patch: Partial<CasesQuery>) => void;
+  search: string;
+  onSearchChange: (value: string) => void;
+}) {
+  const { record, docked, closing } = useCasePeek();
+  // Compress the moment a close begins (not when it ends), so the buttons morph back to
+  // labels in step with the panel sliding out and the chrome easing back — no end-pop.
+  const compact = docked && Boolean(record) && !closing;
+
+  return (
+    <div
+      className={
+        "flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between " +
+        (compact ? "lg:flex-nowrap " : "lg:flex-wrap ") +
+        PEEK_PUSH_CLASS
+      }
+    >
+      <div className="flex min-w-0 flex-col gap-1">
+        <h2 className="text-title-s font-semibold">Your cases</h2>
+        {/* Says how many matched out of everything, so a filtered list is never
+            mistaken for the whole book. */}
+        <p
+          className="text-body-compact text-muted-foreground tabular-nums"
+          aria-live="polite"
+        >
+          Showing {matched} of {total} {total === 1 ? "case" : "cases"}
+        </p>
+      </div>
+      <div
+        className={
+          "flex min-w-0 items-center gap-2 lg:justify-end " +
+          (compact ? "flex-nowrap" : "flex-wrap")
+        }
+      >
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              disabled={selectedCount === 0}
+              onClick={onShare}
+              className={
+                "relative shrink-0 gap-0 duration-300 " +
+                (compact ? "px-2.5" : "px-4")
+              }
+              aria-label={`Share access${selectedCount ? `, ${selectedCount} selected` : ""}`}
+            >
+              <Share2Icon aria-hidden />
+              <CollapsibleLabel show={!compact}>Share access</CollapsibleLabel>
+              {selectedCount ? (
+                <span className="ms-1.5 inline-flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-caption font-medium tabular-nums text-primary-foreground">
+                  {selectedCount}
+                </span>
+              ) : null}
+            </Button>
+          </TooltipTrigger>
+          {/* The name only needs a tooltip while the label is collapsed. */}
+          {compact ? <TooltipContent>Share access</TooltipContent> : null}
+        </Tooltip>
+        <CasesTableColumnsMenu compact={compact} />
+        <CasesFiltersButton
+          query={query}
+          cases={cases}
+          totals={totals}
+          onApply={onApply}
+          compact={compact}
+        />
+        {/* Compact: the toolbar lives inside the card's p-6, so its right edge sits a
+            padding-width in from Join a case (which is in the outer header). Pull the
+            search out by that 6 so its right edge lands on the same vertical plane as
+            Join (owner, Sept 11), and ease the width so it grows back with everything
+            else. Only the search moves; the icons stay packed to its left. */}
+        <div
+          className={
+            "min-w-0 transition-[width,margin] duration-300 ease-out " +
+            (compact ? "-mr-6 w-44" : "w-full sm:w-72")
+          }
+        >
+          <Label htmlFor="cases-search" className="sr-only">
+            Search cases
+          </Label>
+          <InputGroup>
+            <InputGroupAddon>
+              <SearchIcon aria-hidden />
+            </InputGroupAddon>
+            <InputGroupInput
+              id="cases-search"
+              type="search"
+              autoComplete="off"
+              value={search}
+              onChange={(event) => onSearchChange(event.target.value)}
+              placeholder={compact ? "Search" : "Search by case name or number"}
+            />
+          </InputGroup>
+        </div>
+      </div>
+    </div>
   );
 }

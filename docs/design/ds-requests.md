@@ -334,6 +334,25 @@ remainder renders as `track` or as an explicit segment.
 
 ---
 
+## Circular progress — a ring for "how much of this is done"
+
+Raised: 2026-09-09, from the File a case queue's Drafts tab
+(`components/filing/dashboard/completion-ring.tsx`).
+
+`Progress` is a linear bar. A table cell wants the same fact at 20px beside a number —
+"62% complete" with a ring that reads at a glance, the way a mail client shows setup
+progress — and a 1px-tall bar in a cell is invisible. Composed locally as a two-circle
+SVG drawn only in tokens (`stroke-track` for the groove, `stroke-primary` for the fill),
+`aria-hidden` because the number beside it is the value. It is a screen-level file, not a
+primitive, and it is the one custom drawing in this round.
+
+**Request:** a `Progress` variant (`shape="ring"` / `size`) or a `ProgressRing` primitive
+that owns the geometry, the stroke tokens, the reduced-motion rule for the fill
+transition, and the accessible summary — so the app's ring and any future one come from
+one place. Delete `completion-ring.tsx` when it lands.
+
+---
+
 ## `Card` clips its children, so a panel cannot hold sticky content
 
 Raised: 2026-08-30, from the e-filing "File a case" work queue

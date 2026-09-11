@@ -16,7 +16,6 @@ import {
   ScrollTextIcon,
   SearchIcon,
   SettingsIcon,
-  UserPlusIcon,
   UsersIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -114,13 +113,15 @@ type NavItem = { id: string; label: string; icon: LucideIcon; href?: string };
  * shape of the product is the point of a shell, and they say plainly that they do
  * nothing rather than looking available.
  */
+/* Labels are sentence case (DS Law) and match the breadcrumb root for the same area,
+   so the rail, the trail and the page title never call one place three things. */
 const GO: NavItem[] = [
   { id: "search", label: "Search", icon: SearchIcon },
   { id: "home", label: "Home", icon: HouseIcon, href: "/home" },
-  { id: "cases", label: "Your Cases", icon: FolderClosedIcon, href: "/cases" },
+  { id: "cases", label: "Cases", icon: FolderClosedIcon, href: "/cases" },
   {
     id: "tasks",
-    label: "Pending Tasks",
+    label: "Pending tasks",
     icon: ListChecksIcon,
     href: TASKS_HOME,
   },
@@ -128,29 +129,21 @@ const GO: NavItem[] = [
 ];
 
 const START: NavItem[] = [
-  // Both flows already live on this branch; the rail is just finally telling the truth
-  // about them. Join a Case goes to its landing page in this shell — the case-access
-  // design's own shape: a page that says what joining is and what to have ready, whose
-  // CTA starts the dialog journey (lookup → role questions → vakalatnama). The rail
-  // navigates; the page acts.
+  // Join a case is not a destination: its whole journey (lookup → role questions →
+  // vakalatnama) runs in a dialog, so it is the one strong action on the Cases page
+  // rather than a rail item that led to a page holding a single button.
   {
     id: "file-case",
-    label: "File a Case",
+    label: "File a case",
     icon: FilePlusIcon,
     href: "/filings",
   },
-  { id: "file-application", label: "File Application", icon: FileTextIcon },
+  { id: "file-application", label: "File application", icon: FileTextIcon },
   {
     id: "vakalatnama",
     label: "Vakalatnama",
     icon: ScrollTextIcon,
     href: "/vakalatnama",
-  },
-  {
-    id: "join-case",
-    label: "Join a Case",
-    icon: UserPlusIcon,
-    href: "/join-case",
   },
 ];
 

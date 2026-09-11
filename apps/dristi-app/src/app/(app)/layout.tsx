@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/components/shell/app-shell";
 
 export const metadata: Metadata = {
-  title: "Your Cases",
+  title: "Cases",
 };
 
 /**

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { CaseBreadcrumbs } from "@/components/cases/case-breadcrumbs";
 import { RaiseApplicationForm } from "@/components/cases/raise-application-form";
 import {
   applicationsFile,
@@ -53,6 +54,11 @@ export default async function RaiseApplicationPage({
 
   return (
     <main className="flex flex-1 flex-col p-6 md:p-8">
+      <CaseBreadcrumbs
+        caseId={record.id}
+        caseNumber={record.caseNumber}
+        trail={[{ label: "Raise application" }]}
+      />
       <RaiseApplicationForm
         record={record}
         resume={resumedDraft(caseId, draft)}

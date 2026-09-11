@@ -35,8 +35,12 @@ import { cn } from "@/lib/utils";
  * ## Which states light a row
  *
  * `hover` and an open row menu (`has-aria-expanded`) are the transient ones and share
- * the `accent` role — a fill that says the thing under the pointer is live. Selection is
- * `accent-strong` and persistent. They are not interchangeable: brand fill means
+ * the `surface-sunken` tone — the warm well the header strip already wears, lighter than
+ * `accent`. It was `accent` until the owner found that grey too heavy for a row under the
+ * pointer (Sept 11, first answered on the cases table by design's round 2) and chose the
+ * lighter tone as the standard, keeping the rounded band (2026-09-11). The open record
+ * keeps `accent`, so the row you are looking at stays a step stronger than the one the
+ * pointer is passing over. Selection is `accent-strong` and persistent. They are not interchangeable: brand fill means
  * "current / now", never "selected" (ui-craft §2), and a queue whose rows do nothing
  * gets `hover: false` rather than a fill that promises an act it cannot perform.
  *
@@ -96,10 +100,10 @@ const REST = [
   "data-[state=selected]:bg-transparent",
 ].join(" ");
 
-/** Under the pointer. */
+/** Under the pointer — the lighter warm tone, rounded (see "Which states light a row"). */
 const HOVER = [
   "hover:[&>td]:border-transparent",
-  "hover:[&>td]:bg-accent",
+  "hover:[&>td]:bg-surface-sunken",
   "hover:[&>td:first-child]:rounded-l-lg",
   "hover:[&>td:last-child]:rounded-r-lg",
 ].join(" ");
@@ -110,7 +114,7 @@ const HOVER = [
  */
 const MENU_OPEN = [
   "has-aria-expanded:[&>td]:border-transparent",
-  "has-aria-expanded:[&>td]:bg-accent",
+  "has-aria-expanded:[&>td]:bg-surface-sunken",
   "has-aria-expanded:[&>td:first-child]:rounded-l-lg",
   "has-aria-expanded:[&>td:last-child]:rounded-r-lg",
 ].join(" ");
