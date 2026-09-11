@@ -269,12 +269,21 @@ export function idPhotoLabel(kind: RegistrantKind): string {
 export const APPROVE_REGISTRATIONS_TITLE = "Approve registrations";
 
 /**
- * What the person is registering as — the label they chose on the sign-up's first step
- * (`roleStep.advocate` / `roleStep.advocateClerk` in `lib/registration/content.ts`), so
- * the officer's column and the applicant's choice are the same word.
+ * What the person is registering as.
+ *
+ * **"Clerk", not the sign-up's "Advocate clerk"** (owner, 2026-09-11: *"it should just say
+ * Clerk, because it'll be easier to scan"*). The applicant needs the long form to tell the
+ * role apart from a court's bench clerk while choosing; the officer, reading down a column
+ * of two values, needs them to differ in their first word. "Advocate" and "Advocate clerk"
+ * did not — the eye had to reach the end of the cell to tell them apart.
  */
 export function roleLabel(kind: RegistrantKind): string {
-  return kind === "clerk" ? "Advocate clerk" : "Advocate";
+  return kind === "clerk" ? "Clerk" : "Advocate";
+}
+
+/** The card itself, named in a sentence — "Bar ID card", "clerk ID card". */
+export function idCardName(kind: RegistrantKind): string {
+  return kind === "clerk" ? "clerk ID card" : "Bar ID card";
 }
 
 /** The noun for the person, in a sentence. */
@@ -459,17 +468,12 @@ function sameValue(a: string, b: string): boolean {
  * dialog's description, and carrying it twice would be one fact with two treatments.
  */
 export function requestRows(request: AdvocateRegistration): FactRow[] {
+  /* **No Role row.** The role is in the dialog header — a mark beside the title and the
+     word beside the application number — which is the one part of the overlay present on
+     every stage. A row here as well would be one fact in two places on the same screen.
+     It was a row for one round and moved up when the owner asked for a signifier that
+     reads before anything is read (2026-09-11); see `RoleMark`. */
   const rows: FactRow[] = [
-    /* First, because it decides how everything under it is read: which registration
-       number this is, which card the photograph should be, and whether a register was
-       ever going to be asked. The queue mixes both kinds now, so the officer needs it on
-       every request — not only the exceptional ones. */
-    {
-      id: "role",
-      term: "Role",
-      value: roleLabel(request.registrantKind),
-      format: "text",
-    },
     {
       id: "submitted",
       term: "Submitted",

@@ -8,6 +8,7 @@ import { QueueAnnouncer } from "@/components/employee/queue-announcer";
 import { QueueSearchField } from "@/components/employee/queue-search-field";
 import { RegisterAdvocateDialog } from "@/components/employee/register-advocates-dialog";
 import { RegisterAdvocatesTable } from "@/components/employee/register-advocates-table";
+import { RoleGlyph } from "@/components/employee/role-mark";
 import {
   rowActivation,
   rowOpener,
@@ -390,13 +391,15 @@ function RegistrationItemList({
         return (
           <li
             key={request.id}
-            {...rowActivation("flex flex-col gap-2 rounded-lg bg-surface-sunken p-4 transition-colors hover:bg-accent-strong")}
+            {...rowActivation(
+              "flex flex-col gap-2 rounded-lg bg-surface-sunken p-4 transition-colors hover:bg-accent-strong",
+            )}
           >
             <button
               type="button"
               onClick={() => onOpen(request)}
               {...rowOpener}
-                className={cn(rowOpenerClass, "tabular-nums")}
+              className={cn(rowOpenerClass, "tabular-nums")}
             >
               <span className="sr-only">Review </span>
               {request.applicationNumber}
@@ -410,6 +413,10 @@ function RegistrationItemList({
             {/* Role leads the line for the reason it sits beside the name in the table:
                 it says which register the number after it belongs to. */}
             <p className="text-caption text-muted-foreground">
+              <RoleGlyph
+                kind={request.registrantKind}
+                className="mr-1 inline size-3.5 align-[-0.125em]"
+              />
               {roleLabel(request.registrantKind)}
               {" · "}
               <span className="tabular-nums">{request.registrationNumber}</span>
