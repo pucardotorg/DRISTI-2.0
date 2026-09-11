@@ -174,6 +174,16 @@ export const COURT_NAV_GROUPS: CourtNavGroup[] = [
         href: "/employee/register-cases",
         count: REGISTER_QUEUE_COUNT,
       },
+      /* The same queue, rebuilt (owner, 2026-09-11): the complaint's screen is being made
+         again from the approved-registrations grammar, beside the first build rather
+         than over it, so the two can be read against each other. When v2 is good the
+         first row goes and this one takes its name and its route. */
+      {
+        id: "register-cases-v2",
+        label: "Register cases v2",
+        href: "/employee/register-cases-v2",
+        count: REGISTER_QUEUE_COUNT,
+      },
       {
         id: "approve-copy",
         label: "Approve copy application",
@@ -374,6 +384,11 @@ const NESTED_ROUTES: {
   {
     queue: "/employee/register-cases",
     pattern: /^\/employee\/register-cases\/([^/]+)\/?$/,
+    identify: (id) => registerCaseById(id)?.caseNumber,
+  },
+  {
+    queue: "/employee/register-cases-v2",
+    pattern: /^\/employee\/register-cases-v2\/([^/]+)\/?$/,
     identify: (id) => registerCaseById(id)?.caseNumber,
   },
 ];

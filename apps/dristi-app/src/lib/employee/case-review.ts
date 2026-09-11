@@ -198,6 +198,9 @@ export const SYNOPSIS_FIELDS = {
   rounds: "Rounds",
   took: "Took",
   clearedOn: "Cleared on",
+  sentBack: "Sent back for",
+  takenUpOn: "Taken up by registry",
+  waiting: "In this queue",
   complainant: "Complainant",
   accused: "Accused",
   advocate: "Complainant's advocate",
@@ -244,6 +247,40 @@ export const SCRUTINY_MODES = {
 export type ScrutinyMode = keyof typeof SCRUTINY_MODES;
 
 /**
+ * What a round of scrutiny sent the complaint back for — the *kind* of defect, not the
+ * officer's remark.
+ *
+ * A closed list, because the magistrate's glance wants the shape of the trouble ("the
+ * scan was unreadable", "a date did not match") and not the sentence an officer typed on
+ * a Tuesday: the sentence is the scrutiny record's, and lives on the workbench. The
+ * members are the defect classes the scrutiny prototype already raises — the document
+ * reasons in `scrutiny/sections.ts` (`DOC_REASONS`), a field that contradicts the
+ * instrument, a slot left empty, an affidavit or vakalat defect. Which classes the
+ * registry really keeps, and whether it keeps them as a list, is brief §12.22 with the
+ * rest of the scrutiny record.
+ */
+export const SCRUTINY_ISSUES = {
+  "document-unreadable": "Unreadable document",
+  "wrong-document": "Wrong document uploaded",
+  "date-mismatch": "Date does not match the cheque",
+  "amount-mismatch": "Amount does not match the cheque",
+  "missing-document": "Required document missing",
+  "party-details": "Party details incomplete",
+  "affidavit-defect": "Affidavit defective",
+  "vakalat-defect": "Vakalatnama defective",
+} as const;
+
+export type ScrutinyIssueId = keyof typeof SCRUTINY_ISSUES;
+
+/** One send-back: which round, and what it was for. */
+export type ScrutinyReturn = {
+  /** The round that ended in this send-back — 1 for the first pass. */
+  round: number;
+  issue: ScrutinyIssueId;
+  label: string;
+};
+
+/**
  * How this complaint was scrutinised, as the four values the report states.
  *
  * Every attribute here is real and already modelled in `lib/employee/scrutiny/`: rounds
@@ -273,11 +310,23 @@ export type CaseScrutiny = {
   mode: ScrutinyMode;
   /** Times round the advocate↔registry loop, the first pass included. Never zero. */
   rounds: number;
+  /**
+   * Every round but the last ended in a send-back; this is what each was for, in order.
+   * Length is `rounds - 1`, so a first-time clear carries none.
+   */
+  returns: ScrutinyReturn[];
+  /** The day the registry first opened it. */
+  takenUpOn: string;
+  takenUpOnLabel: string;
+  /** Whole days between filing and the registry taking it up. */
+  daysToTakeUp: number;
   /** Whole days between the registry taking it up and the pass that cleared it. */
   days: number;
   clearedOn: string;
   /** The same day, written out — the header's own pairing, for the same reason. */
   clearedOnLabel: string;
+  /** Whole days from the clearing pass to today — how long it has sat in this queue. */
+  daysWaiting: number;
 };
 
 /**
@@ -714,6 +763,13 @@ type CaseFileMarks = {
    * days old cannot claim three rounds.
    */
   scrutinyRounds: number;
+  /**
+   * What each send-back was for, in round order — one per round after the first. Named
+   * per complaint for the reason `scrutinyRounds` is: a defect class is not implied by
+   * anything else on the row. A file marked with more rounds than issues falls back to
+   * the list's last member; one with fewer takes the first `rounds - 1`.
+   */
+  scrutinyIssues: ScrutinyIssueId[];
   /** Another §138 complaint pending between the same parties — `Jurisdiction.otherPending`. */
   otherPending: boolean;
 };
@@ -735,6 +791,7 @@ const DEFAULT_MARKS: CaseFileMarks = {
      legible as the exceptions they are. */
   scrutinyMode: "officer",
   scrutinyRounds: 1,
+  scrutinyIssues: [],
 };
 
 /*
@@ -750,12 +807,23 @@ const CASE_FILE_MARKS: Record<string, Partial<CaseFileMarks>> = {
   /* The longest wait in the queue, and the fullest file: late enough to need the delay
      condoned, a reply on record, and two witnesses. Three rounds of scrutiny, which is
      the number the scrutiny model's own fixture carries (`HISTORY_ROUND`). */
-  "r-1840": { delayed: true, replied: true, witnesses: 2, scrutinyRounds: 3 },
+  "r-1840": {
+    delayed: true,
+    replied: true,
+    witnesses: 2,
+    scrutinyRounds: 3,
+    scrutinyIssues: ["document-unreadable", "affidavit-defect"],
+  },
   /* Payment stopped rather than funds short — the other limb of §138, and a different
      reason for the same return. */
   /* …and a second complaint between the same two parties is already before a court —
      the one fact on the synopsis that can turn a register into a joinder question. */
-  "r-1722": { returnReason: "payment-stopped", scrutinyRounds: 2, otherPending: true },
+  "r-1722": {
+    returnReason: "payment-stopped",
+    scrutinyRounds: 2,
+    scrutinyIssues: ["date-mismatch"],
+    otherPending: true,
+  },
   /* Part of the cheque amount was paid after the notice, so the balance is what is
      claimed — `DemandNotice.paymentStatus: "part"`. */
   "r-1654": { partPayment: true, witnesses: 0 },
@@ -765,6 +833,7 @@ const CASE_FILE_MARKS: Record<string, Partial<CaseFileMarks>> = {
     delayed: true,
     missing: ["delay-application"],
     scrutinyRounds: 2,
+    scrutinyIssues: ["missing-document"],
   },
   /* No vakalat on the queue row either: a complaint in person, no witness named, and
      the accused's own ID proof never uploaded. */
@@ -773,6 +842,7 @@ const CASE_FILE_MARKS: Record<string, Partial<CaseFileMarks>> = {
     missing: ["accused-id-proof"],
     otherDetails: true,
     scrutinyRounds: 2,
+    scrutinyIssues: ["party-details"],
   },
   /* The account itself had been closed by the time the cheque was presented. */
   "r-1402": {
@@ -782,6 +852,7 @@ const CASE_FILE_MARKS: Record<string, Partial<CaseFileMarks>> = {
        exactly that — so the mode and the round count are not two names for one fact. */
     scrutinyMode: "automated",
     scrutinyRounds: 2,
+    scrutinyIssues: ["amount-mismatch"],
   },
   /* Presented outside the three months §138(a) allows — the one file where the deposit
      row answers no, and the answer bears on whether the court can take cognizance at
@@ -791,7 +862,13 @@ const CASE_FILE_MARKS: Record<string, Partial<CaseFileMarks>> = {
      from the accused. Nothing in the product records one before summons, so the mark
      and its section-4 fact went (brief §5a.9a). The complaint is filed through a
      power-of-attorney holder, which is what `Complainant.poa` records. */
-  "r-1104": { witnesses: 2, poa: true, otherDetails: true, scrutinyRounds: 3 },
+  "r-1104": {
+    witnesses: 2,
+    poa: true,
+    otherDetails: true,
+    scrutinyRounds: 3,
+    scrutinyIssues: ["vakalat-defect", "wrong-document"],
+  },
   /* The one complaint filed by an entity rather than a person — `Complainant.type:
      "institution"`, which is why the record carries a signatory and a registered office
      where an individual carries an age and two addresses. Its accused is the queue's
@@ -802,7 +879,11 @@ const CASE_FILE_MARKS: Record<string, Partial<CaseFileMarks>> = {
   "r-330": { partPayment: true, poa: true, scrutinyMode: "automated" },
   /* Four recent filings that went through the automated pass, so the enum's second
      member is not a single fixture — one of them needing a second round. */
-  "r-620": { scrutinyMode: "automated", scrutinyRounds: 2 },
+  "r-620": {
+    scrutinyMode: "automated",
+    scrutinyRounds: 2,
+    scrutinyIssues: ["document-unreadable"],
+  },
   "r-648": { scrutinyMode: "automated" },
   "r-701": { scrutinyMode: "automated" },
 };
@@ -1162,14 +1243,25 @@ export function scrutinyFor(
     Math.max(rounds * perRound - (seed % 6), rounds),
     available,
   );
+  const takenUpOn = shiftDay(submittedOn, takenUpIn);
   const clearedOn = shiftDay(submittedOn, takenUpIn + days);
+  const issues = marks.scrutinyIssues;
+  const returns: ScrutinyReturn[] = Array.from({ length: rounds - 1 }, (_, index) => {
+    const issue = issues[index] ?? issues[issues.length - 1] ?? "document-unreadable";
+    return { round: index + 1, issue, label: SCRUTINY_ISSUES[issue] };
+  });
 
   return {
     mode: marks.scrutinyMode,
     rounds,
+    returns,
+    takenUpOn,
+    takenUpOnLabel: formatCaseDate(takenUpOn),
+    daysToTakeUp: takenUpIn,
     days,
     clearedOn,
     clearedOnLabel: formatCaseDate(clearedOn),
+    daysWaiting: wait - takenUpIn - days,
   };
 }
 

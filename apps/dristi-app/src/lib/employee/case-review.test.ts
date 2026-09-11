@@ -214,23 +214,29 @@ describe("terms are attributes the file names", () => {
     /* The synopsis is the owner's own document, so its section and row names are declared
        lists. A label typed into the screen is one nobody sourced; a declared name nothing
        renders is a part of the synopsis the screen promised and dropped. */
-    const screen = readFileSync(
-      new URL("../../components/employee/case-review-screen.tsx", import.meta.url),
-      "utf8",
-    );
-    const sections = [...screen.matchAll(/<SummarySection\b[^>]*\blabel=\{([^}]+)\}/g)];
-    assert.ok(sections.length > 0, "the summary renders sections");
-    for (const section of sections) assert.match(section[1].trim(), /^SUMMARY_TERMS\./, section[1]);
-    assert.doesNotMatch(screen, /<SummarySection\b[^>]*\blabel="/, "a section with a typed label");
-    const rows = [...screen.matchAll(/<Row\b[^>]*\bterm=\{([^}]+)\}/g)];
-    assert.ok(rows.length > 0, "the summary renders rows");
-    for (const row of rows) assert.match(row[1].trim(), /^SYNOPSIS_FIELDS\./, row[1]);
-    assert.doesNotMatch(screen, /<Row\b[^>]*\bterm="/, "a row with a typed term");
+    /* Two builds of the same screen share one vocabulary while the second replaces the
+       first (owner, 2026-09-11). Each is held to the same rule; a name is used if either
+       renders it. */
+    const screens = [
+      "../../components/employee/case-review-screen.tsx",
+      "../../components/employee/register-case-screen.tsx",
+    ].map((path) => readFileSync(new URL(path, import.meta.url), "utf8"));
+    for (const screen of screens) {
+      const sections = [...screen.matchAll(/<SummarySection\b[^>]*\blabel=\{([^}]+)\}/g)];
+      assert.ok(sections.length > 0, "the summary renders sections");
+      for (const section of sections) assert.match(section[1].trim(), /^SUMMARY_TERMS\./, section[1]);
+      assert.doesNotMatch(screen, /<SummarySection\b[^>]*\blabel="/, "a section with a typed label");
+      const rows = [...screen.matchAll(/<Row\b[^>]*\bterm=\{([^}]+)\}/g)];
+      assert.ok(rows.length > 0, "the summary renders rows");
+      for (const row of rows) assert.match(row[1].trim(), /^SYNOPSIS_FIELDS\./, row[1]);
+      assert.doesNotMatch(screen, /<Row\b[^>]*\bterm="/, "a row with a typed term");
+    }
+    const all = screens.join("\n");
     for (const key of Object.keys(SUMMARY_TERMS)) {
-      assert.ok(screen.includes(`SUMMARY_TERMS.${key}`), `SUMMARY_TERMS.${key} is never rendered`);
+      assert.ok(all.includes(`SUMMARY_TERMS.${key}`), `SUMMARY_TERMS.${key} is never rendered`);
     }
     for (const key of Object.keys(SYNOPSIS_FIELDS)) {
-      assert.ok(screen.includes(`SYNOPSIS_FIELDS.${key}`), `SYNOPSIS_FIELDS.${key} is never rendered`);
+      assert.ok(all.includes(`SYNOPSIS_FIELDS.${key}`), `SYNOPSIS_FIELDS.${key} is never rendered`);
     }
   });
 });

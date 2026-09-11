@@ -59,6 +59,38 @@ motion grammar D25 reuses) · `lib/employee/register-cases.ts` (the 35 rows; **f
 
 ---
 
+## 0. Second build — `/employee/register-cases-v2` (owner, 2026-09-11)
+
+The owner declared the complaint's screen (§5a-i A/B) foundationally broken and is
+rebuilding it as a **second rail row, "Register cases v2"**, beside the first rather than
+over it. The queue is reused unchanged; only where a row opens differs. When v2 is good,
+v1's screen and route are deleted and v2 takes the name and the route.
+
+What v2 keeps: `lib/employee/case-review.ts` (the model, the checks, the synopsis and
+scrutiny record, all tested) and the approved-registrations overlay grammar — eyebrow,
+lifted card, description list, 14px throughout, status inline. What it drops: the
+document-reader architecture, the attention alert, the timeline side sheet, everything
+under `case-review-screen.tsx` / `case-file-screen.tsx`.
+
+Owner's brief for the first version, quoted: *"it should show what the case number and
+case title is, of course, and then the action of either registering or sending it back to
+scrutiny. But mainly there are two tabs: the summary and the case file. Let's first build
+out the summary tab, which is according to the synopsis format… The idea of this is that
+it's quickly scannable for a magistrate… Another key information that decides this is also
+the timeline of the case: how long did they take, and how long was it stuck in scrutiny…
+Information about scrutiny: who it was cleared by, how many rounds it took, and what were
+the kind of errors, maybe in a very summarized format."*
+
+**Summary tab, first version** — eight sections in this order: Scrutiny (cleared by,
+rounds, *sent back for* one line per round with the defect class from the closed
+`SCRUTINY_ISSUES` enum, took), Timeline (the seven §138 steps dated, each window measured
+on the step that closes it; then taken up by registry, cleared on, in this queue), then the
+owner's synopsis: Parties, Cheque, Dishonour, Demand notice, Cause of action, Prayer. The
+windows are stated once, on the timeline, and not repeated in the synopsis sections. The
+defect classes are a mark per complaint (`scrutinyIssues`), never derived. **Case file tab:
+an empty state until it is built.** Acts progress in place (one surface, no modal), and
+neither performs anything.
+
 ## 1. Context
 
 **Where this sits.** Register cases is a row in the rail's **Actions** group, beside
@@ -1759,6 +1791,8 @@ reach, not a missing primitive (§8, D24).
 ---
 
 ## 14. Decision log
+
+| 2026-09-11 (v2) | Second build as a new rail row, `register-cases-v2`; summary tab first, in the approved-registrations grammar; scrutiny record gains per-round defect class, taken-up date and queue wait | owner (Abhiram) |
 
 | Date | Change | Who |
 |---|---|---|
