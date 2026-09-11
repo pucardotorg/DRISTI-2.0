@@ -182,13 +182,14 @@ export function RegisterAdvocatesTable({
               >
                 {request.registrationNumber}
               </TableCell>
-              {/* Empty on the norm, and **neutral** on both exceptions. They were coloured
-                  for a round — `info` for a profile update, `warning` for a resubmission —
-                  and the owner then took colour back for account type alone: *"the status
-                  updates can have just a gray or a beige"* (2026-09-11). The words tell
-                  the two apart; colour is spent on one question per screen. */}
+              {/* **Text, not a pill** (owner, 2026-09-11: *"the request type can remain as
+                  a text… now the two pills look a little odd"*). With the account type in a
+                  pill two columns to the left, a second pill made every exceptional row
+                  read as two tags competing for the same glance. The account type is the
+                  row's one mark; the request type is a fact, set like the facts beside it.
+                  Still empty on the norm — a blank plainly means "new registration". */}
               <TableCell className={cn(TABLE_CELL, "whitespace-nowrap")}>
-                {kind ? <Badge variant="secondary">{kind}</Badge> : null}
+                {kind}
               </TableCell>
               {/* The wait is the column's fact, and the number is the encoding — the
                   colour only agrees with it (ACCESSIBILITY §3). Right-aligned because it

@@ -421,14 +421,17 @@ function RegistrationItemList({
                 {formatDaysWaitingSpoken(request.daysWaiting)}
               </span>
             </p>
-            {/* The table's two pills, in the table's colours: the account type in its
-                hue, the request type neutral. One presentation per fact across both
-                layouts. */}
-            <div className="flex flex-wrap gap-1.5">
+            {/* As in the table: the account type is the one pill, and the request type
+                is text beside it. One presentation per fact across both layouts. */}
+            <div className="flex flex-wrap items-center gap-2">
               <Badge variant={accountTypeVariant(request.registrantKind)}>
                 {roleLabel(request.registrantKind)}
               </Badge>
-              {kind ? <Badge variant="secondary">{kind}</Badge> : null}
+              {kind ? (
+                <span className="text-caption text-muted-foreground">
+                  {kind}
+                </span>
+              ) : null}
             </div>
           </li>
         );
