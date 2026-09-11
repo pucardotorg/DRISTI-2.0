@@ -254,7 +254,7 @@ export function registrantNoun(kind: RegistrantKind): string {
  * spend the column's whole ration on a fact that distinguishes nothing (brief D7).
  */
 export function requestKindLabel(request: AdvocateRegistration): string | null {
-  if (request.requestKind === "edited") return "Edited";
+  if (request.requestKind === "edited") return "Profile update";
   if (request.requestKind === "resubmission") {
     return `Resubmitted · round ${currentRound(request)}`;
   }
@@ -313,10 +313,6 @@ export function registerCheckTerm(kind: RegistrantKind): string {
   return kind === "clerk" ? "Clerk register check" : "Bar Council check";
 }
 
-/** What the pre-created account came from, when one was edited (`REG-18`). */
-function preCreatedFrom(kind: RegistrantKind): string {
-  return kind === "clerk" ? "clerk register" : "Bar Council";
-}
 
 /** What the holder changed in this field at first login, if anything (`REG-18`). */
 export function editFor(
@@ -452,13 +448,11 @@ export function requestRows(request: AdvocateRegistration): FactRow[] {
     },
   ];
 
-  /* Each comparison hangs off the row that announces it (D23): the register's finding
-     carries what the register holds, and "Edited …" carries what the holder changed. */
+  /* The register's finding still opens its own evidence (D23). **The edit comparison does
+     not**: it is a section of its own again, on the owner's ruling that what an advocate
+     changed about their profile is the substance of a profile-update request and not a
+     footnote to its type (2026-09-11) — see `ReviewStage`. */
   const blocks = comparisonBlocks(request);
-  const kind = rows[2];
-  const changed = blocks.find((block) => block.id === "changed");
-  if (changed) rows[2] = { ...kind, detail: changed };
-
   const finding = registerFindingRow(request);
   if (finding) {
     const register = blocks.find((block) => block.id === "register");
@@ -476,9 +470,13 @@ export function requestRows(request: AdvocateRegistration): FactRow[] {
  * this value plus the `Changed at first login` comparison. Nothing is narrated.
  */
 export function requestTypeValue(request: AdvocateRegistration): string {
-  if (request.requestKind === "edited") {
-    return `Edited ${preCreatedFrom(request.registrantKind)} account`;
-  }
+  /* **"Profile update", not "Edited Bar Council account"** (owner, 2026-09-11: *"edited
+     bar council account does not make sense to me — update profile could be a request
+     type"*). Their words, turned from an instruction into the noun a value column wants:
+     the three types now read "New registration", "Profile update", "Resubmitted · round
+     5", which are three answers to the same question. Where the account came from is not
+     the type of the request; it is provenance, and the comparison below carries it. */
+  if (request.requestKind === "edited") return "Profile update";
   if (request.requestKind === "resubmission") {
     return `Resubmitted · round ${currentRound(request)}`;
   }
@@ -512,11 +510,33 @@ export type RegisterAnswer = "differs" | "no-entry" | "not-checked";
  * `differs` says only *that* something disagrees; **how** it disagrees is the comparison
  * table, because two values side by side is what "how" looks like.
  */
-const REGISTER_FINDING: Record<RegisterAnswer, string> = {
-  differs: "Some details do not match",
+const REGISTER_FINDING: Record<Exclude<RegisterAnswer, "differs">, string> = {
   "no-entry": "No entry for this registration ID",
   "not-checked": "Could not be reached",
 };
+
+/**
+ * Which attributes the register holds a different value for.
+ *
+ * Only the name is compared today, because the lookup is made *on* the registration ID and
+ * the register answers with a name — so a second comparison is a second line here and
+ * nothing else. Returned as terms rather than field ids because the terms are what the
+ * officer reads, and they already know how to name themselves on a clerk queue.
+ */
+export function mismatchedTerms(request: AdvocateRegistration): string[] {
+  const { lookup } = request;
+  if (lookup.state !== "found") return [];
+  const rows = identityRows(request);
+  const terms: string[] = [];
+  if (!sameValue(lookup.entry.name, request.fullName)) terms.push(rows[0].term);
+  return terms;
+}
+
+/** "Full name", "Full name and Mobile number" — the subject of a finding, in words. */
+function joinTerms(terms: string[]): string {
+  if (terms.length <= 1) return terms[0] ?? "";
+  return `${terms.slice(0, -1).join(", ")} and ${terms[terms.length - 1]}`;
+}
 
 /** The register's answer about this request, or `null` when it simply agreed. */
 export function registerAnswer(
@@ -542,6 +562,17 @@ export function registerFindingRow(
 ): FactRow | null {
   const answer = registerAnswer(request);
   if (!answer) return null;
+  /* **The finding names what is wrong** (owner, 2026-09-11: *"'some details do not match'
+     is not helping me understand what is actually not matching — just mention full name,
+     and then if they want to see it they can click the dropdown"*). The row is the answer
+     at a glance; the disclosure is the evidence for it. */
+  const value =
+    answer === "differs"
+      ? `${joinTerms(mismatchedTerms(request))} ${
+          mismatchedTerms(request).length === 1 ? "does" : "do"
+        } not match`
+      : REGISTER_FINDING[answer];
+
   return {
     id: "register",
     /* **"Bar Council check", not "Bar Council of Kerala"** (owner, 2026-09-11: *"I don't
@@ -551,7 +582,7 @@ export function registerFindingRow(
        register still names itself, in the column header of the table the row opens,
        which is where a value is being attributed to it. */
     term: registerCheckTerm(request.registrantKind),
-    value: REGISTER_FINDING[answer],
+    value,
     format: "text",
     tone: "warning",
   };

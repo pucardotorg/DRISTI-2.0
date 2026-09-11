@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  comparisonBlocks,
   identityRows,
   idPhotoLabel,
   registrantNoun,
@@ -522,6 +523,9 @@ function ReviewStage({
   factsRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const rounds = rejectionRows(request);
+  const changed = comparisonBlocks(request).find(
+    (block) => block.id === "changed",
+  );
 
   return (
     <div className="grid min-h-0 flex-1 grid-rows-[auto_auto] gap-6 overflow-y-auto p-6 md:grid-cols-[3fr_2fr] md:grid-rows-[minmax(0,1fr)] md:overflow-hidden">
@@ -535,6 +539,13 @@ function ReviewStage({
             is eight values and a photograph — and an exceptional one is eight values, a
             photograph, and a row worth clicking. */}
         <FactGroup label="Request" rows={requestRows(request)} />
+        {/* **Under Request, and open.** On a profile update, what changed is the request —
+            the owner's ruling after a round with it folded into a disclosure: *"that's a
+            separate thing altogether… I don't think this is too important to see hidden
+            away in a drop-down"* (2026-09-11). The register's finding stays a disclosure;
+            this one does not, and the difference is that a finding is an exception to
+            look into while an edit is the content being reviewed. */}
+        {changed ? <ComparisonSection block={changed} /> : null}
         <FactGroup label="Identity" rows={identityRows(request)} />
 
         {rounds.length > 0 ? <EarlierRejections rounds={rounds} /> : null}
@@ -641,30 +652,26 @@ function DecisionStage({
       <StageCard flush>
         <StatusStrip stage={stage} rejecting={rejecting} settled={settled} />
 
-        <div className="flex items-center gap-4 px-4 py-4">
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <p
-              lang={request.fullNameLang}
-              className="text-title-s font-semibold text-balance"
-            >
-              {request.fullName}
-            </p>
-            <p className="font-mono text-body-compact tabular-nums text-muted-foreground">
-              {request.barRegistrationId}
-            </p>
-          </div>
-          {/* The card the whole decision turned on. It is what keeps this from reading as
-              a receipt: the officer is vouching for a person against a photograph, and the
-              photograph is still here while they do it. Not decoration — the fifth
-              submitted value (`REG-14`), the same file the review stage opens full size.
-
-              Sized up from a 48px stamp on the owner's note (2026-09-11): *"that image can
-              be slightly bigger because it's the ID card they upload — we can use it to
-              personalise this entire modal according to each person."* At 80×128 with
-              `object-contain` the whole card is visible rather than a cropped band of it,
-              which is the difference between a thumbnail and a likeness. */}
-          <CardThumbnail request={request} />
+        <div className="flex flex-col gap-1 px-4 py-4">
+          <p
+            lang={request.fullNameLang}
+            className="text-title-s font-semibold text-balance"
+          >
+            {request.fullName}
+          </p>
+          <p className="font-mono text-body-compact tabular-nums text-muted-foreground">
+            {request.barRegistrationId}
+          </p>
         </div>
+        {/* **The card the decision turns on, at a size that can carry it.** Twice sized up
+            and twice read as decoration — *"too small to be useful right now… if we intend
+            to show it to anchor scrutiny officers' confirm approval or confirm rejection,
+            it needs to be bigger"* (owner, 2026-09-11). Beside the name it could only ever
+            be a stamp, because the name needs the width. So it leaves the name's row and
+            takes the card's: a band 160px tall, full width, the whole card visible. The
+            officer confirming is looking at the person's Bar ID card while they do it,
+            which is the one thing on this stage that is evidence rather than a label. */}
+        <CardPhoto request={request} />
 
         {rejecting ? (
           <div className="border-t border-hairline px-4 py-4">
@@ -752,26 +759,33 @@ function DecisionStage({
 }
 
 /**
- * The Bar ID card, small.
+ * The Bar ID card, as a band across the decision card.
  *
- * It removes itself when the file will not open rather than leaving a broken frame beside
- * a name — the review stage is where a missing photograph is explained in words, and this
- * is not the place to raise it a second time.
+ * A sunken well between two rules — the Laws' nested media well, inside a panel — with the
+ * scan contained rather than cropped, so a tall card and a wide one both show whole.
+ *
+ * It removes itself when the file will not open rather than leaving an empty band in the
+ * middle of the card — the review stage is where a missing photograph is explained in
+ * words, and this is not the place to raise it a second time.
+ *
+ * It carries real alt text now. At 48px it was ornament and hid itself from assistive
+ * technology; at this size it is the evidence the stage is built around.
  */
-function CardThumbnail({ request }: { request: AdvocateRegistration }) {
+function CardPhoto({ request }: { request: AdvocateRegistration }) {
   const [failed, setFailed] = React.useState(false);
   if (failed) return null;
 
   return (
-    /* eslint-disable-next-line @next/next/no-img-element -- a served court document, not
-       a site asset: it has no build-time dimensions and must not be re-encoded. */
-    <img
-      src={request.photo.src}
-      alt=""
-      aria-hidden
-      onError={() => setFailed(true)}
-      className="h-20 w-32 shrink-0 rounded-md border border-hairline bg-surface-sunken object-contain"
-    />
+    <div className="border-t border-hairline bg-surface-sunken p-3">
+      {/* eslint-disable-next-line @next/next/no-img-element -- a served court document,
+          not a site asset: it has no build-time dimensions and must not be re-encoded. */}
+      <img
+        src={request.photo.src}
+        alt={`${idPhotoLabel(request.registrantKind)} uploaded with ${request.applicationNumber}`}
+        onError={() => setFailed(true)}
+        className="mx-auto block h-40 w-auto max-w-full rounded-md object-contain"
+      />
+    </div>
   );
 }
 
@@ -1010,8 +1024,8 @@ function FactRowView({ row }: { row: FactRow }) {
             />
           </CollapsibleTrigger>
         </ReviewRow>
-        <CollapsibleContent className="pb-3">
-          <ComparisonTable block={row.detail} />
+        <CollapsibleContent className="pb-1">
+          <ComparisonDetail block={row.detail} />
         </CollapsibleContent>
       </Collapsible>
     );
@@ -1049,6 +1063,66 @@ function FactRowView({ row }: { row: FactRow }) {
  * `hover: false`: nothing in these rows is live, and a fill that lights under the pointer
  * promises an act the row does not perform (`table-plate`).
  */
+/**
+ * A comparison whose subject has already been named — the register's finding, which
+ * reads "Full name does not match" before it is opened.
+ *
+ * **Two rows, in the card's own grid, not a table** (owner, 2026-09-11: *"for the dropdown,
+ * this is not working well. It looks slightly misaligned… clunky"*). The one-row table it
+ * replaces had a header well, an empty corner cell and three columns of its own widths
+ * inside a card whose every other row used a different grid — a second geometry wedged
+ * into the first. With the subject in the trigger, the table's first column and its
+ * header row were both saying something already said. What remains is two facts: what was
+ * submitted, and what the register holds, as `term · value` rows that line up with the
+ * rows above them because they are the same rows.
+ *
+ * If a second attribute ever disagrees the subject is no longer single, the pairs would
+ * lose which value belongs to which, and it falls back to the table.
+ */
+function ComparisonDetail({ block }: { block: ComparisonBlock }) {
+  if (block.rows.length !== 1) return <ComparisonTable block={block} />;
+  const [row] = block.rows;
+
+  return (
+    <DescriptionList>
+      {block.columns.map((column, index) => {
+        const value = row.values[index];
+        return (
+          <ReviewRow key={column} term={column} className="border-hairline">
+            <span
+              lang={value.lang}
+              className={cn(
+                "block min-w-0",
+                formatClass[value.format],
+                value.absent && "text-muted-foreground",
+              )}
+            >
+              {value.text}
+            </span>
+          </ReviewRow>
+        );
+      })}
+    </DescriptionList>
+  );
+}
+
+/**
+ * A comparison that is a section of its own: a heading naming the group, a card, a table
+ * whose first column names each attribute. Used where several attributes change at once —
+ * a profile update touches three of them in the demo data — so a column per source is
+ * what makes it scannable (D20).
+ */
+function ComparisonSection({ block }: { block: ComparisonBlock }) {
+  return (
+    <section className="flex flex-col gap-2">
+      <GroupHeading label={block.label} />
+      <StageCard>
+        <ComparisonTable block={block} />
+      </StageCard>
+    </section>
+  );
+}
+
 function ComparisonTable({ block }: { block: ComparisonBlock }) {
   const span = block.columns.length + 1;
 
