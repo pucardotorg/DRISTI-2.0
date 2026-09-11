@@ -2,26 +2,7 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import {
-  BanIcon,
-  BanknoteIcon,
-  BriefcaseIcon,
-  Building2Icon,
-  CalendarDaysIcon,
-  CircleAlertIcon,
-  CircleCheckIcon,
-  MailIcon,
-  MapPinIcon,
-  MessageSquareIcon,
-  ScaleIcon,
-  SendIcon,
-  ShieldCheckIcon,
-  TriangleAlertIcon,
-  UserIcon,
-  UsersIcon,
-  WalletIcon,
-  type LucideIcon,
-} from "lucide-react";
+import { TriangleAlertIcon } from "lucide-react";
 
 import { CaseFileRegion } from "@/components/employee/case-file-screen";
 import {
@@ -32,13 +13,27 @@ import {
   TAB_ROW,
 } from "@/components/employee/case-review-shared";
 import { useCourtToday } from "@/components/employee/use-court-today";
+import { ReviewRow } from "@/components/cases/filing-form-shared";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { DescriptionList } from "@/components/ui/description-list";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Timeline, TimelineItem } from "@/components/ui/timeline";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   caseFileCounts,
   caseReviewFor,
   caseSummaryFor,
   SUMMARY_TERMS,
+  SYNOPSIS_FIELDS,
   type CaseReview,
   type CaseSummary,
   type CaseSummaryStep,
@@ -131,9 +126,8 @@ function CaseTabs({
 }) {
   const [tab, setTab] = useCaseTab();
   const counts = caseFileCounts(review);
-  const attention = verdictsFor(summary).filter(
-    (verdict) => verdict.tone === "attention",
-  ).length;
+  /* The tab's count and the notice on the summary read one list, so they cannot disagree. */
+  const attention = attentionItems(summary).length;
 
   return (
     <Tabs
@@ -195,464 +189,351 @@ function CaseTabs({
 /* ─────────────────────────────── the summary ────────────────────────────── */
 
 /**
- * The summary, built to be taken in by shape before it is read.
- *
- * A magistrate's question is "can I register this?", so the first thing on the page
- * answers it: four verdicts, each an icon and a word — in time, documents, scrutiny, other
- * complaints. A clean complaint is four checks in a row and he is done. Below it, who and
- * how much; then the §138 dates drawn as a line with the three limits bracketed under it,
- * so a late step is the one amber bracket rather than a number to compare; then the
- * particulars, each in a card he finds by its icon.
- *
- * Type is the court side's standard throughout: `text-body-compact` for everything,
- * weight and colour for hierarchy. One size, so nothing competes with the verdicts but
- * the verdicts' own icons.
+ * The summary, in the grammar of the approved-registrations review: an eyebrow, a lifted
+ * card, and a description list — term on the left, value on the right, status carried in
+ * the value. Scrutiny first, because it is how the complaint got here; then the synopsis
+ * the owner supplied, in its own six sections and its own order. The dates as a line are
+ * behind one button, in a side sheet, because they do not need to be seen every time.
  */
 function CaseSummaryView({ summary }: { summary: CaseSummary }) {
-  const { synopsis } = summary;
+  const { synopsis, scrutiny } = summary;
+  const attention = attentionItems(summary);
+  const window = (id: CaseSummaryWindow["id"]) =>
+    summary.windows.find((candidate) => candidate.id === id)!;
+  const muted = "text-muted-foreground";
 
   return (
-    <div className="flex flex-col gap-6">
-      <VerdictStrip verdicts={verdictsFor(summary)} />
+    <div className="flex max-w-3xl flex-col gap-6">
+      {attention.length > 0 ? <CaseAttention items={attention} /> : null}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <SummaryCard
-          title={SUMMARY_TERMS.parties}
-          icon={UsersIcon}
-          className="lg:col-span-2"
-        >
-          <PartiesFacts summary={summary} />
-        </SummaryCard>
-        <SummaryCard title={SUMMARY_TERMS.cheque} icon={BanknoteIcon}>
-          <div className="flex flex-col gap-1">
-            <p className="font-semibold tabular-nums">{summary.cheque.amount}</p>
-            <p className="tabular-nums text-muted-foreground">
-              No. {summary.cheque.number} · {synopsis.cheque.drawerBank},{" "}
-              {synopsis.cheque.drawerBranch}
-            </p>
-          </div>
-          <IconLine icon={BanIcon}>Returned — {summary.cheque.returnReason}</IconLine>
+      <TimelineSheet steps={summary.steps} windows={summary.windows} />
+
+      <SummarySection label={SUMMARY_TERMS.scrutiny}>
+        {scrutiny ? (
+          <>
+            <Row term={SYNOPSIS_FIELDS.clearedBy}>
+              {scrutiny.mode === "officer" ? "Registry officer" : "Automated scrutiny"}
+            </Row>
+            <Row term={SYNOPSIS_FIELDS.rounds} figure>
+              {scrutiny.rounds}
+            </Row>
+            <Row term={SYNOPSIS_FIELDS.took} figure>
+              {scrutiny.days} {scrutiny.days === 1 ? "day" : "days"}
+            </Row>
+            <Row term={SYNOPSIS_FIELDS.clearedOn} figure>
+              {scrutiny.clearedOnLabel}
+            </Row>
+          </>
+        ) : (
+          <Row term={SYNOPSIS_FIELDS.clearedBy}>
+            <span className={muted}>Not recorded</span>
+          </Row>
+        )}
+      </SummarySection>
+
+      <SummarySection label={SUMMARY_TERMS.parties}>
+        <Row term={SYNOPSIS_FIELDS.complainant}>
+          {summary.complainant.name}
+          <Note>{summary.complainant.type}</Note>
+        </Row>
+        <Row term={SYNOPSIS_FIELDS.accused}>
+          {summary.accused.name}
+          <Note>{summary.accused.type}</Note>
+        </Row>
+        <Row term={SYNOPSIS_FIELDS.advocate}>
+          {summary.advocate ?? <span className={muted}>None on record</span>}
+        </Row>
+      </SummarySection>
+
+      <SummarySection label={SUMMARY_TERMS.cheque}>
+        <Row term={SYNOPSIS_FIELDS.amount} figure>
+          {summary.cheque.amount}
           {summary.cheque.partPaid ? (
-            <IconLine icon={WalletIcon}>
-              <span className="tabular-nums">{summary.cheque.partPaid}</span> paid before
-              filing
-            </IconLine>
+            <Note>{summary.cheque.partPaid} paid towards it before filing</Note>
           ) : null}
-        </SummaryCard>
-      </div>
+        </Row>
+        <Row term={SYNOPSIS_FIELDS.datedOn} figure>
+          {synopsis.cheque.datedOnLabel}
+        </Row>
+        <Row term={SYNOPSIS_FIELDS.chequeNumber} figure>
+          {summary.cheque.number}
+        </Row>
+        <Row term={SYNOPSIS_FIELDS.drawnOn}>
+          {synopsis.cheque.drawerBank}
+          <Note>{synopsis.cheque.drawerBranch}</Note>
+        </Row>
+      </SummarySection>
 
-      <SummaryCard title={SUMMARY_TERMS.timeline} icon={CalendarDaysIcon}>
-        <DateLine steps={summary.steps} windows={summary.windows} />
-      </SummaryCard>
+      <SummarySection label={SUMMARY_TERMS.dishonour}>
+        <Row term={SYNOPSIS_FIELDS.presentedOn} figure>
+          {synopsis.dishonour.presentedOnLabel}
+          <WindowLine window={window("presentation")} after="the cheque date" />
+        </Row>
+        <Row term={SYNOPSIS_FIELDS.returnMemoOn} figure>
+          {synopsis.dishonour.returnMemoOnLabel}
+        </Row>
+        <Row term={SYNOPSIS_FIELDS.returnReason}>{summary.cheque.returnReason}</Row>
+        <Row term={SYNOPSIS_FIELDS.presentedAt}>
+          {synopsis.dishonour.payeeBank}
+          <Note>{synopsis.dishonour.payeeBranch}</Note>
+        </Row>
+      </SummarySection>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <SummaryCard title={SUMMARY_TERMS.service} icon={MailIcon}>
-          <IconLine icon={SendIcon}>
-            {synopsis.notice.mode} ·{" "}
-            <span className="font-mono tabular-nums">{synopsis.notice.tracking}</span>
-          </IconLine>
-          <IconLine icon={MessageSquareIcon}>
-            {synopsis.notice.replied
-              ? "The accused replied to the notice"
-              : "No reply from the accused"}
-          </IconLine>
-          <IconLine icon={MapPinIcon}>
-            {synopsis.causeOfAction.jurisdiction}
-            <span className="text-muted-foreground">
-              {" "}
-              — {synopsis.causeOfAction.jurisdictionBasis.toLowerCase()}, S.142(2)
-            </span>
-          </IconLine>
-        </SummaryCard>
-        <SummaryCard title={SUMMARY_TERMS.relief} icon={ScaleIcon}>
-          <dl className="flex flex-col gap-2">
-            <ReliefLine term="Compensation" amount={synopsis.prayer.compensation} />
-            <ReliefLine term="Interim, S.143A" amount={synopsis.prayer.interim} />
-          </dl>
-          <p className="text-muted-foreground">And punishment under S.138</p>
-        </SummaryCard>
-      </div>
+      <SummarySection label={SUMMARY_TERMS.notice}>
+        <Row term={SYNOPSIS_FIELDS.dispatchedOn} figure>
+          {synopsis.notice.dispatchedOnLabel}
+          <WindowLine window={window("notice")} after="the return memo" />
+        </Row>
+        <Row term={SYNOPSIS_FIELDS.mode}>{synopsis.notice.mode}</Row>
+        <Row term={SYNOPSIS_FIELDS.tracking} code>
+          {synopsis.notice.tracking}
+        </Row>
+        <Row term={SYNOPSIS_FIELDS.deliveredOn} figure>
+          {synopsis.notice.deliveredOnLabel}
+        </Row>
+        <Row term={SYNOPSIS_FIELDS.replied}>
+          {synopsis.notice.replied ? "Received" : <span className={muted}>None</span>}
+        </Row>
+      </SummarySection>
 
+      <SummarySection label={SUMMARY_TERMS.causeOfAction}>
+        <Row term={SYNOPSIS_FIELDS.arisenOn} figure>
+          {synopsis.causeOfAction.arisenOnLabel}
+        </Row>
+        <Row term={SYNOPSIS_FIELDS.filedOn} figure>
+          {synopsis.causeOfAction.filedOnLabel}
+          <WindowLine window={window("filing")} after="the cause of action" />
+        </Row>
+        <Row term={SYNOPSIS_FIELDS.jurisdiction}>
+          {synopsis.causeOfAction.jurisdiction}
+          <Note>{synopsis.causeOfAction.jurisdictionBasis}</Note>
+        </Row>
+        <Row term={SYNOPSIS_FIELDS.otherPending}>
+          {synopsis.causeOfAction.otherPending ? (
+            <span className="text-warning-ink">Yes — one is pending</span>
+          ) : (
+            <span className={muted}>None</span>
+          )}
+        </Row>
+      </SummarySection>
+
+      <SummarySection label={SUMMARY_TERMS.prayer}>
+        <Row term={SYNOPSIS_FIELDS.compensation} figure>
+          {synopsis.prayer.compensation}
+          <Note>Twice the cheque amount, and punishment under S.138</Note>
+        </Row>
+        <Row term={SYNOPSIS_FIELDS.interim} figure>
+          {synopsis.prayer.interim}
+        </Row>
+      </SummarySection>
     </div>
   );
 }
 
-/* ────────────────────────────── the verdicts ────────────────────────────── */
-
-type Verdict = {
-  title: string;
-  tone: "clear" | "attention";
-  icon: LucideIcon;
-  detail: React.ReactNode;
-};
+/* ──────────────────────── section, row, note — the grammar ───────────────────────── */
 
 /**
- * The four answers, in one row. An icon and a word each, so a clean complaint reads as
- * four checks before a single detail is read; a problem is an amber mark where a check
- * should be, and its detail says what. Colour sits on the icon only — the words carry the
- * status, the ink points at it.
+ * One section: the approved-registrations `FactGroup`, transferred. A caption eyebrow —
+ * scaffolding, and read as scaffolding — over a lifted card holding a description list.
  */
-function verdictsFor(summary: CaseSummary): Verdict[] {
-  const late = summary.windows.find((window) => window.status !== "within");
+function SummarySection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <section className="flex flex-col gap-2" aria-label={label}>
+      <h2 className="text-caption font-semibold text-muted-foreground">{label}</h2>
+      <Card size="sm" className="border-hairline shadow-raised">
+        <CardContent className="flex flex-col gap-0">
+          <DescriptionList>{children}</DescriptionList>
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+/** One row of a section — `ReviewRow`, the term and value pair every review in the product uses. */
+function Row({
+  term,
+  figure,
+  code,
+  children,
+}: {
+  term: string;
+  figure?: boolean;
+  code?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <ReviewRow term={term} className="border-hairline">
+      <span
+        className={cn(
+          "block min-w-0",
+          figure && "tabular-nums",
+          code && "font-mono tabular-nums",
+        )}
+      >
+        {children}
+      </span>
+    </ReviewRow>
+  );
+}
+
+/** A value's qualifier, under it — the litigant's type, a bank's branch. The overlay's own `note` slot. */
+function Note({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="mt-1 block text-caption tabular-nums text-muted-foreground">
+      {children}
+    </span>
+  );
+}
+
+/**
+ * A statutory window, under the date that closes it. Within its limit it is the row's
+ * note; outside it is a second line of the value in warning ink — the way the overlay
+ * carries "12 days" or "Full name does not match" in the value itself.
+ */
+function WindowLine({ window, after }: { window: CaseSummaryWindow; after: string }) {
+  const days = `${window.days}\u00a0${window.days === 1 ? "day" : "days"}`;
+  const limit = window.limitLabel.replace(" ", "\u00a0");
+  switch (window.status) {
+    case "within":
+      return <Note>{`${days} after ${after} · within ${limit}`}</Note>;
+    case "outside":
+      return (
+        <span className="mt-1 block text-warning-ink">
+          {`${days} after ${after} — beyond the ${limit} allowed`}
+        </span>
+      );
+    case "early":
+      return (
+        <span className="mt-1 block text-warning-ink">
+          Filed before the cause of action arose
+        </span>
+      );
+    case "condonation-sought":
+      return (
+        <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="text-warning-ink">{`${days} after ${after} — beyond ${limit}`}</span>
+          <Badge variant="secondary">Condonation sought</Badge>
+        </span>
+      );
+  }
+}
+
+/* ─────────────────────────────── attention ──────────────────────────────── */
+
+type AttentionItem = { id: string; text: string };
+
+/**
+ * What needs the magistrate before he can register — the DS notice, present only when
+ * something does. A limit breached, a required document missing, a second complaint
+ * between the same parties, scrutiny unrecorded. Each is also stated on its own row in
+ * amber; this is the one place they are gathered.
+ */
+function attentionItems(summary: CaseSummary): AttentionItem[] {
+  const items: AttentionItem[] = [];
+  for (const window of summary.windows) {
+    if (window.status === "outside") {
+      items.push({
+        id: window.id,
+        text: `${WINDOW_NAME[window.id]} ${window.days} days after ${WINDOW_AFTER[window.id]} — beyond the ${window.limitLabel} allowed`,
+      });
+    } else if (window.status === "early") {
+      items.push({ id: window.id, text: "Filed before the cause of action arose" });
+    }
+  }
   const missing = [
     ...summary.documents.filter((doc) => !doc.onFile).map((doc) => doc.label),
     ...summary.otherMissing.map((doc) => doc.label),
   ];
-  const { scrutiny } = summary;
-  const pending = summary.synopsis.causeOfAction.otherPending;
-
-  return [
-    late
-      ? {
-          title: late.status === "condonation-sought" ? "Filed late" : "Out of time",
-          tone: "attention",
-          icon: TriangleAlertIcon,
-          detail:
-            late.status === "condonation-sought"
-              ? "Condonation sought"
-              : late.status === "early"
-                ? "Filed before the cause of action"
-                : `${WINDOW_NAME[late.id]} ${late.days}\u00a0days, beyond ${late.limitLabel.replace(" ", "\u00a0")}`,
-        }
-      : {
-          title: SUMMARY_TERMS.inTime,
-          tone: "clear",
-          icon: CircleCheckIcon,
-          detail: "All three limits met",
-        },
-    missing.length > 0
-      ? {
-          title: `${missing.length} ${missing.length === 1 ? "document" : "documents"} missing`,
-          tone: "attention",
-          icon: TriangleAlertIcon,
-          detail: missing.join(", "),
-        }
-      : {
-          title: SUMMARY_TERMS.documents,
-          tone: "clear",
-          icon: CircleCheckIcon,
-          detail: "All on file",
-        },
-    scrutiny
-      ? {
-          title: `${SUMMARY_TERMS.scrutiny} cleared`,
-          tone: "clear",
-          icon: ShieldCheckIcon,
-          detail: `${scrutiny.mode === "officer" ? "Registry officer" : "Automated"} · ${
-            scrutiny.rounds
-          }\u00a0${scrutiny.rounds === 1 ? "round" : "rounds"} · ${scrutiny.days}\u00a0days`,
-        }
-      : {
-          title: SUMMARY_TERMS.scrutiny,
-          tone: "attention",
-          icon: CircleAlertIcon,
-          detail: "Not recorded",
-        },
-    pending
-      ? {
-          title: "Another complaint pending",
-          tone: "attention",
-          icon: TriangleAlertIcon,
-          detail: "Between the same parties",
-        }
-      : {
-          title: `No ${SUMMARY_TERMS.otherComplaints.toLowerCase()}`,
-          tone: "clear",
-          icon: CircleCheckIcon,
-          detail: "Between these parties",
-        },
-  ];
+  if (missing.length > 0) items.push({ id: "documents", text: `Not on file: ${missing.join(", ")}` });
+  if (summary.synopsis.causeOfAction.otherPending) {
+    items.push({ id: "other-pending", text: "Another cheque dishonour complaint between the same parties is pending" });
+  }
+  if (!summary.scrutiny) items.push({ id: "scrutiny", text: "No scrutiny is recorded for this complaint" });
+  return items;
 }
 
-/**
- * The strip itself — the verdicts in one row, a check or an amber mark each.
- */
-function VerdictStrip({ verdicts }: { verdicts: Verdict[] }) {
-  return (
-    <section
-      className={cn(PANEL, "grid gap-6 sm:grid-cols-2 lg:grid-cols-4")}
-      aria-label="Verdicts"
-    >
-      {verdicts.map((verdict) => {
-        const Icon = verdict.icon;
-        return (
-          <div key={verdict.title} className="flex min-w-0 items-start gap-3">
-            <Icon
-              className={cn(
-                "mt-0.5 size-5 shrink-0",
-                verdict.tone === "clear" ? "text-success-ink" : "text-warning-ink",
-              )}
-              aria-hidden
-            />
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <p className="font-semibold">{verdict.title}</p>
-              <p className="text-muted-foreground">{verdict.detail}</p>
-            </div>
-          </div>
-        );
-      })}
-    </section>
-  );
-}
-
-/** What each window measures, for a verdict that has to name the one that failed. */
 const WINDOW_NAME: Record<CaseSummaryWindow["id"], string> = {
   presentation: "Presented",
-  notice: "Notice sent",
-  filing: "Filed",
+  notice: "Notice dispatched",
+  filing: "Complaint filed",
+};
+const WINDOW_AFTER: Record<CaseSummaryWindow["id"], string> = {
+  presentation: "the cheque date",
+  notice: "the return memo",
+  filing: "the cause of action",
 };
 
-/* ───────────────────────────────── cards ────────────────────────────────── */
+function CaseAttention({ items }: { items: AttentionItem[] }) {
+  return (
+    <Alert variant="warning" role="region" aria-labelledby="case-attention-title">
+      <TriangleAlertIcon aria-hidden />
+      <AlertTitle id="case-attention-title" className="font-semibold">
+        {items.length === 1 ? "Needs your attention" : `${items.length} things need your attention`}
+      </AlertTitle>
+      <AlertDescription>
+        <ul className="flex flex-col gap-1">
+          {items.map((item) => (
+            <li key={item.id}>{item.text}</li>
+          ))}
+        </ul>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+/* ─────────────────────────────── the timeline ───────────────────────────── */
 
 /**
- * One card: an icon and a name, then its content. The icon is how the eye finds the card
- * without reading its name; the name is `text-body-compact` at the heavier weight, the
- * same size as everything under it, so the card is told apart by weight and position
- * rather than by a size of its own.
+ * The §138 dates as a line, behind one button — a side sheet, the way the scrutiny
+ * workbench keeps its case history. Every limit is stated on the step that closes it.
  */
-function SummaryCard({
-  title,
-  icon: Icon,
-  className,
-  children,
-}: {
-  title: string;
-  icon: LucideIcon;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section
-      className={cn(PANEL, "flex min-w-0 flex-col gap-4", className)}
-      aria-label={title}
-    >
-      <h2 className="flex items-center gap-2 font-semibold">
-        <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-        {title}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-/** A fact that reads as a sentence, led by the icon that says what kind of fact it is. */
-function IconLine({
-  icon: Icon,
-  children,
-}: {
-  icon: LucideIcon;
-  children: React.ReactNode;
-}) {
-  return (
-    <p className="flex min-w-0 items-start gap-2">
-      <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
-      <span className="min-w-0">{children}</span>
-    </p>
-  );
-}
-
-function ReliefLine({ term, amount }: { term: string; amount: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-4">
-      <dt className="text-muted-foreground">{term}</dt>
-      <dd className="font-semibold tabular-nums">{amount}</dd>
-    </div>
-  );
-}
-
-/* ─────────────────────────────── the parties ────────────────────────────── */
-
-/**
- * "X v. Y", composed rather than listed — the way the cause is written, with a person or a
- * company told apart by its icon instead of by a label under the name.
- */
-function PartiesFacts({ summary }: { summary: CaseSummary }) {
-  return (
-    <div className="grid items-start gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-      <Party
-        name={summary.complainant.name}
-        role="Complainant"
-        type={summary.complainant.type}
-        extra={
-          <span className="flex items-center gap-1.5">
-            <BriefcaseIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-            {summary.advocate ?? (
-              <span className="text-muted-foreground">No advocate on record</span>
-            )}
-          </span>
-        }
-      />
-      <span
-        className="hidden h-10 items-center font-semibold text-muted-foreground sm:flex"
-        aria-hidden
-      >
-        v.
-      </span>
-      <Party name={summary.accused.name} role="Accused" type={summary.accused.type} />
-    </div>
-  );
-}
-
-function Party({
-  name,
-  role,
-  type,
-  extra,
-}: {
-  name: string;
-  role: string;
-  type: string;
-  extra?: React.ReactNode;
-}) {
-  const Icon = type === "Company" ? Building2Icon : UserIcon;
-  return (
-    <div className="flex min-w-0 items-start gap-3">
-      <span
-        className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-muted-foreground"
-        aria-hidden
-      >
-        <Icon className="size-5" />
-      </span>
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <p className="font-semibold">{name}</p>
-        <p className="text-muted-foreground">
-          {role} · {type}
-        </p>
-        {extra ? <div className="mt-1">{extra}</div> : null}
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────── the dates ──────────────────────────────── */
-
-/**
- * The §138 chain drawn as a line: seven dated points, and under the three spans the
- * statute limits, a bracket saying how long each took. Within the limit the bracket is a
- * check; outside it is the one amber mark on the line, so a late step is found by looking
- * rather than by comparing numbers.
- *
- * Drawn across from `xl`, where each point has the width a full date needs; below that it
- * is the same chain as a list, each limit stated on the step that closes it.
- */
-function DateLine({
+function TimelineSheet({
   steps,
   windows,
 }: {
   steps: CaseSummaryStep[];
   windows: CaseSummaryWindow[];
 }) {
-  const indexOf = (id: CaseSummaryStep["id"]) => steps.findIndex((step) => step.id === id);
-
+  const [open, setOpen] = React.useState(false);
   return (
     <>
-      <div className="hidden xl:block">
-        <ol className="grid grid-cols-7">
-          {steps.map((step, index) => (
-            <li key={step.id} className="flex min-w-0 flex-col items-center gap-2 text-center">
-              <span className="text-muted-foreground">{step.label}</span>
-              <span className="relative flex h-3 w-full items-center justify-center" aria-hidden>
-                {index > 0 ? (
-                  <span className="absolute top-1/2 right-1/2 left-0 h-px bg-border" />
-                ) : null}
-                {index < steps.length - 1 ? (
-                  <span className="absolute top-1/2 right-0 left-1/2 h-px bg-border" />
-                ) : null}
-                <span className="relative size-2.5 rounded-full bg-foreground" />
-              </span>
-              <time dateTime={step.on} className="font-medium tabular-nums">
-                {step.onShortLabel}
-              </time>
-            </li>
-          ))}
-        </ol>
-        <div className="mt-4 grid grid-cols-7">
-          {windows.map((window) => {
-            const from = indexOf(window.from);
-            return (
-              <div
-                key={window.id}
-                className="flex flex-col items-center gap-2"
-                style={{ gridColumn: `${from + 1} / ${from + 3}` }}
-              >
-                <span
-                  className={cn(
-                    "h-2 w-1/2 rounded-b-md border-x border-b",
-                    window.status === "within" ? "border-border" : "border-warning",
-                  )}
-                  aria-hidden
-                />
-                <WindowNote window={window} />
-              </div>
-            );
-          })}
-        </div>
+      <div className="-mb-2 flex justify-end">
+        <Button variant="outline" onClick={() => setOpen(true)}>
+          View {SUMMARY_TERMS.timeline.toLowerCase()}
+        </Button>
       </div>
-
-      <ol className="flex flex-col gap-3 xl:hidden">
-        {steps.map((step) => {
-          const window = windows.find((candidate) => candidate.to === step.id);
-          return (
-            <li key={step.id} className="flex items-start gap-3">
-              <span className="mt-1.5 size-2 shrink-0 rounded-full bg-foreground" aria-hidden />
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <p>
-                  <span className="text-muted-foreground">{step.label} </span>
-                  <time dateTime={step.on} className="font-medium tabular-nums">
-                    {step.onLabel}
-                  </time>
-                </p>
-                {window ? <WindowNote window={window} /> : null}
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent side="right" className="data-[side=right]:sm:max-w-100">
+          <SheetHeader>
+            <SheetTitle>{SUMMARY_TERMS.timeline}</SheetTitle>
+            <SheetDescription>
+              From the cheque's date to the complaint, with each S.138 limit on the step it
+              closes.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="px-4">
+            <Timeline>
+              {steps.map((step) => {
+                const window = windows.find((candidate) => candidate.to === step.id);
+                return (
+                  <TimelineItem
+                    key={step.id}
+                    status="past"
+                    title={step.label}
+                    description={step.onLabel}
+                  >
+                    {window ? (
+                      <div className="mt-1 text-body-compact">
+                        <WindowLine window={window} after={WINDOW_AFTER[window.id]} />
+                      </div>
+                    ) : null}
+                  </TimelineItem>
+                );
+              })}
+            </Timeline>
+          </div>
+        </SheetContent>
+      </Sheet>
     </>
   );
-}
-
-/**
- * How long a limited span took, against its limit. A check when within; the amber mark
- * and the words when not. A late filing with an application to condone it is the
- * magistrate's call under §142(b), so it says the application is there and decides
- * nothing.
- */
-function WindowNote({ window }: { window: CaseSummaryWindow }) {
-  /* The count and its unit are one token — a non-breaking space keeps "8 days" from
-     splitting across lines — and the whole note is one text run, so the icon's gap never
-     lands between a number and its comma. */
-  const days = `${window.days}\u00a0${window.days === 1 ? "day" : "days"}`;
-  const limit = window.limitLabel.replace(" ", "\u00a0");
-  switch (window.status) {
-    case "within":
-      return (
-        <span className="flex items-center gap-1.5 text-muted-foreground">
-          <CircleCheckIcon className="size-4 shrink-0 text-success-ink" aria-hidden />
-          <span className="tabular-nums">{`${days}, within ${limit}`}</span>
-        </span>
-      );
-    case "outside":
-      return (
-        <span className="flex items-center gap-1.5 font-medium text-warning-ink">
-          <TriangleAlertIcon className="size-4 shrink-0" aria-hidden />
-          <span className="tabular-nums">{`${days}, beyond ${limit}`}</span>
-        </span>
-      );
-    case "early":
-      return (
-        <span className="flex items-center gap-1.5 font-medium text-warning-ink">
-          <TriangleAlertIcon className="size-4 shrink-0" aria-hidden />
-          <span>Before the cause of action</span>
-        </span>
-      );
-    case "condonation-sought":
-      return (
-        <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-warning-ink xl:justify-center">
-          <TriangleAlertIcon className="size-4 shrink-0" aria-hidden />
-          <span className="font-medium tabular-nums">{`${days}, beyond ${limit}`}</span>
-          <Badge variant="secondary">Condonation sought</Badge>
-        </span>
-      );
-  }
 }

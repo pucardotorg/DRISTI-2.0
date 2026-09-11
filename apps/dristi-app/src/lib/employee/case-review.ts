@@ -177,20 +177,49 @@ export type CaseHeaderTerm =
  * then who and how much, then the dates as a line, then the particulars.
  */
 export const SUMMARY_TERMS = {
-  /* The verdict strip — the four answers a magistrate needs before anything else. */
-  inTime: "In time",
-  documents: "Documents",
   scrutiny: "Scrutiny",
-  otherComplaints: "Other complaints",
-  /* The cards. */
   parties: "Parties",
   cheque: "Cheque",
+  dishonour: "Dishonour",
+  notice: "Demand notice",
+  causeOfAction: "Cause of action",
+  prayer: "Prayer",
   timeline: "Timeline",
-  service: "Service and jurisdiction",
-  relief: "Relief sought",
 } as const;
 
 export type SummaryTerm = (typeof SUMMARY_TERMS)[keyof typeof SUMMARY_TERMS];
+
+/** The rows inside each section — the synopsis's own field names. */
+export const SYNOPSIS_FIELDS = {
+  clearedBy: "Cleared by",
+  rounds: "Rounds",
+  took: "Took",
+  clearedOn: "Cleared on",
+  complainant: "Complainant",
+  accused: "Accused",
+  advocate: "Complainant's advocate",
+  amount: "Amount",
+  datedOn: "Date on cheque",
+  chequeNumber: "Cheque number",
+  drawnOn: "Drawn on",
+  presentedOn: "Presented",
+  returnMemoOn: "Return memo",
+  returnReason: "Return reason",
+  presentedAt: "Presented at",
+  dispatchedOn: "Dispatched",
+  mode: "Mode of service",
+  tracking: "Tracking number",
+  deliveredOn: "Delivered on",
+  replied: "Reply from the accused",
+  arisenOn: "Date of cause of action",
+  filedOn: "Complaint filed",
+  jurisdiction: "Jurisdiction, S.142(2)",
+  otherPending: "Other complaints between the parties",
+  compensation: "Compensation",
+  interim: "Interim compensation, S.143A",
+} as const;
+
+export type SynopsisField = (typeof SYNOPSIS_FIELDS)[keyof typeof SYNOPSIS_FIELDS];
 
 /**
  * Who did the scrutiny — two members, rendered identically.

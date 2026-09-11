@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
+  SYNOPSIS_FIELDS,
   SUMMARY_TERMS,
   CASE_REVIEW_STATUS,
   FACT_TERMS,
@@ -209,25 +210,27 @@ describe("terms are attributes the file names", () => {
     assert.equal(rendered, 1, "the file view's fact rows, and nothing else");
   });
 
-  it("names the summary's verdicts and cards from the model, and uses every name", () => {
-    /* The summary's names are a declared list (`SUMMARY_TERMS`). A card titled with a
-       typed string is a card nobody sourced; a declared name nothing renders is a part of
-       the synopsis the screen promised and dropped. */
+  it("names the summary's sections and rows from the model, and uses every name", () => {
+    /* The synopsis is the owner's own document, so its section and row names are declared
+       lists. A label typed into the screen is one nobody sourced; a declared name nothing
+       renders is a part of the synopsis the screen promised and dropped. */
     const screen = readFileSync(
       new URL("../../components/employee/case-review-screen.tsx", import.meta.url),
       "utf8",
     );
-    const cards = [...screen.matchAll(/<SummaryCard\b[^>]*\btitle=\{([^}]+)\}/g)];
-    assert.ok(cards.length > 0, "the summary renders cards");
-    for (const card of cards) {
-      assert.match(card[1].trim(), /^SUMMARY_TERMS\./, card[1]);
-    }
-    assert.doesNotMatch(screen, /<SummaryCard\b[^>]*\btitle="/, "a card with a typed title");
+    const sections = [...screen.matchAll(/<SummarySection\b[^>]*\blabel=\{([^}]+)\}/g)];
+    assert.ok(sections.length > 0, "the summary renders sections");
+    for (const section of sections) assert.match(section[1].trim(), /^SUMMARY_TERMS\./, section[1]);
+    assert.doesNotMatch(screen, /<SummarySection\b[^>]*\blabel="/, "a section with a typed label");
+    const rows = [...screen.matchAll(/<Row\b[^>]*\bterm=\{([^}]+)\}/g)];
+    assert.ok(rows.length > 0, "the summary renders rows");
+    for (const row of rows) assert.match(row[1].trim(), /^SYNOPSIS_FIELDS\./, row[1]);
+    assert.doesNotMatch(screen, /<Row\b[^>]*\bterm="/, "a row with a typed term");
     for (const key of Object.keys(SUMMARY_TERMS)) {
-      assert.ok(
-        screen.includes(`SUMMARY_TERMS.${key}`),
-        `SUMMARY_TERMS.${key} is declared and never rendered`,
-      );
+      assert.ok(screen.includes(`SUMMARY_TERMS.${key}`), `SUMMARY_TERMS.${key} is never rendered`);
+    }
+    for (const key of Object.keys(SYNOPSIS_FIELDS)) {
+      assert.ok(screen.includes(`SYNOPSIS_FIELDS.${key}`), `SYNOPSIS_FIELDS.${key} is never rendered`);
     }
   });
 });
