@@ -143,21 +143,14 @@ export function RegisterAdvocatesScreen() {
   }
 
   return (
-    /* **The beige page — an iteration to look at, not a settled decision** (owner,
-       2026-09-11: *"I just want to see how it looks… if I say no after seeing it, just
-       revert it back"*).
+    /* **The beige canvas — the product default** (owner, 2026-09-11). Built here first as
+       an iteration the owner could say no to; they kept it and made it the default for
+       every work surface (ui-craft §1.0).
 
-       It is the one thing on this branch that argues with a rule rather than following
-       one: ui-craft §1.0 says the page stays `bg-background` and depth comes from the
-       lifted panel, and a tinted page was owner-rejected once before (2026-08-17). What
-       makes it worth looking at anyway is that the tint here is `muted` — the same
-       neutral-2 the rail already carries — so the page and the rail become one ground and
-       the white panel is the only lifted thing on the screen, which is the arrangement
-       the overlay's tinted stage just adopted. The top bar stays `bg-card`, so the chrome
-       still reads as chrome. Dark keeps `bg-background`, because `muted` sits above
-       `card` there and a tinted page would invert the depth.
-
-       Revert = delete the two utilities. Nothing else on the screen depends on them. */
+       Warm neutral-2 — the rail's own tone — so page and rail are one ground and the white
+       panel is the only lifted thing on the screen. The top bar stays `bg-card`, so the
+       chrome still reads as chrome. Dark keeps `bg-background`, because `muted` sits above
+       `card` there and a tinted canvas would invert the depth. */
     <div className="flex min-w-0 flex-1 flex-col gap-8 bg-muted p-6 md:p-8 dark:bg-background">
       <header className="flex flex-col gap-2">
         {/* **"Approve registrations"**, not "Register advocates" (owner, 2026-09-11: the

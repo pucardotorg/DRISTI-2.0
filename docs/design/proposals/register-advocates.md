@@ -948,7 +948,11 @@ to know which of two decisions they just took.
 *Rejected:* a solid `bg-success` panel as `SignBulkConfirmDialog` uses — on a tinted stage
 the muted disc keeps the card white like its neighbours.
 
-### D22 — **Iteration, not a decision.** The beige page on the queue screen
+### D22 — **Adopted, and made the product default** (2026-09-11). The beige page on the queue screen
+
+> The owner kept the iteration and made it the default for every work surface: *"the beige
+> thing that we inverted, I want that to be the default."* It is now ui-craft §1.0 — see
+> D35. The revert note below is historical.
 
 Owner: *"I just want to see how it looks if you add that beige as the background here… if
 I say no after seeing it, just revert it back."*
@@ -1407,6 +1411,36 @@ AGENTS rule 6 (no alpha fakes, so no invented tint).
 *Measured:* the table still fits at 1280 — "Account type" is a wider header than "Role" but
 the pills are narrower than "Advocate clerk" was.
 
+### D35 — **New.** Two conventions this screen established, now defaults across the product
+
+Owner, 2026-09-11, on readying this work for a pull request: the beige convention *"I want
+that to be the default"*, and *"how we use motion graphics for modals to convey progressive
+actions within a modal, and it will never be a modal-on-modal interaction."* Both are
+written into the rails so they are followed by whatever is built next, not just remembered.
+
+**1. The beige canvas under white panels** — ui-craft §1.0, §2, §4, §5.
+The work surface is `bg-muted dark:bg-background` (warm neutral-2, the rail's own tone);
+panels are white and lifted with `border-hairline shadow-raised` **at rest**; chrome — top
+bar, sticky footers, a dialog's header and footer — stays `bg-card`. It inverts the rule it
+replaces: the page used to stay white "always", with a tint allowed only on the e-filing
+form. The difference from what was rejected on 2026-08-17 is stated in the rule itself —
+that was cool grey under panels still separated by `border-border` strokes; this is warm
+ground under panels that carry their own lift. Its one hard requirement, learned on this
+screen (D28): nothing sunken sits directly on the canvas, because `surface-sunken` on
+`muted` measures 1.01:1 and dissolves.
+
+**2. A flow progresses inside one modal, never on top of it** — ui-craft §7 (new).
+No step of a flow opens a dialog over the dialog. Stages are scenes: a change of scene
+slides (right forward, left back); an act and its outcome are one scene and the card
+resolves in place; a new record *arrives* in the same window rather than re-opening it —
+so `Dialog.Content` is never keyed on the record. Every animation respects
+`prefers-reduced-motion`, and focus follows the stage. This screen (D21, D27, D29) is the
+reference implementation.
+
+One question is left open for the owner in §7 itself: the document **Full view** is still a
+dialog over a dialog. It is a viewer, not a step in a flow, which is why it was not changed
+— but the rule as the owner stated it does not yet exempt a lightbox.
+
 ## 6. What I cut (and why)
 
 **Read this first, because the critique could be misread as "add structure everywhere":**
@@ -1592,7 +1626,9 @@ the data rather than only in this table.
 
 ## 11. Risks accepted
 
-- **The slug still says `register-advocates`** (2026-09-11). The section is "Approve
+- **The slug still says `register-advocates`** (2026-09-11). The branch carrying this work
+  is `feature/approve-registrations`; the route, module and brief file were not renamed with
+  it. The section is "Approve
   registrations" everywhere a person reads it; the route, the component and module names,
   and this file keep the old slug. Renaming them is mechanical, but it moves a URL the owner
   reviews on and touches the rail module a parallel session works in, so it is left for a
@@ -1781,6 +1817,7 @@ dependency here. Request #9 stands on its own merits for the screens that raised
 | **2026-09-10 (evening)** | **D16 added.** Request metadata is its own attribute group, not header prose; the application number stays in the header description and is not repeated; the advocate's name **leaves** the header, because printing a value under verification as the record's title asserts it. | ux-designer |
 | **2026-09-10 (evening)** | **D9 and D11 corrected for two parallel cross-cutting changes** — search filters as you type (the Search button goes away app-wide) and the whole table row becomes the click target. The queue page therefore has **no page-level primary**, which is what D9 argued was correct all along; the "teal on the queue page is Search" line is void, and two code comments asserting it must change with the rebuild. | orchestrator / ux-designer |
 | **2026-09-10 (evening)** | **§6 clarified** so the brief cannot be read as rejecting structure wholesale: the officer's rejection reason stays free text (`REG-22`) because it is *user data in a consistent slot*; what was rejected is *product copy narrating machine results*. Reason chips remain cut; a per-attribute rejection is filed as §12.10 for the owner to decide. | ux-designer |
+| **2026-09-11 (conventions → defaults)** | **Two conventions made product defaults and written into the rails** (D35): the beige canvas under lifted white panels (ui-craft §1.0, inverting the white-page rule) and one-modal progression with motion, never modal-on-modal (ui-craft §7, new). D22 adopted. Full-view lightbox left as an open question in §7. Branch `feature/approve-registrations` cut for the pull request, not yet raised. | owner (direction) / orchestrator |
 | **2026-09-11 (request type as text)** | Request type drops its pill in the queue and the phone list — owner: "the two pills look a little odd". Account type is the row's only pill. Owner signed off the rest of D34 as built. | owner |
 | **2026-09-11 (account-type pill)** | **Account type is a pill, read first** (D34): first row of the Request group, the queue's renamed column, the decision card and the phone list, all the same pill — Advocate `info`, Clerk `success`. Every state pill (*Pending approval*, *Resubmitted*, *Profile update*) goes neutral `secondary`; colour now means account type only. D7's coloured request-type chips reversed. D33's title kept as the accessible name, no longer the signal. | owner (direction) / orchestrator |
 | **2026-09-11 (role in the title)** | **D32's role mark reversed** (D33): the owner had to hunt for it, and the table's lone icon column read as cheap. The role now leads every stage title — *Review clerk registration*, *Approve clerk registration?*, *Clerk registration approved* — and every other mention is plain text. Header description back to the application number alone. `role-mark.tsx` deleted. | owner (direction) / orchestrator |
