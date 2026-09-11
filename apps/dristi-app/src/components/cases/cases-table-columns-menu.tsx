@@ -4,11 +4,11 @@ import { Columns3Icon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { CollapsibleLabel } from "./collapsible-label";
 import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
-  PopoverDescription,
   PopoverHeader,
   PopoverTitle,
   PopoverTrigger,
@@ -35,8 +35,13 @@ import { useCasesTableColumns } from "./use-cases-table-columns";
  */
 export function CasesTableColumnsMenu({
   hideStage = false,
+  compact = false,
 }: {
   hideStage?: boolean;
+  /** Morph the trigger to the icon alone — used when the case peek squeezes the toolbar
+   *  and the label would push the row onto a second line. The label collapses rather than
+   *  swapping, so it eases with the peek. */
+  compact?: boolean;
 }) {
   const { isVisible, toggle, showAll, reset, isDefault, isAllVisible, order } =
     useCasesTableColumns();
@@ -47,18 +52,27 @@ export function CasesTableColumnsMenu({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" className="shrink-0">
-          <Columns3Icon data-icon="inline-start" aria-hidden />
-          Columns
+        <Button
+          type="button"
+          variant="outline"
+          className={"shrink-0 gap-0 duration-300 " + (compact ? "px-2.5" : "px-4")}
+          aria-label={compact ? "Columns" : undefined}
+        >
+          <Columns3Icon aria-hidden />
+          <CollapsibleLabel show={!compact}>Columns</CollapsibleLabel>
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-72">
-        <PopoverHeader>
-          <PopoverTitle className="text-body font-medium">Columns</PopoverTitle>
-          <PopoverDescription className="text-caption">
-            Tick a column to show it. To reorder, drag a column by the handle on
-            its heading.
-          </PopoverDescription>
+      {/* align="start" hangs the menu under the trigger's left edge so it sits under
+          Columns rather than reaching back under Share access (owner, Sept 11). */}
+      <PopoverContent align="start" className="w-64">
+        {/* Title, list and footer all share the items' 2-step inset so the menu reads
+            as one aligned column; the title drops to the item size (owner, Sept 11).
+            The how-to line is gone — the checkboxes and the heading grips say it. A touch
+            more air above the title than the content padding alone gives. */}
+        <PopoverHeader className="px-2 pt-1">
+          <PopoverTitle className="text-body-compact font-medium">
+            Columns
+          </PopoverTitle>
         </PopoverHeader>
         <ul className="flex flex-col">
           {columns.map((column) => {
@@ -85,11 +99,15 @@ export function CasesTableColumnsMenu({
         </ul>
         <Separator />
         {/* Show all turns every column on; there is deliberately no "hide all" —
-            a table with only the case number is not a state anyone asks for. */}
+            a table with only the case number is not a state anyone asks for. The
+            buttons sit at the items' inset (px-2) so the whole menu shares one left
+            edge, and the pair reads at the item size. */}
         <div className="flex items-center justify-between gap-2">
           <Button
             type="button"
             variant="ghost"
+            size="sm"
+            className="px-2 text-body-compact"
             disabled={isAllVisible}
             onClick={() => showAll()}
           >
@@ -98,6 +116,8 @@ export function CasesTableColumnsMenu({
           <Button
             type="button"
             variant="ghost"
+            size="sm"
+            className="px-2 text-body-compact"
             disabled={isDefault}
             onClick={() => reset()}
           >

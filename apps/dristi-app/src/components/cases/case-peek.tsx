@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -56,9 +56,10 @@ import { CaseFlags } from "./case-identity";
 import { CASE_PEEK_ID, useCasePeek } from "./use-case-peek";
 
 /**
- * Card that owns peek state in the tree. The panel itself portals to
- * the document so it can float over the screen — the app shell clips
- * `fixed` descendants.
+ * Card that owns peek state in the tree, floating variant. The panel portals to the
+ * document so it can float over the screen — the app shell clips `fixed` descendants.
+ * Used by the surfaces that keep the inset floating peek (advocate home, folder/search).
+ * The cases landing uses `CasePeekPushRegion` instead.
  */
 export function CasePeekSurface({
   children,
@@ -75,16 +76,74 @@ export function CasePeekSurface({
   );
 }
 
+/** Panel width, shared by the docked panel and the push margin so they coincide. */
+const PEEK_WIDTH = "27rem";
+
 /**
- * Viewport-floating inspector — not a Sheet. No scrim, no trap, so
- * another case number or name stays the switcher. Overlay elevation.
- * Not the Card primitive: that hover fill would wash the whole panel.
+ * The class that makes an element step aside for the docked peek. It reads `--peek-mr`
+ * (set on the push region, inherited down) as a right margin, transitioned so the
+ * element eases left as the panel slides in. Only from `sm` up, where there is room; on
+ * a phone the panel covers the column and nothing moves.
+ *
+ * A margin, not padding: the panel is wider than the spacing ladder's top rung and the
+ * gate forbids raw-unit arbitrary spacing, but an arbitrary value that reads a CSS var
+ * is allowed. Apply it ONLY to light chrome — the title row, the toolbar, the chips.
+ * The table is deliberately left out (see `CasePeekPushRegion`).
+ */
+export const PEEK_PUSH_CLASS =
+  "transition-[margin] duration-300 ease-out sm:mr-[var(--peek-mr,0px)]";
+
+/**
+ * Wraps the whole cases column and sets `--peek-mr` for everything under it — 0 when the
+ * peek is closed, the panel's width when it is open. It does NOT itself take the margin.
+ *
+ * Why the split: pushing the column with one margin meant the wide, content-sized table
+ * re-measured every cell on every frame of the 300ms animation — the choppiness the
+ * owner felt (Sept 11). So only the light chrome carries `PEEK_PUSH_CLASS` and eases
+ * aside; the heavy table keeps its full width and never re-lays-out. The docked panel,
+ * opaque with its own shadow, simply slides over the table's right edge — a panel over
+ * content, not a table reflowing under one. Nothing animates layout on the hot path, so
+ * the motion is smooth.
+ */
+export function CasePeekPushRegion({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  const { record, closing } = useCasePeek();
+  // Make room only while the panel is actually there. As soon as a close is asked for,
+  // `closing` flips and the chrome eases back in step with the panel sliding out.
+  const open = Boolean(record) && !closing;
+  return (
+    <>
+      <div
+        data-peek-open={open || undefined}
+        className={className}
+        style={{ "--peek-mr": open ? PEEK_WIDTH : "0px" } as CSSProperties}
+      >
+        {children}
+      </div>
+      <CasePeek />
+    </>
+  );
+}
+
+/**
+ * Two shapes, one panel. Docked (the cases landing): right edge, full height, over the
+ * column it pushed — modal elevation and a hairline seam sell the lift the owner found
+ * missing, and it enters on a short slide from the right in step with the column
+ * reflowing left. Floating (advocate home, folder/search): inset from the edges, rounded,
+ * overlay elevation — the original shape those surfaces were built around. Not a Sheet in
+ * either shape: no scrim and no focus trap, so another case number stays the switcher;
+ * and not the Card primitive, whose hover fill would wash the whole panel.
  */
 /** A subscription with nothing to report — the mount state never changes back. */
 const emptySubscribe = () => () => {};
 
 export function CasePeek() {
-  const { record, now, hideLongPendingFlag, close } = useCasePeek();
+  const { record, now, hideLongPendingFlag, docked, closing, close } = useCasePeek();
   // Portal guard: the server (and the hydration render) has no document.body to
   // portal into, so both report unmounted; the client re-renders once after
   // hydration. The store shape of the old mounted-flag effect.
@@ -97,11 +156,33 @@ export function CasePeek() {
   if (!record || !mounted) return null;
 
   return createPortal(
+    // The panel slides both ways. Enter is a keyframe that plays on mount; exit is the
+    // matching keyframe, played while `closing` holds the record mounted (the provider
+    // drops it one exit later). Unmounting on close instead snapped the covered table
+    // columns back in a single frame — the "glitch" the owner saw (Sept 11). No fade
+    // and no per-frame layout, so open and close read as the same smooth motion.
+    // Docked: w-[27rem] must equal PEEK_WIDTH so the panel fills the margin the chrome
+    // reserved. Floating: the original inset overlay.
     <aside
       id={CASE_PEEK_ID}
       role="region"
       aria-labelledby="case-peek-title"
-      className="fixed inset-y-6 right-6 z-50 flex w-3/4 max-w-md flex-col overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-overlay"
+      data-state={closing ? "closed" : "open"}
+      className={cn(
+        "fixed z-50 flex flex-col overflow-hidden bg-popover text-popover-foreground fill-mode-forwards duration-300 ease-out motion-reduce:animate-none",
+        closing ? "animate-out" : "animate-in",
+        docked
+          ? cn(
+              "inset-y-0 right-0 w-full border-l border-hairline shadow-modal sm:w-[27rem]",
+              closing ? "slide-out-to-right-full" : "slide-in-from-right-full"
+            )
+          : cn(
+              "inset-y-6 right-6 w-3/4 max-w-md rounded-xl border border-border shadow-overlay",
+              closing
+                ? "fade-out-0 slide-out-to-right-2"
+                : "fade-in-0 slide-in-from-right-2"
+            )
+      )}
     >
       <CasePeekBody
         record={record}
@@ -133,36 +214,42 @@ function CasePeekBody({
 
   return (
     <>
-      {/* The tab row below carries the only divider — the header runs into it. */}
-      <header className="flex flex-col gap-4 p-6 pb-4">
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-caption text-muted-foreground">Case peek</p>
-          <Button variant="ghost" className="shrink-0" onClick={onClose}>
-            <XIcon data-icon="inline-start" aria-hidden />
-            Close
+      {/* No eyebrow — the panel is plainly a case, and "Case peek" only named the
+          mechanism (owner, Sept 11). Close is the bare cross, top-right on the title's
+          line. The tab row below carries the only divider; the header runs into it. */}
+      <header className="flex flex-col gap-4 p-6 pb-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <h2
+              id="case-peek-title"
+              className="text-title-s font-semibold text-balance"
+            >
+              {title}
+            </h2>
+            <p className="text-body-compact text-muted-foreground">
+              <span className="font-mono">{record.caseNumber}</span>
+              {extras.altCaseNumber ? (
+                <>
+                  <span aria-hidden> · </span>
+                  {extras.altCaseNumber}
+                </>
+              ) : null}
+              <span aria-hidden> · </span>
+              {record.court}
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="-mr-1 -mt-1 shrink-0 text-muted-foreground"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <XIcon aria-hidden />
           </Button>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <h2
-            id="case-peek-title"
-            className="text-title-s font-semibold"
-          >
-            {title}
-          </h2>
-          <p className="text-body-compact text-muted-foreground">
-            <span className="font-mono">{record.caseNumber}</span>
-            {extras.altCaseNumber ? (
-              <>
-                <span aria-hidden> · </span>
-                {extras.altCaseNumber}
-              </>
-            ) : null}
-            <span aria-hidden> · </span>
-            {record.court}
-          </p>
-          {hideLongPendingFlag ? null : <CaseFlags record={record} />}
-        </div>
+        {hideLongPendingFlag ? null : <CaseFlags record={record} />}
 
         <Button variant="secondary" className="w-fit" asChild>
           <Link
@@ -182,17 +269,28 @@ function CasePeekBody({
         defaultValue="overview"
         className="flex min-h-0 flex-1 flex-col gap-0"
       >
-        {/* Line mark sits after:bottom-[-5px] (2px). pb-1 drops the rule onto it. */}
-        <div className="shrink-0 border-b border-border px-6 pb-1">
+        {/* The active mark is the DS line variant's `after`, drawn 5px below the
+            trigger; the divider must land on that exact line or the two read as two
+            rules. The trigger fills the row (`h-full`, not the DS 1px-short default) so
+            its bottom is the row's bottom, and `pb-1` puts the hairline rule where the
+            mark's centre sits. Compact type: these are section tabs in a dense inspector,
+            not page headings (owner, Sept 11). */}
+        <div className="shrink-0 border-b border-hairline px-6 pb-1">
           <TabsList
             variant="line"
             aria-label="Case peek sections"
             className="h-10 w-full justify-start rounded-none p-0 group-data-horizontal/tabs:h-10"
           >
-            <TabsTrigger value="overview" className="flex-none px-3 text-body">
+            <TabsTrigger
+              value="overview"
+              className="h-full flex-none px-3 text-body-compact"
+            >
               Overview
             </TabsTrigger>
-            <TabsTrigger value="history" className="flex-none px-3 text-body">
+            <TabsTrigger
+              value="history"
+              className="h-full flex-none px-3 text-body-compact"
+            >
               Case History
             </TabsTrigger>
           </TabsList>
@@ -232,7 +330,7 @@ function CasePeekOverview({
   const accusedCounsel = counselFor(record, "accused");
 
   return (
-    <div className="flex flex-col gap-8 p-6">
+    <div className="flex flex-col gap-6 p-6">
       <DescriptionList>
         <PeekRow term="Stage">{stage}</PeekRow>
         {record.nextHearing ? (
@@ -289,8 +387,11 @@ function CasePeekOverview({
 }
 
 /**
- * Rows carry `text-body` explicitly — the primitive's own compact size is
- * control chrome, not a screen-copy role. The value is the emphasized half.
+ * Compact rows (owner, Sept 11) — the peek is a staff inspector, not citizen copy, and
+ * at 16px the term and value sat one step under the 20px title with the same weight, so
+ * the panel read flat. At 14px the rows drop a clear step below the title, the term goes
+ * quiet and the value carries the line. The primitive's per-row full border softens to a
+ * hairline so the list reads as a spec, not a grid.
  */
 function PeekRow({
   term,
@@ -300,9 +401,9 @@ function PeekRow({
   children: ReactNode;
 }) {
   return (
-    <DescriptionRow>
-      <DescriptionTerm className="text-body">{term}</DescriptionTerm>
-      <DescriptionDetails className="text-body font-medium">
+    <DescriptionRow className="border-hairline py-2.5">
+      <DescriptionTerm>{term}</DescriptionTerm>
+      <DescriptionDetails className="font-medium">
         {children}
       </DescriptionDetails>
     </DescriptionRow>
@@ -323,9 +424,9 @@ function PartyRow({
   appearing: boolean;
 }) {
   return (
-    <DescriptionRow>
-      <DescriptionTerm className="text-body">{term}</DescriptionTerm>
-      <DescriptionDetails className="flex flex-col gap-1 text-body">
+    <DescriptionRow className="border-hairline py-2.5">
+      <DescriptionTerm>{term}</DescriptionTerm>
+      <DescriptionDetails className="flex flex-col gap-0.5">
         <span className="font-medium">
           {name}
           {appearing ? (
@@ -335,7 +436,7 @@ function PartyRow({
           ) : null}
         </span>
         {counsel.length > 0 ? (
-          <span className="text-body-compact text-muted-foreground">
+          <span className="text-caption text-muted-foreground">
             Counsel: {formatCounselList(counsel)}
           </span>
         ) : null}
@@ -415,10 +516,10 @@ function LastHearingCard({
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-2 rounded-md bg-surface-sunken p-4">
-            <p className="text-body font-medium text-foreground">
+            <p className="text-body-compact font-medium text-foreground">
               {directed ? "Order of the day" : "Latest update"}
             </p>
-            <p className="text-body text-muted-foreground">{order}</p>
+            <p className="text-body-compact text-muted-foreground">{order}</p>
           </div>
         </CardContent>
       </Card>
@@ -447,11 +548,14 @@ function TaskRow({
       ? `Assigned to ${task.assignedTo} · marked ${formatCaseDate(task.markedOn)}`
       : due.on;
 
+  // items-baseline puts the due status on the title's first-line baseline, so the date
+  // reads as sitting on the same plane as the heading rather than floating a little low
+  // (owner, Sept 11).
   return (
-    <Item asChild variant="muted" size="sm" className="min-h-10 items-start p-4">
+    <Item asChild variant="muted" size="sm" className="min-h-10 items-baseline p-4">
       <Link href={caseSectionHref(caseId, "applications")} role="listitem">
         <ItemContent className="min-w-0">
-          <ItemTitle className="line-clamp-none text-body font-medium text-foreground">
+          <ItemTitle className="line-clamp-none text-body-compact font-medium text-foreground">
             {task.title}
           </ItemTitle>
           <ItemDescription className="line-clamp-none text-caption">

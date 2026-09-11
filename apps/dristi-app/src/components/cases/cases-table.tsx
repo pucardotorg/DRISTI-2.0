@@ -301,7 +301,10 @@ export function CasesTable({
             <TableRow
               key={record.id}
               className={cn(
-                "relative bg-card",
+                // Warm well tone on hover, matching the column header — the DS default
+                // hover:bg-accent is a cooler, darker grey the owner found too heavy
+                // for a row (Sept 11).
+                "relative bg-card hover:bg-surface-sunken",
                 openRecord?.id === record.id &&
                   !selected.has(record.id) &&
                   "bg-accent"

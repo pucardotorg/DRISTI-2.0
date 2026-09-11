@@ -253,7 +253,9 @@ export function RegistrationFlow({ locale, summoned, initialMobile = "", onFinis
 
             {otpRequested && !otpVerified ? (
               <Field data-invalid={otpTouched && otpCode.length !== OTP_LENGTH} className="rounded-lg bg-surface-sunken p-4">
-                <FieldLabel>{pick(contactStep.otpLabel, locale)}</FieldLabel>
+                {/* Label repeated the description's "6-digit code"; kept for screen
+                    readers, dropped from view (owner, Sept 11). */}
+                <FieldLabel className="sr-only">{pick(contactStep.otpLabel, locale)}</FieldLabel>
                 <FieldDescription>{pick(contactStep.otpSent, locale).replace("{number}", mobile)}</FieldDescription>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                   <MaskedOtp value={otpCode} revealed={otpRevealed} onChange={(value) => { setOtpCode(value); setOtpTouched(false); }} />

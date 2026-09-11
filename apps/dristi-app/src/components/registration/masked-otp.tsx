@@ -17,9 +17,10 @@ export const OTP_LENGTH = 6;
  * land dead centre. The caret is drawn separately and survives, and the real value is
  * never re-encoded, so paste and SMS autofill still work.
  *
- * The mark is a drawn ring, not a bullet glyph: a 48px box wants a mark that reads at
- * arm's length, and a glyph's size is the font's decision. A ring rather than a disc
- * because at 10px a filled dot is a blob (owner, Sept 9).
+ * The mark is an asterisk (owner, Sept 11) — the mask people read as "hidden" — sized
+ * large enough to read at arm's length in a 48px box. The glyph sits high in its em, so
+ * a small downward nudge lands its optical centre on the slot's centre; `translate` is
+ * the only free lever here and stays off the padding/margin ladder the gate polices.
  */
 export function MaskedOtp({
   value,
@@ -61,7 +62,9 @@ export function MaskedOtp({
             {Array.from({ length: OTP_LENGTH }, (_, index) => (
               <span key={index} className="flex flex-1 items-center justify-center">
                 {index < value.length ? (
-                  <span className="size-2.5 rounded-full border-2 border-foreground" />
+                  <span className="translate-y-[0.22em] text-title font-semibold leading-none text-foreground">
+                    *
+                  </span>
                 ) : null}
               </span>
             ))}

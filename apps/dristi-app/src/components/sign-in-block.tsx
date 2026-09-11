@@ -215,8 +215,6 @@ export function SignInBlock({
   // The number was checked and no account holds it. Cleared the moment a digit changes.
   const [notFound, setNotFound] = React.useState(false);
 
-  const methodLabelId = React.useId();
-
   const badMobile = touched && mobile.length !== 10;
   const badPassword = touched && method === "password" && !password;
   const badCode = touched && method === "otp" && codeSent && code.length !== OTP_LENGTH;
@@ -524,51 +522,27 @@ export function SignInBlock({
                   aria-label={pick(form.title, locale)}
                   className="flex flex-col gap-4"
                 >
-                  {/* The number stays on screen, locked — the same frame the registration
-                      contact step uses once a code is out — with the way back beside it.
-                      The DS disabled look minus the 50% dim on the value, since the number
-                      is the one fact this step is about. */}
-                  <Field>
-                    <FieldLabel htmlFor="sign-in-number">
-                      {pick(form.mobileLabel, locale)}
-                    </FieldLabel>
-                    <div className="flex gap-2">
-                      <InputGroup className="flex-1 has-disabled:bg-surface-sunken has-disabled:opacity-100 dark:has-disabled:bg-surface-sunken">
-                        <InputGroupAddon variant="field">
-                          <InputGroupText>+91</InputGroupText>
-                        </InputGroupAddon>
-                        <InputGroupInput
-                          id="sign-in-number"
-                          type="tel"
-                          value={mobile}
-                          disabled
-                          readOnly
-                          className="disabled:text-foreground disabled:opacity-100 disabled:[-webkit-text-fill-color:currentcolor]"
-                        />
-                      </InputGroup>
+                    {/* The way back, then the method — one plane under the heading.
+                        The locked number has left the step (owner, Sept 11): the OTP
+                        well still prints the number it sent to, and the password path
+                        never needed it on screen. The method strip fills the whole block,
+                        the way the field and button below it do; the back arrow sits
+                        outside that block on its left rather than eating into it — inline
+                        on a phone where there is no gutter, hung in the gutter from `sm`
+                        up where there is (owner, Sept 11). */}
+                    <div className="relative flex items-center gap-2 sm:block">
                       <Button
                         type="button"
                         variant="ghost"
-                        className="shrink-0"
+                        size="icon"
+                        className="shrink-0 sm:absolute sm:top-1/2 sm:right-full sm:mr-1 sm:-translate-y-1/2"
                         onClick={changeNumber}
+                        aria-label={pick(form.changeNumber, locale)}
                       >
-                        {pick(form.changeNumber, locale)}
+                        <ArrowLeftIcon aria-hidden />
                       </Button>
-                    </div>
-                  </Field>
-
-                    {/* Directly under the number, because the number is the one thing
-                        both methods share: you gave it, now you say how you will prove
-                        it is yours. Both options stay visible — recall is the wrong
-                        thing to ask of someone who signs in twice a year. */}
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span
-                        id={methodLabelId}
-                        className="text-body-compact font-medium"
-                      >
-                        {pick(form.methodLegend, locale)}
-                      </span>
-                      <SegmentedControl size="compact"
+                      <SegmentedControl
+                        className="w-full flex-1 sm:flex-none"
                         type="single"
                         value={method}
                         onValueChange={(value) => {
@@ -577,12 +551,13 @@ export function SignInBlock({
                           resetCode();
                           invalidate();
                         }}
-                        aria-labelledby={methodLabelId}
+                        aria-label={pick(form.methodLegend, locale)}
                       >
                         {METHOD_ORDER.map((m) => (
                           <SegmentedControlItem
                             key={m}
                             value={m}
+                            className="flex-1"
                           >
                             {pick(methods[m], locale)}
                           </SegmentedControlItem>
@@ -653,7 +628,12 @@ export function SignInBlock({
                         data-invalid={badCode}
                         className={cn("rounded-lg bg-surface-sunken p-4", SLIDE_FORWARD)}
                       >
-                        <FieldLabel>{pick(otp.label, locale)}</FieldLabel>
+                        {/* The description already says "a 6-digit code" — the label
+                            above it only repeated the phrase (owner, Sept 11). Kept for
+                            screen readers, dropped from view. */}
+                        <FieldLabel className="sr-only">
+                          {pick(otp.label, locale)}
+                        </FieldLabel>
                         <FieldDescription>
                           {pick(otp.subtitle, locale).replace("{number}", mobile)}
                         </FieldDescription>

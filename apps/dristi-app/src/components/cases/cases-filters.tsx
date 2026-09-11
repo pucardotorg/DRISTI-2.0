@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import type { CSSProperties } from "react";
 import { SearchIcon, SlidersHorizontalIcon, XIcon } from "lucide-react";
 
 import { AppliedChip } from "@/components/shell/applied-chip";
@@ -13,7 +14,6 @@ import {
   Sheet,
   SheetClose,
   SheetContent,
-  SheetDescription,
   SheetFooter,
   SheetHeader,
   SheetTitle,
@@ -33,6 +33,8 @@ import {
 } from "@/lib/cases/query";
 import { bucketLabel, type BucketKey, type CaseRecord } from "@/lib/cases/types";
 import { cn } from "@/lib/utils";
+
+import { CollapsibleLabel } from "./collapsible-label";
 
 type FilterPatch = Partial<
   Pick<CasesQuery, "status" | "bookmarked" | "type" | "stage" | "advocates" | "search" | "filed">
@@ -58,6 +60,7 @@ function CheckGroup<T extends string>({
   locked = false,
   note,
   searchable = false,
+  collapseAfter,
 }: {
   id: string;
   legend: string;
@@ -69,13 +72,31 @@ function CheckGroup<T extends string>({
   note?: string;
   /** A long list gets a small type-to-narrow box beside its legend. */
   searchable?: boolean;
+  /** A long list also shows only this many rows until "Show all" is pressed, so the
+   *  sheet does not open to a wall of names. Searching overrides the cap. */
+  collapseAfter?: number;
 }) {
   const [needle, setNeedle] = React.useState("");
-  const shown = searchable && needle.trim()
+  const [expanded, setExpanded] = React.useState(false);
+  const searching = searchable && Boolean(needle.trim());
+  const filtered = searching
     ? options.filter((option) =>
         option.label.toLowerCase().includes(needle.trim().toLowerCase())
       )
     : options;
+  // Cap the list only when it is long, not searched, and not already opened out. Ticked
+  // rows float to the top of the capped slice so a prior selection is never hidden.
+  const collapsed =
+    collapseAfter !== undefined && !searching && !expanded && filtered.length > collapseAfter;
+  const shown = collapsed
+    ? [...filtered]
+        .sort(
+          (a, b) =>
+            Number(value.includes(b.value)) - Number(value.includes(a.value))
+        )
+        .slice(0, collapseAfter)
+    : filtered;
+  const hiddenCount = collapsed ? filtered.length - shown.length : 0;
   return (
     <FieldSet className="gap-1">
       <div className="mb-1 flex items-center justify-between gap-3">
@@ -139,6 +160,23 @@ function CheckGroup<T extends string>({
           );
         })}
       </ul>
+      {collapseAfter !== undefined && !searching && (collapsed || expanded) ? (
+        <Button
+          type="button"
+          variant="link"
+          size="sm"
+          className="h-auto w-fit px-2 py-1"
+          onClick={() => setExpanded((open) => !open)}
+        >
+          {collapsed ? `Show all ${filtered.length}` : "Show fewer"}
+          {collapsed ? (
+            <span className="text-muted-foreground tabular-nums">
+              {" "}
+              ({hiddenCount} more)
+            </span>
+          ) : null}
+        </Button>
+      ) : null}
       {note ? (
         <p className="px-2 text-caption text-muted-foreground">{note}</p>
       ) : null}
@@ -146,49 +184,97 @@ function CheckGroup<T extends string>({
   );
 }
 
+/** The four filter groups the sheet controls, as a draft the sheet edits before it is
+ *  applied. Bookmarked and search live outside the sheet, so they are not part of it. */
+type FilterDraft = Pick<CasesQuery, "status" | "type" | "stage" | "advocates">;
+
+function draftFrom(query: CasesQuery): FilterDraft {
+  return {
+    status: query.status,
+    type: query.type,
+    stage: query.stage,
+    advocates: query.advocates,
+  };
+}
+
 /**
- * The Filters button and its sheet. Every filter applies as it is ticked — the
- * list behind the sheet is the preview — and the button carries the count of what
- * is on. The four groups are the four questions people were answering with tabs
- * and a column menu before: which status, which case type, which stage, whose.
+ * The Filters button and its sheet. Ticking a box no longer sorts the list — the real
+ * backend cannot re-sort on every tick, and a list reshuffling under the sheet is its
+ * own noise. The sheet edits a draft; Show cases hands the whole draft over at once
+ * (`onApply`), which the page then applies behind a short loading state. The button
+ * carries the count of what is actually applied, not the draft. The four groups are the
+ * four questions people answered with tabs and a column menu before: which status,
+ * which case type, which stage, whose.
  */
 export function CasesFiltersButton({
   query,
   cases,
   totals,
-  onChange,
+  onApply,
+  compact = false,
 }: {
   query: CasesQuery;
   cases: CaseRecord[];
   totals: Record<CaseStatus | "bookmarked", number>;
-  onChange: (patch: FilterPatch) => void;
+  onApply: (patch: FilterPatch) => void;
+  /** Collapse the trigger to the icon alone (the count rides as a corner badge) —
+   *  used when the case peek squeezes the toolbar. */
+  compact?: boolean;
 }) {
+  const [draft, setDraft] = React.useState<FilterDraft>(() => draftFrom(query));
+
+  function set<K extends keyof FilterDraft>(key: K, next: FilterDraft[K]) {
+    setDraft((current) => ({ ...current, [key]: next }));
+  }
+
   const applied = countAppliedFilters(query);
-  const stages = stageOptionsFor(query);
+  // Stage options and the group's label depend on the type/status in play — read them
+  // off the draft so ticking a type reshapes the stage list before anything applies.
+  const draftQuery: CasesQuery = { ...query, ...draft };
+  const stages = stageOptionsFor(draftQuery);
+  const draftCount = countAppliedFilters(draftQuery);
 
   return (
-    <Sheet>
+    // Re-seed the draft to what is applied each time the sheet opens, so a sheet closed
+    // without Show cases does not carry a stale draft into the next visit.
+    <Sheet onOpenChange={(next) => next && setDraft(draftFrom(query))}>
       <SheetTrigger asChild>
         <Button
           variant="outline"
-          className="shrink-0"
+          className={"shrink-0 gap-0 duration-300 " + (compact ? "px-2.5" : "px-4")}
           aria-label={`Filters${applied ? `, ${applied} applied` : ""}`}
         >
-          <SlidersHorizontalIcon data-icon="inline-start" aria-hidden />
-          Filters
+          <SlidersHorizontalIcon aria-hidden />
+          <CollapsibleLabel show={!compact}>Filters</CollapsibleLabel>
           {applied ? (
-            <span className="ml-1 inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-caption font-medium tabular-nums text-primary-foreground">
+            <span className="ms-1.5 inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-caption font-medium tabular-nums text-primary-foreground">
               {applied}
             </span>
           ) : null}
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="w-full sm:max-w-sm">
+      {/* Same motion as the case peek: a full slide in from the right, no dissolve
+          (owner, Sept 11). The DS sheet slides only 10 and fades; the tw-animate keyframes
+          read their travel and opacity off `@property` vars, so setting those inline (which
+          beats the class's `fade-in-0` / `slide-…-10`) holds opacity at 1 — no dissolve —
+          and makes the panel travel its full width, at the peek's 300ms ease-out. The scrim
+          still fades: the sheet comes over the page rather than pushing it, the one intended
+          difference. `aria-describedby` is cleared since the how-to copy is gone. */}
+      <SheetContent
+        side="right"
+        aria-describedby={undefined}
+        className="w-full duration-300 ease-out sm:max-w-sm"
+        style={
+          {
+            "--tw-enter-opacity": "1",
+            "--tw-exit-opacity": "1",
+            "--tw-enter-translate-x": "100%",
+            "--tw-exit-translate-x": "100%",
+          } as CSSProperties
+        }
+      >
         <SheetHeader>
           <SheetTitle className="text-title-s font-semibold">Filters</SheetTitle>
-          <SheetDescription className="text-body-compact">
-            Tick any number. The list behind this updates as you go.
-          </SheetDescription>
         </SheetHeader>
 
         <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-4 pb-4">
@@ -199,8 +285,8 @@ export function CasesFiltersButton({
               ...status,
               count: totals[status.value],
             }))}
-            value={query.status}
-            onChange={(status) => onChange({ status })}
+            value={draft.status}
+            onChange={(status) => set("status", status)}
           />
           {/* One case type today, so the box is ticked and locked: every case on
               the list is this kind, and a box that could be unticked would promise
@@ -209,8 +295,8 @@ export function CasesFiltersButton({
             id="cases-filter-type"
             legend="Case type"
             options={CASE_TYPES}
-            value={query.type}
-            onChange={(type) => onChange({ type })}
+            value={draft.type}
+            onChange={(type) => set("type", type)}
             locked={CASE_TYPES.length === 1}
             note={
               CASE_TYPES.length === 1
@@ -220,26 +306,29 @@ export function CasesFiltersButton({
           />
           <CheckGroup<BucketKey>
             id="cases-filter-stage"
-            legend={stageGroupLabel(query)}
+            legend={stageGroupLabel(draftQuery)}
             options={stages}
-            value={query.stage}
-            onChange={(stage) => onChange({ stage })}
+            value={draft.stage}
+            onChange={(stage) => set("stage", stage)}
           />
           <CheckGroup
             id="cases-filter-advocate"
             legend="Advocates on the case"
             options={advocateOptions(cases).map((name) => ({ value: name, label: name }))}
-            value={query.advocates}
-            onChange={(advocates) => onChange({ advocates })}
+            value={draft.advocates}
+            onChange={(advocates) => set("advocates", advocates)}
             searchable
+            collapseAfter={6}
           />
         </div>
 
         <SheetFooter className="flex-row items-center justify-between border-t border-hairline">
-          {applied ? (
+          {draftCount ? (
             <Button
               variant="ghost"
-              onClick={() => onChange({ status: [], type: [], stage: [], advocates: [] })}
+              onClick={() =>
+                setDraft({ status: [], type: query.type, stage: [], advocates: [] })
+              }
             >
               Clear filters
             </Button>
@@ -247,7 +336,7 @@ export function CasesFiltersButton({
             <span />
           )}
           <SheetClose asChild>
-            <Button>Show cases</Button>
+            <Button onClick={() => onApply(draft)}>Show cases</Button>
           </SheetClose>
         </SheetFooter>
       </SheetContent>
