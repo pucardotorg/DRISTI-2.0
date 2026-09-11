@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
+  caseSummaryFor,
   CASE_CHECK_COUNT,
   CASE_HEADER_TERMS,
   FACT_TERMS,
@@ -560,3 +561,60 @@ function dayAfter(day: string, delta: number): string {
   date.setUTCDate(date.getUTCDate() + delta);
   return date.toISOString().slice(0, 10);
 }
+
+describe("the summary agrees with the checks", () => {
+  /* The summary states the §138 windows on the chain and the checks raise findings about
+     them. Two views of one record: if they ever disagree, a magistrate sees a window read
+     "within" beside a warning that says it is not — or the reverse, which is worse. */
+  const today = "2026-09-11";
+
+  it("marks a window outside exactly when its check flags it", () => {
+    const pairs: [string, string][] = [
+      ["presentation", "presentation-window"],
+      ["notice", "notice-window"],
+      ["filing", "filing-window"],
+    ];
+    for (const complaint of REGISTER_QUEUE) {
+      const summary = caseSummaryFor(complaint.id, today)!;
+      const flagged = new Set(
+        (caseChecksFor(complaint.id, today) ?? [])
+          .filter((check) => check.class === "flag")
+          .map((check) => check.id),
+      );
+      for (const [windowId, checkId] of pairs) {
+        const window = summary.windows.find((w) => w.id === windowId)!;
+        assert.equal(
+          window.status === "outside",
+          flagged.has(checkId as never),
+          `${complaint.id}: ${windowId} reads ${window.status} but ${checkId} is ${flagged.has(checkId as never) ? "" : "not "}flagged`,
+        );
+      }
+    }
+  });
+
+  it("says condonation is sought only when the filing was late and the application is on file", () => {
+    for (const complaint of REGISTER_QUEUE) {
+      const filing = caseSummaryFor(complaint.id, today)!.windows.find(
+        (w) => w.id === "filing",
+      )!;
+      if (filing.status === "condonation-sought") {
+        assert.ok(filing.days > filing.limit, `${complaint.id}: condoning a filing that was in time`);
+      }
+      if (filing.status === "within") {
+        assert.ok(filing.days >= 0 && filing.days <= filing.limit, complaint.id);
+      }
+    }
+  });
+
+  it("lays the chain out oldest first", () => {
+    for (const complaint of REGISTER_QUEUE) {
+      const steps = caseSummaryFor(complaint.id, today)!.steps;
+      for (let index = 1; index < steps.length; index += 1) {
+        assert.ok(
+          steps[index - 1].on <= steps[index].on,
+          `${complaint.id}: ${steps[index - 1].label} (${steps[index - 1].on}) after ${steps[index].label} (${steps[index].on})`,
+        );
+      }
+    }
+  });
+});

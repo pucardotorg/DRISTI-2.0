@@ -160,33 +160,23 @@ export type CaseHeaderTerm =
   (typeof CASE_HEADER_TERMS)[keyof typeof CASE_HEADER_TERMS];
 
 /**
- * The four cells of the report's first statement — Scrutiny · Rounds · Took · Cleared
- * (brief D23).
+ * The names of the summary's five rows — what the magistrate's eye runs down.
  *
- * A third vocabulary, and small for the same reason `CASE_HEADER_TERMS` is: none of
- * these is an attribute of the *complaint*. They are attributes of the **scrutiny** that
- * cleared it — a different record, made by a different actor, which is exactly why D23
- * keeps the two statements apart instead of merging them into one count.
- *
- * Declared rather than typed at the call site, and asserted by `case-review.test.ts`
- * the same way the other two are: a fifth cell nobody sourced is how a report that
- * traces to a model starts reporting things nobody records.
- *
- * **"Cleared" carries the outcome in the term and the date in the value** — the shape
- * `Submitted` already uses in the header two panels up. It is safe because a complaint
- * reaches this queue *because* scrutiny cleared it; if a real backend ever routes one
- * here uncleared, `scrutinyFor` answers `undefined` and every cell says "Not recorded"
- * rather than quietly saying otherwise.
+ * Declared here rather than typed into the screen for the reason `FACT_TERMS` is: a label
+ * written at the call site is a label nobody sourced, and `case-review.test.ts` holds the
+ * screen to this list the way it holds the file view to `FACT_TERMS`. Five, and in the
+ * order the summary reads them — the instrument, whether it is in time, what is on the
+ * file, who the parties are, how scrutiny went.
  */
-export const CASE_SCRUTINY_TERMS = {
-  mode: "Scrutiny",
-  rounds: "Rounds",
-  took: "Took",
-  cleared: "Cleared",
+export const SUMMARY_TERMS = {
+  cheque: "The cheque",
+  inTime: "In time",
+  documents: "Documents",
+  parties: "Parties",
+  scrutiny: "Scrutiny",
 } as const;
 
-export type CaseScrutinyTerm =
-  (typeof CASE_SCRUTINY_TERMS)[keyof typeof CASE_SCRUTINY_TERMS];
+export type SummaryTerm = (typeof SUMMARY_TERMS)[keyof typeof SUMMARY_TERMS];
 
 /**
  * Who did the scrutiny — two members, rendered identically.
@@ -2425,6 +2415,228 @@ export function caseChecksFor(
     advocateOnRecordCheck(counselFor(complaint, "complainant").length),
     partPaymentCheck(marks.partPayment, amount, partAmount),
   ].filter((check): check is CaseCheck => check !== undefined);
+}
+
+/* ─────────────────────────── The summary (the glance) ─────────────────────────── */
+
+/** One dated step in the life of the cheque, in the order the statute counts them. */
+export type CaseSummaryStep = {
+  id:
+    | "dated"
+    | "presented"
+    | "returned"
+    | "notice-sent"
+    | "notice-served"
+    | "accrued"
+    | "filed";
+  label: string;
+  on: string;
+  onLabel: string;
+};
+
+/**
+ * One statutory window, measured. The three §138 limits the complaint must sit inside,
+ * each stated as the days it actually took against the days the law allows — so the
+ * magistrate reads the gap itself, not a verdict about it.
+ */
+export type CaseSummaryWindow = {
+  id: "presentation" | "notice" | "filing";
+  /** What the window measures, in the statute's terms. */
+  label: string;
+  /** The span it sits between, so the chain can draw it under the right steps. */
+  from: CaseSummaryStep["id"];
+  to: CaseSummaryStep["id"];
+  days: number;
+  limit: number;
+  /** The limit written the way the statute writes it — "3 months", "30 days". */
+  limitLabel: string;
+  status: CaseWindowStatus;
+};
+
+/**
+ * Where a measured span sits against its limit — a closed enum, because a boolean
+ * cannot say the thing that matters most on the filing window.
+ *
+ * - `within` — inside the limit.
+ * - `outside` — past it, and nothing on the file answers for it.
+ * - `early` — the filing window only: filed before the cause of action accrued, fifteen
+ *   days after service. §138(c) has not yet been breached, so there is nothing to
+ *   complain of.
+ * - `condonation-sought` — the filing window only: past the month, with an application
+ *   to condone the delay on the file. §142(b) lets the court take cognizance anyway if it
+ *   is satisfied there was sufficient cause — which is the magistrate's call, so the
+ *   screen states the application and never decides it.
+ */
+export type CaseWindowStatus = "within" | "outside" | "early" | "condonation-sought";
+
+export type CaseSummaryDocument = { key: CaseSlotKey; label: string; onFile: boolean };
+
+export type CaseSummary = {
+  cheque: {
+    amount: string;
+    number: string;
+    bank: string;
+    returnReason: string;
+    /** Paid towards the cheque before filing — `DemandNotice.partAmount`, when part. */
+    partPaid: string | null;
+  };
+  steps: CaseSummaryStep[];
+  windows: CaseSummaryWindow[];
+  complainant: { name: string; type: string };
+  accused: { name: string; type: string };
+  advocate: string | null;
+  documents: CaseSummaryDocument[];
+  /**
+   * Slots the form required that are empty and are not among the five above — named
+   * with whose they are, because two parties each file an "ID proof". The delay
+   * application is left out: the filing window already states whether it is on file.
+   */
+  otherMissing: { key: string; label: string }[];
+  scrutiny: CaseScrutiny | undefined;
+};
+
+/**
+ * The documents a §138 complaint stands on, in the order a reader checks them — the
+ * instrument, the proof it bounced, the demand, the proof the demand arrived, the
+ * sworn statement. The rest of the file's slots are real but are not what decides
+ * whether this complaint can be registered; they stay in the full file.
+ */
+const SUMMARY_DOCUMENTS: { key: CaseSlotKey; label: string }[] = [
+  { key: "dishonoured-cheque", label: "Cheque" },
+  { key: "return-memo", label: "Return memo" },
+  { key: "demand-notice", label: "Legal notice" },
+  { key: "service-proof", label: "Proof of service" },
+  { key: "s225-affidavit", label: "Affidavit" },
+];
+
+/**
+ * What the magistrate needs to decide from the summary alone.
+ *
+ * Built from the same private helpers `caseReviewFor` uses — the same chain, the same
+ * bank, the same cheque number, the same marks — so the summary and the full file are
+ * two views of one record and cannot disagree. Nothing here is composed prose: every
+ * value is a field, and the three windows are numbers the screen lays out rather than
+ * sentences it prints.
+ */
+export function caseSummaryFor(
+  id: string,
+  today: string,
+): CaseSummary | undefined {
+  const complaint = registerCaseById(id);
+  if (!complaint) return undefined;
+
+  const seed = serialOf(complaint.caseNumber);
+  const marks = marksFor(complaint.id);
+  const submittedOn = shiftDay(today, -complaint.daysSinceSubmitted);
+  const chain = chainFor(submittedOn, seed, marks.delayed, marks.depositedLate);
+  const amount = chequeAmountFor(seed);
+  const payer = bankFor(seed, 2);
+  const counsel = counselFor(complaint, "complainant");
+
+  const step = (
+    stepId: CaseSummaryStep["id"],
+    label: string,
+    on: string,
+  ): CaseSummaryStep => ({ id: stepId, label, on, onLabel: formatCaseDate(on) });
+
+  const presentation = daysBetween(chain.chequeOn, chain.depositedOn);
+  const notice = daysBetween(chain.returnedOn, chain.noticeSentOn);
+  const applicationOnFile =
+    marks.delayed && !marks.missing.includes("delay-application");
+  const filingStatus: CaseWindowStatus =
+    chain.sinceAccrual < 0
+      ? "early"
+      : chain.sinceAccrual <= FILING_WINDOW_DAYS
+        ? "within"
+        : applicationOnFile
+          ? "condonation-sought"
+          : "outside";
+
+  return {
+    cheque: {
+      amount: formatChequeAmount(amount),
+      number: String(numberOf(seed, 3, 6)),
+      bank: payer.name,
+      returnReason: RETURN_REASONS[marks.returnReason],
+      partPaid: marks.partPayment ? formatChequeAmount(partAmountFor(amount)) : null,
+    },
+    steps: [
+      step("dated", "Cheque dated", chain.chequeOn),
+      step("presented", "Presented", chain.depositedOn),
+      step("returned", "Returned unpaid", chain.returnedOn),
+      step("notice-sent", "Notice sent", chain.noticeSentOn),
+      step("notice-served", "Notice served", chain.noticeServedOn),
+      /* Fifteen days after service, unpaid — the day the offence is complete and the
+         filing month starts. Shown as its own step so the last window can be checked by
+         eye from the two dates either side of it, rather than taken on trust. */
+      step("accrued", "Cause of action", chain.accruedOn),
+      step("filed", "Complaint filed", chain.submittedOn),
+    ],
+    windows: [
+      {
+        id: "presentation",
+        label: "Presented",
+        from: "dated",
+        to: "presented",
+        days: presentation,
+        limit: PRESENTATION_WINDOW_DAYS,
+        limitLabel: "3 months",
+        status: presentation <= PRESENTATION_WINDOW_DAYS ? "within" : "outside",
+      },
+      {
+        id: "notice",
+        label: "Notice sent",
+        from: "returned",
+        to: "notice-sent",
+        days: notice,
+        limit: NOTICE_WINDOW_DAYS,
+        limitLabel: "30 days",
+        status: notice <= NOTICE_WINDOW_DAYS ? "within" : "outside",
+      },
+      {
+        id: "filing",
+        label: "Filed",
+        from: "accrued",
+        to: "filed",
+        /* Counted from the day the cause of action accrued — fifteen days after
+           service — which is where the statute's month starts, not from service. */
+        days: chain.sinceAccrual,
+        limit: FILING_WINDOW_DAYS,
+        limitLabel: "1 month",
+        status: filingStatus,
+      },
+    ],
+    complainant: {
+      name: complaint.parties.complainant,
+      type: LITIGANT_TYPES[marks.complainantType],
+    },
+    accused: {
+      name: complaint.parties.accused,
+      type: LITIGANT_TYPES.institution,
+    },
+    advocate: counsel[0]?.name ?? null,
+    documents: SUMMARY_DOCUMENTS.map((doc) => ({
+      ...doc,
+      onFile: !marks.missing.includes(doc.key),
+    })),
+    otherMissing: marks.missing
+      .filter(
+        (key) =>
+          key !== "delay-application" &&
+          !SUMMARY_DOCUMENTS.some((doc) => doc.key === key),
+      )
+      .map((key) => {
+        const spec = caseSlotFor(key);
+        const whose = spec?.head.replace(/ details$/, "");
+        return {
+          key,
+          /* The slot's label exactly as the form writes it — lower-casing it for the
+             possessive mangles acronyms ("iD proof"). */
+          label: spec ? `${whose}'s ${spec.label}` : key,
+        };
+      }),
+    scrutiny: scrutinyFor(id, today),
+  };
 }
 
 /**

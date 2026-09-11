@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
+  SUMMARY_TERMS,
   CASE_REVIEW_STATUS,
   FACT_TERMS,
   FILING_WINDOW_DAYS,
@@ -179,13 +180,12 @@ describe("terms are attributes the file names", () => {
        term typed into a screen would be an attribute invented outside the model, which
        is exactly the defect this file's §5a census found.
 
-       **Two places may write a term now, not one** (brief D13, 2026-09-11). The file
-       view's fact rows are the original; the glance's finding detail is the second — it
-       lists the entered values a check compared, and those are the file's own attributes
-       or the header's, never words composed for the finding. Both are asserted the same
-       way: whatever is inside a `<DescriptionTerm>` must be an interpolation, so a
-       literal cannot get in unnoticed at either. A third rendering site is a deliberate
-       change and should arrive with a reason. */
+       **One place writes a fact's term** (2026-09-11). The file view's fact rows are the
+       only site; the glance's finding detail that was the second is gone — the summary
+       states its facts on the rows they belong to, under its own five names (asserted
+       below). Whatever is inside a `<DescriptionTerm>` must be an interpolation, so a
+       literal cannot get in unnoticed; a second rendering site is a deliberate change
+       and should arrive with a reason. */
     const files = [
       "../../components/employee/case-file-screen.tsx",
       "../../components/employee/case-review-screen.tsx",
@@ -206,39 +206,27 @@ describe("terms are attributes the file names", () => {
         );
       }
     }
-    assert.equal(rendered, 2, "the fact rows and a finding's values, and nothing else");
+    assert.equal(rendered, 1, "the file view's fact rows, and nothing else");
   });
 
-  it("leaves no header term string in the screen either", () => {
-    /* The four cells above the file are the page's own context rather than the
-       complaint's attributes, so they are a second, smaller vocabulary — and the same
-       rule reaches them. "Court" typed into the header is how a fifth cell nobody
-       sourced gets added. */
-    const shared = readFileSync(
-      new URL("../../components/employee/case-review-shared.tsx", import.meta.url),
-      "utf8",
-    );
-    const cells = [...shared.matchAll(/<CaseHeaderCell\s+term=\{([^}]+)\}/g)];
-    assert.equal(cells.length, 4, "Court · Amount · Submitted · Waiting");
-    for (const cell of cells) {
-      assert.match(cell[1].trim(), /^CASE_HEADER_TERMS\./, cell[1]);
-    }
-  });
-
-  it("leaves no scrutiny term string in the report either", () => {
-    /* The same rule reaching the third and last vocabulary (brief D23). The report's four
-       cells are the header's own component, so they could take a typed string just as
-       easily — and a fifth cell nobody sourced is how a report that traces to a model
-       starts reporting things nobody records. */
-    const report = readFileSync(
+  it("names the summary's rows from the model, never from the screen", () => {
+    /* The same rule reaching the summary. Its five rows are what the magistrate's eye
+       runs down, and a sixth typed into the screen is how a summary that traces to a
+       model starts showing things nobody declared. */
+    const screen = readFileSync(
       new URL("../../components/employee/case-review-screen.tsx", import.meta.url),
       "utf8",
     );
-    const cells = [...report.matchAll(/<CaseHeaderCell\s+term=\{([^}]+)\}/g)];
-    assert.equal(cells.length, 4, "Scrutiny · Rounds · Took · Cleared");
-    for (const cell of cells) {
-      assert.match(cell[1].trim(), /^CASE_SCRUTINY_TERMS\./, cell[1]);
+    const rows = [...screen.matchAll(/<SummaryRow\b[^>]*\bterm=\{([^}]+)\}/g)];
+    assert.equal(rows.length, Object.keys(SUMMARY_TERMS).length, "one row per term");
+    for (const row of rows) {
+      assert.match(row[1].trim(), /^SUMMARY_TERMS\./, row[1]);
     }
+    assert.doesNotMatch(
+      screen,
+      /<SummaryRow\b[^>]*\bterm="/,
+      "a summary row with a typed label",
+    );
   });
 });
 

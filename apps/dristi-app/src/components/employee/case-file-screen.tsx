@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
-import { FileTextIcon, HistoryIcon } from "lucide-react";
+import { FileTextIcon } from "lucide-react";
 
 import { DocumentPreview } from "@/components/cases/document-preview";
 import {
@@ -102,7 +102,6 @@ export function CaseFileRegion({
   review: CaseReview;
 }) {
   const wide = useIsWide();
-  const [history, setHistory] = React.useState(false);
   const [selected, setSelected] = React.useState<PaneSelection | null>(null);
   const [overlay, setOverlay] = React.useState(false);
   /* The control that opened the overlay, so closing it puts focus back rather than
@@ -160,29 +159,16 @@ export function CaseFileRegion({
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      {/* The timeline hangs off the file rather than the page header (brief D8, D21):
-          two of its steps duplicate header cells, one is conditional, and one tells the
-          magistrate that the decision he is here to take has not been taken. None of
-          that is worth permanent chrome on the glance, and all of it is worth having to
-          someone who has already opened the file. */}
-      <div className="flex min-w-0 justify-end">
-        <Button variant="outline" onClick={() => setHistory(true)}>
-          <HistoryIcon data-icon="inline-start" aria-hidden />
-          Case timeline
-        </Button>
-      </div>
-
       {/* Two columns from `xl`, one below it. At 1280 the content box is 1280 − 256
           (rail) − 64 (`md:p-8`) = 960; less a 32px gap, a `minmax(20rem,26rem)` pane
           leaves the claims 512–608px. At 1024 the same sum leaves 272px, which is the
           defect the split was moved off `lg` for. */}
-      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)] xl:gap-8">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_30rem] xl:gap-8">
         <div className="flex min-w-0 flex-col gap-8">
           {review.sections.map((section, index) => (
             <CaseSectionBlock
               key={section.id}
               section={section}
-              number={index + 1}
               selectedRow={inGroup?.row}
               onOpen={open}
             />
@@ -192,7 +178,12 @@ export function CaseFileRegion({
         {wide ? (
           /* The pane clears the sticky strip as well as the chrome — `--file-sticky-top`
              is published by the disclosure that owns that strip. */
-          <div className="min-w-0 xl:sticky xl:top-(--file-sticky-top) xl:self-start">
+          <div
+            /* `mt-6` is the section label above the first panel — its 16px line plus the
+               section's `gap-2` — so the pane's top edge meets the first panel's rather
+               than floating level with a caption. */
+            className="min-w-0 xl:sticky xl:top-(--file-sticky-top) xl:mt-6 xl:self-start"
+          >
             {pane}
           </div>
         ) : null}
@@ -217,11 +208,6 @@ export function CaseFileRegion({
         />
       )}
 
-      <CaseTimelineSheet
-        steps={review.timeline}
-        open={history}
-        onOpenChange={setHistory}
-      />
     </div>
   );
 }
@@ -474,12 +460,10 @@ function anchorFor(sectionId: string): string {
  */
 function CaseSectionBlock({
   section,
-  number,
   selectedRow,
   onOpen,
 }: {
   section: CaseSection;
-  number: number;
   selectedRow: string | undefined;
   onOpen: OpenPane;
 }) {
@@ -489,16 +473,19 @@ function CaseSectionBlock({
     <section
       id={anchorFor(section.id)}
       aria-labelledby={headingId}
-      className={cn("flex min-w-0 flex-col gap-4", SCROLL_REST)}
+      className={cn("flex min-w-0 flex-col gap-2", SCROLL_REST)}
     >
+      {/* An eyebrow, not a heading at the panels' size. The section and the group
+          titles below it were both 16px/600, so nothing told a reader which was the
+          container and which the thing contained. The section is a label for a run of
+          panels; the panel title is what a reader is looking for. */}
       <h2
         id={headingId}
-        className="flex min-w-0 items-baseline gap-2 text-body font-semibold"
+        className="text-caption font-semibold text-muted-foreground"
       >
-        <span className="tabular-nums text-muted-foreground">{number}.</span>
-        <span className="min-w-0">{section.title}</span>
+        {section.title}
       </h2>
-      <div className="flex min-w-0 flex-col gap-6">
+      <div className="flex min-w-0 flex-col gap-4">
         {section.groups.map((group) => (
           <CaseGroupPanel
             key={group.id}
@@ -541,6 +528,14 @@ function CaseGroupPanel({
 }) {
   const Icon = group.icon;
   const headingId = `case-group-heading-${group.id}`;
+  /* A group that holds exactly one record — the cheque, the complainant, the accused —
+     used to print the group's title and then the record's name as a second heading row
+     directly beneath it, both at 16px. The record's name is what the group is *about*,
+     so it becomes the title block's second line; only a group listing several records
+     (witnesses, advocates) keeps a heading per record, because there the names are what
+     tell the blocks apart. */
+  const sole =
+    group.records?.length === 1 ? group.records[0] : undefined;
 
   /* Every block this panel holds, in reading order, so the rule between them is decided
      once by position rather than twice by which shape the data happened to take. A
@@ -553,8 +548,8 @@ function CaseGroupPanel({
         key={record.id}
         blockId={record.id}
         group={group.id}
-        heading={record.heading}
-        tag={record.tag}
+        heading={sole ? undefined : record.heading}
+        tag={sole ? undefined : record.tag}
         /* "1." above a lone complainant counts nothing, so the ordinal appears only
            where there is more than one of something. */
         ordinal={(group.records?.length ?? 0) > 1 ? index + 1 : undefined}
@@ -592,14 +587,22 @@ function CaseGroupPanel({
     >
       <div className="flex min-w-0 items-center gap-3">
         <span
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-muted-foreground"
+          className="flex size-8 shrink-0 items-center justify-center self-start rounded-lg bg-surface-sunken text-muted-foreground"
           aria-hidden
         >
           <Icon className="size-4" />
         </span>
-        <h3 id={headingId} className="min-w-0 text-body font-semibold">
-          {group.title}
-        </h3>
+        <div className="flex min-w-0 flex-col">
+          <h3 id={headingId} className="min-w-0 text-body font-semibold">
+            {group.title}
+          </h3>
+          {sole?.heading ? (
+            <p className="flex min-w-0 flex-wrap items-center gap-x-2 text-body-compact text-muted-foreground">
+              <span className="min-w-0">{sole.heading}</span>
+              {sole.tag ? <Badge variant="secondary">{sole.tag}</Badge> : null}
+            </p>
+          ) : null}
+        </div>
       </div>
 
       {group.empty ? <CaseAbsenceNote absence={group.empty} /> : null}
@@ -1158,13 +1161,13 @@ function PaneTabs({
          and its overflow scrolls rather than stretching the pane; `justify-start`
          overrides its centring, so two tabs sit at the left edge instead of floating
          mid-strip, orphaned from the document below. */
-      className="w-full min-w-0 flex-nowrap justify-start gap-1 overflow-x-auto p-0 group-data-horizontal/tabs:h-10"
+      className="w-full min-w-0 flex-nowrap justify-start gap-0 overflow-x-auto p-0 group-data-horizontal/tabs:h-10"
     >
       {documents.map((document) => (
         <TabsTrigger
           key={document.key}
           value={document.key}
-          className="h-10 flex-none gap-1.5 rounded-b-none px-3 text-body-compact group-data-horizontal/tabs:after:-bottom-px"
+          className="h-10 flex-none gap-1.5 rounded-b-none px-2 text-body-compact group-data-horizontal/tabs:after:-bottom-px"
         >
           {document.ordinal ? (
             <span className="tabular-nums text-muted-foreground">
@@ -1350,76 +1353,3 @@ function CaseDocumentOverlay({
 }
 
 /* ────────────────────────────── the timeline ────────────────────────────── */
-
-/**
- * How far the complaint has got — behind a control, and only on this region.
- *
- * Oldest first, the same direction the case history on a listing's overview runs, so the
- * two columns on the same side of the app agree about which end is the present. What the
- * steps *are* lives with the file (`timelineFor` in `case-review.ts`), where each one
- * names the field or the spine step it comes from.
- *
- * It left the standing layout because of what it holds (brief D8, D21): two steps
- * duplicate header cells, one is conditional, and one is the decision the magistrate is
- * here to take. **Two more left it on 2026-09-11** — *Taken up for scrutiny* and
- * *Scrutiny completed*, both fabricated from a modulo on the wait, replaced by the
- * report's four sourced cells (brief D23).
- *
- * The second line of a step is three different kinds of thing, so it is rendered by three
- * branches rather than handed over as one pre-formatted string. That is what lets a day
- * be a `<time>` a machine can read and the wait be counted rather than quoted.
- */
-function CaseTimelineSheet({
-  steps,
-  open,
-  onOpenChange,
-}: {
-  steps: CaseReview["timeline"];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="data-[side=right]:sm:max-w-100">
-        <SheetHeader>
-          <SheetTitle>Case timeline</SheetTitle>
-          <SheetDescription className="text-body-compact">
-            What the court records about this complaint, oldest first.
-          </SheetDescription>
-        </SheetHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-          <Timeline>
-            {steps.map((step) => (
-              <TimelineItem
-                key={step.label}
-                status={step.status}
-                title={step.label}
-                description={<CaseTimelineDetailText detail={step.detail} />}
-              />
-            ))}
-          </Timeline>
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-}
-
-/** The second line of a timeline step — a day, a duration, or the name of a state. */
-function CaseTimelineDetailText({ detail }: { detail: CaseTimelineDetail }) {
-  switch (detail.kind) {
-    case "date":
-      return (
-        <time dateTime={detail.on} className="tabular-nums">
-          {formatCaseDate(detail.on)}
-        </time>
-      );
-    case "elapsed":
-      /* Counted here rather than quoted from the file, so the number is a number: the
-         wait is the one figure on this panel that changes every day. */
-      return (
-        <span className="tabular-nums">{formatDaysWaitingLong(detail.days)}</span>
-      );
-    case "state":
-      return <span>{detail.state}</span>;
-  }
-}

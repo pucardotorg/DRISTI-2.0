@@ -16,7 +16,6 @@ import {
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  CASE_HEADER_TERMS,
   type CaseDocumentKind,
   type CaseReview,
 } from "@/lib/employee/case-review";
@@ -24,7 +23,6 @@ import {
    register already exports this for, and the case the header's cell is. Not a fourth
    `formatDaysWaiting`: a new function returning a different string under a name two
    sibling modules already use is how two screens start counting differently. */
-import { formatWaitingDuration } from "@/lib/employee/register-advocates";
 import { cn } from "@/lib/utils";
 
 /**
@@ -56,29 +54,15 @@ export const PANEL =
   "min-w-0 rounded-xl border border-hairline bg-card p-6 shadow-raised";
 
 /**
- * The height of the strip the way in becomes once the file is open — twice, because the
- * scroll offset below is arithmetic on it and a pair of numbers that must agree should
- * be readable together (`app-chrome.tsx`'s own `BAR` / `BAR_HEIGHT` pattern).
+ * The tab row's height, and where content inside the file comes to rest when a deep
+ * link or the reading index jumps to it. The page scrolls under the chrome bar (56px)
+ * and the tab row sticks directly beneath it, so a head resting at the chrome's own
+ * offset would land under the tabs. `--file-sticky-top` is the bar, the row, and a
+ * little air; the file region reads it as `scroll-mt-(--file-sticky-top)` and its
+ * sticky document pane as `top-(--file-sticky-top)`.
  */
-export const FILE_STRIP = "h-12";
-const FILE_STRIP_HEIGHT = "3rem";
-
-/**
- * Where a heading inside the file comes to rest when a deep link jumps to it, published
- * by the disclosure as `--file-sticky-top` and read as `scroll-mt-(--file-sticky-top)`.
- *
- * **The chrome is no longer the only thing above the file** (brief D25). The way in
- * becomes a sticky strip flush under the bar once the file is open, so a head resting at
- * `--chrome-sticky-top` would land underneath it — the defect the chrome's own offset was
- * published to avoid, one layer down. The offset a head wants is now "the bar, the strip,
- * then the air I would have left anyway", which is `--chrome-sticky-top` (bar + air) plus
- * the strip — and only the screen that owns the strip knows that last part.
- *
- * A custom property rather than an exported class string, for the reason `app-chrome.tsx`
- * gives for the first one: Tailwind builds from the literal text in the source, so a
- * screen writing `xl:${SOMETHING}` produces a class no stylesheet contains.
- */
-export const FILE_STICKY_TOP = `calc(var(--chrome-sticky-top) + ${FILE_STRIP_HEIGHT})`;
+export const TAB_ROW = "group-data-horizontal/tabs:h-11";
+export const FILE_STICKY_TOP = "calc(3.5rem + 2.75rem + 1rem)";
 export const SCROLL_REST = "scroll-mt-(--file-sticky-top)";
 
 /**
@@ -94,35 +78,25 @@ export const SCROLL_REST = "scroll-mt-(--file-sticky-top)";
 export function CaseReviewShell({
   review,
   hasCounsel,
-  gap,
   children,
 }: {
   review: CaseReview;
   /** Whether anyone is on record for the complainant — the send-back's recipient. */
   hasCounsel: boolean;
-  /** The page's own step between regions. One route now, so one value (brief D25). */
-  gap: "gap-6" | "gap-8";
   children: React.ReactNode;
 }) {
   const decision = useCaseDecision();
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-muted dark:bg-background">
-      <div
-        className={cn(
-          "flex min-w-0 flex-1 flex-col p-6 pb-0 md:p-8 md:pb-0",
-          gap,
-        )}
-      >
-        <CaseReviewHeader review={review} />
+      <div className="flex min-w-0 flex-1 flex-col gap-6 px-6 pt-6 pb-12 md:px-8 md:pt-8">
+        <CaseReviewHeader review={review} decision={decision} />
         {decision.stage === null ? (
           children
         ) : (
           <CaseDecisionStage decision={decision} hasCounsel={hasCounsel} />
         )}
       </div>
-
-      <CaseDecisionBand decision={decision} />
     </div>
   );
 }
@@ -155,92 +129,44 @@ export function CaseReviewShell({
  * against the rows above it — and there is nothing here to compare against: one file,
  * one wait (`ui-craft` §1.4).
  */
-function CaseReviewHeader({ review }: { review: CaseReview }) {
+function CaseReviewHeader({
+  review,
+  decision,
+}: {
+  review: CaseReview;
+  decision: CaseDecision;
+}) {
   return (
     <header
-      className={cn(PANEL, "flex flex-col gap-4")}
+      className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between md:gap-8"
       aria-labelledby="case-review-title"
     >
-      {/* Nothing sits beside the title any more. The timeline control used to, on the
-          file view only; it now hangs off the file region itself, which is the only place
-          it makes sense (brief D8, D21) — and a header slot with one conditional
-          occupant is a slot waiting to be filled with something that does not belong. */}
-      <div className="flex min-w-0 flex-col gap-2">
-        <p className="text-caption font-medium tabular-nums text-muted-foreground">
+      <div className="flex min-w-0 flex-col gap-1">
+        <p className="text-body-compact tabular-nums text-muted-foreground">
           {review.caseNumber}
         </p>
         <h1
           id="case-review-title"
-          className="text-balance font-semibold text-title sm:text-title-l"
+          className="text-balance font-semibold text-title"
         >
           {review.title}
         </h1>
       </div>
-
-      {/* Two across on a phone, four from `sm` — the DS's own "single column by default,
-          multi-column only when there is room" rule (`RESPONSIVE.md`). The hairline is
-          the only stroke: the cells are separated by the grid, not by rules between
-          them. */}
-      <dl className="grid grid-cols-2 gap-4 border-t border-hairline pt-4 sm:grid-cols-4">
-        <CaseHeaderCell term={CASE_HEADER_TERMS.court} value={review.court} />
-        <CaseHeaderCell
-          term={CASE_HEADER_TERMS.amount}
-          value={review.amount}
-          numeric
-        />
-        <CaseHeaderCell
-          term={CASE_HEADER_TERMS.submitted}
-          value={review.submittedOnLabel}
-          numeric
-        />
-        <CaseHeaderCell
-          term={CASE_HEADER_TERMS.waiting}
-          value={formatWaitingDuration(review.daysSinceSubmitted)}
-          numeric
-        />
-      </dl>
+      {decision.stage === null ? (
+        <div className="flex shrink-0 flex-col-reverse gap-3 sm:flex-row">
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={() => decision.go("send-back")}
+          >
+            Send back for correction
+          </Button>
+          <Button type="button" onClick={() => decision.go("register")}>
+            Register case
+          </Button>
+        </div>
+      ) : null}
     </header>
-  );
-}
-
-/**
- * One label-over-value cell.
- *
- * Label above rather than beside: four of these across a wide sheet with the terms in a
- * column of their own would be a `DescriptionList`, and a description list of four rows
- * that never grows is a grid drawn around nothing. `text-caption` term over
- * `text-body-compact` value is the same pair the file's own rows use, one size apart, so
- * the header does not introduce a fifth type role for four strings.
- *
- * `<div>` between `<dl>` and `<dt>` is the HTML5 grouping form, which is what lets each
- * pair be a grid cell without breaking the list semantics.
- *
- * **Exported for the report's scrutiny cells** (brief D23, D28's pass 7). Four cells
- * saying how the complaint was scrutinised are label-over-value facts exactly as the
- * header's four are, and one label-over-value grammar on one screen is the whole of that
- * pass — the alternative was a second shape eight pixels apart doing the same job.
- */
-export function CaseHeaderCell({
-  term,
-  value,
-  numeric,
-}: {
-  term: string;
-  value: string;
-  numeric?: boolean;
-}) {
-  return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <dt className="text-caption font-medium text-muted-foreground">{term}</dt>
-      <dd
-        className={cn(
-          "min-w-0 wrap-break-word text-body-compact",
-          numeric && "tabular-nums",
-        )}
-      >
-        {value}
-      </dd>
-    </div>
   );
 }
 
@@ -274,114 +200,6 @@ function useCaseDecision(): CaseDecision {
   };
 }
 
-/**
- * The two decisions this file is waiting for, at the foot of both views.
- *
- * **The word is "register"** (brief §5a.7, owner 2026-09-10). The rail row, the queue,
- * the brief and the timeline's last step all say register; "Admit" was a fourth verb for
- * the same act on the one screen that performs it, which is how two vocabularies start.
- * Registering a complaint is taking cognizance under BNSS §210.
- *
- * **There is no `Dismiss`** (brief D9, D19). Two outcomes were named by the owner —
- * register, or send back to the advocate for correction — and dismissal was not one of
- * them. He has *separately* said the screen should guide a magistrate to "either dismiss
- * or accept", which is either loose phrasing for the send-back or a real third act;
- * **brief §12.9 is that question and it is his to answer.** An act with no product basis
- * is furniture, and a design that invented a judicial outcome would be the worst kind.
- *
- * Both controls open a stage rather than performing anything. What is `aria-disabled` is
- * the **act** at the end of each stage — brief §12.4 keeps both unbuilt until product
- * says what Register writes and what number the complaint receives. `aria-disabled`
- * rather than `disabled`, following the distinction the cause list already draws: a live
- * precondition takes `disabled`, an unbuilt promise stays focusable so a reader who tabs
- * into the band meets the control and its state.
- *
- * One teal, spent on Register. Send back is the DS's **soft** `destructive` and never
- * `destructive-solid`, which the DS reserves for a confirmed irreversible act — a
- * send-back is reversible by design, the advocate corrects and refiles.
- */
-function CaseDecisionBand({ decision }: { decision: CaseDecision }) {
-  return (
-    <footer className="sticky bottom-0 z-30 mt-8 border-t border-hairline bg-card px-6 py-3 md:px-8 md:py-4">
-      {/* Stacked at 375 in the DS's own order — `DialogFooter` is
-          `flex-col-reverse … sm:flex-row sm:justify-end`, so the decision that ends the
-          row on a wide screen is the one at the top of the stack on a narrow one, and a
-          court-side footer does not invent a second convention for the same shape. */}
-      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-        {decision.stage === null ? (
-          <>
-            <Button
-              type="button"
-              variant="destructive"
-              className="w-full sm:w-fit"
-              onClick={() => decision.go("send-back")}
-            >
-              Send back for correction
-            </Button>
-            <Button
-              type="button"
-              className="w-full sm:w-fit"
-              onClick={() => decision.go("register")}
-            >
-              Register case
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full sm:w-fit"
-              onClick={() => decision.go(null)}
-            >
-              Back
-            </Button>
-            {decision.stage === "send-back" ? (
-              /* The act, held for two different reasons, and the stage says both out
-                 loud rather than leaving a reader to guess which dimming is which: the
-                 reason gate speaks in the field (`FieldError`, once the box has been
-                 typed in and emptied), and that the act itself is unbuilt is the caption
-                 at the foot of the stage, named here so a screen reader hears it on the
-                 control rather than only on the way past. */
-              <Button
-                type="button"
-                variant="destructive"
-                aria-disabled
-                aria-describedby="case-send-back-unbuilt"
-                className="w-full sm:w-fit aria-disabled:opacity-50 aria-disabled:hover:bg-destructive aria-disabled:active:translate-y-0"
-              >
-                Send back for correction
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                aria-disabled
-                aria-describedby="case-register-unbuilt"
-                className="w-full sm:w-fit aria-disabled:opacity-50 aria-disabled:hover:bg-primary aria-disabled:active:translate-y-0"
-              >
-                Register case
-              </Button>
-            )}
-          </>
-        )}
-      </div>
-    </footer>
-  );
-}
-
-/**
- * The act, before it is taken — one focused column, on the page rather than over it.
- *
- * Register is irreversible and takes a confirmation; sending back is reversible and
- * takes only its reason, so there is no second confirm on it (brief D9, D10). Neither
- * stage is a dialog: the register-advocates overlay took stages for the same reason and
- * for the same owner, and this page has no overlay to be modal *over*.
- *
- * **Nothing here claims an act the product cannot perform.** Register says what taking
- * cognizance is and stops — it does not say a number is issued, because nobody has said
- * what number that is (brief §12.4) — and the send-back says the reason goes to the
- * advocate and nothing more, because no notification channel is decided.
- */
 function CaseDecisionStage({
   decision,
   hasCounsel,
@@ -479,9 +297,38 @@ function CaseDecisionStage({
           </div>
         </section>
 
+        {/* The stage's own controls — Back, and the act itself, held. They used to live
+            in a sticky band pinned to the viewport, which covered whatever was focused
+            near the foot of the page; the act belongs to the question it answers. */}
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <Button type="button" variant="ghost" onClick={() => decision.go(null)}>
+            Back
+          </Button>
+          {sending ? (
+            <Button
+              type="button"
+              variant="destructive"
+              aria-disabled
+              aria-describedby="case-send-back-unbuilt"
+              className="aria-disabled:opacity-50 aria-disabled:hover:bg-destructive aria-disabled:active:translate-y-0"
+            >
+              Send back for correction
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              aria-disabled
+              aria-describedby="case-register-unbuilt"
+              className="aria-disabled:opacity-50 aria-disabled:hover:bg-primary aria-disabled:active:translate-y-0"
+            >
+              Register case
+            </Button>
+          )}
+        </div>
+
         {/* Said once, at the end, outside the card that carries the question — the same
-            place and the same voice the advocate queue's end states use. The band's
-            control is `aria-disabled` and this is the sentence that says why. */}
+            place and the same voice the advocate queue's end states use. The act is
+            `aria-disabled` and this is the sentence that says why. */}
         <p
           id={sending ? "case-send-back-unbuilt" : "case-register-unbuilt"}
           className="text-center text-caption text-pretty text-muted-foreground"
