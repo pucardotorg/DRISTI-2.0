@@ -217,7 +217,7 @@ function CasePeekBody({
       {/* No eyebrow — the panel is plainly a case, and "Case peek" only named the
           mechanism (owner, Sept 11). Close is the bare cross, top-right on the title's
           line. The tab row below carries the only divider; the header runs into it. */}
-      <header className="flex flex-col gap-4 p-6 pb-5">
+      <header className="flex flex-col gap-4 p-6 pb-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-1.5">
             <h2

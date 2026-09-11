@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
  */
 export function AppliedChip({ label, onClear }: { label: string; onClear: () => void }) {
   return (
-    <span className="inline-flex h-10 shrink-0 items-center gap-1 rounded-full bg-surface-sunken pl-3.5 pr-1 text-body-compact font-medium text-foreground">
+    <span className="inline-flex h-10 shrink-0 items-center gap-1 rounded-full bg-surface-sunken pl-4 pr-1 text-body-compact font-medium text-foreground">
       {label}
       <Button
         variant="ghost"
