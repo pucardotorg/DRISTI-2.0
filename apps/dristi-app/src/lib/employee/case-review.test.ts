@@ -13,6 +13,10 @@ import {
   PRESENTATION_WINDOW_DAYS,
   caseChainFor,
   caseBundleFor,
+  caseFileGroups,
+  chunkFacts,
+  CASE_FILE_CHUNKS,
+  CASE_FILE_ORDER,
   caseReviewFor,
   caseSlotFor,
   daysBetween,
@@ -1198,5 +1202,61 @@ describe("the case bundle", () => {
         if (fact.source) assert.ok(keys.has(fact.source), `${complaint.id}: ${fact.term} ← ${fact.source}`);
       }
     }
+  });
+});
+
+/**
+ * The case file's order and chunks (brief §0, D34–D35). The order is the e-filing's, and
+ * every particular of a chunked group lands in a named chunk — none falls through to the
+ * untitled remainder, which exists only so a new field is shown rather than lost.
+ */
+describe("the case file's order and chunks", () => {
+  it("lists every group once, complainant first, in the e-filing's order", () => {
+    for (const complaint of REGISTER_QUEUE) {
+      const file = review(complaint.id);
+      const ids = caseFileGroups(file).map((group) => group.id);
+      const all = file.sections.flatMap((section) => section.groups.map((group) => group.id));
+      assert.deepEqual([...ids].sort(), [...all].sort(), complaint.id);
+      assert.equal(ids[0], "complainant", complaint.id);
+      const ranked = ids.filter((id) => CASE_FILE_ORDER.includes(id));
+      assert.deepEqual(
+        ranked,
+        CASE_FILE_ORDER.filter((id) => ids.includes(id)),
+        complaint.id,
+      );
+    }
+  });
+
+  it("puts every particular of a chunked group in a named chunk", () => {
+    for (const complaint of REGISTER_QUEUE) {
+      for (const group of caseFileGroups(review(complaint.id))) {
+        if (!CASE_FILE_CHUNKS[group.id]) continue;
+        const runs = [
+          ...(group.records ?? []).map((record) => record.facts),
+          group.facts ?? [],
+        ];
+        for (const facts of runs) {
+          const chunks = chunkFacts(group.id, facts.map((fact) => ({ fact })));
+          const untitled = chunks.filter((chunk) => !chunk.title).flatMap((chunk) => chunk.items);
+          assert.deepEqual(
+            untitled.map((item) => item.fact.term),
+            [],
+            `${complaint.id} ${group.id}: a particular with no chunk`,
+          );
+          assert.equal(
+            chunks.reduce((sum, chunk) => sum + chunk.items.length, 0),
+            facts.length,
+            `${complaint.id} ${group.id}: a particular dropped`,
+          );
+        }
+      }
+    }
+  });
+
+  it("numbers the documents in the file's order, the complainant's first", () => {
+    const docs = caseBundleFor(review("r-1840")).docs;
+    assert.equal(docs[0].group, "complainant");
+    const groupOrder = docs.map((doc) => CASE_FILE_ORDER.indexOf(doc.group));
+    assert.deepEqual(groupOrder, [...groupOrder].sort((a, b) => a - b));
   });
 });

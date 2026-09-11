@@ -188,6 +188,23 @@ unbuilt.
 | D32 | *"a fixed section, not a cutout section… a clean border for the index"*; clarified: *"the earlier documents panel… will become a full section in itself, and it will still list the list of documents… when I click on it, it'll just become a whole section and not like a rounded off section… the index will still index on the left panel"* | **Confirmed: docked panel.** The documents panel docks to the window's right edge from the tab row's rule to the window's foot, sticky, a straight hairline down its left and no radius or shadow. At rest the list; opened, a bar (back, n of N, arrows) and one scroll holding the name with its full view, the page, and the values read from it ruled apart — so a long value wraps and the panel scrolls. The contents ticks still index the case file, now against the dock's clean edge. |
 | D33 | *"these icons… too small… maybe giving it a container"* | Each group's mark sits in a 32px sunken tile beside its 16px title. |
 
+**Case file, chunked and reordered (owner, 2026-09-11).** Owner: *"check details can be one
+independent card by itself, and within that you can chunk… the payees together or payers
+together, similar to how we do the e-filing… those micro headers of check and notice, it's
+not really helping… might as well have independent cards that are grouped and spaced out
+properly… follow a logical order… wouldn't it make sense to see the complaint and details
+first?"*
+
+| # | Decision | Traces to |
+|---|---|---|
+| D34 | **The e-filing's order**, complainant first: Complainant, Advocate, Accused, Cheque, Debt, Legal demand notice, Delay condonation, Complaint, Witnesses, Payment — `CASE_FILE_ORDER`, from `lib/filing/steps.ts`. The documents are numbered in the same order, so "Doc 1" is the complainant's ID proof. `review.sections` keeps its order for the first build. | Owner; e-filing step order |
+| D35 | **One lifted card per group**, 24px apart; the four section eyebrows are gone. A card with one record names it under its title (the cheque's number, a party's name). | Owner ("independent cards… no micro headers") |
+| D36 | **Each card chunked as the e-filing's sub-cards** (`CASE_FILE_CHUNKS`): complainant — Contact, Basic details, Institution details, Address, Power of attorney; accused — Who is summoned for the entity, Contact details, Address details; cheque — On the cheque, Return memo, Payer's bank, Payee's bank (labels shortened inside a chunk that names them: "Bank", "Branch", "IFSC", "Police station"); debt — Nature of debt, Payment against the cheque. Witnesses are a chunk each. Chunks sit two abreast when the card has room; a chunk narrower than 24rem stacks label over value. Tested: every particular of a chunked group lands in a named chunk. | e-filing `*-section.tsx` sub-card titles |
+
+**Deferred (owner, 2026-09-11):** the lighter hover stays on tables only. Making it the
+default hover everywhere is a design-system token change (`--accent`), measured and parked:
+on the beige canvas the lighter tone is 1.04:1 against the ground, against 1.07:1 for today's.
+
 **Tab row fix.** The active underline rendered 3px below the rule (rule 211px, mark 214–216px):
 the primitive hangs its mark at `bottom: -5px` under a selector scoped to the horizontal group,
 and a plain `after:-bottom-px` lost on specificity. The override now carries the same scope
@@ -1930,6 +1947,7 @@ reach, not a missing primitive (§8, D24).
 | 2026-09-11 (v3 case file) | Case file built as the scrutiny workbench's three-pane reader, read-only (§0 D15–D22); tab underline fixed onto the rule | owner (Abhiram) |
 | 2026-09-11 (v3 case file, simplified) | Workbench frame dropped for a scrolling file with search, a tick-rail contents and a page-on-request panel with the values read from it (§0 D23–D27) | owner (Abhiram) |
 | 2026-09-11 (design review) | Eight comments applied; type scale, spacing and the docked documents panel confirmed with the owner first (§0 D28–D33) | owner (Abhiram) |
+| 2026-09-11 (case file chunks) | Case file in the e-filing's order, one card per group, chunked as the e-filing's sub-cards (§0 D34–D36); global hover token deferred | owner (Abhiram) |
 
 | Date | Change | Who |
 |---|---|---|

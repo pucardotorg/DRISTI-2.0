@@ -38,6 +38,8 @@ import {
 import { useMinWidth } from "@/hooks/use-min-width";
 import {
   caseBundleFor,
+  caseFileGroups,
+  chunkFacts,
   type CaseBundle,
   type CaseBundleDoc,
   type CaseFact,
@@ -81,29 +83,19 @@ export function CaseFileView({ review }: { review: CaseReview }) {
   useFitToWindow(asideRef);
 
   const needle = query.trim().toLowerCase();
-  const sections = React.useMemo(
+  const groups = React.useMemo(
     () =>
-      review.sections
-        .map((section) => ({
-          section,
-          groups: section.groups
-            .map((group) => groupView(group, needle))
-            .filter((view): view is GroupView => view !== null),
-        }))
-        .filter((entry) => entry.groups.length > 0),
+      caseFileGroups(review)
+        .map((group) => groupView(group, needle))
+        .filter((view): view is GroupView => view !== null),
     [review, needle],
   );
   const matchCount = needle
-    ? sections.reduce(
-        (sum, entry) =>
+    ? groups.reduce(
+        (sum, view) =>
           sum +
-          entry.groups.reduce(
-            (groupSum, view) =>
-              groupSum +
-              view.facts.length +
-              view.records.reduce((recordSum, record) => recordSum + record.facts.length, 0),
-            0,
-          ),
+          view.facts.length +
+          view.records.reduce((recordSum, record) => recordSum + record.facts.length, 0),
         0,
       )
     : 0;
@@ -131,7 +123,7 @@ export function CaseFileView({ review }: { review: CaseReview }) {
     />
   );
 
-  const visibleGroups = sections.flatMap((entry) => entry.groups.map((view) => view.group));
+  const visibleGroups = groups.map((view) => view.group);
 
   return (
     <div className="grid items-start gap-x-6 gap-y-8 xl:grid-cols-[minmax(0,1fr)_1rem_minmax(24rem,28rem)]">
@@ -170,7 +162,7 @@ export function CaseFileView({ review }: { review: CaseReview }) {
           </p>
         ) : null}
 
-        {sections.length === 0 && docMatches > 0 ? null : sections.length === 0 ? (
+        {groups.length === 0 && docMatches > 0 ? null : groups.length === 0 ? (
           <Empty className="border-0 p-0 py-12">
             <EmptyHeader>
               <EmptyMedia variant="icon">
@@ -189,32 +181,22 @@ export function CaseFileView({ review }: { review: CaseReview }) {
             </Button>
           </Empty>
         ) : (
-          sections.map(({ section, groups }) => (
-            <section
-              key={section.id}
-              aria-labelledby={`file-sec-${section.id}`}
-              className="flex flex-col gap-3"
-            >
-              <h2
-                id={`file-sec-${section.id}`}
-                className="text-caption font-semibold text-muted-foreground"
-              >
-                {section.title}
-              </h2>
-              <Card size="sm" className="gap-0 border-hairline py-0 shadow-raised">
-                {groups.map((view) => (
-                  <GroupBlock
-                    key={view.group.id}
-                    view={view}
-                    needle={needle}
-                    bundle={bundle}
-                    selected={selected}
-                    onShow={show}
-                  />
-                ))}
-              </Card>
-            </section>
-          ))
+          /* One card per group, in the e-filing's order, spaced apart — no section
+             eyebrows over them (owner, 2026-09-11: *"those micro headers… not really
+             helping… might as well have independent cards that are grouped and spaced
+             out properly"*). */
+          <div className="flex flex-col gap-6">
+            {groups.map((view) => (
+              <GroupCard
+                key={view.group.id}
+                view={view}
+                needle={needle}
+                bundle={bundle}
+                selected={selected}
+                onShow={show}
+              />
+            ))}
+          </div>
         )}
       </div>
 
@@ -284,7 +266,7 @@ function useFitToWindow(ref: React.RefObject<HTMLElement | null>) {
 
 /* ─────────────────────────────── the search ─────────────────────────────── */
 
-type FactItem = { id: string; fact: CaseFact };
+type FactItem = { id: string; fact: CaseFact; label?: string };
 type RecordView = { record: CaseRecord; facts: FactItem[] };
 type GroupView = { group: CaseGroup; records: RecordView[]; facts: FactItem[] };
 
@@ -370,18 +352,20 @@ function Marked({ text, needle }: { text: string; needle: string }) {
 /* ─────────────────────────────── the file ───────────────────────────────── */
 
 /**
- * One group of the form inside its section's panel — its name, its records, its own
- * particulars. Groups are separated by a hairline; the panel's shadow is the only lift.
+ * One group of the form as a card of its own — its mark and name, the record it holds
+ * when it holds one (the cheque's number, a party's name), then its particulars cut into
+ * the e-filing's own sub-cards (`CASE_FILE_CHUNKS`): the complainant's Contact, Basic
+ * details, Address; the cheque's details, return memo and two banks; the debt's nature
+ * and payment. A group that holds several records — the witnesses — takes each record as
+ * a chunk. Chunks sit two abreast once the card has room, each under its name, so a card
+ * reads as a few small blocks rather than one long list (owner, 2026-09-11: *"chunk
+ * probably information about, like the payees together or payers together, similar to
+ * how we do the e-filing"*).
  *
- * **The group's mark sits in a tile** (owner, design review: the bare glyph beside the
- * title *"looks very tacky… too small… maybe giving it a container"*): a 32px sunken well,
- * the inset role inside a panel, with the glyph centred in it. The title beside it is the
- * card-title role, 16px at 600.
- *
- * **No document chips** (same review): the documents have their own panel beside the file,
- * and a particular read from one opens it.
+ * **The group's mark sits in a tile** (owner, design review): a 32px sunken well with the
+ * glyph centred in it, beside the card-title role, 16px at 600.
  */
-function GroupBlock({
+function GroupCard({
   view,
   needle,
   bundle,
@@ -397,58 +381,94 @@ function GroupBlock({
   const { group } = view;
   const Icon = group.icon;
   const docNo = (key: string) => bundle.docs.find((doc) => doc.key === key);
+  /* One record — a cheque, a party, an advocate — names itself under the card's title;
+     several — the witnesses — are each a chunk of their own. */
+  const single = (group.records ?? []).length === 1 ? view.records[0] : undefined;
+  const chunks: { key: string; title?: string; tag?: string; items: FactItem[] }[] = [
+    ...(single
+      ? chunkFacts(group.id, single.facts).map((chunk, index) => ({
+          key: `r-${index}`,
+          title: chunk.title,
+          items: chunk.items,
+        }))
+      : view.records.map((record) => ({
+          key: record.record.id,
+          title: record.record.heading,
+          tag: record.record.tag,
+          items: record.facts.map((item) => ({ ...item, label: item.fact.term })),
+        }))),
+    ...chunkFacts(group.id, view.facts).map((chunk, index) => ({
+      key: `g-${index}`,
+      title: chunk.title,
+      items: chunk.items,
+    })),
+  ];
+  const several = chunks.length > 1;
 
   return (
-    <section
+    <Card
+      size="sm"
       id={`file-group-${group.id}`}
-      aria-labelledby={`file-group-${group.id}-title`}
-      className="flex scroll-mt-32 flex-col gap-4 border-t border-hairline p-6 first:border-t-0 md:p-8"
+      className="@container scroll-mt-32 gap-0 border-hairline py-0 shadow-raised"
     >
-      <h3
-        id={`file-group-${group.id}-title`}
-        className="flex items-center gap-3 text-body font-semibold"
-      >
+      <div className="flex items-start gap-3 px-6 pt-6 md:px-8 md:pt-8">
         <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-muted-foreground">
           <Icon aria-hidden className="size-4" />
         </span>
-        <Marked text={group.title} needle={needle} />
-      </h3>
-
-      {group.empty && !needle ? (
-        <p className="text-body-compact text-muted-foreground">
-          {group.empty.explanation ??
-            (group.empty.reason === "none-named" ? "None named" : "None on record")}
-        </p>
-      ) : null}
-
-      {view.records.map((record) => (
-        <div key={record.record.id} className="flex flex-col gap-1">
-          <p className="flex flex-wrap items-baseline gap-x-2 text-body-compact font-semibold">
-            <Marked text={record.record.heading} needle={needle} />
-            {record.record.tag ? (
-              <span className="font-normal text-muted-foreground">{record.record.tag}</span>
-            ) : null}
-          </p>
-          <FactRows
-            items={record.facts}
-            needle={needle}
-            docNo={docNo}
-            selected={selected}
-            onShow={onShow}
-          />
+        <div className="flex min-w-0 flex-col gap-0.5 pt-1">
+          <h2 id={`file-group-${group.id}-title`} className="text-body font-semibold">
+            <Marked text={group.title} needle={needle} />
+          </h2>
+          {single ? (
+            <p className="flex flex-wrap items-baseline gap-x-2 text-body-compact">
+              <span className="font-medium">
+                <Marked text={single.record.heading} needle={needle} />
+              </span>
+              {single.record.tag ? (
+                <span className="text-muted-foreground">{single.record.tag}</span>
+              ) : null}
+            </p>
+          ) : null}
         </div>
-      ))}
+      </div>
 
-      {view.facts.length > 0 ? (
-        <FactRows
-          items={view.facts}
-          needle={needle}
-          docNo={docNo}
-          selected={selected}
-          onShow={onShow}
-        />
-      ) : null}
-    </section>
+      <div
+        className={cn(
+          "grid gap-x-12 gap-y-8 px-6 pt-6 pb-6 md:px-8 md:pb-8",
+          several && "@2xl:grid-cols-2",
+        )}
+      >
+        {group.empty && !needle ? (
+          <p className="text-body-compact text-muted-foreground">
+            {group.empty.explanation ??
+              (group.empty.reason === "none-named" ? "None named" : "None on record")}
+          </p>
+        ) : null}
+        {chunks.map((chunk) => (
+          /* Each chunk measures itself: at half a card's width a label column beside
+             the value squeezed values into three lines, so a narrow chunk stacks label
+             over value, as the summary's compartments do, and a wide one keeps them side
+             by side. */
+          <section key={chunk.key} className="@container flex min-w-0 flex-col gap-3">
+            {chunk.title ? (
+              <h3 className="flex flex-wrap items-baseline gap-x-2 text-body-compact font-semibold">
+                <Marked text={chunk.title} needle={needle} />
+                {chunk.tag ? (
+                  <span className="font-normal text-muted-foreground">{chunk.tag}</span>
+                ) : null}
+              </h3>
+            ) : null}
+            <FactRows
+              items={chunk.items}
+              needle={needle}
+              docNo={docNo}
+              selected={selected}
+              onShow={onShow}
+            />
+          </section>
+        ))}
+      </div>
+    </Card>
   );
 }
 
@@ -475,7 +495,7 @@ function FactRows({
   if (items.length === 0) return null;
   return (
     <DescriptionList>
-      {items.map(({ id, fact }) => {
+      {items.map(({ id, fact, label }) => {
         const source = fact.source ? docNo(fact.source) : undefined;
         const current = selected?.rowId === id;
         return (
@@ -483,14 +503,14 @@ function FactRows({
             key={id}
             id={`fact-${id}`}
             className={cn(
-              "group/row -mx-3 grid-cols-1 items-baseline gap-1 rounded-lg border-0 px-3 py-2 transition-colors sm:grid-cols-[minmax(8rem,12rem)_minmax(0,1fr)] sm:gap-4",
+              "group/row -mx-3 grid-cols-1 items-baseline gap-1 rounded-lg border-0 px-3 py-2 transition-colors @sm:grid-cols-[minmax(6rem,10rem)_minmax(0,1fr)] @sm:gap-4",
               source && "cursor-pointer hover:bg-accent",
               current && "bg-accent",
             )}
             onClick={source ? () => onShow(source.key, id) : undefined}
           >
             <DescriptionTerm className="text-caption">
-              <Marked text={fact.term} needle={needle} />
+              <Marked text={label ?? fact.term} needle={needle} />
             </DescriptionTerm>
             <DescriptionDetails className="flex min-w-0 items-start gap-2 text-body-compact">
               <span

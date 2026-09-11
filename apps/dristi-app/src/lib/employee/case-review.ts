@@ -594,13 +594,184 @@ export type CaseReview = {
 };
 
 /**
+ * The case file's groups in the e-filing's own order — the order the complaint was
+ * written in (`lib/filing/steps.ts`): the parties (complainant, advocate, accused), then
+ * the case (cheque and return memo, the debt, the demand notice, limitation, the
+ * complaint's other details), then the witnesses, then the fee. The owner asked for the
+ * file to follow "a logical order" with the complainant first (2026-09-11); this is the
+ * order the advocate filled it in, so the magistrate reads it in the order it was made.
+ *
+ * `review.sections` keeps its own order for the first build, which still reads it.
+ */
+export const CASE_FILE_ORDER: CaseGroupId[] = [
+  "complainant",
+  "advocates",
+  "accused",
+  "cheque",
+  "debt",
+  "demand-notice",
+  "delay-condonation",
+  "complaint",
+  "witnesses",
+  "payment",
+];
+
+/** Every group of the file, once, in `CASE_FILE_ORDER`. */
+export function caseFileGroups(review: CaseReview): CaseGroup[] {
+  const groups = review.sections.flatMap((section) => section.groups);
+  const rank = (id: CaseGroupId) => {
+    const at = CASE_FILE_ORDER.indexOf(id);
+    return at === -1 ? CASE_FILE_ORDER.length : at;
+  };
+  return [...groups].sort((a, b) => rank(a.id) - rank(b.id));
+}
+
+/**
+ * How a group's particulars are chunked inside its card — the e-filing's own sub-cards
+ * for that step (`components/filing/sections/*-section.tsx`): the complainant's Contact,
+ * Basic details, Address and Power of attorney; the accused's Who is summoned, Contact
+ * details and Address details; the cheque's own details, then its two banks, then the
+ * return memo; the debt's Nature of debt and Payment against the cheque.
+ *
+ * `label` shortens a term inside a chunk that already names it — under "Payer's bank",
+ * "Payer bank" reads as "Bank". A group with no entry here is one chunk, untitled.
+ */
+export type CaseFileChunkSpec = {
+  title: string;
+  terms: { term: CaseFactTerm; label?: string }[];
+};
+
+export const CASE_FILE_CHUNKS: Partial<Record<CaseGroupId, CaseFileChunkSpec[]>> = {
+  complainant: [
+    {
+      title: "Contact",
+      terms: [{ term: FACT_TERMS.mobile }, { term: FACT_TERMS.email }],
+    },
+    { title: "Basic details", terms: [{ term: FACT_TERMS.age }] },
+    {
+      title: "Institution details",
+      terms: [
+        { term: FACT_TERMS.authorisedSignatory },
+        { term: FACT_TERMS.registeredOffice },
+      ],
+    },
+    {
+      title: "Address",
+      terms: [
+        { term: FACT_TERMS.currentAddress },
+        { term: FACT_TERMS.permanentAddress },
+      ],
+    },
+    {
+      title: "Power of attorney",
+      terms: [{ term: FACT_TERMS.powerOfAttorney, label: "Filed through a holder" }],
+    },
+  ],
+  accused: [
+    {
+      title: "Who is summoned for the entity",
+      terms: [{ term: FACT_TERMS.authorisedSignatory }],
+    },
+    {
+      title: "Contact details",
+      terms: [{ term: FACT_TERMS.mobile }, { term: FACT_TERMS.email }],
+    },
+    { title: "Address details", terms: [{ term: FACT_TERMS.registeredOffice }] },
+  ],
+  cheque: [
+    {
+      /* Not "Cheque details" — that is the card's own name. What is written on the
+         instrument, as the e-filing's own tip for these two fields puts it. */
+      title: "On the cheque",
+      terms: [{ term: FACT_TERMS.amount }, { term: FACT_TERMS.chequeDated }],
+    },
+    {
+      title: "Return memo",
+      terms: [
+        { term: FACT_TERMS.depositedOn },
+        { term: FACT_TERMS.returnedOn },
+        { term: FACT_TERMS.returnReason },
+        { term: FACT_TERMS.depositedInTime },
+      ],
+    },
+    {
+      title: "Payer's bank",
+      terms: [
+        { term: FACT_TERMS.payerBank, label: "Bank" },
+        { term: FACT_TERMS.payerBranch, label: "Branch" },
+        { term: FACT_TERMS.payerIfsc, label: "IFSC" },
+        { term: FACT_TERMS.drawerPolice, label: "Police station" },
+      ],
+    },
+    {
+      title: "Payee's bank",
+      terms: [
+        { term: FACT_TERMS.payeeBank, label: "Bank" },
+        { term: FACT_TERMS.payeeBranch, label: "Branch" },
+        { term: FACT_TERMS.payeeIfsc, label: "IFSC" },
+        { term: FACT_TERMS.payeePolice, label: "Police station" },
+      ],
+    },
+  ],
+  debt: [
+    {
+      title: "Nature of debt",
+      terms: [
+        { term: FACT_TERMS.natureOfDebt, label: "Nature" },
+        { term: FACT_TERMS.whyIssued },
+      ],
+    },
+    {
+      title: "Payment against the cheque",
+      terms: [
+        { term: FACT_TERMS.paymentAgainstCheque, label: "Payment" },
+        { term: FACT_TERMS.partAmount },
+      ],
+    },
+  ],
+};
+
+/**
+ * A run of particulars cut into the group's chunks, in the chunk order, each carrying the
+ * label it is shown under. Empty chunks drop out (a search may have emptied them); any
+ * particular the spec does not name falls into a last, untitled chunk rather than being
+ * lost — a test keeps that from happening in the groups that have a spec.
+ */
+export function chunkFacts<T extends { fact: CaseFact }>(
+  group: CaseGroupId,
+  items: T[],
+): CaseFileChunk<T>[] {
+  const specs = CASE_FILE_CHUNKS[group];
+  const labelled = (item: T) => ({ ...item, label: item.fact.term as string });
+  if (!specs) return items.length ? [{ items: items.map(labelled) }] : [];
+  const placed = new Set<T>();
+  const chunks: CaseFileChunk<T>[] = specs
+    .map((spec) => ({
+      title: spec.title as string | undefined,
+      items: spec.terms.flatMap(({ term, label }) =>
+        items
+          .filter((item) => item.fact.term === term)
+          .map((item) => {
+            placed.add(item);
+            return { ...item, label: label ?? item.fact.term };
+          }),
+      ),
+    }))
+    .filter((chunk) => chunk.items.length > 0);
+  const rest = items.filter((item) => !placed.has(item));
+  if (rest.length) chunks.push({ items: rest.map(labelled) });
+  return chunks;
+}
+
+export type CaseFileChunk<T> = { title?: string; items: (T & { label: string })[] };
+
+/**
  * The file's documents as a bundle — the filed ones numbered in the order the file
  * states them, and the ones the form asked for that were never uploaded.
  *
- * The order is the file's own: section by section, group by group, a record's documents
- * before the group's. That is the order scrutiny read them in, and the order the
- * particulars beside the bundle are listed in, so "Doc 3" means the same thing on both
- * sides of the screen.
+ * The order is the case file's own (`CASE_FILE_ORDER`, the e-filing's): group by group,
+ * a record's documents before the group's — the order the particulars beside the bundle
+ * are listed in, so "Doc 3" means the same thing on both sides of the screen.
  *
  * `title` is the label, told apart where the file holds two of the same — "ID proof" is
  * both parties', so each carries whose it is. Nothing is invented: the second half is the
@@ -619,14 +790,12 @@ export type CaseBundle = {
 
 export function caseBundleFor(review: CaseReview): CaseBundle {
   const all: Omit<CaseBundleDoc, "no" | "title">[] = [];
-  for (const section of review.sections) {
-    for (const group of section.groups) {
-      const documents = [
-        ...(group.records ?? []).flatMap((record) => record.documents ?? []),
-        ...(group.documents ?? []),
-      ];
-      for (const document of documents) all.push({ ...document, group: group.id });
-    }
+  for (const group of caseFileGroups(review)) {
+    const documents = [
+      ...(group.records ?? []).flatMap((record) => record.documents ?? []),
+      ...(group.documents ?? []),
+    ];
+    for (const document of documents) all.push({ ...document, group: group.id });
   }
   const seen = new Map<string, number>();
   for (const document of all) seen.set(document.label, (seen.get(document.label) ?? 0) + 1);
