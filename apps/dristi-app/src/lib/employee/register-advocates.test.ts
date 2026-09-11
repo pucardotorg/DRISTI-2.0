@@ -27,6 +27,7 @@ import {
   comparisonBlocks,
   registerAnswer,
   registerFindingRow,
+  mismatchedTerms,
   sortByLongestWait,
   submissionDay,
   type AdvocateRegistration,
@@ -349,7 +350,8 @@ describe("what the row and the overlay call things", () => {
       (r) => r.requestKind === "edited",
     );
     assert.ok(edited);
-    assert.equal(requestKindLabel(edited), "Edited");
+    // The queue chip and the overlay row say the same thing: one fact, one name.
+    assert.equal(requestKindLabel(edited), "Profile update");
 
     const back = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-118");
     assert.ok(back);
@@ -387,13 +389,15 @@ describe("what the row and the overlay call things", () => {
     const back = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-118");
     assert.ok(first && edited && back);
     assert.equal(requestTypeValue(first), "New registration");
-    assert.equal(requestTypeValue(edited), "Edited Bar Council account");
+    // Three answers to one question. Where the account came from is provenance, not the
+    // type of the request — the owner read "Edited Bar Council account" as nonsense.
+    assert.equal(requestTypeValue(edited), "Profile update");
     assert.equal(requestTypeValue(back), "Resubmitted · round 5");
-    // Read off the registrant, so a clerk queue costs no new branch (D13).
     assert.equal(
       requestTypeValue({ ...edited, registrantKind: "clerk" }),
-      "Edited clerk register account",
+      "Profile update",
     );
+    assert.equal(requestKindLabel(edited), requestTypeValue(edited));
   });
 
   it("reads its labels off the registrant, so clerks need no restructuring", () => {
@@ -574,7 +578,8 @@ describe("the register speaks only when it disagrees", () => {
       // The act, not the institution: a bare register name in a term column says nothing
       // about why the row is there. The register names itself over the values it claims.
       term: "Bar Council check",
-      value: "Some details do not match",
+      // The row names what is wrong; the disclosure holds the evidence for it.
+      value: "Full name does not match",
       format: "text",
       tone: "warning",
     });
@@ -675,24 +680,35 @@ describe("shape two: two values, side by side", () => {
     assert.equal(before.absent, true);
   });
 
-  it("hangs every comparison on the row that announces it, and nowhere else", () => {
+  it("folds the register's evidence behind its finding, and leaves the edit open", () => {
     for (const request of REGISTER_ADVOCATES_QUEUE) {
       const rows = requestRows(request);
-      const attached = rows.flatMap((row) => (row.detail ? [row.detail.id] : []));
       const built = comparisonBlocks(request).map((block) => block.id);
-      // Every block has exactly one home, and no block is built without one.
-      assert.deepEqual(
-        [...attached].sort(),
-        [...built].sort(),
-        `${request.applicationNumber} built a table with nowhere to open it`,
-      );
-      // The register's finding opens the register's table; the request kind opens the edit.
+      // The register's finding opens the register's comparison — an exception to look into.
       const register = rows.find((row) => row.id === "register");
-      const kind = rows.find((row) => row.id === "requestKind");
-      assert.equal(register?.detail?.id ?? null, built.includes("register") ? "register" : null);
-      assert.equal(kind?.detail?.id ?? null, built.includes("changed") ? "changed" : null);
+      assert.equal(
+        register?.detail?.id ?? null,
+        built.includes("register") ? "register" : null,
+      );
+      // The edit is never behind a row: on a profile update it *is* the request, and the
+      // screen renders it as a section of its own (owner, 2026-09-11).
+      for (const row of rows) assert.notEqual(row.detail?.id, "changed");
       // Nothing in the Identity block opens anything: it is what was typed, full stop.
       for (const row of identityRows(request)) assert.equal(row.detail, undefined);
+    }
+  });
+
+  it("names every attribute the register disagrees with, in the finding itself", () => {
+    for (const request of REGISTER_ADVOCATES_QUEUE) {
+      const finding = registerFindingRow(request);
+      if (registerAnswer(request) !== "differs") continue;
+      assert.ok(finding);
+      for (const term of mismatchedTerms(request)) {
+        assert.ok(
+          finding.value.startsWith(term) || finding.value.includes(` ${term}`),
+          `${request.applicationNumber}: the finding does not say which value differs`,
+        );
+      }
     }
   });
 

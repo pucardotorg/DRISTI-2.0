@@ -965,7 +965,8 @@ value column.
 
 - **Bar Council check → Some details do not match** opens `Submitted | Bar Council of
   Kerala`.
-- **Request type → Edited Bar Council account** opens `Before | Now`.
+- ~~**Request type → Edited Bar Council account** opens `Before | Now`.~~ **Reversed by
+  D30**: the edit comparison is an open section again, and the type reads "Profile update".
 
 Two consequences worth naming. First, the fact column on an ordinary request is now two
 groups and a photograph — every exception is folded away until asked for, which is what a
@@ -1153,6 +1154,57 @@ column — the same landing place the overlay uses when it opens.
 (focus is never dropped to the body while a modal is open).
 *Rejected:* lengthening the dialog's own open/close duration to disguise the remount — it
 would have slowed every real open to hide a transition that should not have existed.
+
+### D30 — **New.** What changed is the request; what does not match is named; the ID card is evidence
+
+*(Round six, 2026-09-11.)*
+
+**A profile update's changes are the content, not a footnote.** *"I like how this was
+treated earlier, where this was a separate section of before and after… it should come
+under request for sure… I don't think this is too important to see hidden away in a
+drop-down."* The `Changed at first login` table leaves the Request type row and returns as
+an **open section directly under Request**. The register's finding keeps its disclosure,
+and the two now differ for a reason that can be stated: *a finding is an exception to look
+into; an edit is the thing being reviewed.* D23's rule — a finding opens where it is stated
+— survives; its extension to the edit does not.
+
+**The type is "Profile update".** *"Edited Bar Council account does not make sense to me.
+Update profile could be a request type."* The owner's words, turned from an instruction into
+the noun a value column wants, so the three types are three answers to one question: New
+registration · Profile update · Resubmitted · round 5. The queue chip says the same words.
+Where the account came from is provenance, not the type of the request.
+
+**The finding says which value is wrong.** *"'Some details do not match' is not helping me
+understand what is actually not matching. Just mention full name… and then if they want to
+see it they can click the dropdown."* The row now reads **Bar Council check · Full name does
+not match**. The subject is computed from the attributes the register actually disagrees
+with (`mismatchedTerms`), so a second comparison produces "Full name and Mobile number do not
+match" without new copy.
+
+**The disclosure opens pairs, not a one-row table.** *"It looks slightly misaligned… clunky."*
+It was: a header well, an empty corner cell and three columns of its own widths, wedged into
+a card whose every other row used a different grid. With the subject already in the trigger,
+the table's first column and header were repeating it. The disclosure now opens **two rows in
+the card's own grid** — Submitted · value, Bar Council of Kerala · value — measured aligned to
+the rows above to the pixel, because they are the same rows. If a second attribute ever
+disagrees, the subject is no longer single and it falls back to the table.
+
+**The ID card leaves the name's row and takes the card's width.** *"This is too small to be
+useful right now. This is like a decorative element. If we intend to show it to anchor
+scrutiny officers' confirm approval or confirm rejection, it needs to be bigger."* Sized up
+twice beside the name and read as decoration both times, because beside a name it can only
+be a stamp — the name needs the width. It is now a **160px band across the card**, a sunken
+well between two rules with the whole scan contained, and it carries real alt text: at this
+size it is evidence, not ornament.
+
+**Declined: initials beside the name.** Offered by the owner with an explicit out — *"if it
+does not make sense, then don't add it."* It does not, for three reasons. The ID card is now
+the likeness on this card, and a second identity mark competes with it. Initials say nothing
+the name above them does not. And a Malayalam name's initials are not a convention the
+product or a Kerala court uses, so the mark would be invented for half the queue.
+
+*Rule:* owner 2026-09-11; DS Laws (description list for a record's fields; nested media
+well inside a card); ui-craft §5 (the Chanel pass).
 
 ## 6. What I cut (and why)
 
@@ -1502,6 +1554,7 @@ dependency here. Request #9 stands on its own merits for the screens that raised
 | **2026-09-10 (evening)** | **D16 added.** Request metadata is its own attribute group, not header prose; the application number stays in the header description and is not repeated; the advocate's name **leaves** the header, because printing a value under verification as the record's title asserts it. | ux-designer |
 | **2026-09-10 (evening)** | **D9 and D11 corrected for two parallel cross-cutting changes** — search filters as you type (the Search button goes away app-wide) and the whole table row becomes the click target. The queue page therefore has **no page-level primary**, which is what D9 argued was correct all along; the "teal on the queue page is Search" line is void, and two code comments asserting it must change with the rebuild. | orchestrator / ux-designer |
 | **2026-09-10 (evening)** | **§6 clarified** so the brief cannot be read as rejecting structure wholesale: the officer's rejection reason stays free text (`REG-22`) because it is *user data in a consistent slot*; what was rejected is *product copy narrating machine results*. Reason chips remain cut; a per-attribute rejection is filed as §12.10 for the owner to decide. | ux-designer |
+| **2026-09-11 (design-mode round 6)** | **Three comments, one offer.** The edit comparison returns as an open section under Request; the type reads "Profile update" in the overlay and the queue chip alike; the register finding names the attribute ("Full name does not match") and opens two aligned rows instead of a one-row table; the ID card becomes a 160px band across the decision card with real alt text (D30). The owner's initials-badge idea declined, with reasons, at their invitation. D23 amended. | owner (direction) / orchestrator |
 | **2026-09-11 (design-mode round 5)** | **Four corrections.** The settled strip reports the account (created / rejected), not the byproduct; the reject label returns to body-compact and takes a 16px destructive mark instead of size; the decision card lifts at rest and its header strip goes white with a rule, after the old `surface-sunken` strip measured 1.01:1 against the stage; the ID card photograph goes to 80×128 `object-contain` (D28). "View next application" stopped remounting `Dialog.Content` — the abruptness was Radix's open animation replaying — and a new record now rises and fades in its own motion, with focus sent to the fact column (D29). | owner (direction) / orchestrator |
 | **2026-09-11 (design-mode round 4)** | **One note, three complaints.** Confirming and having confirmed became one card that resolves in place — five stages, three scenes, no remount and no slide between the act and its outcome (D27). The settled state lost its 48px disc and title-size ink line for a 16px mark on a muted strip; the reject composer lost its red heading; the semantics of green and red survive at lower volume. The Bar ID photograph joins the card as a thumbnail, and the settled card keeps the rows it had a moment before. D21 and D25 amended. | owner (direction) / orchestrator |
 | **2026-09-11 (design-mode round 3)** | **Eight render comments.** Comparison tables moved behind the row that announces them, as disclosures spanning the card (D23) — which voids D20's no-duplicate-pairs rule; the lookup row renamed for the act, with the register naming itself in the column header (D24); caption group labels removed from every focused stage, the person made the heading, the settled state collapsed to one card, the reject stage recomposed in destructive ink at title size, and the confirming CTAs renamed to "Confirm approval" / "Confirm rejection" (D25); the evidence well given a framed title strip so its icons stop floating (D26). D15 amended. | owner (direction) / orchestrator |
