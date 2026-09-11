@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  ChevronDownIcon,
   CircleCheckIcon,
   FileQuestionIcon,
   FolderOpenIcon,
@@ -12,7 +13,12 @@ import {
 
 import { useCourtToday } from "@/components/employee/use-court-today";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   DescriptionDetails,
   DescriptionList,
@@ -56,16 +62,14 @@ import { cn } from "@/lib/utils";
  * The second build was a column of eight identical cards: three screens tall, every date
  * stated twice, forty per cent of the canvas empty. This one is composed around two
  * questions the owner put — *what does the complaint say*, and *how did it get here* —
- * and gives each its own surface, side by side, so the whole decision fits on one desktop
- * screen (brief §0, D1–D9).
+ * across the full width, in two tiers on one column grid (brief §0).
  *
- * - **Synopsis** is one sheet in the owner's order — parties, cheque, dishonour, demand
- *   notice, cause of action, prayer. Each head names itself once in a gutter and its
- *   particulars sit beside it. No dates: those are the timeline's.
- * - **Timeline** is the complaint's life on the DS timeline: the seven §138 steps, each
- *   statutory window measured under the step that closes it, then scrutiny as one span
- *   carrying who cleared it, how many rounds, how long, and what each round was sent
- *   back for — then today.
+ * - **Synopsis** is one sheet of six compartments in the owner's order — parties, cheque,
+ *   dishonour, demand notice, cause of action, prayer — divided by hairlines, each fact a
+ *   label over its value. No dates: those are the timeline's.
+ * - **Scrutiny** — who cleared it, rounds, how long, what each round was sent back for.
+ * - **Timeline** — collapsed to the spans that decide it (each statutory window against
+ *   its limit, and the wait since scrutiny); opened, it adds the dated steps in place.
  *
  * Every value comes from `lib/employee/case-review.ts` through one slot; every term from
  * its declared lists. Colour appears only where the file is outside a limit or another
@@ -134,7 +138,7 @@ function ComplaintPage({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip bg-muted dark:bg-background">
-      <div className="flex w-full max-w-6xl min-w-0 flex-1 flex-col gap-6 px-6 pt-6 pb-12 md:px-8 md:pt-8">
+      <div className="flex w-full min-w-0 flex-1 flex-col gap-6 px-6 pt-6 pb-12 md:px-8 md:pt-8">
         <ComplaintHeader
           complaint={complaint}
           acting={stage !== null}
@@ -327,118 +331,148 @@ function ComplaintTabs({ summary }: { summary: CaseSummary }) {
 /* ─────────────────────────────── the summary ────────────────────────────── */
 
 /**
- * What the complaint says, and how it got here — side by side from 1280px, so the eye
- * moves between a particular and its date without scrolling; stacked below that,
- * synopsis first. The shape is the approved registrations review's own: the facts on
- * the left, their companion on the right.
+ * The summary in two tiers, across the full width.
+ *
+ * On top, the **synopsis** — the complaint's own account, the owner's six heads. Below it,
+ * the court's record of the file: **scrutiny** in the first third and the **timeline** in
+ * the other two, so the gap between them falls on the synopsis's first column divider and
+ * the page keeps one column grid from top to bottom. Below 1280px the tiers stack.
+ *
+ * Every surface is the approved grammar — an eyebrow over a lifted white panel on the
+ * warm canvas — and every fact inside is a label over its value, at 14px.
  */
 function ComplaintSummary({ summary }: { summary: CaseSummary }) {
   return (
-    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
+    <div className="grid items-start gap-x-6 gap-y-8 xl:grid-cols-3">
       <SynopsisPanel summary={summary} />
+      <ScrutinyPanel scrutiny={summary.scrutiny} />
       <TimelinePanel summary={summary} />
     </div>
   );
 }
 
+/** A lifted white panel whose children draw their own padding and dividers. */
+const SHEET = "gap-0 overflow-hidden border-hairline py-0 shadow-raised";
+
+/** An eyebrow over the surface it names. */
+function Panel({
+  id,
+  label,
+  className,
+  children,
+}: {
+  id: string;
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section aria-labelledby={id} className={cn("flex min-w-0 flex-col gap-2", className)}>
+      <h2 id={id} className={EYEBROW}>
+        {label}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
 /**
- * The synopsis as one sheet — the owner's six heads, in the owner's order.
+ * The synopsis as one sheet of six compartments.
  *
- * One lifted panel rather than six: the heads are sections of a single document, and six
- * shadows stacked down a page were what made the second build read as a form. Inside,
- * the separation ladder does the work — spacing between particulars, a hairline between
- * heads, nothing between rows.
+ * Each head is a cell, and the cells are divided by 1px hairlines drawn as the grid's own
+ * gap over a hairline fill — so the dividers are exact at every column count and never
+ * double up where two cells meet. The sheet is its own container and chooses its columns
+ * by the room it has: three from 896px, two from 576px, one on a phone. Six heads divide
+ * evenly into all three, so no cell is ever left empty.
  *
- * The panel is its own container, so the sheet lays itself out by the room it has rather
- * than by the window: the head in a gutter beside its particulars when there is width
- * for three tracks, above them when there is not, and term over value on a phone.
- *
- * **No dates here.** Each date is stated once, on the timeline, where it can be measured
- * against the one before it. The owner's synopsis format lists them under each head;
- * moving them is the one deviation from it, and it is logged (brief §0, D2).
+ * **No dates here.** Each date is stated once, on the timeline. The owner's synopsis
+ * format lists them under each head; moving them is the one deviation from it, and it is
+ * logged (brief §0, D2).
  */
 function SynopsisPanel({ summary }: { summary: CaseSummary }) {
   const { synopsis, cheque } = summary;
 
   return (
-    <section aria-labelledby="synopsis-heading" className="flex min-w-0 flex-col gap-2">
-      <h2 id="synopsis-heading" className={EYEBROW}>
-        {SUMMARY_TERMS.synopsis}
-      </h2>
-      <Card size="sm" className="@container gap-0 border-hairline py-0 shadow-raised">
-        <SynopsisSection label={SUMMARY_TERMS.parties}>
-          <Fact term={SYNOPSIS_FIELDS.complainant} note={summary.complainant.type}>
-            {summary.complainant.name}
-          </Fact>
-          {/* No type under the accused: every accused in the queue is a company, and a
-              value identical on every file is not a fact. */}
-          <Fact term={SYNOPSIS_FIELDS.accused}>{summary.accused.name}</Fact>
-          <Fact term={SYNOPSIS_FIELDS.advocate}>
-            {summary.advocate ?? <Absent>None on record</Absent>}
-          </Fact>
-        </SynopsisSection>
+    <Panel id="synopsis-heading" label={SUMMARY_TERMS.synopsis} className="xl:col-span-3">
+      <Card className={cn(SHEET, "@container")}>
+        <div className="grid gap-px bg-hairline @xl:grid-cols-2 @4xl:grid-cols-3">
+          <SynopsisSection label={SUMMARY_TERMS.parties}>
+            <Fact term={SYNOPSIS_FIELDS.complainant} note={summary.complainant.type}>
+              {summary.complainant.name}
+            </Fact>
+            {/* No type under the accused: every accused in the queue is a company, and a
+                value identical on every file is not a fact. */}
+            <Fact term={SYNOPSIS_FIELDS.accused}>{summary.accused.name}</Fact>
+            <Fact term={SYNOPSIS_FIELDS.advocate}>
+              {summary.advocate ?? <Absent>None on record</Absent>}
+            </Fact>
+          </SynopsisSection>
 
-        <SynopsisSection label={SUMMARY_TERMS.cheque}>
-          <Fact
-            term={SYNOPSIS_FIELDS.amount}
-            format="figure"
-            note={cheque.partPaid ? `${cheque.partPaid} paid before filing` : undefined}
-          >
-            {cheque.amount}
-          </Fact>
-          <Fact term={SYNOPSIS_FIELDS.chequeNumber} format="figure">
-            {cheque.number}
-          </Fact>
-          <Fact term={SYNOPSIS_FIELDS.drawnOn}>
-            {synopsis.cheque.drawerBank}, {synopsis.cheque.drawerBranch}
-          </Fact>
-        </SynopsisSection>
+          <SynopsisSection label={SUMMARY_TERMS.cheque}>
+            <Fact
+              term={SYNOPSIS_FIELDS.amount}
+              format="figure"
+              note={cheque.partPaid ? `${cheque.partPaid} paid before filing` : undefined}
+            >
+              {cheque.amount}
+            </Fact>
+            <Fact term={SYNOPSIS_FIELDS.chequeNumber} format="figure">
+              {cheque.number}
+            </Fact>
+            <Fact term={SYNOPSIS_FIELDS.drawnOn} note={synopsis.cheque.drawerBranch}>
+              {synopsis.cheque.drawerBank}
+            </Fact>
+          </SynopsisSection>
 
-        <SynopsisSection label={SUMMARY_TERMS.dishonour}>
-          <Fact term={SYNOPSIS_FIELDS.presentedAt}>
-            {synopsis.dishonour.payeeBank}, {synopsis.dishonour.payeeBranch}
-          </Fact>
-          <Fact term={SYNOPSIS_FIELDS.returnReason}>{cheque.returnReason}</Fact>
-        </SynopsisSection>
+          <SynopsisSection label={SUMMARY_TERMS.dishonour}>
+            <Fact term={SYNOPSIS_FIELDS.presentedAt} note={synopsis.dishonour.payeeBranch}>
+              {synopsis.dishonour.payeeBank}
+            </Fact>
+            <Fact term={SYNOPSIS_FIELDS.returnReason}>{cheque.returnReason}</Fact>
+          </SynopsisSection>
 
-        <SynopsisSection label={SUMMARY_TERMS.notice}>
-          <Fact term={SYNOPSIS_FIELDS.mode}>{synopsis.notice.mode}</Fact>
-          <Fact term={SYNOPSIS_FIELDS.tracking} format="code">
-            {synopsis.notice.tracking}
-          </Fact>
-          <Fact term={SYNOPSIS_FIELDS.replied}>
-            {synopsis.notice.replied ? "Received" : <Absent>None</Absent>}
-          </Fact>
-        </SynopsisSection>
+          <SynopsisSection label={SUMMARY_TERMS.notice}>
+            <Fact term={SYNOPSIS_FIELDS.mode}>{synopsis.notice.mode}</Fact>
+            <Fact term={SYNOPSIS_FIELDS.tracking} format="code">
+              {synopsis.notice.tracking}
+            </Fact>
+            <Fact term={SYNOPSIS_FIELDS.replied}>
+              {synopsis.notice.replied ? "Received" : <Absent>None</Absent>}
+            </Fact>
+          </SynopsisSection>
 
-        <SynopsisSection label={SUMMARY_TERMS.causeOfAction}>
-          {/* The branch alone: the basis beside it read "Complainant's bank branch" on
-              every complaint in the queue, which is a caption, not a fact. */}
-          <Fact term={SYNOPSIS_FIELDS.jurisdiction}>
-            {synopsis.causeOfAction.jurisdiction}
-          </Fact>
-          <Fact
-            term={SYNOPSIS_FIELDS.otherPending}
-            tone={synopsis.causeOfAction.otherPending ? "warning" : undefined}
-          >
-            {synopsis.causeOfAction.otherPending ? "One pending" : <Absent>None</Absent>}
-          </Fact>
-        </SynopsisSection>
+          <SynopsisSection label={SUMMARY_TERMS.causeOfAction}>
+            {/* The branch alone: the basis beside it read "Complainant's bank branch" on
+                every complaint in the queue, which is a caption, not a fact. */}
+            <Fact term={SYNOPSIS_FIELDS.jurisdiction}>
+              {synopsis.causeOfAction.jurisdiction}
+            </Fact>
+            <Fact
+              term={SYNOPSIS_FIELDS.otherPending}
+              tone={synopsis.causeOfAction.otherPending ? "warning" : undefined}
+            >
+              {synopsis.causeOfAction.otherPending ? "One pending" : <Absent>None</Absent>}
+            </Fact>
+          </SynopsisSection>
 
-        <SynopsisSection label={SUMMARY_TERMS.prayer}>
-          <Fact term={SYNOPSIS_FIELDS.compensation} format="figure">
-            {synopsis.prayer.compensation}
-          </Fact>
-          <Fact term={SYNOPSIS_FIELDS.interim} format="figure">
-            {synopsis.prayer.interim}
-          </Fact>
-        </SynopsisSection>
+          <SynopsisSection label={SUMMARY_TERMS.prayer}>
+            <Fact term={SYNOPSIS_FIELDS.compensation} format="figure">
+              {synopsis.prayer.compensation}
+            </Fact>
+            <Fact term={SYNOPSIS_FIELDS.interim} format="figure">
+              {synopsis.prayer.interim}
+            </Fact>
+          </SynopsisSection>
+        </div>
       </Card>
-    </section>
+    </Panel>
   );
 }
 
-/** One head of the synopsis: its name, then its particulars. */
+/**
+ * One compartment of the synopsis: the head's name, then its particulars. White on the
+ * hairline fill, so its edges are the dividers.
+ */
 function SynopsisSection({
   label,
   children,
@@ -448,14 +482,11 @@ function SynopsisSection({
 }) {
   const id = React.useId();
   return (
-    <section
-      aria-labelledby={id}
-      className="grid gap-x-6 gap-y-3 border-t border-hairline p-4 first:border-t-0 @xl:grid-cols-[8rem_minmax(0,1fr)]"
-    >
+    <section aria-labelledby={id} className="flex min-w-0 flex-col gap-4 bg-card p-6">
       <h3 id={id} className="text-body-compact font-semibold">
         {label}
       </h3>
-      <DescriptionList className="gap-2">{children}</DescriptionList>
+      <DescriptionList className="gap-4">{children}</DescriptionList>
     </section>
   );
 }
@@ -470,27 +501,30 @@ const FORMAT = {
 type FactFormat = keyof typeof FORMAT;
 
 /**
- * One particular: a term and its value, with an optional second line.
+ * One particular — its label above its value, and an optional second line beneath.
  *
- * No rule under it — the rows of one head are separated by their spacing, and the
- * hairline is saved for the break between heads. `tone` is the one colour a value can
- * take, and only where the file needs the reader's attention.
+ * Stacked rather than side by side: the compartments are a third of the page wide, and a
+ * label column beside a value column left each value a sliver of it. A value is read on
+ * its own line, at full weight, with the label just above to say what it is. `tone` is
+ * the one colour a value can take, and only where the file needs the reader's attention.
  */
 function Fact({
   term,
   format = "text",
   tone,
   note,
+  className,
   children,
 }: {
   term: string;
   format?: FactFormat;
   tone?: "warning";
   note?: string;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <DescriptionRow className="grid-cols-1 gap-x-4 gap-y-1 border-0 py-0 @md:grid-cols-[11rem_minmax(0,1fr)] @xl:grid-cols-[10rem_minmax(0,1fr)]">
+    <DescriptionRow className={cn("flex min-w-0 flex-col gap-1 border-0 py-0", className)}>
       <DescriptionTerm className="text-body-compact">{term}</DescriptionTerm>
       <DescriptionDetails className="min-w-0 text-body-compact">
         <span
@@ -513,218 +547,274 @@ function Absent({ children }: { children: React.ReactNode }) {
   return <span className="text-muted-foreground">{children}</span>;
 }
 
+/* ─────────────────────────────── scrutiny ───────────────────────────────── */
+
+/**
+ * How scrutiny went — who cleared it, how many rounds, how long, and what each round
+ * before the last was sent back for: the kind of defect, never the officer's remark.
+ *
+ * The two figures sit side by side because they are read together ("three rounds, a
+ * month"); the officer and the defects take the full width because they are words. A
+ * complaint cleared first time has nothing to list, and the round count already says so.
+ */
+function ScrutinyPanel({ scrutiny }: { scrutiny: CaseScrutiny | undefined }) {
+  return (
+    <Panel id="scrutiny-heading" label={SUMMARY_TERMS.scrutiny}>
+      <Card className={cn(SHEET, "@container")}>
+        <div className="p-6">
+          {scrutiny ? (
+            /* Two columns in a third of the page; one row of four once the panel has the
+               width — below 1280px it spans the page, and four facts stacked in two wide
+               columns left most of it empty. The defects take a double share of that row:
+               they are words, and at an equal share each one wrapped to two lines. */
+            <DescriptionList className="grid grid-cols-2 gap-x-6 gap-y-4 @2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)]">
+              <Fact term={SYNOPSIS_FIELDS.clearedBy} className="col-span-2 @2xl:col-span-1">
+                {SCRUTINY_MODES[scrutiny.mode]}
+              </Fact>
+              <Fact term={SYNOPSIS_FIELDS.rounds} format="figure">
+                {scrutiny.rounds}
+              </Fact>
+              <Fact term={SYNOPSIS_FIELDS.took} format="figure">
+                {days(scrutiny.days)}
+              </Fact>
+              {scrutiny.returns.length > 0 ? (
+                <Fact term={SYNOPSIS_FIELDS.sentBack} className="col-span-2 @2xl:col-span-1">
+                  <ol className="flex flex-col gap-1">
+                    {scrutiny.returns.map((sendBack) => (
+                      <li key={sendBack.round} className="flex gap-3">
+                        <span className="shrink-0 tabular-nums text-muted-foreground">
+                          Round {sendBack.round}
+                        </span>
+                        <span className="min-w-0">{sendBack.label}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </Fact>
+              ) : null}
+            </DescriptionList>
+          ) : (
+            <p className="text-body-compact text-muted-foreground">Not recorded</p>
+          )}
+        </div>
+      </Card>
+    </Panel>
+  );
+}
+
 /* ─────────────────────────────── the timeline ───────────────────────────── */
 
 /**
- * How the complaint got here, dated — the §138 chain, then the court's own steps.
+ * How long everything took, and — on request — when.
  *
- * The three statutory windows each fall between two adjacent steps, so each is measured
- * directly under the step that closes it: the days it took, against what the law allows.
- * Muted when inside; warning ink when outside, early, or late with condonation sought.
- * The gap from service to the cause of action is fifteen days on every file and is not
- * stated.
+ * **Collapsed, it is the spans** (owner, 2026-09-11: *"the timeline does not need to be
+ * fully shown all the time"*). The three statutory windows, each the days it took against
+ * what the law allows, and the days the complaint has waited here since scrutiny. That is
+ * the part a register decision turns on, and the only colour on it is a window the file
+ * is outside of — so a time-barred complaint cannot hide behind a closed disclosure.
  *
- * Scrutiny is one span on the same line rather than a card of its own — the second
- * build stated its rounds and days twice — carrying its attributes under it. Today is the
- * current step, the one place the brand colour marks "now".
+ * **Open, it adds the dates**, in place, below the spans: the §138 chain in one column and
+ * the court's steps in the other. The measures are not repeated beside the dates — each
+ * is already stated once, above. The toggle stays at the foot of the panel in both states,
+ * so the thing that opened it is where the eye left it.
  */
 function TimelinePanel({ summary }: { summary: CaseSummary }) {
+  const [open, setOpen] = React.useState(false);
   const { scrutiny } = summary;
+  const beforeFiling = summary.steps.filter((step) => step.id !== "filed");
+  const filed = summary.steps.find((step) => step.id === "filed");
 
   return (
-    <section aria-labelledby="timeline-heading" className="flex min-w-0 flex-col gap-2">
-      <h2 id="timeline-heading" className={EYEBROW}>
-        {SUMMARY_TERMS.timeline}
-      </h2>
-      <Card size="sm" className="border-hairline shadow-raised">
-        <CardContent>
-          <Timeline className="text-body-compact">
-            {summary.steps.map((step) => {
-              const window = summary.windows.find(
-                (candidate) => candidate.to === step.id,
-              );
-              return (
-                <Step
-                  key={step.id}
-                  label={step.label}
-                  date={<time dateTime={step.on}>{step.onShortLabel}</time>}
-                >
-                  {window ? <WindowMeasure window={window} /> : null}
-                </Step>
-              );
-            })}
+    <Panel id="timeline-heading" label={SUMMARY_TERMS.timeline} className="xl:col-span-2">
+      <Card className={cn(SHEET, "@container")}>
+        <Collapsible open={open} onOpenChange={setOpen}>
+          <DescriptionList className="grid gap-6 p-6 @md:grid-cols-2 @3xl:grid-cols-4">
+            {summary.windows.map((window) => (
+              <WindowSpan key={window.id} window={window} />
+            ))}
+            {scrutiny ? (
+              <Span
+                label={CASE_REVIEW_STATUS}
+                value={scrutiny.daysWaiting === 0 ? "Cleared today" : days(scrutiny.daysWaiting)}
+                note={scrutiny.daysWaiting === 0 ? undefined : "Since scrutiny"}
+              />
+            ) : null}
+          </DescriptionList>
 
-            {scrutiny ? <ScrutinyStep scrutiny={scrutiny} /> : null}
+          <CollapsibleContent className="border-t border-hairline animate-in fade-in-0 slide-in-from-top-1 duration-200 motion-reduce:animate-none">
+            <div className="grid gap-x-12 gap-y-8 p-6 @2xl:grid-cols-2">
+              <StepGroup heading="Before filing">
+                {beforeFiling.map((step) => (
+                  <Step
+                    key={step.id}
+                    label={step.label}
+                    date={<time dateTime={step.on}>{step.onShortLabel}</time>}
+                  />
+                ))}
+              </StepGroup>
+              <StepGroup heading="In court">
+                {filed ? (
+                  <Step
+                    label={filed.label}
+                    date={<time dateTime={filed.on}>{filed.onShortLabel}</time>}
+                  />
+                ) : null}
+                {scrutiny ? (
+                  <Step
+                    label={SUMMARY_TERMS.scrutiny}
+                    date={
+                      <>
+                        <time dateTime={scrutiny.takenUpOn}>
+                          {scrutiny.takenUpOnShortLabel}
+                        </time>
+                        {" – "}
+                        <time dateTime={scrutiny.clearedOn}>
+                          {scrutiny.clearedOnShortLabel}
+                        </time>
+                      </>
+                    }
+                  />
+                ) : null}
+                <Step status="current" label={CASE_REVIEW_STATUS} date="Today" />
+              </StepGroup>
+            </div>
+          </CollapsibleContent>
 
-            <Step status="current" label={CASE_REVIEW_STATUS} date="Today">
-              {scrutiny ? <Measure>{sinceScrutiny(scrutiny.daysWaiting)}</Measure> : null}
-            </Step>
-          </Timeline>
-        </CardContent>
+          <div className="flex justify-center border-t border-hairline p-2">
+            <CollapsibleTrigger asChild>
+              <Button type="button" variant="ghost" className="text-body-compact">
+                {open ? "Hide dates" : "Show dates"}
+                <ChevronDownIcon
+                  aria-hidden
+                  className={cn(
+                    "text-muted-foreground transition-transform",
+                    open && "rotate-180",
+                  )}
+                />
+              </Button>
+            </CollapsibleTrigger>
+          </div>
+        </Collapsible>
       </Card>
-    </section>
+    </Panel>
   );
 }
 
 /**
- * One step: its name, and its date against the far edge where dates line up, then
- * whatever the step carries. Composed as the item's children because the DS item's own
- * title slot takes a string, and a step's date is a `<time>`.
- *
- * **The spacing between steps lives inside the step, not under it.** The DS item spaces
- * itself with `pb-6` on the `li`, and its rail stretches only to the item's content box —
- * so on the render the line stopped at every step and the 24px between them was blank,
- * and the timeline read as a column of stubs. Moving the same 24px into the content
- * makes the rail run through it to the next dot. Upstream DS feedback: the rail should
- * span the item's padding (brief §0, §13).
+ * One measured span: what closed it, how many days, and where that sits against the
+ * limit. The figure carries the weight; the limit is the quiet line under it — unless the
+ * file is outside it, when both take the warning ink.
  */
-function Step({
-  status = "past",
+function Span({
   label,
-  date,
-  children,
-}: {
-  status?: "past" | "current";
-  label: string;
-  date: React.ReactNode;
-  children?: React.ReactNode;
-}) {
-  return (
-    <TimelineItem status={status} className="pb-0">
-      <div className="pb-6 group-last/timeline-item:pb-0">
-        <p className="flex items-baseline justify-between gap-3 font-medium">
-          <span className="min-w-0">{label}</span>
-          <span className="shrink-0 font-normal tabular-nums text-muted-foreground">
-            {date}
-          </span>
-        </p>
-        {children}
-      </div>
-    </TimelineItem>
-  );
-}
-
-/** The line under a step — a span measured, in the quiet voice unless it is late. */
-function Measure({
+  value,
+  note,
   tone,
-  children,
 }: {
+  label: string;
+  value: string;
+  note?: string;
   tone?: "warning";
-  children: React.ReactNode;
 }) {
   return (
-    <p
-      className={cn(
-        "mt-1 tabular-nums",
-        tone === "warning" ? "text-warning-ink" : "text-muted-foreground",
-      )}
-    >
-      {children}
-    </p>
-  );
-}
-
-/** A statutory window, measured — the days it took against the limit. */
-function WindowMeasure({ window }: { window: CaseSummaryWindow }) {
-  const took = days(window.days);
-  switch (window.status) {
-    case "within":
-      return (
-        <Measure>
-          {took} · within {window.limitLabel}
-        </Measure>
-      );
-    case "outside":
-      return (
-        <Measure tone="warning">
-          {took} · beyond {window.limitLabel}
-        </Measure>
-      );
-    case "condonation-sought":
-      return (
-        <Measure tone="warning">
-          {took} · beyond {window.limitLabel} · condonation sought
-        </Measure>
-      );
-    case "early":
-      return <Measure tone="warning">Before the cause of action arose</Measure>;
-  }
-}
-
-/**
- * Scrutiny, as one span: the day the registry took it up to the day it cleared, and
- * under it who cleared it, how many rounds, how long, and what each round before the
- * last was sent back for — the kind of defect, never the officer's remark. A complaint
- * cleared first time has nothing to list, and the round count already says so.
- */
-function ScrutinyStep({ scrutiny }: { scrutiny: CaseScrutiny }) {
-  return (
-    <Step
-      label={SUMMARY_TERMS.scrutiny}
-      date={
-        <>
-          <time dateTime={scrutiny.takenUpOn}>{scrutiny.takenUpOnShortLabel}</time>
-          {" – "}
-          <time dateTime={scrutiny.clearedOn}>{scrutiny.clearedOnShortLabel}</time>
-        </>
-      }
-    >
-      <DescriptionList className="mt-2 gap-1">
-        <ScrutinyFact term={SYNOPSIS_FIELDS.clearedBy}>
-          {SCRUTINY_MODES[scrutiny.mode]}
-        </ScrutinyFact>
-        <ScrutinyFact term={SYNOPSIS_FIELDS.rounds} format="figure">
-          {scrutiny.rounds}
-        </ScrutinyFact>
-        <ScrutinyFact term={SYNOPSIS_FIELDS.took} format="figure">
-          {days(scrutiny.days)}
-        </ScrutinyFact>
-        {scrutiny.returns.length > 0 ? (
-          <ScrutinyFact term={SYNOPSIS_FIELDS.sentBack}>
-            <ol className="flex flex-col gap-1">
-              {scrutiny.returns.map((sendBack) => (
-                <li key={sendBack.round} className="flex gap-2">
-                  <span className="shrink-0 tabular-nums text-muted-foreground">
-                    Round {sendBack.round}
-                  </span>
-                  <span className="min-w-0">{sendBack.label}</span>
-                </li>
-              ))}
-            </ol>
-          </ScrutinyFact>
+    <DescriptionRow className="flex min-w-0 flex-col gap-1 border-0 py-0">
+      <DescriptionTerm className="text-body-compact">{label}</DescriptionTerm>
+      <DescriptionDetails
+        className={cn(
+          "min-w-0 text-body-compact",
+          tone === "warning" && "text-warning-ink",
+        )}
+      >
+        <span className="block font-medium tabular-nums">{value}</span>
+        {note ? (
+          <span className={cn("block", tone !== "warning" && "text-muted-foreground")}>
+            {note}
+          </span>
         ) : null}
-      </DescriptionList>
-    </Step>
-  );
-}
-
-/** A particular of the scrutiny span — a narrow term, because the column is narrow. */
-function ScrutinyFact({
-  term,
-  format = "text",
-  children,
-}: {
-  term: string;
-  format?: FactFormat;
-  children: React.ReactNode;
-}) {
-  return (
-    <DescriptionRow className="grid-cols-[6rem_minmax(0,1fr)] gap-3 border-0 py-0">
-      <DescriptionTerm className="text-body-compact">{term}</DescriptionTerm>
-      <DescriptionDetails className={cn("min-w-0 text-body-compact", FORMAT[format])}>
-        {children}
       </DescriptionDetails>
     </DescriptionRow>
   );
 }
 
-function days(count: number): string {
-  return `${count} ${count === 1 ? "day" : "days"}`;
+/** A statutory window as a span — the days it took, against the limit the law sets. */
+function WindowSpan({ window }: { window: CaseSummaryWindow }) {
+  const limit = window.limitLabel;
+  switch (window.status) {
+    case "within":
+      return <Span label={window.label} value={days(window.days)} note={`Within ${limit}`} />;
+    case "outside":
+      return (
+        <Span
+          label={window.label}
+          value={days(window.days)}
+          note={`Beyond ${limit}`}
+          tone="warning"
+        />
+      );
+    case "condonation-sought":
+      return (
+        <Span
+          label={window.label}
+          value={days(window.days)}
+          note={`Beyond ${limit} · condonation sought`}
+          tone="warning"
+        />
+      );
+    case "early":
+      return (
+        <Span
+          label={window.label}
+          value="Early"
+          note="Before the cause of action arose"
+          tone="warning"
+        />
+      );
+  }
 }
 
-/** How long it has waited here — "same day" rather than a bare zero. */
-function sinceScrutiny(count: number): string {
-  return count === 0 ? "Cleared today" : `${days(count)} since scrutiny`;
+/** One column of dated steps, under the phase it belongs to. */
+function StepGroup({ heading, children }: { heading: string; children: React.ReactNode }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-4">
+      <h3 className="text-body-compact font-semibold text-muted-foreground">{heading}</h3>
+      <Timeline className="text-body-compact">{children}</Timeline>
+    </div>
+  );
+}
+
+/**
+ * One step: its name, and its date against the far edge where dates line up. Composed as
+ * the item's children because the DS item's own title slot takes a string, and a step's
+ * date is a `<time>`.
+ *
+ * **The spacing between steps lives inside the step, not under it.** The DS item spaces
+ * itself with `pb-6` on the `li`, and its rail stretches only to the item's content box —
+ * so on the render the line stopped at every step and the gap between them was blank.
+ * Moving the spacing into the content makes the rail run through it to the next dot.
+ * Upstream DS feedback: the rail should span the item's padding (brief §0.5).
+ */
+function Step({
+  status = "past",
+  label,
+  date,
+}: {
+  status?: "past" | "current";
+  label: string;
+  date: React.ReactNode;
+}) {
+  return (
+    <TimelineItem status={status} className="pb-0">
+      {/* Regular weight: the group's heading is the one semibold line in the column, and
+          the date's muted ink is what separates it from the step's name. */}
+      <p className="flex items-baseline justify-between gap-4 pb-4 group-last/timeline-item:pb-0">
+        <span className="min-w-0">{label}</span>
+        <span className="shrink-0 tabular-nums text-muted-foreground">{date}</span>
+      </p>
+    </TimelineItem>
+  );
+}
+
+function days(count: number): string {
+  return `${count} ${count === 1 ? "day" : "days"}`;
 }
 
 /* ─────────────────────────────── the acts ───────────────────────────────── */

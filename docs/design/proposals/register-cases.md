@@ -120,6 +120,20 @@ send back to scrutiny. Confirmed; not inferred.
 
 **Case file tab**: an empty state until it is built.
 
+**Craft round (owner, 2026-09-11, same day).** Owner: *"the padding is off and a lot of data
+is cramped together… use better ways to draw containers between data to show better
+scannability… make sure it's full width and it scales… the timeline does not need to be
+fully shown all the time… a collapsible interaction."* These supersede D1, D3, D4 and D5
+above where they differ:
+
+| # | Decision | Traces to | Gave up |
+|---|---|---|---|
+| D10 | **Full width.** The 72rem cap is gone; the page uses whatever the canvas has. | Owner | A capped reading width on very wide screens |
+| D11 | **Two tiers on one column grid.** The synopsis spans the page; below it, scrutiny takes the first third and the timeline the other two, so the gap between them falls on the synopsis's first divider. Stacked below 1280px. | Owner ("scales"); ui-craft §4 | Synopsis and timeline side by side (D1) |
+| D12 | **The synopsis is six compartments**, divided by 1px hairlines drawn as the grid's gap over the hairline fill — exact at every column count. Three columns from a 896px panel, two from 576px, one on a phone; six heads divide evenly into all three. Each fact is a **label over its value**; 24px cell padding, 16px between facts, 4px label to value. | Owner ("containers between data"); problem 1 | The head-gutter sheet with side-by-side rows (D3) |
+| D13 | **The timeline collapses** — closed by default, it shows only the spans: the three statutory windows against their limits and the days waiting since scrutiny, amber where the file is outside a limit, so a time-barred complaint cannot hide behind the disclosure. **Show dates** adds the dated steps in place below, in two columns (Before filing / In court); the measures are not repeated beside the dates. The toggle stays at the panel's foot in both states. | Owner ("does not need to be fully shown"); ui-craft "expand in place" | The always-open vertical timeline (D4) |
+| D14 | **Scrutiny is its own panel again** — cleared by, rounds, took, what each round was sent back for — because the timeline now collapses and these must stay visible. Two columns in its third; one row of four, defects double width, when it spans the page. | Owner's scrutiny ask | Scrutiny as a timeline step (D5) |
+
 ### 0.3 What I cut
 Documents on the summary (the case file's job — open question below); the attention
 alert; the timeline side sheet; any header meta line; per-row rules; the registry's
@@ -1848,6 +1862,7 @@ reach, not a missing primitive (§8, D24).
 
 | 2026-09-11 (v2) | Second build as a new rail row, `register-cases-v2`; summary tab first, in the approved-registrations grammar; scrutiny record gains per-round defect class, taken-up date and queue wait | owner (Abhiram) |
 | 2026-09-11 (v3) | v2 deleted; third build at `register-cases-v3` from v2 as a wireframe only — synopsis sheet + timeline side by side, each fact once, scrutiny on the timeline, acts settle in place (§0) | owner (Abhiram) |
+| 2026-09-11 (v3 craft) | Full width; two tiers on one grid; synopsis as six hairline-divided compartments with labels over values; timeline collapsed to its spans with dates on demand; scrutiny its own panel again (§0 D10–D14) | owner (Abhiram) |
 
 | Date | Change | Who |
 |---|---|---|
