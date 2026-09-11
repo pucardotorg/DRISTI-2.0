@@ -12,6 +12,7 @@ import {
   PAYMENT_WINDOW_DAYS,
   PRESENTATION_WINDOW_DAYS,
   caseChainFor,
+  caseBundleFor,
   caseReviewFor,
   caseSlotFor,
   daysBetween,
@@ -1143,5 +1144,59 @@ describe("the case timeline", () => {
         (step) => step.label === "Delay condonation application filed",
       ),
     );
+  });
+});
+
+/**
+ * The bundle the case file's viewer and index are built from (brief §0, Case file).
+ *
+ * Two promises worth a test: every document the file mentions is either numbered in the
+ * bundle or listed as not filed — never dropped — and every particular that names its
+ * source document points at one the bundle can open or one it says is missing.
+ */
+describe("the case bundle", () => {
+  it("numbers every filed document once, in order, and lists the rest as not filed", () => {
+    for (const complaint of REGISTER_QUEUE) {
+      const file = review(complaint.id);
+      const bundle = caseBundleFor(file);
+      const mentioned = file.sections
+        .flatMap((section) => section.groups)
+        .flatMap((group) => [
+          ...(group.records ?? []).flatMap((record) => record.documents ?? []),
+          ...(group.documents ?? []),
+        ]);
+      assert.equal(bundle.docs.length + bundle.absent.length, mentioned.length, complaint.id);
+      assert.deepEqual(
+        bundle.docs.map((document) => document.no),
+        bundle.docs.map((_, index) => index + 1),
+        complaint.id,
+      );
+      assert.ok(bundle.docs.every((document) => document.state === "filed"), complaint.id);
+      assert.ok(bundle.absent.every((document) => document.state === "absent"), complaint.id);
+    }
+  });
+
+  it("tells two documents of the same name apart by whose they are", () => {
+    const titles = caseBundleFor(review("r-1840")).docs.map((document) => document.title);
+    assert.ok(titles.includes("ID proof — Complainant"), titles.join(" | "));
+    assert.ok(titles.includes("ID proof — Accused"), titles.join(" | "));
+    assert.equal(new Set(titles).size, titles.length, "two documents share a title");
+  });
+
+  it("resolves every particular's source to a document the bundle holds or lists as missing", () => {
+    for (const complaint of REGISTER_QUEUE) {
+      const file = review(complaint.id);
+      const bundle = caseBundleFor(file);
+      const keys = new Set([...bundle.docs, ...bundle.absent].map((document) => document.key));
+      const facts = file.sections
+        .flatMap((section) => section.groups)
+        .flatMap((group) => [
+          ...(group.facts ?? []),
+          ...(group.records ?? []).flatMap((record) => record.facts),
+        ]);
+      for (const fact of facts) {
+        if (fact.source) assert.ok(keys.has(fact.source), `${complaint.id}: ${fact.term} ← ${fact.source}`);
+      }
+    }
   });
 });

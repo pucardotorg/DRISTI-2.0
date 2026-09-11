@@ -593,6 +593,63 @@ export type CaseReview = {
   timeline: CaseTimelineStep[];
 };
 
+/**
+ * The file's documents as a bundle — the filed ones numbered in the order the file
+ * states them, and the ones the form asked for that were never uploaded.
+ *
+ * The order is the file's own: section by section, group by group, a record's documents
+ * before the group's. That is the order scrutiny read them in, and the order the
+ * particulars beside the bundle are listed in, so "Doc 3" means the same thing on both
+ * sides of the screen.
+ *
+ * `title` is the label, told apart where the file holds two of the same — "ID proof" is
+ * both parties', so each carries whose it is. Nothing is invented: the second half is the
+ * group's own heading.
+ */
+export type CaseBundleDoc = CaseDocument & {
+  no: number;
+  title: string;
+  group: CaseGroupId;
+};
+
+export type CaseBundle = {
+  docs: CaseBundleDoc[];
+  absent: Omit<CaseBundleDoc, "no">[];
+};
+
+export function caseBundleFor(review: CaseReview): CaseBundle {
+  const all: Omit<CaseBundleDoc, "no" | "title">[] = [];
+  for (const section of review.sections) {
+    for (const group of section.groups) {
+      const documents = [
+        ...(group.records ?? []).flatMap((record) => record.documents ?? []),
+        ...(group.documents ?? []),
+      ];
+      for (const document of documents) all.push({ ...document, group: group.id });
+    }
+  }
+  const seen = new Map<string, number>();
+  for (const document of all) seen.set(document.label, (seen.get(document.label) ?? 0) + 1);
+  const heading = (group: CaseGroupId) =>
+    review.sections
+      .flatMap((section) => section.groups)
+      .find((candidate) => candidate.id === group)
+      ?.title.replace(/ details$/, "");
+  const titled = all.map((document) => ({
+    ...document,
+    title:
+      (seen.get(document.label) ?? 0) > 1
+        ? `${document.label} — ${heading(document.group)}`
+        : document.label,
+  }));
+  return {
+    docs: titled
+      .filter((document) => document.state === "filed")
+      .map((document, index) => ({ ...document, no: index + 1 })),
+    absent: titled.filter((document) => document.state === "absent"),
+  };
+}
+
 /** How much of the file is behind the way in — the counts beside that one control. */
 export type CaseFileCounts = {
   /** Entered values: every fact row on the file. */

@@ -7,10 +7,10 @@ import {
   ChevronDownIcon,
   CircleCheckIcon,
   FileQuestionIcon,
-  FolderOpenIcon,
   Undo2Icon,
 } from "lucide-react";
 
+import { CaseFileWorkspace } from "@/components/employee/register-case-file-v3";
 import { useCourtToday } from "@/components/employee/use-court-today";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -39,10 +39,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Timeline, TimelineItem } from "@/components/ui/timeline";
 import {
   CASE_REVIEW_STATUS,
+  caseReviewFor,
   caseSummaryFor,
   SCRUTINY_MODES,
   SUMMARY_TERMS,
   SYNOPSIS_FIELDS,
+  type CaseReview,
   type CaseScrutiny,
   type CaseSummary,
   type CaseSummaryWindow,
@@ -83,12 +85,15 @@ export function RegisterCaseV3Screen({ caseId }: { caseId: string }) {
   const today = useCourtToday();
   const complaint = registerCaseById(caseId);
   const summary = caseSummaryFor(caseId, today);
+  const review = caseReviewFor(caseId, today);
 
-  if (!complaint || !summary) return <ComplaintMissing />;
+  if (!complaint || !summary || !review) return <ComplaintMissing />;
 
   /* Keyed on the complaint, so "Next complaint" opens a fresh page rather than the
      previous complaint's settled act. */
-  return <ComplaintPage key={caseId} complaint={complaint} summary={summary} />;
+  return (
+    <ComplaintPage key={caseId} complaint={complaint} summary={summary} review={review} />
+  );
 }
 
 /** Where this queue lives — its rows open beneath it. */
@@ -121,24 +126,43 @@ type Stage = { act: Act; settled: boolean };
  * panels that the registrations queue set as the default. `overflow-x-clip` keeps the
  * sideways entrance from flashing a scrollbar; it clips without becoming a scroll
  * container, so the sticky tab row still sticks.
+ *
+ * **Two shapes of page.** The summary is a document and scrolls like one. The case file is
+ * the scrutiny workbench's frame: the page stops at the viewport, the header and tab row
+ * hold still, and the three panes below fill what is left and scroll on their own —
+ * `100svh` less the chrome bar's `h-14`, the same coupling the workbench makes.
  */
 function ComplaintPage({
   complaint,
   summary,
+  review,
 }: {
   complaint: RegisterCase;
   summary: CaseSummary;
+  review: CaseReview;
 }) {
+  const [tab, setTab] = useComplaintTab();
   const [stage, setStage] = React.useState<Stage | null>(null);
   /* Null on arrival: nothing slides in when the page first opens. */
   const [motion, setMotion] = React.useState<keyof typeof SLIDE | null>(null);
   /* The act that was backed out of — its button takes focus again when the header's
      acts return, rather than focus falling to the page. */
   const [returnFocus, setReturnFocus] = React.useState<Act | null>(null);
+  const framed = stage === null && tab === "file";
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip bg-muted dark:bg-background">
-      <div className="flex w-full min-w-0 flex-1 flex-col gap-6 px-6 pt-6 pb-12 md:px-8 md:pt-8">
+    <div
+      className={cn(
+        "flex min-w-0 flex-col overflow-x-clip bg-muted dark:bg-background",
+        framed ? "h-[calc(100svh-3.5rem)] overflow-hidden" : "min-h-0 flex-1",
+      )}
+    >
+      <div
+        className={cn(
+          "flex w-full min-w-0 flex-1 flex-col gap-6 px-6 pt-6 md:px-8 md:pt-8",
+          framed ? "min-h-0" : "pb-12",
+        )}
+      >
         <ComplaintHeader
           complaint={complaint}
           acting={stage !== null}
@@ -150,8 +174,8 @@ function ComplaintPage({
         />
 
         {stage === null ? (
-          <div className={cn("min-w-0", motion && SLIDE[motion])}>
-            <ComplaintTabs summary={summary} />
+          <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col", motion && SLIDE[motion])}>
+            <ComplaintTabs tab={tab} setTab={setTab} summary={summary} review={review} />
           </div>
         ) : (
           <ActStage
@@ -275,25 +299,48 @@ function useComplaintTab(): [ComplaintTab, (next: ComplaintTab) => void] {
   return [tab, setTab];
 }
 
-/* The DS trigger at the page's one size, keeping its width, with the active mark moved
-   onto the row's own rule rather than floating under it (ui-craft §2). */
-const TRIGGER = "h-full flex-none px-0.5 text-body-compact after:-bottom-px";
+/**
+ * The DS trigger at the page's one size, keeping its width.
+ *
+ * **The underline sits on the row's rule, and spans the label.** The primitive hangs its
+ * mark at `bottom: -5px` for a padded track, under a selector scoped to the horizontal
+ * group — so a plain `after:-bottom-px` loses on specificity and the mark rendered 3px
+ * below the rule, as a second line (measured: rule at 211px, mark at 214–216px). The
+ * override has to carry the same scope to replace it, which is how every other tab row
+ * in the app writes it (`case-section-tabs.tsx`). `px-0` takes the primitive's side
+ * padding off, so the mark is the label's width and the first label lines up with the
+ * cause title above it.
+ */
+const TRIGGER =
+  "h-full flex-none px-0 text-body-compact group-data-horizontal/tabs:after:-bottom-px";
 
-function ComplaintTabs({ summary }: { summary: CaseSummary }) {
-  const [tab, setTab] = useComplaintTab();
+function ComplaintTabs({
+  tab,
+  setTab,
+  summary,
+  review,
+}: {
+  tab: ComplaintTab;
+  setTab: (next: ComplaintTab) => void;
+  summary: CaseSummary;
+  review: CaseReview;
+}) {
+  const file = tab === "file";
 
   return (
     <Tabs
       value={tab}
       onValueChange={(value) => setTab(value as ComplaintTab)}
-      className="gap-6"
+      className={cn("min-h-0", file ? "flex-1 gap-0" : "gap-6")}
     >
       {/* Sticky under the 56px bar, on the canvas's own fill and bled to the page edge
-          so what scrolls beneath is covered cleanly. */}
-      <div className="sticky top-14 z-20 -mx-6 bg-muted px-6 md:-mx-8 md:px-8 dark:bg-background">
+          so what scrolls beneath is covered cleanly. The rule is the band's, full width:
+          on the case file it is the top edge of the panes beneath, so there is one line
+          across the page, not an inset one over a full-bleed one. */}
+      <div className="sticky top-14 z-20 -mx-6 border-b border-hairline bg-muted px-6 md:-mx-8 md:px-8 dark:bg-background">
         <TabsList
           variant="line"
-          className="w-full justify-start gap-6 rounded-none border-b border-hairline p-0 group-data-horizontal/tabs:h-11"
+          className="w-full justify-start gap-6 rounded-none p-0 group-data-horizontal/tabs:h-11"
         >
           <TabsTrigger value="summary" className={TRIGGER}>
             Summary
@@ -308,21 +355,10 @@ function ComplaintTabs({ summary }: { summary: CaseSummary }) {
         <ComplaintSummary summary={summary} />
       </TabsContent>
 
-      <TabsContent value="file">
-        <Empty className="border-0 p-0 py-12">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <FolderOpenIcon aria-hidden />
-            </EmptyMedia>
-            <EmptyTitle className="font-semibold text-title-s">
-              The case file comes next
-            </EmptyTitle>
-            <EmptyDescription className="text-body-compact">
-              This version settles the summary first. The particulars and the
-              documents the complaint was filed with will open here.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+      {/* Full bleed, edge to edge and down to the foot of the frame — the workbench's
+          panes, under the tab row's rule. */}
+      <TabsContent value="file" className="-mx-6 flex min-h-0 flex-1 flex-col md:-mx-8">
+        <CaseFileWorkspace review={review} />
       </TabsContent>
     </Tabs>
   );

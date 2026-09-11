@@ -134,6 +134,30 @@ above where they differ:
 | D13 | **The timeline collapses** — closed by default, it shows only the spans: the three statutory windows against their limits and the days waiting since scrutiny, amber where the file is outside a limit, so a time-barred complaint cannot hide behind the disclosure. **Show dates** adds the dated steps in place below, in two columns (Before filing / In court); the measures are not repeated beside the dates. The toggle stays at the panel's foot in both states. | Owner ("does not need to be fully shown"); ui-craft "expand in place" | The always-open vertical timeline (D4) |
 | D14 | **Scrutiny is its own panel again** — cleared by, rounds, took, what each round was sent back for — because the timeline now collapses and these must stay visible. Two columns in its third; one row of four, defects double width, when it spans the page. | Owner's scrutiny ask | Scrutiny as a timeline step (D5) |
 
+**Case file tab (owner, 2026-09-11).** Owner: *"now build the case file. Remember how we
+built the annotation module in e-filing? Try to stay faithful to that… I think I have enough
+context of what a case file means by this point of the product. So just build it out."* The
+annotation module is the scrutiny workbench (`components/employee/scrutiny/case-workbench.tsx`,
+brief `scrutiny-workbench.md`) — the officer's three-pane reader where marks are drawn.
+
+| # | Decision | Traces to | Gave up |
+|---|---|---|---|
+| D15 | **The workbench's frame, read-only.** On the Case file tab the page stops at the viewport (`100svh` less the chrome bar, the workbench's own coupling); header and tab row hold still; three resizable panes fill the rest, full bleed, each scrolling on its own — **particulars 34% · bundle 49% · index 17%**, floors 18 / 22 / 11rem. | Owner; `case-workbench.tsx` | A scrolling document page |
+| D16 | **Particulars = the workbench's fields panel.** A white 56px bar with the four sections as a strip that follows the scroll and keeps its current label in view; one scroll over the sunken ground; each section a quiet caption with a rule; each group a lifted `Card size="sm"` with its icon and title; records named once inside their group; rows label-and-value at `minmax(5.5rem,9rem)`, hairline-ruled, stacking below a 20rem card. A group's documents close its card as rows with a page thumbnail and their number. | `fields-panel.tsx`, `field-row.tsx` | — |
+| D17 | **No annotating.** No Mark tool, no flag per row, no composer, no raised items — the magistrate acts on the whole complaint from the header. A value read from a document keeps the workbench's source glyph, made a control: it opens that page in the bundle; the row takes the workbench's leading selection bar and the page a quiet ring while it is shown. | Owner's two-act rule; `field-row.tsx` glyph | Per-field actions |
+| D18 | **Bundle = the workbench's viewer.** A 56px bar with the count (and how many were not filed) and zoom — 50–200%, digital, persisted per reader, ⌘/Ctrl-wheel about the pointer; pages in the file's order, each labelled "N · name". | `bundle-view.tsx` | Select / Mark tools and panning |
+| D19 | **Pages are drawings at reading size** (`PageSheet`, new, in `page-facsimile.tsx`): margins, headings, hairline paragraphs, the cheque slip with its MICR band, the bank's stamp, the ruled form — still illegible. The thumbnail drawing scaled to a full column read as grey slabs. `PageFacsimile` stays for thumbnails, and moved out of the first build's shared file so v3 does not depend on it. | Render (2026-09-11); no fabricated records | Scans (none exist for these files) |
+| D20 | **Index = the workbench's rail**, with a 56px bar so the three panes' tops align: numbered rows, the page in view marked (a picked page holds the mark while its scroll settles, and the foot of the scroll marks the last page), then **Not filed** — the slots left empty — so a missing document is visible without hunting. | `index-rail.tsx` | — |
+| D21 | **Folding on the file's own width**, in rem: below 52rem (the three floors) one pane at a time behind a Particulars / Bundle switch, index in a sheet. The workbench's viewport measure squeezed all three panes below their floors at a 1024px window beside the court rail (measured). | `useRoomInRem` logic; render | — |
+| D22 | **Bundle model** `caseBundleFor(review)`: filed documents numbered in file order (a record's before its group's), the empty slots listed, duplicate names told apart by whose they are ("ID proof — Complainant"). Tested: nothing dropped, numbering sequential, every particular's source resolves. | `case-review.ts` | — |
+
+**Tab row fix.** The active underline rendered 3px below the rule (rule 211px, mark 214–216px):
+the primitive hangs its mark at `bottom: -5px` under a selector scoped to the horizontal group,
+and a plain `after:-bottom-px` lost on specificity. The override now carries the same scope
+(as every other tab row in the app does), the trigger's side padding is off so the mark is the
+label's width, and the rule moved to the band so it runs full width above the case file's
+panes. Measured after: rule 212–213px, mark 211–213px, on both tabs.
+
 ### 0.3 What I cut
 Documents on the summary (the case file's job — open question below); the attention
 alert; the timeline side sheet; any header meta line; per-row rules; the registry's
@@ -149,6 +173,9 @@ pickup delay as its own row (visible as the gap between filing and the span's st
   binding?
 
 ### 0.5 Upstream DS feedback (restated in §13)
+- `TabsTrigger` `line` variant: the mark's `bottom: -5px` assumes the padded default track
+  and is scoped so only an equally scoped override can move it; a line list that carries its
+  own rule wants the mark on that rule by default.
 - `Timeline`: the rail stretches only to the item's content box, so the `pb-6` between
   items is unlined and the line reads as stubs. v3 moves the same 24px inside the item's
   content via the item's `className`; the primitive should span its own padding.
@@ -1863,6 +1890,7 @@ reach, not a missing primitive (§8, D24).
 | 2026-09-11 (v2) | Second build as a new rail row, `register-cases-v2`; summary tab first, in the approved-registrations grammar; scrutiny record gains per-round defect class, taken-up date and queue wait | owner (Abhiram) |
 | 2026-09-11 (v3) | v2 deleted; third build at `register-cases-v3` from v2 as a wireframe only — synopsis sheet + timeline side by side, each fact once, scrutiny on the timeline, acts settle in place (§0) | owner (Abhiram) |
 | 2026-09-11 (v3 craft) | Full width; two tiers on one grid; synopsis as six hairline-divided compartments with labels over values; timeline collapsed to its spans with dates on demand; scrutiny its own panel again (§0 D10–D14) | owner (Abhiram) |
+| 2026-09-11 (v3 case file) | Case file built as the scrutiny workbench's three-pane reader, read-only (§0 D15–D22); tab underline fixed onto the rule | owner (Abhiram) |
 
 | Date | Change | Who |
 |---|---|---|

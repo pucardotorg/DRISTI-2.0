@@ -113,7 +113,7 @@ function useCaseTab(): [CaseTab, (next: CaseTab) => void] {
  * is moved from the primitive's padded-track position to the row's own rule, so the
  * underline sits on the line rather than floating five pixels under it (ui-craft §2).
  */
-const TRIGGER = "h-full flex-none px-0.5 text-body after:-bottom-px";
+const TRIGGER = "h-full flex-none px-0.5 text-body group-data-horizontal/tabs:after:-bottom-px";
 
 function CaseTabs({
   caseId,
