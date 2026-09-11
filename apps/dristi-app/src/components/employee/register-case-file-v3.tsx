@@ -10,7 +10,7 @@ import {
   SearchXIcon,
 } from "lucide-react";
 
-import { DocumentPreview } from "@/components/cases/document-preview";
+import { DocumentPreviewActions } from "@/components/cases/document-preview";
 import { PageFacsimile, PageSheet } from "@/components/employee/page-facsimile";
 import { QueueSearchField } from "@/components/employee/queue-search-field";
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,6 @@ import {
   caseBundleFor,
   type CaseBundle,
   type CaseBundleDoc,
-  type CaseDocument,
   type CaseFact,
   type CaseGroup,
   type CaseRecord,
@@ -102,15 +101,14 @@ export function CaseFileView({ review }: { review: CaseReview }) {
             (groupSum, view) =>
               groupSum +
               view.facts.length +
-              view.documents.length +
-              view.records.reduce(
-                (recordSum, record) => recordSum + record.facts.length + record.documents.length,
-                0,
-              ),
+              view.records.reduce((recordSum, record) => recordSum + record.facts.length, 0),
             0,
           ),
         0,
       )
+    : 0;
+  const docMatches = needle
+    ? [...bundle.docs, ...bundle.absent].filter((doc) => hit(doc.title, needle)).length
     : 0;
 
   const readFrom = React.useCallback(
@@ -136,8 +134,8 @@ export function CaseFileView({ review }: { review: CaseReview }) {
   const visibleGroups = sections.flatMap((entry) => entry.groups.map((view) => view.group));
 
   return (
-    <div className="grid items-start gap-x-6 gap-y-8 xl:grid-cols-[minmax(0,1fr)_1rem_minmax(22rem,26rem)]">
-      <div className="flex min-w-0 flex-col gap-6">
+    <div className="grid items-start gap-x-6 gap-y-8 xl:grid-cols-[minmax(0,1fr)_1rem_minmax(24rem,28rem)]">
+      <div className="flex min-w-0 flex-col gap-8">
         <div className="flex flex-wrap items-end gap-3">
           <QueueSearchField
             label="Search the case file"
@@ -158,14 +156,21 @@ export function CaseFileView({ review }: { review: CaseReview }) {
           </Button>
         </div>
 
-        {needle && matchCount > 0 ? (
-          <p role="status" className="-mt-3 text-body-compact text-muted-foreground">
+        {needle && (matchCount > 0 || docMatches > 0) ? (
+          <p role="status" className="-mt-4 text-body-compact text-muted-foreground">
             <span className="tabular-nums">{matchCount}</span>{" "}
-            {matchCount === 1 ? "match" : "matches"}
+            {matchCount === 1 ? "particular" : "particulars"}
+            {docMatches > 0 ? (
+              <>
+                {" · "}
+                <span className="tabular-nums">{docMatches}</span>{" "}
+                {docMatches === 1 ? "document, in the list" : "documents, in the list"}
+              </>
+            ) : null}
           </p>
         ) : null}
 
-        {sections.length === 0 ? (
+        {sections.length === 0 && docMatches > 0 ? null : sections.length === 0 ? (
           <Empty className="border-0 p-0 py-12">
             <EmptyHeader>
               <EmptyMedia variant="icon">
@@ -188,7 +193,7 @@ export function CaseFileView({ review }: { review: CaseReview }) {
             <section
               key={section.id}
               aria-labelledby={`file-sec-${section.id}`}
-              className="flex flex-col gap-2"
+              className="flex flex-col gap-3"
             >
               <h2
                 id={`file-sec-${section.id}`}
@@ -218,23 +223,27 @@ export function CaseFileView({ review }: { review: CaseReview }) {
         <ContentsRail groups={visibleGroups} />
       </div>
 
-      {/* Sticky under the chrome bar and the tab row, and never taller than the window
-          from wherever it is — see `useFitToWindow`. */}
+      {/* **Docked, not floating** (owner, design review: *"a whole section and not like a
+          rounded off section"*, confirmed as a docked panel). It starts on the tab row's
+          rule — `-mt-8` takes back the tabs' gap — runs to the window's right edge through
+          the page margin and down to its foot, and sticks there under the tab row as the
+          file scrolls. A straight hairline down its left is the clean edge the contents
+          ticks sit against. Chrome, not a panel: card white, no radius, no shadow. */}
       <aside
         ref={asideRef}
         aria-label="Documents"
-        className="sticky top-29 hidden max-h-[calc(100svh-8.25rem)] min-h-0 flex-col xl:flex"
+        className="sticky top-25 -mt-8 hidden h-[calc(100svh-6.25rem)] min-h-0 flex-col self-start border-l border-hairline bg-card xl:-mr-12 xl:flex"
       >
         {panel}
       </aside>
 
       <Sheet open={sheetOpen && !wide} onOpenChange={setSheetOpen}>
-        <SheetContent side="right" className="gap-0 data-[side=right]:sm:max-w-md">
+        <SheetContent side="right" className="gap-0 p-0 data-[side=right]:sm:max-w-md">
           <SheetHeader className="sr-only">
             <SheetTitle>Documents</SheetTitle>
             <SheetDescription>The documents this complaint was filed with.</SheetDescription>
           </SheetHeader>
-          <div className="flex min-h-0 flex-1 flex-col p-4 pt-12">{panel}</div>
+          <div className="flex min-h-0 flex-1 flex-col pt-12">{panel}</div>
         </SheetContent>
       </Sheet>
     </div>
@@ -242,13 +251,12 @@ export function CaseFileView({ review }: { review: CaseReview }) {
 }
 
 /**
- * Keep a sticky panel's foot inside the window wherever the panel is.
+ * Keep the docked panel's foot on the window's foot wherever the panel is.
  *
- * A sticky panel capped at "the window less the stuck offset" is right only once it has
- * stuck: at the top of the page it starts lower — under the search, 121px below where it
- * will stick — so its last 105px sat under the fold until the reader scrolled, and that is
- * where the values read from the page are (measured, 1440×900). Capping it at the space
- * actually left below its top, every frame it moves, keeps the whole panel on screen.
+ * Sized "the window less the stuck offset", the panel is right only once it has stuck:
+ * before that it starts lower, and its foot sat under the fold (measured, 1440×900). Sizing
+ * it to the space actually left below its top, every frame it moves, keeps it running
+ * exactly to the bottom of the window.
  */
 function useFitToWindow(ref: React.RefObject<HTMLElement | null>) {
   React.useEffect(() => {
@@ -258,7 +266,7 @@ function useFitToWindow(ref: React.RefObject<HTMLElement | null>) {
       const el = ref.current;
       if (!el) return;
       const top = el.getBoundingClientRect().top;
-      el.style.maxHeight = `${Math.max(320, window.innerHeight - top - 16)}px`;
+      el.style.height = `${Math.max(360, window.innerHeight - top)}px`;
     };
     const schedule = () => {
       if (!frame) frame = requestAnimationFrame(fit);
@@ -277,13 +285,8 @@ function useFitToWindow(ref: React.RefObject<HTMLElement | null>) {
 /* ─────────────────────────────── the search ─────────────────────────────── */
 
 type FactItem = { id: string; fact: CaseFact };
-type RecordView = { record: CaseRecord; facts: FactItem[]; documents: CaseDocument[] };
-type GroupView = {
-  group: CaseGroup;
-  records: RecordView[];
-  facts: FactItem[];
-  documents: CaseDocument[];
-};
+type RecordView = { record: CaseRecord; facts: FactItem[] };
+type GroupView = { group: CaseGroup; records: RecordView[]; facts: FactItem[] };
 
 function hit(text: string | undefined, needle: string): boolean {
   return !!text && text.toLowerCase().includes(needle);
@@ -294,15 +297,15 @@ function hit(text: string | undefined, needle: string): boolean {
  *
  * A match on the group's own name, or on a record's name, keeps everything under it: a
  * reader who types "accused" wants the accused, not the rows that happen to contain the
- * word. Otherwise a particular stays when its label or its value matches, and a document
- * when its name does. Row ids are the particular's place in the file, not in the result,
- * so a selection survives the search changing.
+ * word. Otherwise a particular stays when its label or its value matches. Documents are
+ * searched in the documents panel, which narrows by the same query. Row ids are the
+ * particular's place in the file, not in the result, so a selection survives the search
+ * changing.
  */
 function groupView(group: CaseGroup, needle: string): GroupView | null {
   const whole = !needle || hit(group.title, needle);
   const keepFact = (fact: CaseFact, all: boolean) =>
     all || hit(fact.term, needle) || hit(fact.value, needle);
-  const keepDoc = (doc: CaseDocument, all: boolean) => all || hit(doc.label, needle);
 
   const records = (group.records ?? [])
     .map((record) => {
@@ -312,21 +315,17 @@ function groupView(group: CaseGroup, needle: string): GroupView | null {
         facts: record.facts
           .map((fact, index) => ({ id: `${group.id}-${record.id}-${index}`, fact }))
           .filter((item) => keepFact(item.fact, all)),
-        documents: (record.documents ?? []).filter((doc) => keepDoc(doc, all)),
         all,
       };
     })
-    .filter((view) => view.all || view.facts.length > 0 || view.documents.length > 0);
+    .filter((view) => view.all || view.facts.length > 0);
 
   const facts = (group.facts ?? [])
     .map((fact, index) => ({ id: `${group.id}-${index}`, fact }))
     .filter((item) => keepFact(item.fact, whole));
-  const documents = (group.documents ?? []).filter((doc) => keepDoc(doc, whole));
 
-  if (!whole && records.length === 0 && facts.length === 0 && documents.length === 0) {
-    return null;
-  }
-  return { group, records, facts, documents };
+  if (!whole && records.length === 0 && facts.length === 0) return null;
+  return { group, records, facts };
 }
 
 /** Every particular in the file that was read from one document, with its row id. */
@@ -372,8 +371,15 @@ function Marked({ text, needle }: { text: string; needle: string }) {
 
 /**
  * One group of the form inside its section's panel — its name, its records, its own
- * particulars, then its documents. Groups are separated by a hairline; the panel's shadow
- * is the only lift.
+ * particulars. Groups are separated by a hairline; the panel's shadow is the only lift.
+ *
+ * **The group's mark sits in a tile** (owner, design review: the bare glyph beside the
+ * title *"looks very tacky… too small… maybe giving it a container"*): a 32px sunken well,
+ * the inset role inside a panel, with the glyph centred in it. The title beside it is the
+ * card-title role, 16px at 600.
+ *
+ * **No document chips** (same review): the documents have their own panel beside the file,
+ * and a particular read from one opens it.
  */
 function GroupBlock({
   view,
@@ -396,13 +402,15 @@ function GroupBlock({
     <section
       id={`file-group-${group.id}`}
       aria-labelledby={`file-group-${group.id}-title`}
-      className="flex scroll-mt-32 flex-col gap-3 border-t border-hairline p-6 first:border-t-0"
+      className="flex scroll-mt-32 flex-col gap-4 border-t border-hairline p-6 first:border-t-0 md:p-8"
     >
       <h3
         id={`file-group-${group.id}-title`}
-        className="flex items-center gap-2 text-body-compact font-semibold"
+        className="flex items-center gap-3 text-body font-semibold"
       >
-        <Icon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+        <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-muted-foreground">
+          <Icon aria-hidden className="size-4" />
+        </span>
         <Marked text={group.title} needle={needle} />
       </h3>
 
@@ -415,7 +423,7 @@ function GroupBlock({
 
       {view.records.map((record) => (
         <div key={record.record.id} className="flex flex-col gap-1">
-          <p className="flex flex-wrap items-baseline gap-x-2 text-body-compact font-medium">
+          <p className="flex flex-wrap items-baseline gap-x-2 text-body-compact font-semibold">
             <Marked text={record.record.heading} needle={needle} />
             {record.record.tag ? (
               <span className="font-normal text-muted-foreground">{record.record.tag}</span>
@@ -428,7 +436,6 @@ function GroupBlock({
             selected={selected}
             onShow={onShow}
           />
-          <DocumentChips documents={record.documents} needle={needle} docNo={docNo} onShow={onShow} />
         </div>
       ))}
 
@@ -441,13 +448,13 @@ function GroupBlock({
           onShow={onShow}
         />
       ) : null}
-      <DocumentChips documents={view.documents} needle={needle} docNo={docNo} onShow={onShow} />
     </section>
   );
 }
 
 /**
- * Particulars, label beside value. A value read from a document ends in a quiet eye: it
+ * Particulars, label beside value — the label in the 12px caption role, the value at 14px
+ * medium, so the two never read at one level. A value read from a document ends in a quiet eye: it
  * shows that page beside the file, and the row keeps a light fill while its page is the
  * one on show. The whole row answers a click, for a mouse; the eye is the keyboard's way
  * in and says which document it opens.
@@ -476,20 +483,20 @@ function FactRows({
             key={id}
             id={`fact-${id}`}
             className={cn(
-              "group/row -mx-3 grid-cols-1 gap-1 rounded-lg border-0 px-3 py-2 transition-colors sm:grid-cols-[minmax(8rem,12rem)_minmax(0,1fr)] sm:gap-4",
+              "group/row -mx-3 grid-cols-1 items-baseline gap-1 rounded-lg border-0 px-3 py-2 transition-colors sm:grid-cols-[minmax(8rem,12rem)_minmax(0,1fr)] sm:gap-4",
               source && "cursor-pointer hover:bg-accent",
               current && "bg-accent",
             )}
             onClick={source ? () => onShow(source.key, id) : undefined}
           >
-            <DescriptionTerm className="text-body-compact">
+            <DescriptionTerm className="text-caption">
               <Marked text={fact.term} needle={needle} />
             </DescriptionTerm>
             <DescriptionDetails className="flex min-w-0 items-start gap-2 text-body-compact">
               <span
                 className={cn(
                   "min-w-0 flex-1 break-words whitespace-pre-line",
-                  !fact.value && "text-muted-foreground",
+                  fact.value ? "font-medium" : "text-muted-foreground",
                   fact.numeric && "tabular-nums",
                   fact.exception && "text-warning-ink",
                 )}
@@ -523,54 +530,6 @@ function FactRows({
         );
       })}
     </DescriptionList>
-  );
-}
-
-/**
- * The documents a group or record was filed with, as chips under its particulars: a small
- * drawing of the page and its name. A filed one shows its page; a slot left empty keeps
- * its place with a dashed edge and says so.
- */
-function DocumentChips({
-  documents,
-  needle,
-  docNo,
-  onShow,
-}: {
-  documents: CaseDocument[];
-  needle: string;
-  docNo: (key: string) => CaseBundleDoc | undefined;
-  onShow: (key: string | null, rowId?: string) => void;
-}) {
-  if (documents.length === 0) return null;
-  return (
-    <ul className="mt-1 flex flex-wrap gap-2" aria-label="Documents">
-      {documents.map((document) => {
-        const filed = document.state === "filed" ? docNo(document.key) : undefined;
-        return (
-          <li key={document.key}>
-            {filed ? (
-              <button
-                type="button"
-                onClick={() => onShow(filed.key)}
-                className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-hairline bg-card py-1 pr-3 pl-1 text-start text-body-compact transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              >
-                <span className="h-8 w-6 shrink-0 overflow-hidden rounded-sm bg-paper ring-1 ring-hairline">
-                  <PageFacsimile kind={filed.kind} />
-                </span>
-                <Marked text={filed.label} needle={needle} />
-              </button>
-            ) : (
-              <span className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-dashed border-input py-1 pr-3 pl-1 text-body-compact text-muted-foreground">
-                <span aria-hidden className="h-8 w-6 shrink-0" />
-                <Marked text={document.label} needle={needle} />
-                <span className="text-caption">· Not filed</span>
-              </span>
-            )}
-          </li>
-        );
-      })}
-    </ul>
   );
 }
 
@@ -666,14 +625,16 @@ function ContentsRail({ groups }: { groups: CaseGroup[] }) {
 /* ─────────────────────────────── the page ───────────────────────────────── */
 
 /**
- * Beside the file: the documents, and — when one is asked for — its page.
+ * The documents panel's contents — flat, inside the dock.
  *
- * At rest it is the list: every filed document, numbered in the file's order, and the
- * slots left empty under "Not filed", narrowed by the same search as the file. Picking a
- * document, or a particular read from one, turns the panel to that page — the product's
- * own framed preview, with its full view — and lists underneath what was read from it, the
- * particular you came from marked. Back returns to the list; the arrows step through the
- * bundle without going back to it.
+ * At rest it is the list: every filed document, numbered in the file's order, and the slots
+ * left empty under "Not filed", narrowed by the same search as the file. Picking a
+ * document, or a particular read from one, turns the panel to that document: a bar with
+ * the way back and the arrows through the bundle, then one scroll holding the document's
+ * name with its full view, the drawing of its page, and the particulars read from it —
+ * label over value and ruled apart, so a long prayer or a paragraph of complaint wraps in
+ * place and the panel scrolls, rather than a card below the page being cut off (owner,
+ * design review).
  */
 function DocumentPanel({
   bundle,
@@ -694,25 +655,25 @@ function DocumentPanel({
     const docs = bundle.docs.filter((candidate) => !query || hit(candidate.title, query));
     const absent = bundle.absent.filter((candidate) => !query || hit(candidate.title, query));
     return (
-      <Card size="sm" className="min-h-0 gap-0 border-hairline py-0 shadow-raised">
-        <div className="flex items-baseline justify-between gap-3 border-b border-hairline px-4 py-3">
-          <h2 className="text-body-compact font-semibold">Documents</h2>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex shrink-0 items-baseline justify-between gap-3 border-b border-hairline px-6 py-4">
+          <h2 className="text-body font-semibold">Documents</h2>
           <span className="text-caption tabular-nums text-muted-foreground">
             {bundle.docs.length} filed
           </span>
         </div>
-        <div className="flex min-h-0 flex-col gap-0.5 overflow-y-auto p-2">
+        <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain p-3">
           {docs.map((candidate) => (
             <button
               key={candidate.key}
               type="button"
               onClick={() => onShow(candidate.key)}
-              className="flex min-h-11 items-center gap-3 rounded-lg px-2 py-1.5 text-start transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+              className="flex min-h-12 items-center gap-3 rounded-lg px-3 py-2 text-start transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
             >
               <span className="h-8 w-6 shrink-0 overflow-hidden rounded-sm bg-paper ring-1 ring-hairline">
                 <PageFacsimile kind={candidate.kind} />
               </span>
-              <span className="min-w-0 flex-1 text-body-compact">
+              <span className="min-w-0 flex-1 text-body-compact font-medium">
                 <Marked text={candidate.title} needle={query} />
               </span>
               <span className="shrink-0 text-caption tabular-nums text-muted-foreground">
@@ -721,31 +682,31 @@ function DocumentPanel({
             </button>
           ))}
           {docs.length === 0 && absent.length === 0 ? (
-            <p className="px-2 py-3 text-body-compact text-muted-foreground">
+            <p className="px-3 py-3 text-body-compact text-muted-foreground">
               No document matches.
             </p>
           ) : null}
           {absent.length > 0 ? (
             <>
-              <p className="px-2 pt-3 pb-1 text-caption font-semibold text-muted-foreground">
+              <p className="px-3 pt-4 pb-1 text-caption font-semibold text-muted-foreground">
                 Not filed
               </p>
               {absent.map((candidate) => (
                 <p
                   key={candidate.key}
-                  className="flex min-h-10 items-center gap-3 px-2 text-body-compact text-muted-foreground"
+                  className="flex min-h-12 items-center gap-3 px-3 text-body-compact text-muted-foreground"
                 >
                   <span
                     aria-hidden
                     className="h-8 w-6 shrink-0 rounded-sm border border-dashed border-input"
                   />
-                  {candidate.title}
+                  <Marked text={candidate.title} needle={query} />
                 </p>
               ))}
             </>
           ) : null}
         </div>
-      </Card>
+      </div>
     );
   }
 
@@ -753,14 +714,19 @@ function DocumentPanel({
   const previous = bundle.docs[index - 1];
   const next = bundle.docs[index + 1];
   const facts = readFrom(doc.key);
+  const page = (
+    <div className="mx-auto aspect-[3/4] w-full max-w-sm overflow-hidden rounded-md bg-paper ring-1 ring-hairline">
+      <PageSheet kind={doc.kind} />
+    </div>
+  );
 
   return (
-    <div className="@container flex min-h-0 flex-1 flex-col gap-3">
-      <div className="flex items-center gap-1">
-        {/* In a phone's sheet the row holds four controls in 248px; the way back keeps its
-            arrow and says its name to a screen reader, and shows the name once there is
-            room for it. */}
-        <Button type="button" variant="ghost" className="-ms-2" onClick={() => onShow(null)}>
+    <div className="@container flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 items-center gap-1 border-b border-hairline px-4 py-2">
+        {/* In a phone's sheet the bar holds four controls in a narrow width; the way back
+            keeps its arrow and says its name to a screen reader, and shows the name once
+            there is room for it. */}
+        <Button type="button" variant="ghost" className="-ms-1" onClick={() => onShow(null)}>
           <ArrowLeftIcon aria-hidden />
           <span className="sr-only @xs:not-sr-only">All documents</span>
         </Button>
@@ -789,52 +755,55 @@ function DocumentPanel({
         </Button>
       </div>
 
-      <DocumentPreview
+      {/* Keyed on the document, so stepping to the next one starts at its top. */}
+      <div
         key={doc.key}
-        variant="quiet"
-        surface="card"
-        height="fill"
-        title={doc.title}
-        className="min-h-80 flex-1 shadow-raised animate-in fade-in-0 duration-200 motion-reduce:animate-none"
-        source={{
-          kind: "composed",
-          content: (
-            <div className="mx-auto aspect-[3/4] w-full max-w-sm overflow-hidden rounded-md bg-paper shadow-raised">
-              <PageSheet kind={doc.kind} />
-            </div>
-          ),
-        }}
-      />
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain animate-in fade-in-0 duration-200 motion-reduce:animate-none"
+      >
+        <section aria-label={doc.title} className="flex flex-col gap-6 px-6 py-6">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="min-w-0 text-body font-semibold">{doc.title}</h2>
+            <DocumentPreviewActions
+              iconOnly
+              title={doc.title}
+              source={{ kind: "composed", content: page }}
+              className="-my-2 shrink-0"
+            />
+          </div>
 
-      {facts.length > 0 ? (
-        <Card size="sm" className="@container shrink-0 gap-0 border-hairline py-0 shadow-raised">
-          <h3 className="border-b border-hairline px-4 py-2.5 text-caption font-semibold text-muted-foreground">
-            Read from this page
-          </h3>
-          <DescriptionList className="px-4 py-1">
-            {facts.map(({ id, fact }) => (
-              <DescriptionRow
-                key={id}
-                className={cn(
-                  "-mx-2 grid-cols-1 gap-0.5 rounded-md border-0 px-2 py-1.5 @xs:grid-cols-[minmax(6rem,9rem)_minmax(0,1fr)] @xs:gap-3",
-                  selected?.rowId === id && "bg-accent",
-                )}
-              >
-                <DescriptionTerm className="text-body-compact">{fact.term}</DescriptionTerm>
-                <DescriptionDetails
-                  className={cn(
-                    "min-w-0 text-body-compact break-words",
-                    fact.numeric && "tabular-nums",
-                    !fact.value && "text-muted-foreground",
-                  )}
-                >
-                  {fact.value ?? "Not provided"}
-                </DescriptionDetails>
-              </DescriptionRow>
-            ))}
-          </DescriptionList>
-        </Card>
-      ) : null}
+          {page}
+
+          {facts.length > 0 ? (
+            <div className="flex flex-col gap-3 border-t border-hairline pt-6">
+              <h3 className="text-caption font-semibold text-muted-foreground">
+                Read from this page
+              </h3>
+              <DescriptionList className="[&>*:not(:last-child)]:border-b [&>*:not(:last-child)]:border-hairline">
+                {facts.map(({ id, fact }) => (
+                  <DescriptionRow
+                    key={id}
+                    className={cn(
+                      "-mx-2 flex flex-col gap-1 rounded-md border-0 px-2 py-2.5 transition-colors",
+                      selected?.rowId === id && "bg-accent",
+                    )}
+                  >
+                    <DescriptionTerm className="text-caption">{fact.term}</DescriptionTerm>
+                    <DescriptionDetails
+                      className={cn(
+                        "min-w-0 text-body-compact break-words whitespace-pre-line",
+                        fact.value ? "font-medium" : "text-muted-foreground",
+                        fact.numeric && "tabular-nums",
+                      )}
+                    >
+                      {fact.value ?? "Not provided"}
+                    </DescriptionDetails>
+                  </DescriptionRow>
+                ))}
+              </DescriptionList>
+            </div>
+          ) : null}
+        </section>
+      </div>
     </div>
   );
 }

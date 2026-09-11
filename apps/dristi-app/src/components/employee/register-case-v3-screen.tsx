@@ -148,7 +148,7 @@ function ComplaintPage({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip bg-muted dark:bg-background">
-      <div className="flex w-full min-w-0 flex-1 flex-col gap-6 px-6 pt-6 pb-12 md:px-8 md:pt-8">
+      <div className="flex w-full min-w-0 flex-1 flex-col gap-8 px-6 pt-6 pb-16 md:px-8 md:pt-8 xl:px-12">
         <ComplaintHeader
           complaint={complaint}
           acting={stage !== null}
@@ -315,12 +315,12 @@ function ComplaintTabs({
     <Tabs
       value={tab}
       onValueChange={(value) => setTab(value as ComplaintTab)}
-      className="gap-6"
+      className="gap-8"
     >
       {/* Sticky under the 56px bar, on the canvas's own fill and bled to the page edge
           so what scrolls beneath is covered cleanly. The rule is the band's, full width,
           as a sticky bar's edge is. */}
-      <div className="sticky top-14 z-20 -mx-6 border-b border-hairline bg-muted px-6 md:-mx-8 md:px-8 dark:bg-background">
+      <div className="sticky top-14 z-20 -mx-6 border-b border-hairline bg-muted px-6 md:-mx-8 md:px-8 xl:-mx-12 xl:px-12 dark:bg-background">
         <TabsList
           variant="line"
           className="w-full justify-start gap-6 rounded-none p-0 group-data-horizontal/tabs:h-11"
@@ -360,7 +360,7 @@ function ComplaintTabs({
  */
 function ComplaintSummary({ summary }: { summary: CaseSummary }) {
   return (
-    <div className="grid items-start gap-x-6 gap-y-8 xl:grid-cols-3">
+    <div className="grid items-start gap-x-8 gap-y-12 xl:grid-cols-3">
       <SynopsisPanel summary={summary} />
       <ScrutinyPanel scrutiny={summary.scrutiny} />
       <TimelinePanel summary={summary} />
@@ -384,7 +384,7 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section aria-labelledby={id} className={cn("flex min-w-0 flex-col gap-2", className)}>
+    <section aria-labelledby={id} className={cn("flex min-w-0 flex-col gap-3", className)}>
       <h2 id={id} className={EYEBROW}>
         {label}
       </h2>
@@ -499,11 +499,18 @@ function SynopsisSection({
 }) {
   const id = React.useId();
   return (
-    <section aria-labelledby={id} className="flex min-w-0 flex-col gap-4 bg-card p-6">
-      <h3 id={id} className="text-body-compact font-semibold">
+    <section aria-labelledby={id} className="flex min-w-0 flex-col gap-4 bg-card p-6 md:p-8">
+      <h3 id={id} className="text-body font-semibold">
         {label}
       </h3>
-      <DescriptionList className="gap-4">{children}</DescriptionList>
+      {/* Each particular is its own row, ruled off from the next: three parties stacked
+          with nothing between them read as one lump (owner, design review). The rule is
+          drawn from the list with a child selector rather than `divide-y`: the DS row
+          resets its own border, and `divide-y`'s zero-specificity rule lost to that reset
+          on the render — padding, and no line. */}
+      <DescriptionList className="[&>*]:py-3 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0 [&>*:not(:last-child)]:border-b [&>*:not(:last-child)]:border-hairline">
+        {children}
+      </DescriptionList>
     </section>
   );
 }
@@ -520,10 +527,12 @@ type FactFormat = keyof typeof FORMAT;
 /**
  * One particular — its label above its value, and an optional second line beneath.
  *
- * Stacked rather than side by side: the compartments are a third of the page wide, and a
- * label column beside a value column left each value a sliver of it. A value is read on
- * its own line, at full weight, with the label just above to say what it is. `tone` is
- * the one colour a value can take, and only where the file needs the reader's attention.
+ * **Three levels, three treatments** (owner, design review: *"Drawn on and Chinnakada are
+ * exactly the same hierarchy… the typographic hierarchy is very broken"*). The label is
+ * scaffolding and takes the 12px caption role; the value is what is read and takes 14px
+ * at medium weight; a second line — a branch, a party's type — stays 14px in the muted
+ * ink, so it is quieter than the value and plainly not a label. `tone` is the one colour
+ * a value can take, and only where the file needs the reader's attention.
  */
 function Fact({
   term,
@@ -542,11 +551,11 @@ function Fact({
 }) {
   return (
     <DescriptionRow className={cn("flex min-w-0 flex-col gap-1 border-0 py-0", className)}>
-      <DescriptionTerm className="text-body-compact">{term}</DescriptionTerm>
+      <DescriptionTerm className="text-caption">{term}</DescriptionTerm>
       <DescriptionDetails className="min-w-0 text-body-compact">
         <span
           className={cn(
-            "block",
+            "block font-medium",
             FORMAT[format],
             tone === "warning" && "text-warning-ink",
           )}
@@ -578,13 +587,13 @@ function ScrutinyPanel({ scrutiny }: { scrutiny: CaseScrutiny | undefined }) {
   return (
     <Panel id="scrutiny-heading" label={SUMMARY_TERMS.scrutiny}>
       <Card className={cn(SHEET, "@container")}>
-        <div className="p-6">
+        <div className="p-6 md:p-8">
           {scrutiny ? (
             /* Two columns in a third of the page; one row of four once the panel has the
                width — below 1280px it spans the page, and four facts stacked in two wide
                columns left most of it empty. The defects take a double share of that row:
                they are words, and at an equal share each one wrapped to two lines. */
-            <DescriptionList className="grid grid-cols-2 gap-x-6 gap-y-4 @2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)]">
+            <DescriptionList className="grid grid-cols-2 gap-x-8 gap-y-6 @2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)]">
               <Fact term={SYNOPSIS_FIELDS.clearedBy} className="col-span-2 @2xl:col-span-1">
                 {SCRUTINY_MODES[scrutiny.mode]}
               </Fact>
@@ -644,7 +653,7 @@ function TimelinePanel({ summary }: { summary: CaseSummary }) {
     <Panel id="timeline-heading" label={SUMMARY_TERMS.timeline} className="xl:col-span-2">
       <Card className={cn(SHEET, "@container")}>
         <Collapsible open={open} onOpenChange={setOpen}>
-          <DescriptionList className="grid gap-6 p-6 @md:grid-cols-2 @3xl:grid-cols-4">
+          <DescriptionList className="grid gap-8 p-6 @md:grid-cols-2 @3xl:grid-cols-4 md:p-8">
             {summary.windows.map((window) => (
               <WindowSpan key={window.id} window={window} />
             ))}
@@ -658,7 +667,7 @@ function TimelinePanel({ summary }: { summary: CaseSummary }) {
           </DescriptionList>
 
           <CollapsibleContent className="border-t border-hairline animate-in fade-in-0 slide-in-from-top-1 duration-200 motion-reduce:animate-none">
-            <div className="grid gap-x-12 gap-y-8 p-6 @2xl:grid-cols-2">
+            <div className="grid gap-x-12 gap-y-8 p-6 @2xl:grid-cols-2 md:p-8">
               <StepGroup heading="Before filing">
                 {beforeFiling.map((step) => (
                   <Step
@@ -734,7 +743,7 @@ function Span({
 }) {
   return (
     <DescriptionRow className="flex min-w-0 flex-col gap-1 border-0 py-0">
-      <DescriptionTerm className="text-body-compact">{label}</DescriptionTerm>
+      <DescriptionTerm className="text-caption">{label}</DescriptionTerm>
       <DescriptionDetails
         className={cn(
           "min-w-0 text-body-compact",

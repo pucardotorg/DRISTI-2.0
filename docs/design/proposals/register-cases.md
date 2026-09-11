@@ -175,6 +175,19 @@ is shaped for an officer who works the file rather than a magistrate who checks 
 Kept from the workbench build: the bundle model (D22), `PageSheet` (D19) as the page in the
 preview, and the tab row fix below.
 
+**Design review (owner, 2026-09-11, 1728×996), eight comments.** Three were confirmed with the
+owner before building — the first reading of comments 6 and 7 was wrong and was reverted
+unbuilt.
+
+| # | Comment (owner) | Decision |
+|---|---|---|
+| D28 | *"complainant, accused, then complainant advocate… all reading like one lump"* | Each particular in a synopsis compartment is its own row, ruled from the next with a hairline, 12px above and below. Drawn from the list with a child selector: `divide-y`'s zero-specificity rule lost to the DS row's own border reset on the render. |
+| D29 | *"Drawn on and Chinnakada are exactly the same hierarchy… the typographic hierarchy is very broken"* (and across the screen) | **Confirmed: 12px labels, 16px titles.** Labels take the 12px caption role (not key information); values 14px at medium weight; second lines 14px muted; card and compartment titles 16px semibold, the DS card-title role. Applied to the synopsis, scrutiny, the timeline's spans, the case file's rows and the document panel's values. |
+| D30 | *"sections are feeling too crammed with each other"* | **Confirmed: more room, same layout.** Page margin 48px on large screens; 32px between header, tabs and content; 48px between the synopsis and the scrutiny/timeline row; compartment and panel padding 32px from tablet width (24px on a phone). |
+| D31 | *"Is it really necessary to show this here now?"* — the document chips | Removed from the case file's groups. |
+| D32 | *"a fixed section, not a cutout section… a clean border for the index"*; clarified: *"the earlier documents panel… will become a full section in itself, and it will still list the list of documents… when I click on it, it'll just become a whole section and not like a rounded off section… the index will still index on the left panel"* | **Confirmed: docked panel.** The documents panel docks to the window's right edge from the tab row's rule to the window's foot, sticky, a straight hairline down its left and no radius or shadow. At rest the list; opened, a bar (back, n of N, arrows) and one scroll holding the name with its full view, the page, and the values read from it ruled apart — so a long value wraps and the panel scrolls. The contents ticks still index the case file, now against the dock's clean edge. |
+| D33 | *"these icons… too small… maybe giving it a container"* | Each group's mark sits in a 32px sunken tile beside its 16px title. |
+
 **Tab row fix.** The active underline rendered 3px below the rule (rule 211px, mark 214–216px):
 the primitive hangs its mark at `bottom: -5px` under a selector scoped to the horizontal group,
 and a plain `after:-bottom-px` lost on specificity. The override now carries the same scope
@@ -1916,6 +1929,7 @@ reach, not a missing primitive (§8, D24).
 | 2026-09-11 (v3 craft) | Full width; two tiers on one grid; synopsis as six hairline-divided compartments with labels over values; timeline collapsed to its spans with dates on demand; scrutiny its own panel again (§0 D10–D14) | owner (Abhiram) |
 | 2026-09-11 (v3 case file) | Case file built as the scrutiny workbench's three-pane reader, read-only (§0 D15–D22); tab underline fixed onto the rule | owner (Abhiram) |
 | 2026-09-11 (v3 case file, simplified) | Workbench frame dropped for a scrolling file with search, a tick-rail contents and a page-on-request panel with the values read from it (§0 D23–D27) | owner (Abhiram) |
+| 2026-09-11 (design review) | Eight comments applied; type scale, spacing and the docked documents panel confirmed with the owner first (§0 D28–D33) | owner (Abhiram) |
 
 | Date | Change | Who |
 |---|---|---|
