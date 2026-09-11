@@ -160,23 +160,57 @@ export type CaseHeaderTerm =
   (typeof CASE_HEADER_TERMS)[keyof typeof CASE_HEADER_TERMS];
 
 /**
- * The names of the summary's five rows — what the magistrate's eye runs down.
+ * The synopsis's sections, and the names of the fields inside them.
  *
- * Declared here rather than typed into the screen for the reason `FACT_TERMS` is: a label
- * written at the call site is a label nobody sourced, and `case-review.test.ts` holds the
- * screen to this list the way it holds the file view to `FACT_TERMS`. Five, and in the
- * order the summary reads them — the instrument, whether it is in time, what is on the
- * file, who the parties are, how scrutiny went.
+ * Taken from the synopsis a magistrate reads — the owner's reference (2026-09-11): parties,
+ * the cheque, its dishonour, the demand notice, the cause of action, the prayer. Declared
+ * here rather than typed at the call site for the reason `FACT_TERMS` is: a label written
+ * in the screen is a label nobody sourced, and `case-review.test.ts` holds the screen to
+ * both lists.
+ *
+ * Two deliberate departures from the reference, both constants: "Whether delivered?" is
+ * folded into "Delivered on" (a delivery date already says it arrived), and the header's
+ * court and "Complaint under S.138" are left out because every complaint this magistrate
+ * reads is in his court and under that section.
  */
 export const SUMMARY_TERMS = {
-  cheque: "The cheque",
-  inTime: "In time",
-  documents: "Documents",
-  parties: "Parties",
   scrutiny: "Scrutiny",
+  parties: "Parties",
+  cheque: "Cheque",
+  dishonour: "Dishonour",
+  notice: "Demand notice",
+  causeOfAction: "Cause of action",
+  prayer: "Prayer",
 } as const;
 
 export type SummaryTerm = (typeof SUMMARY_TERMS)[keyof typeof SUMMARY_TERMS];
+
+export const SYNOPSIS_FIELDS = {
+  complainant: "Complainant",
+  accused: "Accused",
+  advocate: "Complainant's advocate",
+  amount: "Amount",
+  datedOn: "Date on cheque",
+  chequeNumber: "Cheque number",
+  drawnOn: "Drawn on",
+  returnReason: "Return reason",
+  presentedOn: "Presented",
+  returnMemoOn: "Return memo",
+  presentedAt: "Presented at",
+  dispatchedOn: "Dispatched",
+  mode: "Mode of service",
+  tracking: "Tracking number",
+  deliveredOn: "Delivered on",
+  replied: "Reply",
+  arisenOn: "Arose",
+  filedOn: "Complaint filed",
+  jurisdiction: "Jurisdiction, S.142(2)",
+  otherPending: "Other complaints pending",
+  relief: "Relief sought",
+  interim: "Interim relief",
+} as const;
+
+export type SynopsisField = (typeof SYNOPSIS_FIELDS)[keyof typeof SYNOPSIS_FIELDS];
 
 /**
  * Who did the scrutiny — two members, rendered identically.
@@ -668,9 +702,12 @@ type CaseFileMarks = {
    * days old cannot claim three rounds.
    */
   scrutinyRounds: number;
+  /** Another §138 complaint pending between the same parties — `Jurisdiction.otherPending`. */
+  otherPending: boolean;
 };
 
 const DEFAULT_MARKS: CaseFileMarks = {
+  otherPending: false,
   returnReason: "insufficient-funds",
   delayed: false,
   witnesses: 1,
@@ -704,7 +741,9 @@ const CASE_FILE_MARKS: Record<string, Partial<CaseFileMarks>> = {
   "r-1840": { delayed: true, replied: true, witnesses: 2, scrutinyRounds: 3 },
   /* Payment stopped rather than funds short — the other limb of §138, and a different
      reason for the same return. */
-  "r-1722": { returnReason: "payment-stopped", scrutinyRounds: 2 },
+  /* …and a second complaint between the same two parties is already before a court —
+     the one fact on the synopsis that can turn a register into a joinder question. */
+  "r-1722": { returnReason: "payment-stopped", scrutinyRounds: 2, otherPending: true },
   /* Part of the cheque amount was paid after the notice, so the balance is what is
      claimed — `DemandNotice.paymentStatus: "part"`. */
   "r-1654": { partPayment: true, witnesses: 0 },
@@ -2471,7 +2510,53 @@ export type CaseWindowStatus = "within" | "outside" | "early" | "condonation-sou
 
 export type CaseSummaryDocument = { key: CaseSlotKey; label: string; onFile: boolean };
 
+/** How the demand notice travelled — the filing form's own list, restated. */
+const SERVICE_MODES = [
+  { id: "speed", label: "Speed post", prefix: "E" },
+  { id: "rpad", label: "Registered post (RPAD)", prefix: "R" },
+  { id: "courier", label: "Courier", prefix: "" },
+] as const;
+
+export type CaseSynopsis = {
+  /** `ChequeDetails` — the instrument and the account it was drawn on. */
+  cheque: { datedOn: string; datedOnLabel: string; drawerBank: string; drawerBranch: string };
+  /** The dishonour — presentation, the return memo, and the bank it was presented at. */
+  dishonour: {
+    presentedOn: string;
+    presentedOnLabel: string;
+    returnMemoOn: string;
+    returnMemoOnLabel: string;
+    payeeBank: string;
+    payeeBranch: string;
+  };
+  /** `DemandNotice` — how it went, and whether it arrived. */
+  notice: {
+    dispatchedOn: string;
+    dispatchedOnLabel: string;
+    mode: string;
+    tracking: string;
+    deliveredOn: string;
+    deliveredOnLabel: string;
+    replied: boolean;
+  };
+  /** `Jurisdiction` — when the offence was complete, and why this court. */
+  causeOfAction: {
+    arisenOn: string;
+    arisenOnLabel: string;
+    /** §142(2)(a): the branch where the payee presented the cheque. */
+    jurisdiction: string;
+    /** Why that place — which limb of §142(2) the complaint invokes. */
+    jurisdictionBasis: string;
+    otherPending: boolean;
+    filedOn: string;
+    filedOnLabel: string;
+  };
+  /** `AdrPrayer.finalRelief` and `.interimRelief` — the filer's own words. */
+  prayer: { relief: string; interim: string };
+};
+
 export type CaseSummary = {
+  synopsis: CaseSynopsis;
   cheque: {
     amount: string;
     number: string;
@@ -2539,6 +2624,27 @@ export function caseSummaryFor(
     on: string,
   ): CaseSummaryStep => ({ id: stepId, label, on, onLabel: formatCaseDate(on) });
 
+  const payee = bankFor(seed, 1);
+  const mode = pick(SERVICE_MODES, seed + 5);
+  /* India Post numbers its articles two letters, nine digits, "IN" — speed post opens
+     with E, registered post with R. A courier's airway bill is just digits. */
+  const tracking =
+    mode.id === "courier"
+      ? String(numberOf(seed, 13, 10))
+      : `${mode.prefix}${"KLMW"[seed % 4]}${numberOf(seed, 11, 9)}IN`;
+  /* §138 lets a court award up to twice the cheque amount; §143A(2) caps interim
+     compensation at twenty per cent of it. The filer prays for these in their own words
+     (`AdrPrayer`); the demo writes them the way a complaint usually does, and never
+     above what the statute allows. */
+  const prayer = {
+    relief: `Punishment under S.138 NI Act, and compensation of ${formatChequeAmount(
+      amount * 2,
+    )} — twice the cheque amount`,
+    interim: `Interim compensation of ${formatChequeAmount(
+      Math.round(amount * 0.2),
+    )} under S.143A NI Act`,
+  };
+
   const presentation = daysBetween(chain.chequeOn, chain.depositedOn);
   const notice = daysBetween(chain.returnedOn, chain.noticeSentOn);
   const applicationOnFile =
@@ -2552,7 +2658,43 @@ export function caseSummaryFor(
           ? "condonation-sought"
           : "outside";
 
+  const label = formatCaseDate;
   return {
+    synopsis: {
+      cheque: {
+        datedOn: chain.chequeOn,
+        datedOnLabel: label(chain.chequeOn),
+        drawerBank: payer.name,
+        drawerBranch: payer.branch,
+      },
+      dishonour: {
+        presentedOn: chain.depositedOn,
+        presentedOnLabel: label(chain.depositedOn),
+        returnMemoOn: chain.returnedOn,
+        returnMemoOnLabel: label(chain.returnedOn),
+        payeeBank: payee.name,
+        payeeBranch: payee.branch,
+      },
+      notice: {
+        dispatchedOn: chain.noticeSentOn,
+        dispatchedOnLabel: label(chain.noticeSentOn),
+        mode: mode.label,
+        tracking,
+        deliveredOn: chain.noticeServedOn,
+        deliveredOnLabel: label(chain.noticeServedOn),
+        replied: marks.replied,
+      },
+      causeOfAction: {
+        arisenOn: chain.accruedOn,
+        arisenOnLabel: label(chain.accruedOn),
+        jurisdiction: payee.branch,
+        jurisdictionBasis: "Complainant's bank branch",
+        otherPending: marks.otherPending,
+        filedOn: chain.submittedOn,
+        filedOnLabel: label(chain.submittedOn),
+      },
+      prayer,
+    },
     cheque: {
       amount: formatChequeAmount(amount),
       number: String(numberOf(seed, 3, 6)),

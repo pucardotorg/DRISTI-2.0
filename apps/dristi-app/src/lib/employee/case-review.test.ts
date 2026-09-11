@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
+  SYNOPSIS_FIELDS,
   SUMMARY_TERMS,
   CASE_REVIEW_STATUS,
   FACT_TERMS,
@@ -227,6 +228,30 @@ describe("terms are attributes the file names", () => {
       /<SummaryRow\b[^>]*\bterm="/,
       "a summary row with a typed label",
     );
+  });
+
+  it("labels every synopsis field from the model, and uses every label it declares", () => {
+    /* The synopsis is the owner's own document, so its field names are a declared list
+       (`SYNOPSIS_FIELDS`). A field typed into the screen is one nobody sourced; a
+       declared label nothing renders is a field the synopsis promised and dropped. */
+    const screen = readFileSync(
+      new URL("../../components/employee/case-review-screen.tsx", import.meta.url),
+      "utf8",
+    );
+    const labels = [...screen.matchAll(/<Field\b[^>]*\blabel=\{([^}]+)\}/g)].map(
+      (match) => match[1].trim(),
+    );
+    assert.ok(labels.length > 0, "the synopsis renders fields");
+    for (const label of labels) {
+      assert.match(label, /^SYNOPSIS_FIELDS\./, label);
+    }
+    assert.doesNotMatch(screen, /<Field\b[^>]*\blabel="/, "a field with a typed label");
+    for (const key of Object.keys(SYNOPSIS_FIELDS)) {
+      assert.ok(
+        screen.includes(`SYNOPSIS_FIELDS.${key}`),
+        `SYNOPSIS_FIELDS.${key} is declared and never rendered`,
+      );
+    }
   });
 });
 
