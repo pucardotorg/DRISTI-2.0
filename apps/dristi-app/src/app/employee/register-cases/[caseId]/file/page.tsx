@@ -1,22 +1,22 @@
-import type { Metadata } from "next";
-import { Suspense } from "react";
-
-import { CaseFileScreen } from "@/components/employee/case-file-screen";
-
-export const metadata: Metadata = { title: "Full file" };
+import { permanentRedirect } from "next/navigation";
 
 /**
- * One complaint's whole file — reached from "Open the full file" on the glance, or from
- * a finding that names the head and the document to open (brief D17).
+ * The route the full file used to be, kept for one release as a redirect to the query
+ * form (brief D25).
  *
- * A route rather than a mode or an overlay. A mode needs a second control to leave and a
- * memory of which mode you are in; an overlay re-introduces the scrim the file view was
- * rebuilt to remove. A route gives Back for free — the trail, the browser, and the
- * breadcrumb — and it is linkable, which a deep link from a finding needs.
+ * The file is no longer a page. It discloses below the report on the complaint's own
+ * route, with `?file=1` holding the state — so Back closes it, a link still opens it, and
+ * a magistrate is never on a second page with no way back to what he was reading. What
+ * this route is for is everything already pointing at the old one: a bookmark, an open
+ * tab, a link in somebody's notes. They land on the file, open, exactly as before.
  *
- * `Suspense` because the screen reads `?doc=` to decide which document the pane opens
- * on arrival, and `useSearchParams` opts a route into client rendering unless a boundary
- * says where the server may stop.
+ * **Delete this with the release after the one that ships D25.** Nothing in the app links
+ * here any more — `caseFileHref` builds the query form — so the only traffic is external,
+ * and a redirect that outlives the links it was written for is a route nobody can tell is
+ * dead. The crumb's `leaf` in `lib/employee/navigation.ts` went with the page itself.
+ *
+ * `permanentRedirect` rather than `redirect`: the move is permanent, and a 308 lets a
+ * browser stop asking.
  */
 export default async function EmployeeCaseFilePage({
   params,
@@ -24,9 +24,5 @@ export default async function EmployeeCaseFilePage({
   params: Promise<{ caseId: string }>;
 }) {
   const { caseId } = await params;
-  return (
-    <Suspense>
-      <CaseFileScreen caseId={caseId} />
-    </Suspense>
-  );
+  permanentRedirect(`/employee/register-cases/${caseId}?file=1`);
 }

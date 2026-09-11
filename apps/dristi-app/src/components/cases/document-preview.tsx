@@ -127,6 +127,7 @@ export function DocumentPreview({
   download,
   height = "default",
   actions,
+  header,
   variant = "default",
   surface = "sunken",
   className,
@@ -140,6 +141,21 @@ export function DocumentPreview({
   height?: keyof typeof wellHeight;
   /** Surface-specific controls, placed ahead of Download in the same row. */
   actions?: ReactNode;
+  /**
+   * Something to put in the frame's title strip **instead of** the document's name —
+   * `quiet` + `card` only.
+   *
+   * Added 2026-09-11 for the court-side pane, whose strip carries a tab per document in
+   * the group being read (`register-cases` brief D26). Without it the active tab and the
+   * `h3` name the same document twice, eight pixels apart. The strip drops its own
+   * padding when a header is given so a caller can run tabs the full height of it and
+   * land the active underline exactly on the strip's rule — two parallel horizontal
+   * lines being the thing `ui-craft` §2 forbids here.
+   *
+   * The region keeps its accessible name from `title` either way, so what the header
+   * replaces is a visible heading and never a spoken one.
+   */
+  header?: ReactNode;
   /** `quiet` drops the header band and puts the actions on the well as icons. */
   variant?: "default" | "quiet";
   /**
@@ -173,15 +189,26 @@ export function DocumentPreview({
           className
         )}
       >
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-hairline py-1.5 pr-1.5 pl-4">
-          <h3 className="min-w-0 truncate text-caption font-semibold text-muted-foreground">
-            {title}
-          </h3>
+        <div
+          className={cn(
+            "flex shrink-0 gap-2 border-b border-hairline pr-1.5",
+            // A header owns the strip's full height so its own rule can be the strip's.
+            header
+              ? "items-stretch justify-between"
+              : "items-center justify-between py-1.5 pl-4"
+          )}
+        >
+          {header ?? (
+            <h3 className="min-w-0 truncate text-caption font-semibold text-muted-foreground">
+              {title}
+            </h3>
+          )}
           <DocumentPreviewActions
             iconOnly
             title={title}
             source={source}
             download={download}
+            className={header ? "self-center" : undefined}
           >
             {actions}
           </DocumentPreviewActions>

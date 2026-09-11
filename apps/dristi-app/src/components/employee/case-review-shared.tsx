@@ -55,8 +55,31 @@ import { cn } from "@/lib/utils";
 export const PANEL =
   "min-w-0 rounded-xl border border-hairline bg-card p-6 shadow-raised";
 
-/** Where a heading comes to rest when a deep link jumps to it. */
-export const SCROLL_REST = "scroll-mt-(--chrome-sticky-top)";
+/**
+ * The height of the strip the way in becomes once the file is open — twice, because the
+ * scroll offset below is arithmetic on it and a pair of numbers that must agree should
+ * be readable together (`app-chrome.tsx`'s own `BAR` / `BAR_HEIGHT` pattern).
+ */
+export const FILE_STRIP = "h-12";
+const FILE_STRIP_HEIGHT = "3rem";
+
+/**
+ * Where a heading inside the file comes to rest when a deep link jumps to it, published
+ * by the disclosure as `--file-sticky-top` and read as `scroll-mt-(--file-sticky-top)`.
+ *
+ * **The chrome is no longer the only thing above the file** (brief D25). The way in
+ * becomes a sticky strip flush under the bar once the file is open, so a head resting at
+ * `--chrome-sticky-top` would land underneath it — the defect the chrome's own offset was
+ * published to avoid, one layer down. The offset a head wants is now "the bar, the strip,
+ * then the air I would have left anyway", which is `--chrome-sticky-top` (bar + air) plus
+ * the strip — and only the screen that owns the strip knows that last part.
+ *
+ * A custom property rather than an exported class string, for the reason `app-chrome.tsx`
+ * gives for the first one: Tailwind builds from the literal text in the source, so a
+ * screen writing `xl:${SOMETHING}` produces a class no stylesheet contains.
+ */
+export const FILE_STICKY_TOP = `calc(var(--chrome-sticky-top) + ${FILE_STRIP_HEIGHT})`;
+export const SCROLL_REST = "scroll-mt-(--file-sticky-top)";
 
 /**
  * The frame both views sit in: tinted canvas, page padding, header, body, decision band.
@@ -72,16 +95,13 @@ export function CaseReviewShell({
   review,
   hasCounsel,
   gap,
-  headerAside,
   children,
 }: {
   review: CaseReview;
   /** Whether anyone is on record for the complainant — the send-back's recipient. */
   hasCounsel: boolean;
-  /** The glance is three short panels that must read as one object; the file is sections. */
+  /** The page's own step between regions. One route now, so one value (brief D25). */
   gap: "gap-6" | "gap-8";
-  /** The file view's timeline control, which the glance does not have (brief D21). */
-  headerAside?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const decision = useCaseDecision();
@@ -94,7 +114,7 @@ export function CaseReviewShell({
           gap,
         )}
       >
-        <CaseReviewHeader review={review} aside={headerAside} />
+        <CaseReviewHeader review={review} />
         {decision.stage === null ? (
           children
         ) : (
@@ -135,31 +155,26 @@ export function CaseReviewShell({
  * against the rows above it — and there is nothing here to compare against: one file,
  * one wait (`ui-craft` §1.4).
  */
-function CaseReviewHeader({
-  review,
-  aside,
-}: {
-  review: CaseReview;
-  aside?: React.ReactNode;
-}) {
+function CaseReviewHeader({ review }: { review: CaseReview }) {
   return (
     <header
       className={cn(PANEL, "flex flex-col gap-4")}
       aria-labelledby="case-review-title"
     >
-      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-2">
-          <p className="text-caption font-medium tabular-nums text-muted-foreground">
-            {review.caseNumber}
-          </p>
-          <h1
-            id="case-review-title"
-            className="text-balance font-semibold text-title sm:text-title-l"
-          >
-            {review.title}
-          </h1>
-        </div>
-        {aside}
+      {/* Nothing sits beside the title any more. The timeline control used to, on the
+          file view only; it now hangs off the file region itself, which is the only place
+          it makes sense (brief D8, D21) — and a header slot with one conditional
+          occupant is a slot waiting to be filled with something that does not belong. */}
+      <div className="flex min-w-0 flex-col gap-2">
+        <p className="text-caption font-medium tabular-nums text-muted-foreground">
+          {review.caseNumber}
+        </p>
+        <h1
+          id="case-review-title"
+          className="text-balance font-semibold text-title sm:text-title-l"
+        >
+          {review.title}
+        </h1>
       </div>
 
       {/* Two across on a phone, four from `sm` — the DS's own "single column by default,
@@ -199,8 +214,13 @@ function CaseReviewHeader({
  *
  * `<div>` between `<dl>` and `<dt>` is the HTML5 grouping form, which is what lets each
  * pair be a grid cell without breaking the list semantics.
+ *
+ * **Exported for the report's scrutiny cells** (brief D23, D28's pass 7). Four cells
+ * saying how the complaint was scrutinised are label-over-value facts exactly as the
+ * header's four are, and one label-over-value grammar on one screen is the whole of that
+ * pass — the alternative was a second shape eight pixels apart doing the same job.
  */
-function CaseHeaderCell({
+export function CaseHeaderCell({
   term,
   value,
   numeric,

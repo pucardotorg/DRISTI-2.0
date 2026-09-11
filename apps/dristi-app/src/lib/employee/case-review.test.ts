@@ -11,12 +11,15 @@ import {
   PRESENTATION_WINDOW_DAYS,
   caseChainFor,
   caseReviewFor,
+  caseSlotFor,
   daysBetween,
+  scrutinyFor,
   type CaseFact,
   type CaseGroup,
   type CaseReview,
   type CaseSection,
 } from "./case-review";
+import { formatCaseDate } from "./hearing-overview";
 import { REGISTER_QUEUE, registerCaseById } from "./register-cases";
 
 /* A fixed day, so a test asserting on dates is not a test about when it ran. */
@@ -220,6 +223,206 @@ describe("terms are attributes the file names", () => {
     for (const cell of cells) {
       assert.match(cell[1].trim(), /^CASE_HEADER_TERMS\./, cell[1]);
     }
+  });
+
+  it("leaves no scrutiny term string in the report either", () => {
+    /* The same rule reaching the third and last vocabulary (brief D23). The report's four
+       cells are the header's own component, so they could take a typed string just as
+       easily — and a fifth cell nobody sourced is how a report that traces to a model
+       starts reporting things nobody records. */
+    const report = readFileSync(
+      new URL("../../components/employee/case-review-screen.tsx", import.meta.url),
+      "utf8",
+    );
+    const cells = [...report.matchAll(/<CaseHeaderCell\s+term=\{([^}]+)\}/g)];
+    assert.equal(cells.length, 4, "Scrutiny · Rounds · Took · Cleared");
+    for (const cell of cells) {
+      assert.match(cell[1].trim(), /^CASE_SCRUTINY_TERMS\./, cell[1]);
+    }
+  });
+});
+
+/**
+ * The report's first statement — how this complaint was scrutinised (brief D23).
+ *
+ * The values are derived the way the §138 chain is, and the same two things are worth a
+ * test rather than a comment: that they are **coherent** (nothing happens outside the
+ * wait, a round count no wait can hold is clamped) and that they are **facts** (they
+ * vary across the queue, in both members of the enum). A report whose numbers read the
+ * same on all thirty-five complaints would be the constant-column defect one level up,
+ * and a "Cleared" date after the day the complaint reached the queue would be the report
+ * contradicting the header two panels above it.
+ */
+describe("the scrutiny report", () => {
+  it("states one for every complaint in the queue", () => {
+    /* The "Not recorded" branch is real and the model must be able to say it (brief §10),
+       but it cannot arise here: every row in this queue has waited at least a day. If
+       this starts failing, a fixture's wait went to zero — not the branch appearing. */
+    for (const complaint of REGISTER_QUEUE) {
+      assert.ok(
+        scrutinyFor(complaint.id, TODAY),
+        `${complaint.id} has no scrutiny record`,
+      );
+    }
+    assert.equal(scrutinyFor("r-nope", TODAY), undefined);
+  });
+
+  it("clears inside the wait, never before the filing and never after today", () => {
+    for (const complaint of REGISTER_QUEUE) {
+      const file = review(complaint.id);
+      const scrutiny = scrutinyFor(complaint.id, TODAY);
+      assert.ok(scrutiny);
+      assert.ok(
+        scrutiny.clearedOn >= file.submittedOn,
+        `${complaint.id} cleared before it was filed`,
+      );
+      assert.ok(
+        scrutiny.clearedOn <= TODAY,
+        `${complaint.id} cleared after today`,
+      );
+      /* The duration has to fit in the wait as well as the clearing date: the registry
+         cannot have spent longer on it than the complaint has existed. */
+      assert.ok(
+        scrutiny.days <= complaint.daysSinceSubmitted,
+        `${complaint.id} took ${scrutiny.days} days inside a ${complaint.daysSinceSubmitted}-day wait`,
+      );
+      assert.ok(scrutiny.days >= scrutiny.rounds, complaint.id);
+      assert.ok(scrutiny.rounds >= 1, complaint.id);
+    }
+  });
+
+  it("cannot claim more rounds than a complaint has been alive for", () => {
+    /* `r-701` waited three days. A mark asking for two rounds on it would be a file that
+       went round the advocate↔registry loop twice inside a long weekend, which is the
+       kind of thing a clerk spots before anything else on the screen. */
+    for (const complaint of REGISTER_QUEUE) {
+      const scrutiny = scrutinyFor(complaint.id, TODAY);
+      assert.ok(scrutiny);
+      assert.ok(
+        scrutiny.rounds * 3 <= complaint.daysSinceSubmitted || scrutiny.rounds === 1,
+        `${complaint.id}: ${scrutiny.rounds} rounds in ${complaint.daysSinceSubmitted} days`,
+      );
+    }
+  });
+
+  it("varies in rounds, in duration and in who did it", () => {
+    /* Three facts, so three things that have to take more than one value — the same rule
+       `FACT_TERMS` is held to. "Rounds: 1" on all thirty-five would be the owner's own
+       question ("how many times did the advocate take to get through") answered with a
+       constant. */
+    const records = REGISTER_QUEUE.map((complaint) => {
+      const scrutiny = scrutinyFor(complaint.id, TODAY);
+      assert.ok(scrutiny);
+      return scrutiny;
+    });
+    assert.ok(
+      new Set(records.map((record) => record.rounds)).size > 1,
+      "every complaint took the same number of rounds",
+    );
+    assert.ok(
+      new Set(records.map((record) => record.days)).size > 3,
+      "every complaint took the same time",
+    );
+    assert.deepEqual(
+      [...new Set(records.map((record) => record.mode))].sort(),
+      ["automated", "officer"],
+      "the two members of the enum both appear, and no third does",
+    );
+  });
+
+  it("gives the same row the same record every time", () => {
+    assert.deepEqual(
+      scrutinyFor("r-1840", TODAY),
+      scrutinyFor("r-1840", TODAY),
+    );
+  });
+
+  it("writes the clearing day out the way every other date on the screen is", () => {
+    const scrutiny = scrutinyFor("r-1840", TODAY);
+    assert.ok(scrutiny);
+    assert.equal(scrutiny.clearedOnLabel, formatCaseDate(scrutiny.clearedOn));
+  });
+});
+
+/**
+ * A fact points at the document it would be read from (brief D27).
+ *
+ * `CaseFact.source` replaced pairing-by-order, and the whole value of the change is that
+ * the mapping is now checkable: the brief's `Checked against` column was prose in a
+ * document nobody could run. What this asserts is that every source **resolves**, and
+ * resolves inside the fact's own group — not that it is *correct*, which nothing here can
+ * prove and which §11.6 accepts as a standing risk.
+ */
+describe("a fact and its source document", () => {
+  /** Every fact on a file, with the group it sits in. */
+  function sourced(id: string) {
+    return groups(id).flatMap((group) =>
+      [
+        ...(group.facts ?? []),
+        ...(group.records ?? []).flatMap((record) => record.facts),
+      ].map((fact) => ({ fact, group })),
+    );
+  }
+
+  it("names a slot this model declares, in the fact's own group", () => {
+    for (const complaint of REGISTER_QUEUE) {
+      for (const { fact, group } of sourced(complaint.id)) {
+        if (!fact.source) continue;
+        const slot = caseSlotFor(fact.source);
+        assert.ok(
+          slot,
+          `${complaint.id}: "${fact.term}" reads off "${fact.source}", which is not a slot`,
+        );
+        assert.equal(
+          slot.group,
+          group.id,
+          `${complaint.id}: "${fact.term}" sits in ${group.id} and reads off a slot in ${slot.group}`,
+        );
+      }
+    }
+  });
+
+  it("names a slot the group actually lists, so the pane has a tab for it", () => {
+    /* Resolving to a declared slot is not enough: the pane's tab set is the *group's own*
+       documents, so a source naming a slot that group never renders would select a tab
+       that is not there. */
+    for (const complaint of REGISTER_QUEUE) {
+      for (const { fact, group } of sourced(complaint.id)) {
+        if (!fact.source) continue;
+        const keys = [
+          ...(group.documents ?? []).map((doc) => doc.key),
+          ...(group.records ?? []).flatMap((record) =>
+            (record.documents ?? []).map((doc) => doc.key),
+          ),
+        ];
+        assert.ok(
+          keys.includes(fact.source),
+          `${complaint.id}: "${fact.term}" reads off "${fact.source}", which ${group.id} does not list`,
+        );
+      }
+    }
+  });
+
+  it("leaves the fifteen declared-only rows on r-1840 without one", () => {
+    /* D27's own number, and the reason it is worth locking: those fifteen rows are
+       deliberately **not controls**, and the count is what the check caption's limit is
+       about. A row quietly gaining a source would make it pressable without anyone
+       deciding that it should be. */
+    const rows = sourced("r-1840").map(({ fact }) => fact);
+    assert.equal(rows.length, 41, "the file's own fact rows");
+    assert.equal(
+      rows.filter((fact) => fact.source === undefined).length,
+      15,
+      "declared-only rows",
+    );
+  });
+
+  it("keeps an advocate's row on that advocate's own card", () => {
+    /* The per-record half of the mapping. Three advocates file three Bar ID cards, and a
+       source keyed to the group rather than the record would send every row to the first
+       one. */
+    const advocate = groupById("r-1840", "advocates")?.records?.[0];
+    assert.equal(advocate?.facts[0]?.source, "advocate-1-bar-id-card");
   });
 });
 
@@ -724,11 +927,17 @@ describe("derived numbers", () => {
 });
 
 describe("documents", () => {
-  it("carries a label, a state and a page shape, and nothing else", () => {
+  it("carries a key, a label, a state and a page shape, and nothing else", () => {
     /* No filename, no page count, no size. `StoredFileRef` holds a name and a size on
        the *filer's* side; nothing on the court side holds any of them, and nothing
        anywhere holds a page count — so all three were fixtures wearing a field's
-       clothes. A plausible fixture is worse than no field. */
+       clothes. A plausible fixture is worse than no field.
+
+       `key` joined them on 2026-09-11 and is **not** one of those: it is the slot's own
+       identity, which `CASE_SLOTS` already declared and the file was throwing away. Three
+       things now name one document — a deep link, a fact's source, and the pane's tab set
+       (brief D26, D27) — and all three used to match by label, which is ambiguous by
+       construction. */
     for (const complaint of REGISTER_QUEUE) {
       const docs = groups(complaint.id).flatMap((group) => [
         ...(group.documents ?? []),
@@ -738,12 +947,36 @@ describe("documents", () => {
       for (const doc of docs) {
         assert.deepEqual(
           Object.keys(doc).sort(),
-          ["kind", "label", "state"],
+          ["key", "kind", "label", "state"],
           `${complaint.id}: ${doc.label} carries a field no store holds`,
         );
         assert.ok(doc.label.length > 0);
         assert.ok(doc.state === "filed" || doc.state === "absent");
+        assert.ok(
+          caseSlotFor(doc.key),
+          `${complaint.id}: "${doc.key}" is not a slot this model declares`,
+        );
       }
+    }
+  });
+
+  it("keys every document on a file uniquely", () => {
+    /* What the key is for. A pane tab, a deep link and a fact's source all select by it,
+       so two documents sharing one would make every one of those ambiguous — and the
+       labels, which is what they used to match on, genuinely repeat: both parties file an
+       "ID proof" and three advocates file three vakalatnamas. */
+    for (const complaint of REGISTER_QUEUE) {
+      const keys = groups(complaint.id).flatMap((group) => [
+        ...(group.documents ?? []).map((doc) => doc.key),
+        ...(group.records ?? []).flatMap((record) =>
+          (record.documents ?? []).map((doc) => doc.key),
+        ),
+      ]);
+      assert.equal(
+        new Set(keys).size,
+        keys.length,
+        `${complaint.id} lists a document key twice`,
+      );
     }
   });
 
@@ -839,7 +1072,7 @@ describe("the case timeline", () => {
     }
   });
 
-  it("carries only the six steps the product can trace", () => {
+  it("carries only the four steps the product can trace", () => {
     assert.deepEqual(
       review("r-714").timeline.map((step) => step.label),
       [
@@ -855,22 +1088,33 @@ describe("the case timeline", () => {
         "Complaint submitted",
         "Court fee received",
         "Delay condonation application filed",
-        "Taken up for scrutiny",
-        "Scrutiny completed",
         "Waiting to be registered",
         "Registration decision",
       ],
     );
   });
 
-  it("carries neither of the two steps the product does not record", () => {
+  it("carries none of the four steps the product does not record", () => {
     /* The Kerala spine runs filing → scrutiny → cognizance with no placement step
-       between, and nothing records a letter from an accused who has not been
-       summoned. Cut by the owner, 2026-09-10. */
+       between, and nothing records a letter from an accused who has not been summoned.
+       Cut by the owner, 2026-09-10.
+
+       **The two scrutiny steps join them** (brief D21, D23). They were pushed on
+       `wait >= 3` and `wait >= 7` — a modulo on the wait, with no attribute behind either
+       and no store holding one — and a fabricated step in a *history* is worse than a
+       derived value in a report, because a history claims the court recorded it. What
+       replaced them is `scrutinyFor`, which states the same thing as four named values
+       on the report itself. */
     for (const complaint of REGISTER_QUEUE) {
       const labels = review(complaint.id).timeline.map((step) => step.label);
-      assert.ok(!labels.includes("Placed before the magistrate"), complaint.id);
-      assert.ok(!labels.includes("Letter from the accused received"), complaint.id);
+      for (const gone of [
+        "Placed before the magistrate",
+        "Letter from the accused received",
+        "Taken up for scrutiny",
+        "Scrutiny completed",
+      ]) {
+        assert.ok(!labels.includes(gone), `${complaint.id} still has "${gone}"`);
+      }
     }
   });
 

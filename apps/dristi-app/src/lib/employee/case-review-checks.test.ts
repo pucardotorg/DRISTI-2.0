@@ -260,16 +260,80 @@ describe("a finding's deep link", () => {
     }
   });
 
-  it("is the file route, the slot, and the head's own anchor", () => {
+  it("names a document the group has a tab for, so the pane can open it", () => {
+    /* The link's `doc` is what the pane selects on arrival (brief D25, D26), and the
+       pane's tab set is the *group's own filed documents*. A slot that resolves but that
+       the group never lists — or that nobody filled — would put the reader on a tab that
+       is not there, which is the same dead control the absent-slot rule already rules
+       out one level up. */
+    for (const complaint of REGISTER_QUEUE) {
+      const file = caseReviewFor(complaint.id, TODAY);
+      assert.ok(file);
+      const byGroup = new Map(
+        file.sections
+          .flatMap((section) => section.groups)
+          .map((group) => [
+            group.id,
+            [
+              ...(group.documents ?? []),
+              ...(group.records ?? []).flatMap((record) => record.documents ?? []),
+            ],
+          ]),
+      );
+      for (const check of checks(complaint.id)) {
+        if (!check.link.doc) continue;
+        const filed = (byGroup.get(check.link.group) ?? []).some(
+          (document) =>
+            document.key === check.link.doc && document.state === "filed",
+        );
+        assert.ok(
+          filed,
+          `${complaint.id}: ${check.id} opens "${check.link.doc}", which ${check.link.group} does not have filed`,
+        );
+      }
+    }
+  });
+
+  it("spells the head's anchor the same way the file's panel does", () => {
+    /* The hash half of the link. It used to be resolved by loading a second page; under
+       D25 it has to find an element that was disclosed a frame ago on this one, so a
+       mismatch between the two spellings is now a scroll that silently does nothing
+       rather than a 404 somebody notices. */
+    for (const complaint of REGISTER_QUEUE) {
+      for (const check of checks(complaint.id)) {
+        const href = caseFileHref(complaint.id, check.link);
+        assert.ok(
+          href.endsWith(`#${caseGroupAnchor(check.link.group)}`),
+          `${complaint.id}: ${check.id} links to ${href}`,
+        );
+        assert.ok(href.includes("?file=1"), href);
+      }
+    }
+  });
+
+  it("opens the file on the complaint's own route, at the slot and the head's anchor", () => {
+    /* **One route, and the file is a query on it** (brief D25). It used to be a second
+       page at `/<id>/file`; the disclosure kept every part of the link's meaning and
+       moved it into the query, so Back closes the file and the deep link still lands. */
     const deposit = checks("r-1333")[0];
     assert.equal(
       caseFileHref("r-1333", deposit.link),
-      `/employee/register-cases/r-1333/file?doc=dishonoured-cheque#${caseGroupAnchor("cheque")}`,
+      `/employee/register-cases/r-1333?file=1&doc=dishonoured-cheque#${caseGroupAnchor("cheque")}`,
     );
     assert.equal(
       caseFileHref("r-1840"),
-      "/employee/register-cases/r-1840/file",
+      "/employee/register-cases/r-1840?file=1",
     );
+    /* The file is never opened by a path segment any more — a link that still spelled
+       one would be a second way in that nothing maintains. */
+    for (const complaint of REGISTER_QUEUE) {
+      for (const check of checks(complaint.id)) {
+        assert.ok(
+          !caseFileHref(complaint.id, check.link).includes("/file"),
+          `${complaint.id} still links to a file route`,
+        );
+      }
+    }
   });
 
   it("calls a head what the file calls it", () => {

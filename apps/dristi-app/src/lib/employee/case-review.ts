@@ -160,6 +160,91 @@ export type CaseHeaderTerm =
   (typeof CASE_HEADER_TERMS)[keyof typeof CASE_HEADER_TERMS];
 
 /**
+ * The four cells of the report's first statement — Scrutiny · Rounds · Took · Cleared
+ * (brief D23).
+ *
+ * A third vocabulary, and small for the same reason `CASE_HEADER_TERMS` is: none of
+ * these is an attribute of the *complaint*. They are attributes of the **scrutiny** that
+ * cleared it — a different record, made by a different actor, which is exactly why D23
+ * keeps the two statements apart instead of merging them into one count.
+ *
+ * Declared rather than typed at the call site, and asserted by `case-review.test.ts`
+ * the same way the other two are: a fifth cell nobody sourced is how a report that
+ * traces to a model starts reporting things nobody records.
+ *
+ * **"Cleared" carries the outcome in the term and the date in the value** — the shape
+ * `Submitted` already uses in the header two panels up. It is safe because a complaint
+ * reaches this queue *because* scrutiny cleared it; if a real backend ever routes one
+ * here uncleared, `scrutinyFor` answers `undefined` and every cell says "Not recorded"
+ * rather than quietly saying otherwise.
+ */
+export const CASE_SCRUTINY_TERMS = {
+  mode: "Scrutiny",
+  rounds: "Rounds",
+  took: "Took",
+  cleared: "Cleared",
+} as const;
+
+export type CaseScrutinyTerm =
+  (typeof CASE_SCRUTINY_TERMS)[keyof typeof CASE_SCRUTINY_TERMS];
+
+/**
+ * Who did the scrutiny — two members, rendered identically.
+ *
+ * The kind of scrutiny is a **value, not a tone** (brief D23). A person can read a page
+ * and the machine here cannot, and that inference is the magistrate's to draw: the
+ * screen states which happened and stops. This is D14's "never the court's claim" rule
+ * applied to the second source in the report.
+ *
+ * The distinction is the product's own — the owner's §4 framing runs *"in automated
+ * scrutiny, that process will anyway not happen"* against a registry officer's
+ * `HistoryEvent` stream with its `Filing.who`.
+ */
+export const SCRUTINY_MODES = {
+  officer: "By a registry officer",
+  automated: "Automated",
+} as const;
+
+export type ScrutinyMode = keyof typeof SCRUTINY_MODES;
+
+/**
+ * How this complaint was scrutinised, as the four values the report states.
+ *
+ * Every attribute here is real and already modelled in `lib/employee/scrutiny/`: rounds
+ * are the count of send-back `HistoryEvent`s (the model numbers them — `"· round 2"` —
+ * and exports `HISTORY_ROUND`), the officer is `Filing.who` / an event's `meta`, the
+ * elapsed is the span between the first scrutiny event and the one that cleared it, and
+ * `HISTORY_SUMMARY = "3 rounds · 1 item open since 7 Jul"` is the product's own one-line
+ * form of exactly this report.
+ *
+ * **What does not exist is the link.** `HISTORY` is one fixture for one filing in the
+ * scrutiny prototype (`F/AHM/2026/00341`), and nothing joins a complaint in this queue
+ * to a scrutiny record. So the *values* are derived from the queue row the way the §138
+ * chain is, for the same stated reason: a derived value is legitimate demo data, a
+ * derived attribute is not (brief §5a-ii.8). This is not new fiction — it replaces
+ * fiction. `timelineFor` used to invent *Taken up for scrutiny* and *Scrutiny completed*
+ * from `wait >= 3` and `wait >= 7`, with no attribute behind either; those two steps are
+ * gone (brief D21, D23) and this is what replaced them.
+ *
+ * **Which fields the registry actually keeps is brief §12.22**, and until product
+ * answers it these numbers are demo data — said out loud in §11.2 rather than implied.
+ *
+ * No `open items` count and no officer's name: §4 keeps the scrutiny *record* — the
+ * events, the items, the corrections — on the workbench, and the report carries the
+ * summary only (brief §6, §12.18, §12.21).
+ */
+export type CaseScrutiny = {
+  mode: ScrutinyMode;
+  /** Times round the advocate↔registry loop, the first pass included. Never zero. */
+  rounds: number;
+  /** Whole days between the registry taking it up and the pass that cleared it. */
+  days: number;
+  clearedOn: string;
+  /** The same day, written out — the header's own pairing, for the same reason. */
+  clearedOnLabel: string;
+};
+
+/**
  * One term and its value.
  *
  * `value` is absent when the complaint carries nothing there. The screen says so in
@@ -169,6 +254,34 @@ export type CaseHeaderTerm =
 export type CaseFact = {
   term: CaseFactTerm;
   value?: string;
+  /**
+   * The slot on this file the value would be read off — the fact's source (brief D27).
+   *
+   * **This replaces pairing-by-order.** D6 paired a block's facts to the documents
+   * printed under them by position and said so in the same paragraph that named the fix:
+   * *"a per-fact `CaseFact.source` link (the scrutiny model's `FlatField.doc`) — still
+   * the first thing to add if the render says a fourteen-row group is too coarse."* The
+   * owner has now asked for the interaction that needs it, so the condition is met. The
+   * mapping is not invented here either: it is the `Checked against` column of the
+   * brief's §5a-iii Attributes table, written row by row, moved out of a document and
+   * into the model where `case-review.test.ts` can assert that every one of them
+   * resolves to a slot **in the fact's own group**.
+   *
+   * **Absent means the value is declared only, and the row is not a control.** Fifteen
+   * of the forty-one fact rows on `r-1840` have no document behind them at all — a
+   * mobile number, an email, a police station, a power of attorney the form never
+   * collects an instrument for. Those rows take no pointer, no hover and no selected
+   * state, because a row that looked pressable and opened nothing would teach a
+   * magistrate to trust a link that is not there. One membership rule, written down so
+   * the next round does not make every row look clickable.
+   *
+   * **What it does not carry is a region on a page.** `ExtractedField.box` exists on the
+   * *filer's* side only, the court side has no document store at all (brief §12.8), and
+   * the pane shows a drawing rather than a scan — so a highlight would point at a place
+   * that does not exist. The staged promise is in `case-file-screen.tsx`, on the pane
+   * that would draw it.
+   */
+  source?: CaseFactSource;
   /** A number, an amount or a date — set in a column of its own kind. */
   numeric?: boolean;
   /**
@@ -223,6 +336,17 @@ export type CaseDocumentKind =
  * whether something is in it.
  */
 export type CaseDocument = {
+  /**
+   * Which slot this is — the key `CASE_SLOTS` declares it under.
+   *
+   * Not a field a store holds *about* the document; the slot's own identity, which the
+   * model already had and the file was throwing away. Added 2026-09-11 because three
+   * things now need to name one document: a deep link (`?doc=`), a fact pointing at its
+   * source (`CaseFact.source`), and the pane's tab set (brief D26, D27). All three used
+   * to match by label, which is ambiguous by construction — both parties file an "ID
+   * proof", and three advocates file three vakalatnamas.
+   */
+  key: string;
   label: string;
   state: "filed" | "absent";
   kind: CaseDocumentKind;
@@ -536,6 +660,24 @@ type CaseFileMarks = {
   depositedLate: boolean;
   /** `AdrPrayer.otherDetails` — the filer wrote something in the catch-all slot. */
   otherDetails: boolean;
+  /**
+   * Who scrutinised the complaint before it reached this queue (brief D23).
+   *
+   * A mark rather than a derivation for the reason every other mark is one: nothing on
+   * the queue row implies whether a person or an automated pass read the filing, and a
+   * modulo standing in for that would be the fabrication D23 exists to end.
+   */
+  scrutinyMode: ScrutinyMode;
+  /**
+   * How many times it went round the advocate↔registry loop — the count of send-back
+   * `HistoryEvent`s plus the pass that cleared it.
+   *
+   * The other half of the same honesty: how many rounds an advocate needed is the fact
+   * the owner asked for first, and it is not implied by anything else the row carries.
+   * `scrutinyFor` clamps it to what the complaint's own wait can hold, so a file three
+   * days old cannot claim three rounds.
+   */
+  scrutinyRounds: number;
 };
 
 const DEFAULT_MARKS: CaseFileMarks = {
@@ -549,43 +691,79 @@ const DEFAULT_MARKS: CaseFileMarks = {
   poa: false,
   depositedLate: false,
   otherDetails: false,
+  /* The common case: an officer read it and cleared it first time. Twenty-four of the
+     thirty-five complaints in the queue are this, which is what makes the marked ones
+     legible as the exceptions they are. */
+  scrutinyMode: "officer",
+  scrutinyRounds: 1,
 };
 
+/*
+ * `scrutinyMode` and `scrutinyRounds` are the two marks added on 2026-09-11 for the
+ * report (brief D23). Both are states no derivation can decide — whether a person or an
+ * automated pass read the filing, and how many times it went back to the advocate — so
+ * they are named per complaint like every other mark rather than taken off a modulo.
+ * Left unmarked, a complaint is the common case (an officer, cleared first time), which
+ * is what makes the marked ones read as the exceptions they are. Multi-round marks sit
+ * only where the wait can hold them; `scrutinyFor` clamps anything that cannot.
+ */
 const CASE_FILE_MARKS: Record<string, Partial<CaseFileMarks>> = {
   /* The longest wait in the queue, and the fullest file: late enough to need the delay
-     condoned, a reply on record, and two witnesses. */
-  "r-1840": { delayed: true, replied: true, witnesses: 2 },
+     condoned, a reply on record, and two witnesses. Three rounds of scrutiny, which is
+     the number the scrutiny model's own fixture carries (`HISTORY_ROUND`). */
+  "r-1840": { delayed: true, replied: true, witnesses: 2, scrutinyRounds: 3 },
   /* Payment stopped rather than funds short — the other limb of §138, and a different
      reason for the same return. */
-  "r-1722": { returnReason: "payment-stopped" },
+  "r-1722": { returnReason: "payment-stopped", scrutinyRounds: 2 },
   /* Part of the cheque amount was paid after the notice, so the balance is what is
      claimed — `DemandNotice.paymentStatus: "part"`. */
   "r-1654": { partPayment: true, witnesses: 0 },
   /* Delayed, and the delay-condonation application itself is not on record — the
      partial file the screen has to survive. */
-  "r-1588": { delayed: true, missing: ["delay-application"] },
+  "r-1588": {
+    delayed: true,
+    missing: ["delay-application"],
+    scrutinyRounds: 2,
+  },
   /* No vakalat on the queue row either: a complaint in person, no witness named, and
      the accused's own ID proof never uploaded. */
-  "r-1490": { witnesses: 0, missing: ["accused-id-proof"], otherDetails: true },
+  "r-1490": {
+    witnesses: 0,
+    missing: ["accused-id-proof"],
+    otherDetails: true,
+    scrutinyRounds: 2,
+  },
   /* The account itself had been closed by the time the cheque was presented. */
-  "r-1402": { returnReason: "account-closed", replied: true },
+  "r-1402": {
+    returnReason: "account-closed",
+    replied: true,
+    /* An automated pass raises items too — the filing side's own AI warnings are
+       exactly that — so the mode and the round count are not two names for one fact. */
+    scrutinyMode: "automated",
+    scrutinyRounds: 2,
+  },
   /* Presented outside the three months §138(a) allows — the one file where the deposit
      row answers no, and the answer bears on whether the court can take cognizance at
      all. Nothing else is marked here, so the row is read on its own. */
-  "r-1333": { depositedLate: true },
+  "r-1333": { depositedLate: true, scrutinyMode: "automated" },
   /* Two witnesses and a long wait — the file that used to carry an invented letter
      from the accused. Nothing in the product records one before summons, so the mark
      and its section-4 fact went (brief §5a.9a). The complaint is filed through a
      power-of-attorney holder, which is what `Complainant.poa` records. */
-  "r-1104": { witnesses: 2, poa: true, otherDetails: true },
+  "r-1104": { witnesses: 2, poa: true, otherDetails: true, scrutinyRounds: 3 },
   /* The one complaint filed by an entity rather than a person — `Complainant.type:
      "institution"`, which is why the record carries a signatory and a registered office
      where an individual carries an age and two addresses. Its accused is the queue's
      other limited company, so the matter is a trade one on both sides. */
-  "r-612": { complainantType: "institution" },
+  "r-612": { complainantType: "institution", scrutinyMode: "automated" },
   /* A second part payment and a second power of attorney: one file carrying a state is
      a fixture, two is a field. */
-  "r-330": { partPayment: true, poa: true },
+  "r-330": { partPayment: true, poa: true, scrutinyMode: "automated" },
+  /* Four recent filings that went through the automated pass, so the enum's second
+     member is not a single fixture — one of them needing a second round. */
+  "r-620": { scrutinyMode: "automated", scrutinyRounds: 2 },
+  "r-648": { scrutinyMode: "automated" },
+  "r-701": { scrutinyMode: "automated" },
 };
 
 function marksFor(id: string): CaseFileMarks {
@@ -887,6 +1065,76 @@ export type CaseChain = {
   sinceAccrual: number;
 };
 
+/**
+ * How this complaint was scrutinised before it reached the magistrate — the report's
+ * first statement (brief D23).
+ *
+ * Derived the way the §138 chain is, and beside it on purpose: the same queue row, the
+ * same stability, the same refusal to invent an *attribute* while deriving a *value*.
+ * Three rules hold it together, and each one is a claim the render can be checked
+ * against:
+ *
+ * 1. **Nothing happens outside the wait.** The registry takes a complaint up a few days
+ *    after it is filed and clears it before today, so `clearedOn` always lands in
+ *    `[submittedOn, today]`. A scrutiny dated after the day the file reached this queue
+ *    would be the report contradicting the header two panels up.
+ * 2. **A complaint cannot have had more rounds than its wait can hold.** A file three
+ *    days old has not been round the loop three times, whatever its mark says, so the
+ *    round count is clamped to roughly three days a round. The mark records intent; the
+ *    arithmetic keeps it coherent.
+ * 3. **No tone, no threshold, no editorialising.** This returns numbers. Whether three
+ *    rounds should *look* like anything is brief §12.19 and the owner's to answer; the
+ *    machine does not tell a magistrate that three rounds is bad.
+ *
+ * `undefined` is the **"Not recorded"** branch: a complaint no scrutiny record can be
+ * stated for. It cannot arise on demo data — every row in this queue has waited at least
+ * a day — and it is the first state a real backend will produce, so the screen has to be
+ * able to say it rather than quietly reading as cleared (brief §10, §11.3).
+ */
+export function scrutinyFor(
+  id: string,
+  today: string,
+): CaseScrutiny | undefined {
+  const complaint = registerCaseById(id);
+  if (!complaint) return undefined;
+  const wait = complaint.daysSinceSubmitted;
+  /* Nothing can have been scrutinised in no time at all. */
+  if (wait < 1) return undefined;
+
+  const seed = serialOf(complaint.caseNumber);
+  const marks = marksFor(complaint.id);
+  const submittedOn = shiftDay(today, -wait);
+
+  /* Taken up within the first days of the file's life, and never so late that there is
+     no room left to have finished. */
+  const takenUpIn = Math.min(1 + (seed % 3), Math.floor(wait / 4));
+  const available = wait - takenUpIn;
+  const rounds = Math.min(
+    marks.scrutinyRounds,
+    Math.max(1, Math.floor(available / SCRUTINY_ROUND_FLOOR_DAYS)),
+  );
+  /* A round is the officer reading, sending back, and the advocate answering — a week
+     or two, varying by file. Bounded below by the round count (a round is at least a
+     day) and above by the days actually available. */
+  const perRound = 8 + (seed % 12);
+  const days = Math.min(
+    Math.max(rounds * perRound - (seed % 6), rounds),
+    available,
+  );
+  const clearedOn = shiftDay(submittedOn, takenUpIn + days);
+
+  return {
+    mode: marks.scrutinyMode,
+    rounds,
+    days,
+    clearedOn,
+    clearedOnLabel: formatCaseDate(clearedOn),
+  };
+}
+
+/** The fewest days a round of scrutiny plausibly takes, and what clamps the count. */
+const SCRUTINY_ROUND_FLOOR_DAYS = 3;
+
 /** Whole days between two `YYYY-MM-DD` days. */
 export function daysBetween(from: string, to: string): number {
   return Math.round(
@@ -1048,17 +1296,35 @@ const ADVOCATE_SLOTS = {
 
 type AdvocateSlotKey = keyof typeof ADVOCATE_SLOTS;
 
+/** An advocate's slot, keyed by the record it belongs to. */
+type AdvocateSlotRef = `advocate-${number}-${AdvocateSlotKey}`;
+
+/**
+ * Everything a `CaseFact.source` may name: a slot on the file, or one of an advocate's
+ * two per-record slots.
+ *
+ * The advocate half is why this is a union rather than `CaseSlotKey` alone — their keys
+ * depend on how many advocates are on record, so they cannot sit in `CASE_SLOTS`, and
+ * the brief's own Attributes table sources `Bar registration` to `advocate-N-bar-id-card`.
+ * `caseSlotFor` already resolves both forms, which is what a test asserts against.
+ */
+export type CaseFactSource = CaseSlotKey | AdvocateSlotRef;
+
 /** `filed`, unless this file is one of the ones with that slot left empty. */
 function slot(key: CaseSlotKey, missing: string[]): CaseDocument {
   const spec = CASE_SLOTS[key];
   return {
+    key,
     label: spec.label,
     kind: spec.kind,
     state: missing.includes(key) ? "absent" : "filed",
   };
 }
 
-function advocateSlotKey(index: number, which: AdvocateSlotKey): string {
+function advocateSlotKey(
+  index: number,
+  which: AdvocateSlotKey,
+): AdvocateSlotRef {
   return `advocate-${index}-${which}`;
 }
 
@@ -1068,10 +1334,12 @@ function advocateSlot(
   missing: string[],
 ): CaseDocument {
   const spec = ADVOCATE_SLOTS[which];
+  const key = advocateSlotKey(index, which);
   return {
+    key,
     label: spec.label,
     kind: spec.kind,
-    state: missing.includes(advocateSlotKey(index, which)) ? "absent" : "filed",
+    state: missing.includes(key) ? "absent" : "filed",
   };
 }
 
@@ -1132,6 +1400,62 @@ function litigantSection(
   const accused = complaint.parties.accused;
   const entity = marks.complainantType === "institution";
 
+  /*
+   * An entity complains through the person who signs for it and is reached at a
+   * registered office; a person has an age and two addresses. Same shape the accused
+   * record already uses for the same reason, and the reason the tag beside the name is
+   * worth printing.
+   *
+   * Hoisted out of the record and typed, rather than spread inline as it was: a `source`
+   * inside a conditional spread widens to `string` before the record's own `CaseFact[]`
+   * can narrow it, and a widened source is exactly what `case-review.test.ts` could then
+   * no longer hold to a declared slot.
+   *
+   * **The entity rows carry no source at all.** They are read off company documents, and
+   * this form has no such slot under the *complainant's* head — an honest gap (brief
+   * §12.14's neighbour) rather than a link pointing at the accused's copy.
+   */
+  const complainantFacts: CaseFact[] = [
+    ...(entity
+      ? [
+          {
+            term: FACT_TERMS.authorisedSignatory,
+            value: pick(SIGNATORIES, seed + 4),
+          },
+        ]
+      : []),
+    { term: FACT_TERMS.mobile, value: mobileFor(seed, 1), numeric: true },
+    { term: FACT_TERMS.email, value: emailFor(complainant) },
+    ...(entity
+      ? [{ term: FACT_TERMS.registeredOffice, value: addressFor(seed + 7) }]
+      : [
+          /* An ID proof carries a date of birth and an address, which is what makes
+             these two checkable and the current address below not — brief §12.13 asks
+             *which* ID the slot accepts, and the answer moves this pair. */
+          {
+            term: FACT_TERMS.age,
+            value: String(28 + (seed % 38)),
+            source: "complainant-id-proof" as const,
+            numeric: true,
+          },
+          {
+            term: FACT_TERMS.permanentAddress,
+            value: addressFor(seed),
+            source: "complainant-id-proof" as const,
+          },
+          /* `Complainant.res`, which the form collects when `permSame === "no"`. Salted
+             away from the permanent address: the two rows used to print the same string
+             under two labels, which reads as a rendering bug rather than as two answers
+             that happened to agree. */
+          { term: FACT_TERMS.currentAddress, value: addressFor(seed + 3) },
+        ]),
+    /* `Complainant.poa` is a `YesNo`, and it is the complainant's alone — the row read
+       "No" on every complaint until 2026-09-11, when the mark that lands in that field
+       arrived. Who the holder is belongs to `poaHolder`, which this screen does not yet
+       have a slot for. */
+    { term: FACT_TERMS.powerOfAttorney, value: marks.poa ? "Yes" : "No" },
+  ];
+
   return {
     id: "litigants",
     title: "Litigant details",
@@ -1145,61 +1469,7 @@ function litigantSection(
             id: "complainant-1",
             heading: complainant,
             tag: LITIGANT_TYPES[marks.complainantType],
-            facts: [
-              /* An entity complains through the person who signs for it and is reached
-                 at a registered office; a person has an age and two addresses. Same
-                 shape the accused record already uses for the same reason, and the
-                 reason the tag beside the name is worth printing. */
-              ...(entity
-                ? [
-                    {
-                      term: FACT_TERMS.authorisedSignatory,
-                      value: pick(SIGNATORIES, seed + 4),
-                    },
-                  ]
-                : []),
-              {
-                term: FACT_TERMS.mobile,
-                value: mobileFor(seed, 1),
-                numeric: true,
-              },
-              { term: FACT_TERMS.email, value: emailFor(complainant) },
-              ...(entity
-                ? [
-                    {
-                      term: FACT_TERMS.registeredOffice,
-                      value: addressFor(seed + 7),
-                    },
-                  ]
-                : [
-                    {
-                      term: FACT_TERMS.age,
-                      value: String(28 + (seed % 38)),
-                      numeric: true,
-                    },
-                    {
-                      term: FACT_TERMS.permanentAddress,
-                      value: addressFor(seed),
-                    },
-                    /* `Complainant.res`, which the form collects when `permSame ===
-                       "no"`. Salted away from the permanent address: the two rows used
-                       to print the same string under two labels, which reads as a
-                       rendering bug rather than as two answers that happened to
-                       agree. */
-                    {
-                      term: FACT_TERMS.currentAddress,
-                      value: addressFor(seed + 3),
-                    },
-                  ]),
-              /* `Complainant.poa` is a `YesNo`, and it is the complainant's alone — the
-                 row read "No" on every complaint until 2026-09-11, when the mark that
-                 lands in that field arrived. Who the holder is belongs to
-                 `poaHolder`, which this screen does not yet have a slot for. */
-              {
-                term: FACT_TERMS.powerOfAttorney,
-                value: marks.poa ? "Yes" : "No",
-              },
-            ],
+            facts: complainantFacts,
             documents: [
               slot("complainant-id-proof", marks.missing),
               slot("s225-affidavit", marks.missing),
@@ -1221,9 +1491,13 @@ function litigantSection(
                somebody who answers for it, which is the row below. */
             tag: LITIGANT_TYPES.institution,
             facts: [
+              /* Both read off the company documents the accused's head collects — who
+                 signs for the company under S-141, and where it is registered. The two
+                 contact rows are not: nothing on a court file states a mobile number. */
               {
                 term: FACT_TERMS.authorisedSignatory,
                 value: pick(SIGNATORIES, seed),
+                source: "company-documents",
               },
               {
                 term: FACT_TERMS.mobile,
@@ -1233,7 +1507,11 @@ function litigantSection(
               /* The one address slot an accused has. `poa` exists on `Complainant`
                  only, which is why the accused's power-of-attorney row went. */
               { term: FACT_TERMS.email },
-              { term: FACT_TERMS.registeredOffice, value: addressFor(seed + 5) },
+              {
+                term: FACT_TERMS.registeredOffice,
+                value: addressFor(seed + 5),
+                source: "company-documents",
+              },
             ],
             documents: [
               slot("accused-id-proof", marks.missing),
@@ -1276,35 +1554,73 @@ function caseSpecificSection(
           id: "cheque-1",
           heading: `Cheque no. ${chequeNumber}`,
           facts: [
+            /* `source` on every row the brief's §5a-iii table gives a document for, and
+               on no other. The payee's bank sits on the deposit proof (it is the bank
+               the cheque was presented *to*); the payer's is printed on the cheque
+               itself; the return and its reason are the memo's. The two police stations
+               and the three-month answer below carry none — the first two are
+               jurisdiction facts no document on this file states, and the third is
+               computed from two dates that each have one. */
             {
               term: FACT_TERMS.amount,
               value: formatChequeAmount(amount),
+              source: "dishonoured-cheque",
               numeric: true,
             },
             {
               term: FACT_TERMS.chequeDated,
               value: formatCaseDate(chain.chequeOn),
+              source: "dishonoured-cheque",
               numeric: true,
             },
-            { term: FACT_TERMS.payeeBank, value: payee.name },
-            { term: FACT_TERMS.payeeBranch, value: payee.branch },
-            { term: FACT_TERMS.payeeIfsc, value: payee.ifsc, numeric: true },
-            { term: FACT_TERMS.payerBank, value: payer.name },
-            { term: FACT_TERMS.payerBranch, value: payer.branch },
-            { term: FACT_TERMS.payerIfsc, value: payer.ifsc, numeric: true },
+            {
+              term: FACT_TERMS.payeeBank,
+              value: payee.name,
+              source: "deposit-proof",
+            },
+            {
+              term: FACT_TERMS.payeeBranch,
+              value: payee.branch,
+              source: "deposit-proof",
+            },
+            {
+              term: FACT_TERMS.payeeIfsc,
+              value: payee.ifsc,
+              source: "deposit-proof",
+              numeric: true,
+            },
+            {
+              term: FACT_TERMS.payerBank,
+              value: payer.name,
+              source: "dishonoured-cheque",
+            },
+            {
+              term: FACT_TERMS.payerBranch,
+              value: payer.branch,
+              source: "dishonoured-cheque",
+            },
+            {
+              term: FACT_TERMS.payerIfsc,
+              value: payer.ifsc,
+              source: "dishonoured-cheque",
+              numeric: true,
+            },
             {
               term: FACT_TERMS.depositedOn,
               value: formatCaseDate(chain.depositedOn),
+              source: "deposit-proof",
               numeric: true,
             },
             {
               term: FACT_TERMS.returnedOn,
               value: formatCaseDate(chain.returnedOn),
+              source: "return-memo",
               numeric: true,
             },
             {
               term: FACT_TERMS.returnReason,
               value: RETURN_REASONS[marks.returnReason],
+              source: "return-memo",
             },
             /* Two police stations, because the registry holds two: §138 jurisdiction
                turns on where the payee's bank sits, and the drawer's bank is the other
@@ -1343,7 +1659,15 @@ function caseSpecificSection(
       title: "Debt or liability details",
       icon: ReceiptIndianRupeeIcon,
       facts: [
-        { term: FACT_TERMS.natureOfDebt, value: pick(NATURE_OF_DEBT, seed) },
+        /* Both closed lists, and both weak pairs the brief names as weak (§11.6): the
+           proof of debt is the document a reader would go to, but nothing proves the
+           filer's choice of category was read off it. The link says where to look, not
+           that the answer is right. */
+        {
+          term: FACT_TERMS.natureOfDebt,
+          value: pick(NATURE_OF_DEBT, seed),
+          source: "debt-proof",
+        },
         {
           term: FACT_TERMS.paymentAgainstCheque,
           value: marks.partPayment ? PAYMENT_STATUS.part : PAYMENT_STATUS.none,
@@ -1357,7 +1681,11 @@ function caseSpecificSection(
               },
             ]
           : []),
-        { term: FACT_TERMS.whyIssued, value: pick(WHY_ISSUED, seed) },
+        {
+          term: FACT_TERMS.whyIssued,
+          value: pick(WHY_ISSUED, seed),
+          source: "debt-proof",
+        },
       ],
       documents: [
         slot("debt-proof", marks.missing),
@@ -1371,11 +1699,13 @@ function caseSpecificSection(
         {
           term: FACT_TERMS.noticeDispatched,
           value: formatCaseDate(chain.noticeSentOn),
+          source: "dispatch-proof",
           numeric: true,
         },
         {
           term: FACT_TERMS.noticeServed,
           value: formatCaseDate(chain.noticeServedOn),
+          source: "service-proof",
           numeric: true,
         },
         /* `DemandNotice.replied` is a `YesNo`, so this row is one. It used to hold a
@@ -1383,13 +1713,18 @@ function caseSpecificSection(
            that did not — one slot carrying two kinds of thing, which nothing can sort,
            filter or translate. The date the reply came is not a field the registry
            holds at all. */
+        /* The reply slot's own filled-or-empty state is what this row reads, so it is
+           its own source — and on a complaint with no reply the slot is absent, which is
+           what makes the row a statement rather than a control. */
         {
           term: FACT_TERMS.replyReceived,
           value: marks.replied ? "Yes" : "No",
+          source: "notice-reply",
         },
         {
           term: FACT_TERMS.noticePeriodEnded,
           value: formatCaseDate(chain.accruedOn),
+          source: "service-proof",
           numeric: true,
         },
       ],
@@ -1401,11 +1736,7 @@ function caseSpecificSection(
            asked for it, and its emptiness is the same fact the row above states. */
         marks.replied
           ? slot("notice-reply", marks.missing)
-          : {
-              label: "Reply to the notice",
-              state: "absent" as const,
-              kind: "letter" as const,
-            },
+          : { ...slot("notice-reply", marks.missing), state: "absent" as const },
       ],
     },
   ];
@@ -1438,6 +1769,10 @@ function caseSpecificSection(
           value: applicationFiled
             ? pick(CONDONATION_GROUNDS, seed)
             : undefined,
+          /* The grounds are read off the application, which is exactly why the row is
+             empty when the application never arrived — and why the row is then not a
+             control either: the slot it points at is absent. */
+          source: "delay-application",
         },
       ],
       documents: [
@@ -1510,6 +1845,10 @@ function additionalSection(
             value: marks.otherDetails
               ? pick(OTHER_DETAILS, seed)
               : undefined,
+            /* The filer wrote it in the complaint, so the complaint is where a reader
+               checks it — including on the files where the slot is empty and the row
+               says "Not stated". */
+            source: "complaint",
           },
         ],
         documents: [
@@ -1542,6 +1881,10 @@ function additionalSection(
             {
               term: FACT_TERMS.barRegistration,
               value: `KER/${1000 + ((seed + index * 37) % 8000)}/20${10 + ((seed + index) % 15)}`,
+              /* The pair `register-advocates` verifies, on this file's own copy of it —
+                 and keyed per record, so the third advocate's row points at the third
+                 advocate's card rather than at the first one's. */
+              source: advocateSlotKey(index + 1, "bar-id-card"),
               numeric: true,
             },
           ],
@@ -1574,11 +1917,13 @@ function paymentSection(seed: number, marks: CaseFileMarks): CaseSection {
           {
             term: FACT_TERMS.courtFeePaid,
             value: formatChequeAmount(200 + (seed % 8) * 25),
+            source: "payment-receipt",
             numeric: true,
           },
           {
             term: FACT_TERMS.receiptNumber,
             value: `KL-CF-${String(seed).padStart(6, "0")}`,
+            source: "payment-receipt",
             numeric: true,
           },
         ],
@@ -1591,18 +1936,19 @@ function paymentSection(seed: number, marks: CaseFileMarks): CaseSection {
 }
 
 /**
- * Where the complaint has got to — six steps, each one an event the product records.
+ * Where the complaint has got to — four steps, each one an event the product records.
  *
  * Trimmed on 2026-09-10 to what can be traced (brief §5a.9). *Placed before the
  * magistrate* and *Letter from the accused received* are gone: neither appears anywhere
  * in `docs/product/`, the Kerala spine runs filing → scrutiny → **cognizance** with no
  * placement step between, and nothing records a filing from an accused who has not been
- * summoned. Every step below names its source on the line above it.
+ * summoned.
  *
- * How much of the path has happened is derived from the wait, the same way the file's
- * dates are: a complaint submitted yesterday has not been through scrutiny; one that
- * has sat for months has. Nothing here is a live system event, and two of the steps
- * name spine events no store holds today — flagged in §11 of the brief.
+ * **Trimmed again on 2026-09-11** (brief D21, D23): the two scrutiny steps are gone as
+ * well. They were the last unbacked events here, and what replaced them — the report's
+ * four sourced cells — is both more honest and more useful, since it is on the landing
+ * rather than behind a control. Every step that remains names its source on the line
+ * above it, and every one of them is a field.
  *
  * Oldest first, like the case history on a listing's overview: two orderings for the
  * same kind of column on the same side of the app is how two screens start disagreeing
@@ -1629,21 +1975,14 @@ function timelineFor(
     steps.push(pastStep("Delay condonation application filed", submittedOn));
   }
 
-  /* Spine step 2 — "Scrutiny & defect check (Registry; before numbering / cognizance)".
-     No store holds the event today. Offsets stay strictly inside the wait, so no dummy
-     event lands on today or after it. */
-  if (wait >= 3) {
-    steps.push(
-      pastStep("Taken up for scrutiny", shiftDay(submittedOn, Math.min(2, wait - 1))),
-    );
-  }
-
-  /* Spine step 2, the other end of it — likewise unbacked by any store today. */
-  if (wait >= 7) {
-    steps.push(
-      pastStep("Scrutiny completed", shiftDay(submittedOn, Math.min(5, wait - 1))),
-    );
-  }
+  /* **Spine step 2 is not a timeline step any more** (brief D21, D23). *Taken up for
+     scrutiny* and *Scrutiny completed* used to be pushed here on `wait >= 3` and
+     `wait >= 7` — two events derived from a modulo on the wait, with no attribute behind
+     either and no store holding one. They are replaced, not deleted: `scrutinyFor` states
+     the same thing as four named values with a mode, a round count and a duration, and
+     it states them on the report where the magistrate actually reads them. A fabricated
+     step in a history is worse than a derived value in a report, because a history
+     claims the court recorded it. */
 
   /* Derived from `daysSinceSubmitted` — the queue's own current state. */
   steps.push({
@@ -2089,20 +2428,27 @@ export function caseChecksFor(
 }
 
 /**
- * A deep link from a finding into the full file.
+ * A deep link from a finding into the full file — **on the complaint's own route**
+ * (brief D25).
  *
- * Built here rather than at the call site because two screens follow these links — the
- * glance's finding rows and its document rows — and a route spelled twice is a route
- * that eventually disagrees with itself. The hash is the head the finding is stated
- * under, which is what the file view's groups anchor; `doc` is the slot the pane opens
- * on arrival, and it is the one time a starting point is asserted by the reader rather
- * than by the screen.
+ * It used to point at `/<id>/file`. The file is now a disclosure of `/<id>` with its
+ * state in the query, so the link opens the region, scrolls to the head the finding is
+ * stated under, and loads the named document into the pane — on one page, with Back
+ * still closing it. The meaning of every part is unchanged: `file=1` is the disclosure,
+ * `doc` is the slot the pane opens on arrival (the one time a starting point is asserted
+ * by the reader rather than by the screen), and the hash is the group the finding is
+ * stated under.
+ *
+ * Built here rather than at the call site because two places follow these links — a
+ * finding's own row and its document rows — and a route spelled twice is a route that
+ * eventually disagrees with itself.
  */
 export function caseFileHref(id: string, link?: CaseCheckLink): string {
-  const base = `/employee/register-cases/${id}/file`;
-  if (!link) return base;
-  const query = link.doc ? `?doc=${encodeURIComponent(link.doc)}` : "";
-  return `${base}${query}#${caseGroupAnchor(link.group)}`;
+  const base = `/employee/register-cases/${id}`;
+  const query = new URLSearchParams({ file: "1" });
+  if (link?.doc) query.set("doc", link.doc);
+  const hash = link ? `#${caseGroupAnchor(link.group)}` : "";
+  return `${base}?${query.toString()}${hash}`;
 }
 
 /** The id a group carries on the full file, and what a deep link's hash names. */

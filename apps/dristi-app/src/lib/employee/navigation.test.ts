@@ -64,33 +64,36 @@ describe("courtTrail", () => {
     ]);
   });
 
-  it("on the complaint's full file, names the view and links back to the glance", () => {
-    /* The complaint has two views since 2026-09-11 (brief D17): the glance at `/<id>`
-       and the whole file at `/<id>/file`. A trail that ended at the case number on both
-       could not tell a magistrate which one he was on, and gave him no way to the other
-       — so the identifier becomes the way back and the current step names the view. */
-    assert.deepEqual(courtTrail("/employee/register-cases/r-1840/file"), [
+  it("ends at the case number whether or not the full file is open", () => {
+    /* **The complaint has one view again** (brief D25, 2026-09-11 late). It had two for a
+       day — the glance at `/<id>` and the whole file at `/<id>/file` — and the trail grew
+       a leaf to say which one a magistrate was on. The file is now a disclosure of the
+       complaint's own route with its state in the query, so there is nothing for a leaf
+       to name and the trail ends at the identifier again. A query never reaches the
+       trail, which is the point: the crumb says which record, not which part of it is
+       unfolded. */
+    const trail = [
       HOME,
       { label: "Actions", href: "/employee/register-cases" },
       { label: "Register cases", href: "/employee/register-cases" },
-      { label: "CMP/1840/2025", href: "/employee/register-cases/r-1840" },
-      { label: "Full file" },
-    ]);
+      { label: "CMP/1840/2025" },
+    ];
+    assert.deepEqual(courtTrail("/employee/register-cases/r-1840"), trail);
+    assert.deepEqual(courtTrail("/employee/register-cases/r-1840/"), trail);
   });
 
-  it("keeps the rail on Register cases while the full file is open", () => {
-    /* The row a nested route lights up is the queue the record came from. Without the
-       `/file` branch the rail went dark on the deepest screen in the feature. */
+  it("keeps the rail on Register cases while the complaint is open", () => {
+    /* The row a nested route lights up is the queue the record came from. */
     assert.ok(
       isCourtNavActive(
-        "/employee/register-cases/r-1840/file",
+        "/employee/register-cases/r-1840",
         "/employee/register-cases",
       ),
     );
   });
 
-  it("does not treat a full file of an unknown complaint as nested", () => {
-    assert.deepEqual(courtTrail("/employee/register-cases/r-nope/file"), [HOME]);
+  it("does not treat an unknown complaint as nested", () => {
+    assert.deepEqual(courtTrail("/employee/register-cases/r-nope"), [HOME]);
   });
 
   it("on a scrutiny workbench, ends with the filing number it decoded", () => {
@@ -139,8 +142,9 @@ describe("courtTrail", () => {
       "/employee/hearings",
       "/employee/sign-orders",
       "/employee/register-cases",
+      /* One entry, not two: the complaint's file is a query and `courtTrail` reads a
+         pathname, which is why the leaf could go (brief D25). */
       "/employee/register-cases/r-1840",
-      "/employee/register-cases/r-1840/file",
       "/employee/hearings/h-241/order",
       `/employee/scrutiny/${encodeURIComponent("F/AHM/2026/00341")}`,
     ]) {
