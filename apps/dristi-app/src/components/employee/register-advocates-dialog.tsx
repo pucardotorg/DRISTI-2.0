@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  accountTypeVariant,
   comparisonBlocks,
   identityRows,
   idCardName,
@@ -205,11 +206,14 @@ function capitalise(word: string): string {
  */
 const STAGE_BADGE: Record<
   Stage,
-  { variant: "warning" | "success" | "destructive"; label: string }
+  { variant: "secondary" | "success" | "destructive"; label: string }
 > = {
-  review: { variant: "warning", label: "Pending approval" },
-  reject: { variant: "warning", label: "Pending approval" },
-  approve: { variant: "warning", label: "Pending approval" },
+  /* Neutral while pending — a state, and states are the neutral pill on this screen now
+     (owner, 2026-09-11). The decision itself keeps green and red: that is the outcome the
+     owner asked to read as accepted or refused, not a status update. */
+  review: { variant: "secondary", label: "Pending approval" },
+  reject: { variant: "secondary", label: "Pending approval" },
+  approve: { variant: "secondary", label: "Pending approval" },
   rejected: { variant: "destructive", label: "Rejected" },
   approved: { variant: "success", label: "Approved" },
 };
@@ -684,9 +688,13 @@ function DecisionStage({
           {/* The role before the number, because the number means nothing until you know
               which register it belongs to — and on this stage the officer is about to grant
               exactly one of the two credentials. */}
-          <p className="text-body-compact text-muted-foreground">
-            {roleLabel(request.registrantKind)}
-            {" · "}
+          {/* The account type's pill, on the card the officer is confirming — the same
+              pill as the list and the review, so what they are granting is recognised
+              rather than read, on the stage where it matters most. */}
+          <p className="flex flex-wrap items-center gap-2 text-body-compact text-muted-foreground">
+            <Badge variant={accountTypeVariant(request.registrantKind)}>
+              {roleLabel(request.registrantKind)}
+            </Badge>
             <span className="font-mono tabular-nums">
               {request.registrationNumber}
             </span>
@@ -1018,7 +1026,11 @@ const formatClass: Record<RowFormat, string> = {
  * having two shapes instead of one row that grows a treatment per scenario.
  */
 function FactRowView({ row }: { row: FactRow }) {
-  const value = (
+  const value = row.pill ? (
+    /* A category, shown as the same pill everywhere it appears — the queue's Account type
+       column included. */
+    <Badge variant={row.pill}>{row.value}</Badge>
+  ) : (
     <span
       lang={row.valueLang}
       className={cn(

@@ -306,26 +306,30 @@ export function requestKindLabel(request: AdvocateRegistration): string | null {
 }
 
 /**
- * The colour the row's mark takes, beside its words.
+ * **One colour meaning per screen: colour says what kind of account, and nothing else**
+ * (owner, 2026-09-11).
  *
- * Owner ruling 2026-09-10 (design-mode round): the two kinds are told apart by colour as
- * well as by their label. `edited` is `info` — a fact about where the account came from,
- * nothing the officer has to answer for. `resubmission` is `warning` — this request has
- * been in front of the office before and was sent back, and the question it asks ("did
- * they fix what I said") is one the officer has to go looking for. Neither is
- * `destructive`: the DS reserves that for a failure, and a request that came back is the
- * `REG-23` loop working as designed.
+ * *"Standardise the pill colour so that it's not too many colours going on. The status
+ * updates can have just a gray or a beige, but this account type can have different
+ * colours."* So every pill that reports a state — *Resubmitted · round 2*, *Profile
+ * update*, *Pending approval* — is the DS's neutral `secondary`, and the only pills that
+ * carry a hue are the account type's. Colour on this screen now answers exactly one
+ * question, which is the only way it can be read without a legend.
  *
- * The words stay on the chip, so the kind is never colour alone (ACCESSIBILITY §3).
+ * **Why these two hues.** Once the states are neutral, every other hue still has a job
+ * here — `warning` is the wait escalation and a register finding, `destructive` an overdue
+ * wait and a rejection — so reusing either would say two things at once. `info` and
+ * `success` are the two left with nothing to say on the queue or the review. Advocates,
+ * the majority, take the calmer `info`; clerks take `success`. The one place green means
+ * something else is the settled *Approved* state, and there it is labelled on both sides.
+ *
+ * The DS has no categorical tint family, so this is a borrowing, filed upstream (brief
+ * §13). The words are on the pill, so the account type is never colour alone.
  */
-export type RequestKindVariant = "info" | "warning";
+export type AccountTypeVariant = "info" | "success";
 
-export function requestKindVariant(
-  request: AdvocateRegistration,
-): RequestKindVariant | null {
-  if (request.requestKind === "edited") return "info";
-  if (request.requestKind === "resubmission") return "warning";
-  return null;
+export function accountTypeVariant(kind: RegistrantKind): AccountTypeVariant {
+  return kind === "clerk" ? "success" : "info";
 }
 
 /**
@@ -442,6 +446,11 @@ export type FactRow = {
   /** A dated fact belonging to the row rather than to a source — a round's own date. */
   note?: string;
   /**
+   * The value is a category, and is shown as the same pill everywhere it appears — the
+   * account type, which the owner wants read before anything else on the screen.
+   */
+  pill?: AccountTypeVariant;
+  /**
    * The detail behind this fact, revealed on the row itself (D23).
    *
    * A row that reports a finding — "Some details do not match", "Edited Bar Council
@@ -468,12 +477,20 @@ function sameValue(a: string, b: string): boolean {
  * dialog's description, and carrying it twice would be one fact with two treatments.
  */
 export function requestRows(request: AdvocateRegistration): FactRow[] {
-  /* **No Role row.** The role is in the dialog header — a mark beside the title and the
-     word beside the application number — which is the one part of the overlay present on
-     every stage. A row here as well would be one fact in two places on the same screen.
-     It was a row for one round and moved up when the owner asked for a signifier that
-     reads before anything is read (2026-09-11); see `RoleMark`. */
   const rows: FactRow[] = [
+    /* **First, as a pill** (owner, 2026-09-11: *"what's the first thing you read and then
+       you understand, okay, it's a clerk. You don't read the heading… especially when you
+       become a power user, you look at the content immediately"*). The title says it too,
+       for the officer who does read headings and for a screen reader; this is where the
+       eye lands. It is the same pill the queue's Account type column shows, so the
+       signal is learned once on the list and recognised in the record. */
+    {
+      id: "accountType",
+      term: "Account type",
+      value: roleLabel(request.registrantKind),
+      format: "text",
+      pill: accountTypeVariant(request.registrantKind),
+    },
     {
       id: "submitted",
       term: "Submitted",
