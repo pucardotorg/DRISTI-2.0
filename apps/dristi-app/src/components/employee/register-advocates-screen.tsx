@@ -33,6 +33,8 @@ import {
   registrationWaitTone,
   requestKindLabel,
   requestKindVariant,
+  roleLabel,
+  APPROVE_REGISTRATIONS_TITLE,
   type AdvocateRegistration,
   type RegisterAdvocatesFilters,
   type WaitTone,
@@ -158,16 +160,25 @@ export function RegisterAdvocatesScreen() {
        Revert = delete the two utilities. Nothing else on the screen depends on them. */
     <div className="flex min-w-0 flex-1 flex-col gap-8 bg-muted p-6 md:p-8 dark:bg-background">
       <header className="flex flex-col gap-2">
+        {/* **"Approve registrations"**, not "Register advocates" (owner, 2026-09-11: the
+            queue is advocates *and* their clerks, so the old title named half of it). Verb
+            and object, like every other row in the Actions group — "Register cases",
+            "Approve copy application" — and "approve" because it is the word the screen
+            already speaks in: *Pending approval*, *Confirm approval*, *waiting for
+            approval*. The officer rejects here too, the way they refuse copies under
+            "Approve copy application"; the group names each queue by what it exists to
+            grant. `APPROVE_REGISTRATIONS_TITLE` is shared with the rail and the tab, so the
+            three can never disagree. */}
         <h1 className="text-title text-balance font-semibold sm:text-title-l">
-          Register advocates
+          {APPROVE_REGISTRATIONS_TITLE}
         </h1>
         {/* The count is the whole point of the queue, so the supporting line carries it
             rather than restating the title. Singular is spelled out because
-            "1 advocates" is the kind of thing a court notices. */}
+            "1 registrations" is the kind of thing a court notices. */}
         <p className="text-body text-muted-foreground">
           {remaining.length === 1
-            ? "1 advocate is waiting for approval."
-            : `${remaining.length} advocates are waiting for approval.`}
+            ? "1 registration is waiting for approval."
+            : `${remaining.length} registrations are waiting for approval.`}
         </p>
       </header>
 
@@ -302,7 +313,7 @@ function RegistrationFilters({
         ref={searchRef}
         value={filters.query}
         onChange={(query) => onChange({ ...filters, query })}
-        placeholder="Name, Bar registration ID or application number"
+        placeholder="Name, registration number or application number"
       />
     </form>
   );
@@ -341,8 +352,8 @@ function RegistrationsEmpty({
         </EmptyTitle>
         <EmptyDescription className="text-body">
           {isFiltered
-            ? "No request waiting for approval matches the name, Bar registration ID or application number you searched for."
-            : "Every advocate who has applied to this court has been dealt with."}
+            ? "No request waiting for approval matches the name, registration number or application number you searched for."
+            : "Everyone who has applied to this court has been dealt with."}
         </EmptyDescription>
       </EmptyHeader>
       {isFiltered ? (
@@ -396,8 +407,12 @@ function RegistrationItemList({
             >
               {request.fullName}
             </p>
+            {/* Role leads the line for the reason it sits beside the name in the table:
+                it says which register the number after it belongs to. */}
             <p className="text-caption text-muted-foreground">
-              <span className="tabular-nums">{request.barRegistrationId}</span>
+              {roleLabel(request.registrantKind)}
+              {" · "}
+              <span className="tabular-nums">{request.registrationNumber}</span>
               {" · "}
               <span
                 className={cn(

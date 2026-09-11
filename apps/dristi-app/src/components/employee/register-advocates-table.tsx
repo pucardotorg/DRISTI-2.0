@@ -21,6 +21,7 @@ import {
   registrationWaitTone,
   requestKindLabel,
   requestKindVariant,
+  roleLabel,
   type AdvocateRegistration,
   type WaitTone,
 } from "@/lib/employee/register-advocates";
@@ -39,17 +40,21 @@ const waitClass: Record<WaitTone, string> = {
 };
 
 /**
- * The registration queue as a table: the number the advocate can quote, who is asking,
- * the registration they claim, whether this request is an ordinary one, and how long the
- * office has kept them waiting.
+ * The registration queue as a table: the number the applicant can quote, who is asking,
+ * what they are registering as, the registration they claim, whether this request is an
+ * ordinary one, and how long the office has kept them waiting.
  *
- * Five columns, and two of the reference's are gone.
+ * **Six columns. Role came back** (2026-09-11), exactly as this comment said it would:
+ * the reference's *User Type* was dropped while every row was an advocate, because a
+ * column whose every cell reads the same carries no information. Advocate clerks joining
+ * the queue (`REG-13a`/`REG-14a`) made it a real distinction, and it sits beside the name
+ * because it decides how the number after it is read. Named "Role", the sign-up's own
+ * word for the same choice, with the sign-up's own two values.
  *
- * **User Type is gone** because it is constant. Every row on this screen is an advocate,
- * and a column whose every cell reads the same carries no information — the argument
- * `RegisterCasesTable` already makes about its missing status chip. The row model still
- * carries the distinction, so the day clerk registrations join this queue
- * (`REG-13a`/`REG-14a`) the column comes back as a real one.
+ * Unlike Request type, **Role is filled on every row**, the norm included. Request type can
+ * leave its norm blank because "first registration" is what an empty cell plainly means;
+ * an empty Role cell would mean nothing at all, in a column where both values are
+ * ordinary.
  *
  * **Action / "Verify" is gone** because it was a link that repeated its own row. The
  * application number is the opener on every other court-side table, and it is the opener
@@ -82,11 +87,23 @@ export function RegisterAdvocatesTable({
           <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
             Application number
           </TableHead>
-          <TableHead className={cn(TABLE_HEAD, "min-w-48 whitespace-normal")}>
+          {/* `min-w-40`, down from 48, to pay for the Role column. Measured at 1280 — the
+              narrowest width the table is shown at — six columns came to 935px in a
+              910px panel, and the column pushed off the edge was Days waiting, the one
+              the queue is read by. The name is the column that can afford it: it wraps
+              by design and never truncates, so a lower floor costs a line on the
+              longest names and nothing on the rest. */}
+          <TableHead className={cn(TABLE_HEAD, "min-w-40 whitespace-normal")}>
             Full name
           </TableHead>
           <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
-            Bar registration ID
+            Role
+          </TableHead>
+          {/* "Registration number", not "Bar registration ID" — the column holds clerks'
+              numbers too, and the Role beside it says which register the number belongs
+              to. The overlay keeps the specific label, where a single request is read. */}
+          <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
+            Registration number
           </TableHead>
           {/* "Request type", not "Kind" — the court-side columns are named after the
               thing they hold ("Application type", "Process type"), and a header has to
@@ -108,7 +125,7 @@ export function RegisterAdvocatesTable({
             `border-separate` has no per-edge row gap, so the gap is one inert row held out
             of the accessibility tree. */}
         <tr aria-hidden="true">
-          <td colSpan={5} className="h-2 p-0" />
+          <td colSpan={6} className="h-2 p-0" />
         </tr>
         {rows.map((request) => {
           const kind = requestKindLabel(request);
@@ -143,15 +160,26 @@ export function RegisterAdvocatesTable({
                   rides the name so a screen reader does not read Malayalam letters with an
                   English voice (ACCESSIBILITY §13). */}
               <TableCell
-                className={cn(TABLE_CELL, "min-w-48 font-medium whitespace-normal")}
+                className={cn(TABLE_CELL, "min-w-40 font-medium whitespace-normal")}
                 lang={request.fullNameLang}
               >
                 {request.fullName}
               </TableCell>
+              {/* Plain, muted text: a category, not a status, so it takes no chip and no
+                  colour — the row's one colour is still the wait, and its one chip is
+                  still the request type. */}
+              <TableCell
+                className={cn(
+                  TABLE_CELL,
+                  "whitespace-nowrap text-muted-foreground",
+                )}
+              >
+                {roleLabel(request.registrantKind)}
+              </TableCell>
               <TableCell
                 className={cn(TABLE_CELL, "tabular-nums whitespace-nowrap")}
               >
-                {request.barRegistrationId}
+                {request.registrationNumber}
               </TableCell>
               {/* Empty on the norm; the two exceptions are told apart by colour as well as
                   by their words — `info` for an edited account, `warning` for a

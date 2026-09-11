@@ -28,6 +28,7 @@ import {
   registerAnswer,
   registerFindingRow,
   mismatchedTerms,
+  roleLabel,
   sortByLongestWait,
   submissionDay,
   type AdvocateRegistration,
@@ -45,7 +46,8 @@ function allRows(request: AdvocateRegistration): FactRow[] {
 
 describe("REGISTER_ADVOCATES_QUEUE", () => {
   it("is long enough to page, and the count the rail shows is the list's own", () => {
-    assert.equal(REGISTER_ADVOCATES_QUEUE.length, 14);
+    // 14 advocates and 3 advocate clerks — the queue is both kinds now.
+    assert.equal(REGISTER_ADVOCATES_QUEUE.length, 17);
     assert.equal(
       REGISTER_ADVOCATES_QUEUE_COUNT,
       REGISTER_ADVOCATES_QUEUE.length,
@@ -53,18 +55,21 @@ describe("REGISTER_ADVOCATES_QUEUE", () => {
   });
 
   it("gives every row, application number and Bar registration ID its own identity", () => {
-    for (const key of ["id", "applicationNumber", "barRegistrationId"] as const) {
+    for (const key of ["id", "applicationNumber", "registrationNumber"] as const) {
       const values = REGISTER_ADVOCATES_QUEUE.map((row) => row[key]);
       assert.equal(new Set(values).size, values.length, `duplicate ${key}`);
     }
   });
 
-  it("keeps the application number in the form the advocate is shown on their own waiting screen", () => {
+  it("keeps the application number in the form each person is shown on their own waiting screen", () => {
+    // The sign-up's own two series (`registration-flow.tsx`, `applicationId`).
     for (const row of REGISTER_ADVOCATES_QUEUE) {
       assert.match(
         row.applicationNumber,
-        /^KL-ADV-\d{6}-\d{4}$/,
-        `${row.applicationNumber} is not a registration application number`,
+        row.registrantKind === "clerk"
+          ? /^KL-CLERK-\d{6}-\d{4}$/
+          : /^KL-ADV-\d{6}-\d{4}$/,
+        `${row.applicationNumber} is not in its kind's series`,
       );
     }
   });
@@ -77,12 +82,22 @@ describe("REGISTER_ADVOCATES_QUEUE", () => {
     );
   });
 
-  it("carries all three answers the Bar Council lookup can give", () => {
+  it("carries all three answers the Bar Council lookup can give, and none for a clerk", () => {
     const states = new Set(REGISTER_ADVOCATES_QUEUE.map((r) => r.lookup.state));
     assert.deepEqual(
       [...states].sort(),
-      ["found", "no-entry", "not-checked"].sort(),
+      ["found", "no-entry", "none", "not-checked"].sort(),
     );
+    // The handover names no register for clerks (`REG-13a`), and the Bar Council's is
+    // an advocate requirement (`REG-13`) — so nothing is looked up for a clerk, and every
+    // advocate is looked up.
+    for (const row of REGISTER_ADVOCATES_QUEUE) {
+      assert.equal(
+        row.lookup.state === "none",
+        row.registrantKind === "clerk",
+        `${row.applicationNumber}: a lookup that does not belong to its kind`,
+      );
+    }
   });
 
   it("exercises the wait escalation at both thresholds and below them", () => {
@@ -127,7 +142,7 @@ describe("REGISTER_ADVOCATES_QUEUE", () => {
 
   it("holds Bar registration IDs from more than one state bar, so the column is not sized off Kerala", () => {
     const prefixes = new Set(
-      REGISTER_ADVOCATES_QUEUE.map((r) => r.barRegistrationId.split("/")[0]),
+      REGISTER_ADVOCATES_QUEUE.map((r) => r.registrationNumber.split("/")[0]),
     );
     assert.ok(
       prefixes.size >= 4,
@@ -401,7 +416,8 @@ describe("what the row and the overlay call things", () => {
   });
 
   it("reads its labels off the registrant, so clerks need no restructuring", () => {
-    assert.equal(registrationIdLabel("advocate"), "Bar registration ID");
+    // Parallel, and in the words each person's own sign-up form used.
+    assert.equal(registrationIdLabel("advocate"), "Bar registration number");
     assert.equal(registrationIdLabel("clerk"), "Clerk registration number");
     assert.equal(idPhotoLabel("advocate"), "Photo of Bar ID card");
     assert.equal(idPhotoLabel("clerk"), "Photo of clerk ID card");
@@ -416,7 +432,7 @@ describe("what the row and the overlay call things", () => {
     // An email the Bar Council record never held is an addition, not a change.
     assert.equal(editFor(edited, "email")?.was, null);
     assert.equal(editFor(edited, "fullName")?.was, "Thomas Kurian");
-    assert.equal(editFor(edited, "barRegistrationId"), undefined);
+    assert.equal(editFor(edited, "registrationNumber"), undefined);
   });
 
   it("spells the unit out where there is no column header to say it", () => {
@@ -461,8 +477,8 @@ describe("shape one: a term and its value", () => {
     const back = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-118");
     assert.ok(back);
     const rows = allRows(back);
-    // 3 request facts + 4 identity rows (this one has an email) + 4 rejection rounds.
-    assert.equal(rows.length, 11);
+    // 4 request facts + 4 identity rows (this one has an email) + 4 rejection rounds.
+    assert.equal(rows.length, 12);
     for (const row of rows) {
       assert.equal(typeof row.term, "string");
       assert.ok(row.term.length > 0, "a row with no term");
@@ -477,8 +493,8 @@ describe("shape one: a term and its value", () => {
       assert.deepEqual(
         rows.map((row) => row.id),
         request.email
-          ? ["fullName", "barRegistrationId", "mobile", "email"]
-          : ["fullName", "barRegistrationId", "mobile"],
+          ? ["fullName", "registrationNumber", "mobile", "email"]
+          : ["fullName", "registrationNumber", "mobile"],
         `${request.applicationNumber} shows an attribute the flow does not collect`,
       );
     }
@@ -505,11 +521,12 @@ describe("shape one: a term and its value", () => {
 
   it("carries the queue cell's own escalation into the overlay's Waiting row", () => {
     for (const request of REGISTER_ADVOCATES_QUEUE) {
-      const [submitted, waiting, kind] = requestRows(request);
+      const [role, submitted, waiting, kind] = requestRows(request);
       assert.deepEqual(
-        [submitted.term, waiting.term, kind.term],
-        ["Submitted", "Waiting", "Request type"],
+        [role.term, submitted.term, waiting.term, kind.term],
+        ["Role", "Submitted", "Waiting", "Request type"],
       );
+      assert.equal(role.tone, undefined);
       assert.equal(waiting.tone, registrationWaitTone(request.daysWaiting));
       assert.equal(waiting.value, formatWaitingDuration(request.daysWaiting));
       assert.equal(submitted.tone, undefined);
@@ -547,7 +564,7 @@ describe("shape one: a term and its value", () => {
   it("reads every term off the registrant, so a clerk queue needs no new row", () => {
     const request = REGISTER_ADVOCATES_QUEUE[0];
     const clerk: AdvocateRegistration = { ...request, registrantKind: "clerk" };
-    assert.equal(identityRows(request)[1].term, "Bar registration ID");
+    assert.equal(identityRows(request)[1].term, "Bar registration number");
     assert.equal(identityRows(clerk)[1].term, "Clerk registration number");
     assert.deepEqual(
       identityRows(clerk).map((row) => row.id),
@@ -562,8 +579,8 @@ describe("the register speaks only when it disagrees", () => {
     assert.ok(clean);
     assert.equal(registerAnswer(clean), null);
     assert.equal(registerFindingRow(clean), null);
-    // …and the Request group is the three facts it was, with nothing appended.
-    assert.equal(requestRows(clean).length, 3);
+    // …and the Request group is its four facts, with nothing appended.
+    assert.equal(requestRows(clean).length, 4);
   });
 
   it("reaches its three answers, each as one row in the Request group", () => {
@@ -606,7 +623,7 @@ describe("the register speaks only when it disagrees", () => {
     for (const request of REGISTER_ADVOCATES_QUEUE) {
       const finding = registerFindingRow(request);
       const rows = requestRows(request);
-      assert.equal(rows.length, finding ? 4 : 3);
+      assert.equal(rows.length, finding ? 5 : 4);
       // Nothing in the Identity block mentions a register, matching or otherwise.
       for (const row of identityRows(request)) {
         assert.ok(
@@ -731,6 +748,71 @@ describe("shape two: two values, side by side", () => {
   });
 });
 
+describe("an advocate clerk's request", () => {
+  const clerks = REGISTER_ADVOCATES_QUEUE.filter(
+    (r) => r.registrantKind === "clerk",
+  );
+
+  it("is in the queue, mixed in by wait rather than filed separately", () => {
+    assert.equal(clerks.length, 3);
+    // The queue stays one list in wait order; there is no clerks-first or clerks-last.
+    assert.deepEqual(
+      REGISTER_ADVOCATES_QUEUE,
+      sortByLongestWait(REGISTER_ADVOCATES_QUEUE),
+    );
+  });
+
+  it("says what it is registering as, first, in the sign-up's own word", () => {
+    assert.equal(roleLabel("clerk"), "Advocate clerk");
+    assert.equal(roleLabel("advocate"), "Advocate");
+    for (const request of REGISTER_ADVOCATES_QUEUE) {
+      const [role] = requestRows(request);
+      assert.equal(role.id, "role");
+      assert.equal(role.value, roleLabel(request.registrantKind));
+    }
+  });
+
+  it("asks nothing of a register, so it carries no finding and no comparison", () => {
+    for (const clerk of clerks) {
+      assert.equal(registerAnswer(clerk), null);
+      assert.equal(registerFindingRow(clerk), null);
+      assert.equal(
+        requestRows(clerk).some((row) => row.id === "register"),
+        false,
+      );
+      assert.equal(
+        comparisonBlocks(clerk).some((block) => block.id === "register"),
+        false,
+      );
+    }
+  });
+
+  it("names its own number and its own card, never the Bar's", () => {
+    for (const clerk of clerks) {
+      const terms = identityRows(clerk).map((row) => row.term);
+      assert.ok(terms.includes("Clerk registration number"));
+      assert.ok(!terms.some((term) => /bar/i.test(term)));
+      assert.equal(idPhotoLabel(clerk.registrantKind), "Photo of clerk ID card");
+    }
+  });
+
+  it("is never a profile update — only Bar Council accounts are pre-created", () => {
+    for (const clerk of clerks) assert.notEqual(clerk.requestKind, "edited");
+    // …but a clerk is sent back and resubmits like anyone else (`REG-23`).
+    assert.ok(clerks.some((clerk) => clerk.requestKind === "resubmission"));
+  });
+
+  it("is found by its clerk registration number", () => {
+    const rows = filterRegistrations(REGISTER_ADVOCATES_QUEUE, {
+      query: "CLK/2143",
+    });
+    assert.deepEqual(
+      rows.map((r) => r.applicationNumber),
+      ["KL-CLERK-000192-2026"],
+    );
+  });
+});
+
 describe("the next request after a decision", () => {
   const a = row({ id: "a", daysWaiting: 30, applicationNumber: "KL-ADV-000001-2026" });
   const b = row({ id: "b", daysWaiting: 20, applicationNumber: "KL-ADV-000002-2026" });
@@ -762,7 +844,7 @@ function row(
   return {
     applicationNumber: "KL-ADV-000100-2026",
     fullName: "Test Advocate",
-    barRegistrationId: "KL/0001/2000",
+    registrationNumber: "KL/0001/2000",
     mobile: "9000000000",
     photo: { src: "/demo/bar-id-card-specimen.svg", filename: "card.jpg" },
     daysWaiting: 1,

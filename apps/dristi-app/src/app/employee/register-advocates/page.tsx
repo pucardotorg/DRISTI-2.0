@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 
 import { RegisterAdvocatesScreen } from "@/components/employee/register-advocates-screen";
+import { APPROVE_REGISTRATIONS_TITLE } from "@/lib/employee/register-advocates";
 
-export const metadata: Metadata = { title: "Register advocates" };
+export const metadata: Metadata = { title: APPROVE_REGISTRATIONS_TITLE };
 
 /**
- * Every advocate registration waiting on this court's scrutiny officer — the screen the
- * rail's "Register advocates" row leads to.
+ * Every advocate and advocate-clerk registration waiting on this court's scrutiny officer
+ * — the screen the rail's "Approve registrations" row leads to.
  *
  * Lives under `/employee/register-advocates` rather than nesting inside its Actions group,
  * for the reason Register cases and Approve copy application sit beside it: the group is
