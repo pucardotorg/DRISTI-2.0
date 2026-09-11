@@ -11,6 +11,7 @@ import {
 } from "@/lib/tasks/selectors";
 import type { Person } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
+import { AppliedChip } from "@/components/shell/applied-chip";
 import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Kbd } from "@/components/ui/kbd";
@@ -37,30 +38,6 @@ const DUES: DueFilter[] = ["any", "overdue", "today", "week", "before-hearing"];
 
 /** Radix Select reserves "" for the placeholder, so "all" stands in for it. */
 const ALL = "all";
-
-/**
- * One removable chip for an applied filter.
- *
- * A chip is a well: sunken fill, no border (`ui-craft` §4 — depth is fill, not strokes,
- * and a filled box with a stroke is the box-in-box the skill bans). The dismiss target is
- * 32px visible and expanded to the 40px floor with `after:-inset-1`.
- */
-function AppliedChip({ label, onClear }: { label: string; onClear: () => void }) {
-  return (
-    <span className="inline-flex h-10 shrink-0 items-center gap-1 rounded-full bg-surface-sunken pl-3.5 pr-1 text-body-compact font-medium text-foreground">
-      {label}
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        aria-label={`Clear the ${label} filter`}
-        onClick={onClear}
-        className="relative rounded-full text-muted-foreground after:absolute after:-inset-1 hover:text-foreground"
-      >
-        <XIcon aria-hidden />
-      </Button>
-    </span>
-  );
-}
 
 /**
  * The list's own search — local to this screen, not app chrome (owner, 2026-08-24).

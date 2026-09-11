@@ -27,7 +27,7 @@ import type { FilingDraft } from "./types";
 export const QUEUE_TABS = [
   { id: "drafts", label: "Drafts" },
   { id: "scrutiny", label: "Pending scrutiny" },
-  { id: "returned", label: "Returned with defects" },
+  { id: "returned", label: "Returned post scrutiny" },
   { id: "registered", label: "Registered" },
 ] as const;
 
@@ -51,6 +51,10 @@ export type QueueRow = {
   /** Empty while no court applies; the column is dropped on tabs where none ever does. */
   court: string;
   info: { lead: string; sub?: string; tone: InfoTone };
+  /** A count the info column shows as a chip instead of `info.lead`. Returned rows. */
+  count?: number;
+  /** How much of the form is filled in, and when it was last touched. Drafts only. */
+  progress?: { percent: number; savedOn: string };
   action: { label: string; href: string };
   /** When this row needs attention — ascending puts the most pressing first. */
   urgencyAt: string;
@@ -68,7 +72,7 @@ export type QueueRow = {
   haystack: string;
 };
 
-export type ColumnId = "ref" | "parties" | "court" | "info" | "action";
+export type ColumnId = "ref" | "parties" | "court" | "info" | "progress" | "action";
 
 /**
  * What each tab actually shows.
@@ -77,14 +81,18 @@ export type ColumnId = "ref" | "parties" | "court" | "info" | "action";
  * "S-138, NI Act" down the page carried nothing. Court is gone from drafts for the same
  * reason — a draft has not chosen one. A column with a single value is a caption printed
  * once per row.
+ *
+ * Drafts split what used to be one "Time to file" cell into two questions a person asks
+ * separately: by when (File by — the limitation date, or NA while the clock cannot start)
+ * and how far along (Completed — the share of the form filled in, with a ring beside it).
  */
 export const TAB_LAYOUT: Record<
   QueueTab,
   { columns: ColumnId[]; ref?: string; info: string; label: string }
 > = {
   drafts: {
-    columns: ["parties", "info", "action"],
-    info: "Time to file",
+    columns: ["parties", "info", "progress", "action"],
+    info: "File by",
     label: "Drafts you have not filed yet",
   },
   scrutiny: {
@@ -96,7 +104,7 @@ export const TAB_LAYOUT: Record<
   returned: {
     columns: ["ref", "parties", "court", "info", "action"],
     ref: "E-filing no.",
-    info: "Defects raised",
+    info: "Defects",
     label: "Filings scrutiny returned with defects",
   },
   registered: {
@@ -152,45 +160,56 @@ function partiesOf(record: CaseRecord): string {
   return `${record.parties.complainant} v. ${record.parties.accused}`;
 }
 
+/** No clock can start until the draft carries the dates that start it. */
+export const NO_DEADLINE = "NA";
+
+/** Inside this many days the date reads in the warning ink. */
+export const DEADLINE_WARNING_DAYS = 2;
+
 /**
  * What a draft's limitation clock says — the one number on this screen that can cost a
- * client the case.
+ * client the case. The File by column.
  *
  * The complaint is due within one month of the cause of action (NI Act §142(1)(b)); past
  * that, delay may be condoned for sufficient cause, so the copy never says "barred" or
  * "overdue" — it says what filing now costs, which is a condonation application and the
  * fee `feeBill()` already adds. With no cause date and no served notice there is no clock
- * at all: `noticeCauseDate` refuses to guess one, and so does this.
+ * at all: `noticeCauseDate` refuses to guess one, and so does this — the cell says NA and
+ * why, rather than a date it made up.
+ *
+ * The lead is always the date, so the column reads as one. What differs is the line
+ * under it: days left in plain ink, the last two days in warning ink, and a closed
+ * window in the destructive ink with the condonation consequence spelled out.
  */
 export function draftClock(draft: FilingDraft): {
   lead: string;
-  sub: string;
+  sub?: string;
   tone: InfoTone;
   dueOn: string;
 } {
-  const progress = `${draftProgress(draft)}% complete`;
-  const saved = `Last saved ${toDisplayDate(draft.updatedAt.slice(0, 10))}`;
   const lim = limitationView(draft);
   if (!lim.causeDate) {
-    return { lead: progress, sub: saved, tone: "default", dueOn: "" };
+    return { lead: NO_DEADLINE, sub: "Notice dates not entered yet", tone: "default", dueOn: "" };
   }
 
   const dueOn = addDays(lim.causeDate, LIMITATION_DAYS);
   const left = daysBetween(lim.filingDate, dueOn);
-  if (left === null) return { lead: progress, sub: saved, tone: "default", dueOn: "" };
+  if (left === null) {
+    return { lead: NO_DEADLINE, sub: "Notice dates not entered yet", tone: "default", dueOn: "" };
+  }
 
   if (left < 0) {
     return {
-      lead: `Window closed ${toDisplayDate(dueOn)}`,
-      sub: `Filing now needs a condonation application · ${progress}`,
+      lead: toDisplayDate(dueOn),
+      sub: "Window closed · filing now needs a condonation application",
       tone: "danger",
       dueOn,
     };
   }
   return {
-    lead: `File by ${toDisplayDate(dueOn)}`,
-    sub: `${left} ${left === 1 ? "day" : "days"} left · ${progress}`,
-    tone: left <= 7 ? "warning" : "default",
+    lead: toDisplayDate(dueOn),
+    sub: left === 0 ? "Due today" : `${left} ${left === 1 ? "day" : "days"} left`,
+    tone: left <= DEADLINE_WARNING_DAYS ? "warning" : "default",
     dueOn,
   };
 }
@@ -204,6 +223,10 @@ export function draftRows(drafts: FilingDraft[]): QueueRow[] {
       parties,
       court: "",
       info,
+      progress: {
+        percent: draftProgress(draft),
+        savedOn: toDisplayDate(draft.updatedAt.slice(0, 10)),
+      },
       action: { label: "Continue filing", href: stepHref(draft.id, draft.lastStep) },
       // A draft past its window keeps its real date rather than being pushed to the end:
       // it is the most pressing row on the tab, not a finished one.
@@ -269,11 +292,13 @@ export function returnedRows(tasks: Task[], cases: TaskCase[]): QueueRow[] {
         ref: c?.stNumber || c?.cnr || task.id.toUpperCase(),
         parties,
         court: c?.court ?? "",
+        // The column is headed Defects, so the cell is the number alone, as a chip.
         info: {
-          lead: count === 1 ? "1 defect raised" : `${count} defects raised`,
+          lead: String(count),
           sub: due ? `Cure by ${toDisplayDate(due)}` : undefined,
           tone: "danger" as InfoTone,
         },
+        count,
         action: { label: "Cure defects", href: fixHref(task.id) },
         urgencyAt: due || NO_URGENCY,
         recencyAt: task.returned?.at.slice(0, 10) ?? task.createdAt.slice(0, 10),

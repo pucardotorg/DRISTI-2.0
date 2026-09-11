@@ -12,7 +12,6 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { type CasesPageSize, type CasesSelection } from "@/lib/cases/query";
-import { type BucketKey, type CasesView } from "@/lib/cases/types";
 import { cn } from "@/lib/utils";
 
 import { CasesItemList } from "./cases-item-list";
@@ -53,7 +52,6 @@ export function CasesListResults({
   onToggleBookmark,
   pageLink,
   framed = true,
-  stageFilter,
   hideStage = false,
   hideLongPendingFlag = false,
 }: {
@@ -64,11 +62,6 @@ export function CasesListResults({
   onToggleBookmark: (id: string) => void;
   pageLink: (page: number) => PageLink;
   framed?: boolean;
-  stageFilter?: {
-    view: CasesView;
-    value: BucketKey[];
-    onChange: (stage: BucketKey[]) => void;
-  };
   hideStage?: boolean;
   hideLongPendingFlag?: boolean;
 }) {
@@ -87,9 +80,9 @@ export function CasesListResults({
         <div className="hidden md:block">
           <CasesTable
             rows={selection.rows}
+            allIds={selection.ids}
             bookmarks={bookmarks}
             onToggleBookmark={onToggleBookmark}
-            stageFilter={stageFilter}
             hideStage={hideStage}
             hideLongPendingFlag={hideLongPendingFlag}
           />
@@ -107,11 +100,13 @@ export function CasesListResults({
 
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-3">
+          {/* The page's slice of the matched set. The card heading above says how
+              many matched out of the whole book, so this line only names rows. */}
           <p
-            className="text-body-compact text-muted-foreground"
+            className="text-body-compact text-muted-foreground tabular-nums"
             aria-live="polite"
           >
-            Showing {selection.from}–{selection.to} of {selection.total}
+            Rows {selection.from}–{selection.to} of {selection.total}
           </p>
           <CasesPageSizeSelect
             value={pageSize}

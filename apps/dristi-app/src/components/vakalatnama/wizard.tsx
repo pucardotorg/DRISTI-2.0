@@ -10,6 +10,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from "lucide-react";
 
+import { Breadcrumbs } from "@/components/shell/chrome";
 import { Button } from "@/components/ui/button";
 import { Stepper, StepperItem } from "@/components/ui/stepper";
 import { updateVak, useVak } from "@/lib/vakalatnama/store";
@@ -63,6 +64,9 @@ export function VakalatnamaWizard({ id }: { id: string }) {
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
+      {/* Vakalatnama › New vakalatnama, so the trail links back to the list. The steps
+          are views of this one page; the stepper names them, the trail does not. */}
+      <Breadcrumbs crumbs={[{ label: "New vakalatnama" }]} />
       {/* Content flows; the page body scrolls (the app pattern). */}
       <div className="px-4 pb-8 pt-6 sm:px-6 lg:px-12">
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-8">

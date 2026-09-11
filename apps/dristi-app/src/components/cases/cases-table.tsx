@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { GripVerticalIcon } from "lucide-react";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -14,14 +15,14 @@ import {
 import {
   isTableColumnId,
   listTableColumns,
+  type DropSide,
   type TableColumnId,
 } from "@/lib/cases/table-columns";
-import { partiesLabel, type BucketKey, type CaseRecord, type CasesView } from "@/lib/cases/types";
+import { partiesLabel, type CaseRecord } from "@/lib/cases/types";
 import { cn } from "@/lib/utils";
 
 import { BookmarkButton } from "./bookmark-button";
 import { CaseField } from "./case-field";
-import { CasesStageColumnFilter } from "./cases-stage-column-filter";
 import { useCasePeek } from "./use-case-peek";
 import { useCasesSelection } from "./use-cases-selection";
 import { useCasesTableColumns } from "./use-cases-table-columns";
@@ -54,35 +55,53 @@ const COLUMNS_HINT_ID = "cases-table-columns-hint";
 /**
  * Default scan: Case number · Case name · Stage · advocates by side · Next
  * hearing · Bookmark. A folder drops Stage — the folder is that value.
- * Headers drag to reorder. The columns menu (next to Folders/List) also
- * shows, hides, and reorders; reset restores both. Bookmark stays on the row.
+ * Headers drag to reorder, and each heading carries a grip so the drag is
+ * visible rather than a secret; the columns menu (beside Folders/List) shows
+ * and hides, and reset restores both. Filtering lives in the Filters sheet,
+ * not in a column header. Bookmark stays on the row.
  */
+/** How close to the scroller's edge a drag has to be before it scrolls, and how fast. */
+const AUTOSCROLL_EDGE = 64;
+const AUTOSCROLL_STEP = 24;
+
 export function CasesTable({
   rows,
+  allIds,
   bookmarks,
   onToggleBookmark,
-  stageFilter,
   hideStage = false,
   hideLongPendingFlag = false,
 }: {
   rows: CaseRecord[];
+  /** Every matched case across all pages — what the header checkbox selects. */
+  allIds: string[];
   bookmarks: ReadonlySet<string>;
   onToggleBookmark: (id: string) => void;
-  stageFilter?: {
-    view: CasesView;
-    value: BucketKey[];
-    onChange: (stage: BucketKey[]) => void;
-  };
   hideStage?: boolean;
   hideLongPendingFlag?: boolean;
 }) {
   const { isVisible, order, reorder, shift } = useCasesTableColumns();
   const { record: openRecord } = useCasePeek();
-  const { selected, toggle, enabled: selectable } = useCasesSelection();
+  const { selected, toggle, setMany, enabled: selectable } = useCasesSelection();
   const columns = listTableColumns(isVisible, { hideStage, order });
   const columnCount = columns.length + (selectable ? 1 : 0) + 1;
   const [dragging, setDragging] = React.useState<TableColumnId | null>(null);
-  const [over, setOver] = React.useState<TableColumnId | null>(null);
+  /* Where the dragged column would land: which header, and which edge of it. The
+     edge is drawn as a line so the drop is never a guess (owner, Sept 9). */
+  const [over, setOver] = React.useState<{ id: TableColumnId; side: DropSide } | null>(
+    null
+  );
+
+  /* The header checkbox speaks for every matched case, not just the page in view:
+     all of them ticked, none, or some (indeterminate). Ticking it selects the whole
+     list; unticking clears it. */
+  const selectedOfAll = allIds.filter((id) => selected.has(id)).length;
+  const allState: boolean | "indeterminate" =
+    selectedOfAll === 0
+      ? false
+      : selectedOfAll === allIds.length
+        ? true
+        : "indeterminate";
 
   function onDragStart(
     event: React.DragEvent<HTMLTableCellElement>,
@@ -101,13 +120,38 @@ export function CasesTable({
     setDragging(id);
   }
 
+  /**
+   * Native drag-and-drop does not scroll a container for you. While a header is being
+   * dragged near either edge of the table's own scroller, nudge it — so a column can
+   * be carried from the far right to the far left of a table wider than the screen.
+   * `dragover` fires continuously while the pointer is held, so a small step per
+   * event reads as a steady scroll.
+   */
+  function autoScroll(event: React.DragEvent<HTMLElement>) {
+    const scroller = (event.currentTarget as HTMLElement).closest<HTMLElement>(
+      '[data-slot="table-container"]'
+    );
+    if (!scroller) return;
+    const rect = scroller.getBoundingClientRect();
+    if (event.clientX < rect.left + AUTOSCROLL_EDGE) {
+      scroller.scrollLeft -= AUTOSCROLL_STEP;
+    } else if (event.clientX > rect.right - AUTOSCROLL_EDGE) {
+      scroller.scrollLeft += AUTOSCROLL_STEP;
+    }
+  }
+
   function onDragOver(
     event: React.DragEvent<HTMLTableCellElement>,
     id: TableColumnId
   ) {
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
-    setOver(id);
+    const rect = event.currentTarget.getBoundingClientRect();
+    const side: DropSide =
+      event.clientX < rect.left + rect.width / 2 ? "before" : "after";
+    setOver((current) =>
+      current?.id === id && current.side === side ? current : { id, side }
+    );
   }
 
   function onDrop(
@@ -116,7 +160,9 @@ export function CasesTable({
   ) {
     event.preventDefault();
     const from = event.dataTransfer.getData("text/plain");
-    if (isTableColumnId(from)) reorder(from, id, { hideStage });
+    if (isTableColumnId(from)) {
+      reorder(from, id, { hideStage, side: over?.id === id ? over.side : undefined });
+    }
     setDragging(null);
     setOver(null);
   }
@@ -145,10 +191,9 @@ export function CasesTable({
   return (
     <>
       <p id={COLUMNS_HINT_ID} className="sr-only">
-        Drag a column header to change its order, or open the columns menu to
-        show, hide, and reorder with the arrows. With a header focused, press
-        Alt and Left arrow or Alt and Right arrow to move it. Reset columns from
-        the columns menu.
+        Drag a column header by its handle to change its order. With a header
+        focused, press Alt and Left arrow or Alt and Right arrow to move it. Show,
+        hide, or reset columns from the columns menu.
       </p>
       <Table
         className="w-full border-separate border-spacing-0 text-body-compact"
@@ -160,50 +205,73 @@ export function CasesTable({
               same corners from its Card's `overflow-clip`, having no inset to answer to.
               `border-separate` means each cell paints its own fill, so the radius goes on
               the end cells rather than the row. */}
-          <TableRow className="hover:bg-transparent [&>th:first-child]:rounded-l-lg [&>th:last-child]:rounded-r-lg">
+          <TableRow
+            className="hover:bg-transparent [&>th:first-child]:rounded-l-lg [&>th:last-child]:rounded-r-lg"
+            onDragOver={dragging ? autoScroll : undefined}
+          >
             {selectable ? (
               <TableHead className={cn(headClass, "w-10 px-1")}>
-                <span className="sr-only">Select</span>
+                <div className="flex justify-center">
+                  <Checkbox
+                    checked={allState}
+                    onCheckedChange={(checked) =>
+                      setMany(allIds, checked === true)
+                    }
+                    aria-label={
+                      allState === true
+                        ? `Clear the selection of all ${allIds.length} cases`
+                        : `Select all ${allIds.length} cases`
+                    }
+                  />
+                </div>
               </TableHead>
             ) : null}
             {columns.map((column) => {
-              const stageFilterHead = column.id === "stage" && stageFilter;
+              const landing =
+                dragging && dragging !== column.id && over?.id === column.id
+                  ? over.side
+                  : null;
               return (
-                <TableHead
-                  key={column.id}
-                  draggable
-                  tabIndex={0}
-                  aria-grabbed={dragging === column.id || undefined}
-                  onDragStart={(event) => onDragStart(event, column.id)}
-                  onDragOver={(event) => onDragOver(event, column.id)}
-                  onDrop={(event) => onDrop(event, column.id)}
-                  onDragEnd={onDragEnd}
-                  onKeyDown={(event) => onHeaderKeyDown(event, column.id)}
-                  className={cn(
-                    headClass,
-                    stageFilterHead && "px-2 py-0",
-                    COLUMN_WIDTH[column.id],
-                    "cursor-grab select-none text-left active:cursor-grabbing",
-                    dragging === column.id && "opacity-50",
-                    over === column.id &&
-                      dragging &&
-                      dragging !== column.id &&
-                      "bg-accent"
-                  )}
-                >
-                  {stageFilterHead ? (
-                    <div className="flex h-10 items-center">
-                      {column.label}
-                      <CasesStageColumnFilter
-                        view={stageFilter.view}
-                        value={stageFilter.value}
-                        onChange={stageFilter.onChange}
-                      />
-                    </div>
-                  ) : (
-                    column.label
-                  )}
-                </TableHead>
+              <TableHead
+                key={column.id}
+                draggable
+                tabIndex={0}
+                aria-grabbed={dragging === column.id || undefined}
+                onDragStart={(event) => onDragStart(event, column.id)}
+                onDragOver={(event) => onDragOver(event, column.id)}
+                onDrop={(event) => onDrop(event, column.id)}
+                onDragEnd={onDragEnd}
+                onKeyDown={(event) => onHeaderKeyDown(event, column.id)}
+                className={cn(
+                  headClass,
+                  COLUMN_WIDTH[column.id],
+                  "relative cursor-grab select-none text-left active:cursor-grabbing",
+                  dragging === column.id && "opacity-50"
+                )}
+              >
+                {/* The landing line: a brand-accent rule on the edge the column will
+                    take, the same mark the active tab underline uses. */}
+                {landing ? (
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "pointer-events-none absolute inset-y-1 z-10 w-0.5 rounded-full bg-brand-accent",
+                      landing === "before" ? "-left-px" : "-right-px"
+                    )}
+                  />
+                ) : null}
+                {/* The grip says "this moves" — the whole heading is the handle, the
+                    icon is the sign. Decorative, so it inherits the muted heading
+                    colour and stays out of the accessibility tree; the sr-only hint
+                    above carries the instruction. */}
+                <span className="flex items-center gap-1.5">
+                  <GripVerticalIcon
+                    aria-hidden
+                    className="-ml-1 size-3.5 shrink-0 text-muted-foreground"
+                  />
+                  {column.label}
+                </span>
+              </TableHead>
               );
             })}
             <TableHead
@@ -233,7 +301,10 @@ export function CasesTable({
             <TableRow
               key={record.id}
               className={cn(
-                "relative bg-card",
+                // Warm well tone on hover, matching the column header — the DS default
+                // hover:bg-accent is a cooler, darker grey the owner found too heavy
+                // for a row (Sept 11).
+                "relative bg-card hover:bg-surface-sunken",
                 openRecord?.id === record.id &&
                   !selected.has(record.id) &&
                   "bg-accent"
