@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
-  SYNOPSIS_FIELDS,
   SUMMARY_TERMS,
   CASE_REVIEW_STATUS,
   FACT_TERMS,
@@ -210,46 +209,24 @@ describe("terms are attributes the file names", () => {
     assert.equal(rendered, 1, "the file view's fact rows, and nothing else");
   });
 
-  it("names the summary's rows from the model, never from the screen", () => {
-    /* The same rule reaching the summary. Its five rows are what the magistrate's eye
-       runs down, and a sixth typed into the screen is how a summary that traces to a
-       model starts showing things nobody declared. */
+  it("names the summary's verdicts and cards from the model, and uses every name", () => {
+    /* The summary's names are a declared list (`SUMMARY_TERMS`). A card titled with a
+       typed string is a card nobody sourced; a declared name nothing renders is a part of
+       the synopsis the screen promised and dropped. */
     const screen = readFileSync(
       new URL("../../components/employee/case-review-screen.tsx", import.meta.url),
       "utf8",
     );
-    const rows = [...screen.matchAll(/<SummaryRow\b[^>]*\bterm=\{([^}]+)\}/g)];
-    assert.equal(rows.length, Object.keys(SUMMARY_TERMS).length, "one row per term");
-    for (const row of rows) {
-      assert.match(row[1].trim(), /^SUMMARY_TERMS\./, row[1]);
+    const cards = [...screen.matchAll(/<SummaryCard\b[^>]*\btitle=\{([^}]+)\}/g)];
+    assert.ok(cards.length > 0, "the summary renders cards");
+    for (const card of cards) {
+      assert.match(card[1].trim(), /^SUMMARY_TERMS\./, card[1]);
     }
-    assert.doesNotMatch(
-      screen,
-      /<SummaryRow\b[^>]*\bterm="/,
-      "a summary row with a typed label",
-    );
-  });
-
-  it("labels every synopsis field from the model, and uses every label it declares", () => {
-    /* The synopsis is the owner's own document, so its field names are a declared list
-       (`SYNOPSIS_FIELDS`). A field typed into the screen is one nobody sourced; a
-       declared label nothing renders is a field the synopsis promised and dropped. */
-    const screen = readFileSync(
-      new URL("../../components/employee/case-review-screen.tsx", import.meta.url),
-      "utf8",
-    );
-    const labels = [...screen.matchAll(/<Field\b[^>]*\blabel=\{([^}]+)\}/g)].map(
-      (match) => match[1].trim(),
-    );
-    assert.ok(labels.length > 0, "the synopsis renders fields");
-    for (const label of labels) {
-      assert.match(label, /^SYNOPSIS_FIELDS\./, label);
-    }
-    assert.doesNotMatch(screen, /<Field\b[^>]*\blabel="/, "a field with a typed label");
-    for (const key of Object.keys(SYNOPSIS_FIELDS)) {
+    assert.doesNotMatch(screen, /<SummaryCard\b[^>]*\btitle="/, "a card with a typed title");
+    for (const key of Object.keys(SUMMARY_TERMS)) {
       assert.ok(
-        screen.includes(`SYNOPSIS_FIELDS.${key}`),
-        `SYNOPSIS_FIELDS.${key} is declared and never rendered`,
+        screen.includes(`SUMMARY_TERMS.${key}`),
+        `SUMMARY_TERMS.${key} is declared and never rendered`,
       );
     }
   });

@@ -2,7 +2,26 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { TriangleAlertIcon } from "lucide-react";
+import {
+  BanIcon,
+  BanknoteIcon,
+  BriefcaseIcon,
+  Building2Icon,
+  CalendarDaysIcon,
+  CircleAlertIcon,
+  CircleCheckIcon,
+  MailIcon,
+  MapPinIcon,
+  MessageSquareIcon,
+  ScaleIcon,
+  SendIcon,
+  ShieldCheckIcon,
+  TriangleAlertIcon,
+  UserIcon,
+  UsersIcon,
+  WalletIcon,
+  type LucideIcon,
+} from "lucide-react";
 
 import { CaseFileRegion } from "@/components/employee/case-file-screen";
 import {
@@ -13,19 +32,16 @@ import {
   TAB_ROW,
 } from "@/components/employee/case-review-shared";
 import { useCourtToday } from "@/components/employee/use-court-today";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  caseChecksFor,
   caseFileCounts,
   caseReviewFor,
   caseSummaryFor,
   SUMMARY_TERMS,
-  SYNOPSIS_FIELDS,
-  type CaseCheck,
   type CaseReview,
   type CaseSummary,
+  type CaseSummaryStep,
   type CaseSummaryWindow,
 } from "@/lib/employee/case-review";
 import { cn } from "@/lib/utils";
@@ -55,13 +71,9 @@ export function CaseReviewScreen({ caseId }: { caseId: string }) {
 
   if (!review || !summary) return <CaseReviewMissing />;
 
-  const flags = (caseChecksFor(caseId, today) ?? []).filter(
-    (check) => check.class === "flag",
-  );
-
   return (
     <CaseReviewShell review={review} hasCounsel={summary.advocate !== null}>
-      <CaseTabs caseId={caseId} review={review} summary={summary} flags={flags} />
+      <CaseTabs caseId={caseId} review={review} summary={summary} />
     </CaseReviewShell>
   );
 }
@@ -112,15 +124,16 @@ function CaseTabs({
   caseId,
   review,
   summary,
-  flags,
 }: {
   caseId: string;
   review: CaseReview;
   summary: CaseSummary;
-  flags: CaseCheck[];
 }) {
   const [tab, setTab] = useCaseTab();
   const counts = caseFileCounts(review);
+  const attention = verdictsFor(summary).filter(
+    (verdict) => verdict.tone === "attention",
+  ).length;
 
   return (
     <Tabs
@@ -141,12 +154,12 @@ function CaseTabs({
         >
           <TabsTrigger value="summary" className={TRIGGER}>
             Summary
-            {flags.length > 0 ? (
+            {attention > 0 ? (
               <span className="text-warning-ink tabular-nums">
                 <span className="sr-only">, </span>
-                {flags.length}
+                {attention}
                 <span className="sr-only">
-                  {flags.length === 1 ? " needs attention" : " need attention"}
+                  {attention === 1 ? " needs attention" : " need attention"}
                 </span>
               </span>
             ) : null}
@@ -162,8 +175,10 @@ function CaseTabs({
         </TabsList>
       </div>
 
-      <TabsContent value="summary" className="text-body">
-        <CaseSummaryView summary={summary} flags={flags} />
+      {/* The court side's standard size, set once: every line in the summary is
+          `text-body-compact` unless it says otherwise, and nothing in it does. */}
+      <TabsContent value="summary" className="text-body-compact">
+        <CaseSummaryView summary={summary} />
       </TabsContent>
 
       <TabsContent
@@ -180,472 +195,464 @@ function CaseTabs({
 /* ─────────────────────────────── the summary ────────────────────────────── */
 
 /**
- * The summary: what needs him, how scrutiny went, and the synopsis.
+ * The summary, built to be taken in by shape before it is read.
  *
- * The synopsis is the owner's reference (2026-09-11) — the document a magistrate reads to
- * register a §138 complaint — in its own six sections and its own order, which is the
- * offence told chronologically: who, the cheque, its dishonour, the demand, the cause of
- * action, what is prayed for. Scrutiny is not part of it and sits apart, above it: it is
- * a report on how the complaint got here, the trust signal a reviewer reads first.
+ * A magistrate's question is "can I register this?", so the first thing on the page
+ * answers it: four verdicts, each an icon and a word — in time, documents, scrutiny, other
+ * complaints. A clean complaint is four checks in a row and he is done. Below it, who and
+ * how much; then the §138 dates drawn as a line with the three limits bracketed under it,
+ * so a late step is the one amber bracket rather than a number to compare; then the
+ * particulars, each in a card he finds by its icon.
  *
- * Both panels share one label column, so the two read as one document with a seam
- * rather than two unrelated boxes.
+ * Type is the court side's standard throughout: `text-body-compact` for everything,
+ * weight and colour for hierarchy. One size, so nothing competes with the verdicts but
+ * the verdicts' own icons.
  */
-function CaseSummaryView({
-  summary,
-  flags,
-}: {
-  summary: CaseSummary;
-  flags: CaseCheck[];
-}) {
-  const attention = attentionItems(flags, summary);
+function CaseSummaryView({ summary }: { summary: CaseSummary }) {
   const { synopsis } = summary;
-  const verdict = (id: CaseSummaryWindow["id"]) =>
-    summary.windows.find((window) => window.id === id)!;
 
   return (
     <div className="flex flex-col gap-6">
-      {attention.length > 0 ? <CaseAttention items={attention} /> : null}
+      <VerdictStrip verdicts={verdictsFor(summary)} />
 
-      <section className={cn(PANEL, "p-0")} aria-label={SUMMARY_TERMS.scrutiny}>
-        <dl>
-          <SummaryRow id="summary-scrutiny" term={SUMMARY_TERMS.scrutiny}>
-            <ScrutinyFacts scrutiny={summary.scrutiny} />
-          </SummaryRow>
-        </dl>
-      </section>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <SummaryCard
+          title={SUMMARY_TERMS.parties}
+          icon={UsersIcon}
+          className="lg:col-span-2"
+        >
+          <PartiesFacts summary={summary} />
+        </SummaryCard>
+        <SummaryCard title={SUMMARY_TERMS.cheque} icon={BanknoteIcon}>
+          <div className="flex flex-col gap-1">
+            <p className="font-semibold tabular-nums">{summary.cheque.amount}</p>
+            <p className="tabular-nums text-muted-foreground">
+              No. {summary.cheque.number} · {synopsis.cheque.drawerBank},{" "}
+              {synopsis.cheque.drawerBranch}
+            </p>
+          </div>
+          <IconLine icon={BanIcon}>Returned — {summary.cheque.returnReason}</IconLine>
+          {summary.cheque.partPaid ? (
+            <IconLine icon={WalletIcon}>
+              <span className="tabular-nums">{summary.cheque.partPaid}</span> paid before
+              filing
+            </IconLine>
+          ) : null}
+        </SummaryCard>
+      </div>
 
-      <section className={cn(PANEL, "p-0")} aria-labelledby="synopsis-title">
-        <h2 id="synopsis-title" className="sr-only">
-          Synopsis
-        </h2>
-        <dl className="divide-y divide-hairline">
-          <SummaryRow id="summary-parties" term={SUMMARY_TERMS.parties}>
-            <FieldGrid>
-              <Field label={SYNOPSIS_FIELDS.complainant}>
-                <Lead>{summary.complainant.name}</Lead>
-                <Aside>{summary.complainant.type}</Aside>
-              </Field>
-              <Field label={SYNOPSIS_FIELDS.accused}>
-                <Lead>{summary.accused.name}</Lead>
-                <Aside>{summary.accused.type}</Aside>
-              </Field>
-              <Field label={SYNOPSIS_FIELDS.advocate}>
-                {summary.advocate ?? (
-                  <span className="text-muted-foreground">None on record</span>
-                )}
-              </Field>
-            </FieldGrid>
-          </SummaryRow>
+      <SummaryCard title={SUMMARY_TERMS.timeline} icon={CalendarDaysIcon}>
+        <DateLine steps={summary.steps} windows={summary.windows} />
+      </SummaryCard>
 
-          <SummaryRow id="summary-cheque" term={SUMMARY_TERMS.cheque}>
-            <FieldGrid>
-              <Field label={SYNOPSIS_FIELDS.amount}>
-                <Lead numeric>{summary.cheque.amount}</Lead>
-                {summary.cheque.partPaid ? (
-                  <Aside numeric>{summary.cheque.partPaid} paid before filing</Aside>
-                ) : null}
-              </Field>
-              <Field label={SYNOPSIS_FIELDS.datedOn}>
-                <Day on={synopsis.cheque.datedOn}>{synopsis.cheque.datedOnLabel}</Day>
-              </Field>
-              <Field label={SYNOPSIS_FIELDS.chequeNumber}>
-                <span className="tabular-nums">{summary.cheque.number}</span>
-              </Field>
-              <Field label={SYNOPSIS_FIELDS.drawnOn}>
-                {synopsis.cheque.drawerBank}
-                <Aside>{synopsis.cheque.drawerBranch}</Aside>
-              </Field>
-            </FieldGrid>
-          </SummaryRow>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <SummaryCard title={SUMMARY_TERMS.service} icon={MailIcon}>
+          <IconLine icon={SendIcon}>
+            {synopsis.notice.mode} ·{" "}
+            <span className="font-mono tabular-nums">{synopsis.notice.tracking}</span>
+          </IconLine>
+          <IconLine icon={MessageSquareIcon}>
+            {synopsis.notice.replied
+              ? "The accused replied to the notice"
+              : "No reply from the accused"}
+          </IconLine>
+          <IconLine icon={MapPinIcon}>
+            {synopsis.causeOfAction.jurisdiction}
+            <span className="text-muted-foreground">
+              {" "}
+              — {synopsis.causeOfAction.jurisdictionBasis.toLowerCase()}, S.142(2)
+            </span>
+          </IconLine>
+        </SummaryCard>
+        <SummaryCard title={SUMMARY_TERMS.relief} icon={ScaleIcon}>
+          <dl className="flex flex-col gap-2">
+            <ReliefLine term="Compensation" amount={synopsis.prayer.compensation} />
+            <ReliefLine term="Interim, S.143A" amount={synopsis.prayer.interim} />
+          </dl>
+          <p className="text-muted-foreground">And punishment under S.138</p>
+        </SummaryCard>
+      </div>
 
-          <SummaryRow id="summary-dishonour" term={SUMMARY_TERMS.dishonour}>
-            <FieldGrid>
-              <Field label={SYNOPSIS_FIELDS.presentedOn}>
-                <Day on={synopsis.dishonour.presentedOn}>
-                  {synopsis.dishonour.presentedOnLabel}
-                </Day>
-                <WindowNote window={verdict("presentation")} after="the cheque date" />
-              </Field>
-              <Field label={SYNOPSIS_FIELDS.returnMemoOn}>
-                <Day on={synopsis.dishonour.returnMemoOn}>
-                  {synopsis.dishonour.returnMemoOnLabel}
-                </Day>
-              </Field>
-              <Field label={SYNOPSIS_FIELDS.returnReason}>
-                {summary.cheque.returnReason}
-              </Field>
-              <Field label={SYNOPSIS_FIELDS.presentedAt}>
-                {synopsis.dishonour.payeeBank}
-                <Aside>{synopsis.dishonour.payeeBranch}</Aside>
-              </Field>
-            </FieldGrid>
-          </SummaryRow>
-
-          <SummaryRow id="summary-notice" term={SUMMARY_TERMS.notice}>
-            <FieldGrid>
-              <Field label={SYNOPSIS_FIELDS.dispatchedOn}>
-                <Day on={synopsis.notice.dispatchedOn}>
-                  {synopsis.notice.dispatchedOnLabel}
-                </Day>
-                <WindowNote window={verdict("notice")} after="the return memo" />
-              </Field>
-              {/* The tracking number qualifies the mode the way a branch qualifies a bank,
-                  and a code in monospace identifies itself — so it sits under the mode
-                  rather than taking a fifth field that stranded "Reply" on a row alone. */}
-              <Field label={SYNOPSIS_FIELDS.mode}>
-                {synopsis.notice.mode}
-                <Aside>
-                  <span className="sr-only">{SYNOPSIS_FIELDS.tracking} </span>
-                  <span className="font-mono tabular-nums">{synopsis.notice.tracking}</span>
-                </Aside>
-              </Field>
-              <Field label={SYNOPSIS_FIELDS.deliveredOn}>
-                <Day on={synopsis.notice.deliveredOn}>
-                  {synopsis.notice.deliveredOnLabel}
-                </Day>
-              </Field>
-              <Field label={SYNOPSIS_FIELDS.replied}>
-                {synopsis.notice.replied ? (
-                  "Received"
-                ) : (
-                  <span className="text-muted-foreground">None</span>
-                )}
-              </Field>
-            </FieldGrid>
-          </SummaryRow>
-
-          <SummaryRow id="summary-cause-of-action" term={SUMMARY_TERMS.causeOfAction}>
-            <FieldGrid>
-              <Field label={SYNOPSIS_FIELDS.arisenOn}>
-                <Day on={synopsis.causeOfAction.arisenOn}>
-                  {synopsis.causeOfAction.arisenOnLabel}
-                </Day>
-              </Field>
-              <Field label={SYNOPSIS_FIELDS.filedOn}>
-                <Day on={synopsis.causeOfAction.filedOn}>
-                  {synopsis.causeOfAction.filedOnLabel}
-                </Day>
-                <WindowNote window={verdict("filing")} after="the cause of action" />
-              </Field>
-              <Field label={SYNOPSIS_FIELDS.jurisdiction}>
-                {synopsis.causeOfAction.jurisdiction}
-                <Aside>{synopsis.causeOfAction.jurisdictionBasis}</Aside>
-              </Field>
-              <Field label={SYNOPSIS_FIELDS.otherPending}>
-                {synopsis.causeOfAction.otherPending ? (
-                  <>
-                    <span className="font-medium text-warning-ink">Yes</span>
-                    <Aside>Between the same parties</Aside>
-                  </>
-                ) : (
-                  <span className="text-muted-foreground">None</span>
-                )}
-              </Field>
-            </FieldGrid>
-          </SummaryRow>
-
-          <SummaryRow id="summary-prayer" term={SUMMARY_TERMS.prayer}>
-            <FieldGrid>
-              <Field label={SYNOPSIS_FIELDS.relief} wide>
-                {synopsis.prayer.relief}
-              </Field>
-              <Field label={SYNOPSIS_FIELDS.interim} wide>
-                {synopsis.prayer.interim}
-              </Field>
-            </FieldGrid>
-          </SummaryRow>
-        </dl>
-      </section>
     </div>
   );
 }
 
-/* ─────────────────────────────── attention ──────────────────────────────── */
+/* ────────────────────────────── the verdicts ────────────────────────────── */
 
-type AttentionItem = { id: string; text: string; row: string };
-
-/**
- * What needs him before he can register: every defect the checks found, and a second
- * complaint pending between the same parties — not a defect, but the one fact on the
- * synopsis that can turn a register into a joinder question. Nothing else: a lawful
- * appearance in person or a part payment is stated on its own row and needs no alarm.
- */
-function attentionItems(flags: CaseCheck[], summary: CaseSummary): AttentionItem[] {
-  const items: AttentionItem[] = flags.map((flag) => ({
-    id: flag.id,
-    text: attentionText(flag, summary),
-    row: ATTENTION_ROW[flag.id],
-  }));
-  if (summary.synopsis.causeOfAction.otherPending) {
-    items.push({
-      id: "other-pending",
-      text: "Another cheque dishonour complaint between the same parties is pending",
-      row: "summary-cause-of-action",
-    });
-  }
-  return items;
-}
-
-/** Which row carries the evidence for each kind of finding. */
-const ATTENTION_ROW: Record<CaseCheck["id"], string> = {
-  "presentation-window": "summary-dishonour",
-  "notice-window": "summary-notice",
-  "premature-filing": "summary-cause-of-action",
-  "filing-window": "summary-cause-of-action",
-  "required-documents": "summary-cheque",
-  "advocate-on-record": "summary-parties",
-  "part-payment": "summary-cheque",
+type Verdict = {
+  title: string;
+  tone: "clear" | "attention";
+  icon: LucideIcon;
+  detail: React.ReactNode;
 };
 
 /**
- * The finding as the alert states it. The window findings already name their dates and
- * the limit; the documents finding counts ("1 document the form required is not on
- * file"), which says less than it knows — so here it names the documents.
+ * The four answers, in one row. An icon and a word each, so a clean complaint reads as
+ * four checks before a single detail is read; a problem is an amber mark where a check
+ * should be, and its detail says what. Colour sits on the icon only — the words carry the
+ * status, the ink points at it.
  */
-function attentionText(flag: CaseCheck, summary: CaseSummary): string {
-  if (flag.id !== "required-documents") return flag.finding;
+function verdictsFor(summary: CaseSummary): Verdict[] {
+  const late = summary.windows.find((window) => window.status !== "within");
   const missing = [
     ...summary.documents.filter((doc) => !doc.onFile).map((doc) => doc.label),
     ...summary.otherMissing.map((doc) => doc.label),
   ];
-  return missing.length > 0 ? `${missing.join(", ")} not on file` : flag.finding;
+  const { scrutiny } = summary;
+  const pending = summary.synopsis.causeOfAction.otherPending;
+
+  return [
+    late
+      ? {
+          title: late.status === "condonation-sought" ? "Filed late" : "Out of time",
+          tone: "attention",
+          icon: TriangleAlertIcon,
+          detail:
+            late.status === "condonation-sought"
+              ? "Condonation sought"
+              : late.status === "early"
+                ? "Filed before the cause of action"
+                : `${WINDOW_NAME[late.id]} ${late.days}\u00a0days, beyond ${late.limitLabel.replace(" ", "\u00a0")}`,
+        }
+      : {
+          title: SUMMARY_TERMS.inTime,
+          tone: "clear",
+          icon: CircleCheckIcon,
+          detail: "All three limits met",
+        },
+    missing.length > 0
+      ? {
+          title: `${missing.length} ${missing.length === 1 ? "document" : "documents"} missing`,
+          tone: "attention",
+          icon: TriangleAlertIcon,
+          detail: missing.join(", "),
+        }
+      : {
+          title: SUMMARY_TERMS.documents,
+          tone: "clear",
+          icon: CircleCheckIcon,
+          detail: "All on file",
+        },
+    scrutiny
+      ? {
+          title: `${SUMMARY_TERMS.scrutiny} cleared`,
+          tone: "clear",
+          icon: ShieldCheckIcon,
+          detail: `${scrutiny.mode === "officer" ? "Registry officer" : "Automated"} · ${
+            scrutiny.rounds
+          }\u00a0${scrutiny.rounds === 1 ? "round" : "rounds"} · ${scrutiny.days}\u00a0days`,
+        }
+      : {
+          title: SUMMARY_TERMS.scrutiny,
+          tone: "attention",
+          icon: CircleAlertIcon,
+          detail: "Not recorded",
+        },
+    pending
+      ? {
+          title: "Another complaint pending",
+          tone: "attention",
+          icon: TriangleAlertIcon,
+          detail: "Between the same parties",
+        }
+      : {
+          title: `No ${SUMMARY_TERMS.otherComplaints.toLowerCase()}`,
+          tone: "clear",
+          icon: CircleCheckIcon,
+          detail: "Between these parties",
+        },
+  ];
 }
 
 /**
- * The DS `Alert` in its warning variant — a notice that reports a status, so tinted, with
- * its own ink pair, icon and words (ui-craft §2). Present only when something needs him:
- * a clean complaint has no block here, and every note on the synopsis reading within its
- * limit is the confirmation. `role="region"`, not the primitive's `alert`: this is a
- * standing part of the page, and announcing it on arrival would interrupt a screen reader
- * before the title had been read.
+ * The strip itself — the verdicts in one row, a check or an amber mark each.
  */
-function CaseAttention({ items }: { items: AttentionItem[] }) {
+function VerdictStrip({ verdicts }: { verdicts: Verdict[] }) {
   return (
-    <Alert variant="warning" role="region" aria-labelledby="case-attention-title">
-      <TriangleAlertIcon aria-hidden />
-      <AlertTitle id="case-attention-title" className="font-semibold">
-        {items.length === 1
-          ? "One thing needs your attention"
-          : `${items.length} things need your attention`}
-      </AlertTitle>
-      <AlertDescription>
-        <ul className="flex flex-col gap-1">
-          {items.map((item) => (
-            <li key={item.id}>
-              <a
-                href={`#${item.row}`}
-                className="rounded-sm underline underline-offset-4 outline-none focus-visible:ring-3 focus-visible:ring-focus-ring"
-              >
-                {item.text}
-              </a>
+    <section
+      className={cn(PANEL, "grid gap-6 sm:grid-cols-2 lg:grid-cols-4")}
+      aria-label="Verdicts"
+    >
+      {verdicts.map((verdict) => {
+        const Icon = verdict.icon;
+        return (
+          <div key={verdict.title} className="flex min-w-0 items-start gap-3">
+            <Icon
+              className={cn(
+                "mt-0.5 size-5 shrink-0",
+                verdict.tone === "clear" ? "text-success-ink" : "text-warning-ink",
+              )}
+              aria-hidden
+            />
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <p className="font-semibold">{verdict.title}</p>
+              <p className="text-muted-foreground">{verdict.detail}</p>
+            </div>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+/** What each window measures, for a verdict that has to name the one that failed. */
+const WINDOW_NAME: Record<CaseSummaryWindow["id"], string> = {
+  presentation: "Presented",
+  notice: "Notice sent",
+  filing: "Filed",
+};
+
+/* ───────────────────────────────── cards ────────────────────────────────── */
+
+/**
+ * One card: an icon and a name, then its content. The icon is how the eye finds the card
+ * without reading its name; the name is `text-body-compact` at the heavier weight, the
+ * same size as everything under it, so the card is told apart by weight and position
+ * rather than by a size of its own.
+ */
+function SummaryCard({
+  title,
+  icon: Icon,
+  className,
+  children,
+}: {
+  title: string;
+  icon: LucideIcon;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      className={cn(PANEL, "flex min-w-0 flex-col gap-4", className)}
+      aria-label={title}
+    >
+      <h2 className="flex items-center gap-2 font-semibold">
+        <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+/** A fact that reads as a sentence, led by the icon that says what kind of fact it is. */
+function IconLine({
+  icon: Icon,
+  children,
+}: {
+  icon: LucideIcon;
+  children: React.ReactNode;
+}) {
+  return (
+    <p className="flex min-w-0 items-start gap-2">
+      <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+      <span className="min-w-0">{children}</span>
+    </p>
+  );
+}
+
+function ReliefLine({ term, amount }: { term: string; amount: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4">
+      <dt className="text-muted-foreground">{term}</dt>
+      <dd className="font-semibold tabular-nums">{amount}</dd>
+    </div>
+  );
+}
+
+/* ─────────────────────────────── the parties ────────────────────────────── */
+
+/**
+ * "X v. Y", composed rather than listed — the way the cause is written, with a person or a
+ * company told apart by its icon instead of by a label under the name.
+ */
+function PartiesFacts({ summary }: { summary: CaseSummary }) {
+  return (
+    <div className="grid items-start gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+      <Party
+        name={summary.complainant.name}
+        role="Complainant"
+        type={summary.complainant.type}
+        extra={
+          <span className="flex items-center gap-1.5">
+            <BriefcaseIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            {summary.advocate ?? (
+              <span className="text-muted-foreground">No advocate on record</span>
+            )}
+          </span>
+        }
+      />
+      <span
+        className="hidden h-10 items-center font-semibold text-muted-foreground sm:flex"
+        aria-hidden
+      >
+        v.
+      </span>
+      <Party name={summary.accused.name} role="Accused" type={summary.accused.type} />
+    </div>
+  );
+}
+
+function Party({
+  name,
+  role,
+  type,
+  extra,
+}: {
+  name: string;
+  role: string;
+  type: string;
+  extra?: React.ReactNode;
+}) {
+  const Icon = type === "Company" ? Building2Icon : UserIcon;
+  return (
+    <div className="flex min-w-0 items-start gap-3">
+      <span
+        className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-muted-foreground"
+        aria-hidden
+      >
+        <Icon className="size-5" />
+      </span>
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <p className="font-semibold">{name}</p>
+        <p className="text-muted-foreground">
+          {role} · {type}
+        </p>
+        {extra ? <div className="mt-1">{extra}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────── the dates ──────────────────────────────── */
+
+/**
+ * The §138 chain drawn as a line: seven dated points, and under the three spans the
+ * statute limits, a bracket saying how long each took. Within the limit the bracket is a
+ * check; outside it is the one amber mark on the line, so a late step is found by looking
+ * rather than by comparing numbers.
+ *
+ * Drawn across from `xl`, where each point has the width a full date needs; below that it
+ * is the same chain as a list, each limit stated on the step that closes it.
+ */
+function DateLine({
+  steps,
+  windows,
+}: {
+  steps: CaseSummaryStep[];
+  windows: CaseSummaryWindow[];
+}) {
+  const indexOf = (id: CaseSummaryStep["id"]) => steps.findIndex((step) => step.id === id);
+
+  return (
+    <>
+      <div className="hidden xl:block">
+        <ol className="grid grid-cols-7">
+          {steps.map((step, index) => (
+            <li key={step.id} className="flex min-w-0 flex-col items-center gap-2 text-center">
+              <span className="text-muted-foreground">{step.label}</span>
+              <span className="relative flex h-3 w-full items-center justify-center" aria-hidden>
+                {index > 0 ? (
+                  <span className="absolute top-1/2 right-1/2 left-0 h-px bg-border" />
+                ) : null}
+                {index < steps.length - 1 ? (
+                  <span className="absolute top-1/2 right-0 left-1/2 h-px bg-border" />
+                ) : null}
+                <span className="relative size-2.5 rounded-full bg-foreground" />
+              </span>
+              <time dateTime={step.on} className="font-medium tabular-nums">
+                {step.onShortLabel}
+              </time>
             </li>
           ))}
-        </ul>
-      </AlertDescription>
-    </Alert>
-  );
-}
+        </ol>
+        <div className="mt-4 grid grid-cols-7">
+          {windows.map((window) => {
+            const from = indexOf(window.from);
+            return (
+              <div
+                key={window.id}
+                className="flex flex-col items-center gap-2"
+                style={{ gridColumn: `${from + 1} / ${from + 3}` }}
+              >
+                <span
+                  className={cn(
+                    "h-2 w-1/2 rounded-b-md border-x border-b",
+                    window.status === "within" ? "border-border" : "border-warning",
+                  )}
+                  aria-hidden
+                />
+                <WindowNote window={window} />
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
-/* ──────────────────────────── the row and field ─────────────────────────── */
-
-/**
- * One section: its name in a column of its own, its fields beside it. The names line up
- * down one edge across both panels, so the eye runs down it and stops at the section it
- * wants — the reading pattern a record is for. Stacked below `md`, where a second column
- * would leave the fields a third of a phone to wrap in.
- */
-function SummaryRow({
-  id,
-  term,
-  children,
-}: {
-  id: string;
-  term: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      id={id}
-      className="grid scroll-mt-(--file-sticky-top) gap-3 px-6 py-6 md:grid-cols-[9rem_minmax(0,1fr)] md:gap-6"
-      style={{ "--file-sticky-top": FILE_STICKY_TOP } as React.CSSProperties}
-    >
-      <dt className="text-body-compact font-medium text-foreground">{term}</dt>
-      <dd className="@container min-w-0">{children}</dd>
-    </div>
-  );
-}
-
-/**
- * The fields of one section, label over value, as many across as the section has room
- * for. Filled rather than fixed at three: at 1280 the synopsis column is 766px, which
- * holds four fields, and a fixed three put one field alone on a second row in four of the
- * six sections — "Drawn on", "Presented at" and the rest stranded beside two empty columns.
- * Filling to width puts a four-field section on one line and still falls to one column on
- * a phone, measured against the section rather than the window because the rail decides
- * how much of the window it gets.
- */
-function FieldGrid({ children }: { children: React.ReactNode }) {
-  return (
-    /* Each track is at least 7.5rem, and at least a quarter of the section — so a phone
-       gets two columns instead of a single 2,400px stack, and a wide synopsis never goes
-       past four, where a return reason would start breaking a word to a line. */
-    <dl className="grid grid-cols-[repeat(auto-fill,minmax(max(7.5rem,calc((100%-4.5rem)/4)),1fr))] gap-x-6 gap-y-4">
-      {children}
-    </dl>
-  );
-}
-
-/**
- * One field. The label is the quietest thing on the page — caption, muted — so the values
- * are what the eye lands on; a prayer spans the section, because a sentence broken into a
- * third of the width is a sentence nobody reads.
- */
-function Field({
-  label,
-  wide,
-  children,
-}: {
-  label: string;
-  wide?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={cn("flex min-w-0 flex-col gap-1", wide && "col-span-full")}>
-      <dt className="text-caption font-medium text-muted-foreground">{label}</dt>
-      <dd className="flex min-w-0 flex-col gap-0.5 text-body-compact wrap-break-word">
-        {children}
-      </dd>
-    </div>
-  );
-}
-
-/**
- * The value a reader scans for — a party's name, the cheque's amount. One step up in size
- * and weight from the values around it, and the only thing on the synopsis that is.
- */
-function Lead({ numeric, children }: { numeric?: boolean; children: React.ReactNode }) {
-  return (
-    <span className={cn("text-body font-medium", numeric && "tabular-nums")}>
-      {children}
-    </span>
-  );
-}
-
-/** A value's qualifier — the litigant's type, a bank's branch. */
-function Aside({ numeric, children }: { numeric?: boolean; children: React.ReactNode }) {
-  return (
-    <span className={cn("text-caption text-muted-foreground", numeric && "tabular-nums")}>
-      {children}
-    </span>
-  );
-}
-
-function Day({ on, children }: { on: string; children: React.ReactNode }) {
-  return (
-    <time dateTime={on} className="tabular-nums">
-      {children}
-    </time>
-  );
-}
-
-/**
- * A statutory window, stated under the date that closes it — the check made visible where
- * it applies, instead of a count of comparisons at the top of the page. Within its limit
- * it is quiet, because on nearly every complaint all three are and three coloured
- * confirmations per file would mark the norm. A breach says so in words and ink.
- *
- * `condonation-sought` is neither: the filing was late and an application to condone it
- * is on the file. Whether there was sufficient cause is the magistrate's call under
- * §142(b), so the note states the application as a neutral badge and never decides it.
- */
-function WindowNote({
-  window,
-  after,
-}: {
-  window: CaseSummaryWindow;
-  after: string;
-}) {
-  /* The span is what the eye reads; what it is counted from is the statute's own
-     anchor, which a magistrate already knows and a screen reader still needs said. A note
-     that named it in full wrapped to two lines under a date and left one word orphaned. */
-  const span = (
-    <>
-      <span className="whitespace-nowrap tabular-nums">
-        {window.days} {window.days === 1 ? "day" : "days"}
-      </span>
-      <span className="sr-only"> after {after}</span>
+      <ol className="flex flex-col gap-3 xl:hidden">
+        {steps.map((step) => {
+          const window = windows.find((candidate) => candidate.to === step.id);
+          return (
+            <li key={step.id} className="flex items-start gap-3">
+              <span className="mt-1.5 size-2 shrink-0 rounded-full bg-foreground" aria-hidden />
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <p>
+                  <span className="text-muted-foreground">{step.label} </span>
+                  <time dateTime={step.on} className="font-medium tabular-nums">
+                    {step.onLabel}
+                  </time>
+                </p>
+                {window ? <WindowNote window={window} /> : null}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
     </>
   );
-  /* "within 3 months" and "beyond 3 months" are one phrase each; left breakable, a
-     narrow column put "months" alone on a second line. Bound, the only place the note
-     can wrap is at its separator. */
-  const limit = (word: "within" | "beyond") => (
-    <span className="whitespace-nowrap">
-      {word} {window.limitLabel}
-    </span>
-  );
+}
 
+/**
+ * How long a limited span took, against its limit. A check when within; the amber mark
+ * and the words when not. A late filing with an application to condone it is the
+ * magistrate's call under §142(b), so it says the application is there and decides
+ * nothing.
+ */
+function WindowNote({ window }: { window: CaseSummaryWindow }) {
+  /* The count and its unit are one token — a non-breaking space keeps "8 days" from
+     splitting across lines — and the whole note is one text run, so the icon's gap never
+     lands between a number and its comma. */
+  const days = `${window.days}\u00a0${window.days === 1 ? "day" : "days"}`;
+  const limit = window.limitLabel.replace(" ", "\u00a0");
   switch (window.status) {
     case "within":
       return (
-        <span className="text-caption text-muted-foreground">
-          {span} · {limit("within")}
+        <span className="flex items-center gap-1.5 text-muted-foreground">
+          <CircleCheckIcon className="size-4 shrink-0 text-success-ink" aria-hidden />
+          <span className="tabular-nums">{`${days}, within ${limit}`}</span>
         </span>
       );
     case "outside":
       return (
-        <span className="flex items-start gap-1 text-caption text-warning-ink">
-          <TriangleAlertIcon className="mt-0.5 size-3 shrink-0" aria-hidden />
-          <span>
-            {span} · {limit("beyond")}
-          </span>
+        <span className="flex items-center gap-1.5 font-medium text-warning-ink">
+          <TriangleAlertIcon className="size-4 shrink-0" aria-hidden />
+          <span className="tabular-nums">{`${days}, beyond ${limit}`}</span>
         </span>
       );
     case "early":
       return (
-        <span className="flex items-center gap-1 text-caption font-medium text-warning-ink">
-          <TriangleAlertIcon className="size-3 shrink-0" aria-hidden />
-          Before the cause of action arose
+        <span className="flex items-center gap-1.5 font-medium text-warning-ink">
+          <TriangleAlertIcon className="size-4 shrink-0" aria-hidden />
+          <span>Before the cause of action</span>
         </span>
       );
     case "condonation-sought":
       return (
-        <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-muted-foreground">
-          <span>
-            {span} · {limit("beyond")}
-          </span>
+        <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-warning-ink xl:justify-center">
+          <TriangleAlertIcon className="size-4 shrink-0" aria-hidden />
+          <span className="font-medium tabular-nums">{`${days}, beyond ${limit}`}</span>
           <Badge variant="secondary">Condonation sought</Badge>
         </span>
       );
   }
-}
-
-/* ─────────────────────────────── scrutiny ───────────────────────────────── */
-
-/**
- * How the complaint got here — who cleared it, in how many rounds, over how long. The
- * first thing the owner said a magistrate weighs, and the summary of scrutiny rather than
- * its annotations. No ink on the rounds or the days: those are facts he weighs, and the
- * screen does not get to tell a judge that three rounds was too many.
- */
-function ScrutinyFacts({ scrutiny }: { scrutiny: CaseSummary["scrutiny"] }) {
-  if (!scrutiny) {
-    return <p className="text-body-compact text-muted-foreground">Not recorded</p>;
-  }
-  return (
-    <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
-      <p className="text-body font-medium">
-        Cleared{" "}
-        {scrutiny.mode === "officer" ? "by a registry officer" : "by automated scrutiny"}
-      </p>
-      <p className="text-body-compact tabular-nums text-muted-foreground">
-        {scrutiny.rounds} {scrutiny.rounds === 1 ? "round" : "rounds"} over{" "}
-        {scrutiny.days} {scrutiny.days === 1 ? "day" : "days"} · cleared{" "}
-        <time dateTime={scrutiny.clearedOn} className="whitespace-nowrap">
-          {scrutiny.clearedOnLabel}
-        </time>
-      </p>
-    </div>
-  );
 }

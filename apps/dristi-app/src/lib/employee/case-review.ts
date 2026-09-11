@@ -62,7 +62,13 @@ import {
 } from "lucide-react";
 
 import { CURRENT_STAFF } from "./content";
-import { causeTitle, counselFor, parseIsoDay, isoDay } from "./hearings";
+import {
+  causeTitle,
+  counselFor,
+  formatListingDate,
+  isoDay,
+  parseIsoDay,
+} from "./hearings";
 import { formatCaseDate, formatChequeAmount } from "./hearing-overview";
 import { registerCaseById, type RegisterCase } from "./register-cases";
 
@@ -160,57 +166,31 @@ export type CaseHeaderTerm =
   (typeof CASE_HEADER_TERMS)[keyof typeof CASE_HEADER_TERMS];
 
 /**
- * The synopsis's sections, and the names of the fields inside them.
+ * The names on the summary — the four answers in the verdict strip, and the cards below
+ * it. Declared here rather than typed at the call site for the reason `FACT_TERMS` is: a
+ * name written in the screen is a name nobody sourced, and `case-review.test.ts` holds the
+ * screen to this list in both directions.
  *
- * Taken from the synopsis a magistrate reads — the owner's reference (2026-09-11): parties,
- * the cheque, its dishonour, the demand notice, the cause of action, the prayer. Declared
- * here rather than typed at the call site for the reason `FACT_TERMS` is: a label written
- * in the screen is a label nobody sourced, and `case-review.test.ts` holds the screen to
- * both lists.
- *
- * Two deliberate departures from the reference, both constants: "Whether delivered?" is
- * folded into "Delivered on" (a delivery date already says it arrived), and the header's
- * court and "Complaint under S.138" are left out because every complaint this magistrate
- * reads is in his court and under that section.
+ * The content under them is the owner's synopsis (2026-09-11) — parties, the cheque, its
+ * dishonour, the demand notice, the cause of action, the prayer — regrouped so a
+ * magistrate can take it in by shape rather than by reading: what decides the case first,
+ * then who and how much, then the dates as a line, then the particulars.
  */
 export const SUMMARY_TERMS = {
+  /* The verdict strip — the four answers a magistrate needs before anything else. */
+  inTime: "In time",
+  documents: "Documents",
   scrutiny: "Scrutiny",
+  otherComplaints: "Other complaints",
+  /* The cards. */
   parties: "Parties",
   cheque: "Cheque",
-  dishonour: "Dishonour",
-  notice: "Demand notice",
-  causeOfAction: "Cause of action",
-  prayer: "Prayer",
+  timeline: "Timeline",
+  service: "Service and jurisdiction",
+  relief: "Relief sought",
 } as const;
 
 export type SummaryTerm = (typeof SUMMARY_TERMS)[keyof typeof SUMMARY_TERMS];
-
-export const SYNOPSIS_FIELDS = {
-  complainant: "Complainant",
-  accused: "Accused",
-  advocate: "Complainant's advocate",
-  amount: "Amount",
-  datedOn: "Date on cheque",
-  chequeNumber: "Cheque number",
-  drawnOn: "Drawn on",
-  returnReason: "Return reason",
-  presentedOn: "Presented",
-  returnMemoOn: "Return memo",
-  presentedAt: "Presented at",
-  dispatchedOn: "Dispatched",
-  mode: "Mode of service",
-  tracking: "Tracking number",
-  deliveredOn: "Delivered on",
-  replied: "Reply",
-  arisenOn: "Arose",
-  filedOn: "Complaint filed",
-  jurisdiction: "Jurisdiction, S.142(2)",
-  otherPending: "Other complaints pending",
-  relief: "Relief sought",
-  interim: "Interim relief",
-} as const;
-
-export type SynopsisField = (typeof SYNOPSIS_FIELDS)[keyof typeof SYNOPSIS_FIELDS];
 
 /**
  * Who did the scrutiny — two members, rendered identically.
@@ -2471,6 +2451,8 @@ export type CaseSummaryStep = {
   label: string;
   on: string;
   onLabel: string;
+  /** "11 Sep 2025" — the day as it sits in a row of other days (`formatListingDate`). */
+  onShortLabel: string;
 };
 
 /**
@@ -2551,8 +2533,12 @@ export type CaseSynopsis = {
     filedOn: string;
     filedOnLabel: string;
   };
-  /** `AdrPrayer.finalRelief` and `.interimRelief` — the filer's own words. */
-  prayer: { relief: string; interim: string };
+  /**
+   * `AdrPrayer.finalRelief` and `.interimRelief`. The form takes these as the filer's
+   * own words; what a magistrate reads off them is two amounts, so the demo carries the
+   * amounts.
+   */
+  prayer: { compensation: string; interim: string };
 };
 
 export type CaseSummary = {
@@ -2622,7 +2608,13 @@ export function caseSummaryFor(
     stepId: CaseSummaryStep["id"],
     label: string,
     on: string,
-  ): CaseSummaryStep => ({ id: stepId, label, on, onLabel: formatCaseDate(on) });
+  ): CaseSummaryStep => ({
+    id: stepId,
+    label,
+    on,
+    onLabel: formatCaseDate(on),
+    onShortLabel: formatListingDate(on),
+  });
 
   const payee = bankFor(seed, 1);
   const mode = pick(SERVICE_MODES, seed + 5);
@@ -2637,12 +2629,8 @@ export function caseSummaryFor(
      (`AdrPrayer`); the demo writes them the way a complaint usually does, and never
      above what the statute allows. */
   const prayer = {
-    relief: `Punishment under S.138 NI Act, and compensation of ${formatChequeAmount(
-      amount * 2,
-    )} — twice the cheque amount`,
-    interim: `Interim compensation of ${formatChequeAmount(
-      Math.round(amount * 0.2),
-    )} under S.143A NI Act`,
+    compensation: formatChequeAmount(amount * 2),
+    interim: formatChequeAmount(Math.round(amount * 0.2)),
   };
 
   const presentation = daysBetween(chain.chequeOn, chain.depositedOn);
