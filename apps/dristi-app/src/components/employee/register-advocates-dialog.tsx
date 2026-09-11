@@ -19,7 +19,6 @@ import {
 } from "@/components/chrome/table-plate";
 import { DocumentPreview } from "@/components/cases/document-preview";
 import { ReviewRow } from "@/components/cases/filing-form-shared";
-import { RoleGlyph, RoleMark } from "@/components/employee/role-mark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -169,13 +168,32 @@ export function RegisterAdvocateDialog({
  */
 type Stage = "review" | "reject" | "approve" | "rejected" | "approved";
 
-const STAGE_TITLE: Record<Stage, string> = {
-  review: "Review registration request",
-  reject: "Reject this registration?",
-  approve: "Approve this registration?",
-  rejected: "Registration rejected",
-  approved: "Registration approved",
+/**
+ * **The role is in the title, on every stage** (owner, 2026-09-11: *"it's not evident
+ * enough that I'm looking at a clerk thing or an advocate thing. I had to literally hunt
+ * for where this information is"*).
+ *
+ * The round before gave the role a mark — a tinted tile with a glyph beside a generic
+ * title, and the word in the small line under it. It failed on the render for the reason
+ * worth keeping: a signal placed *beside* the thing people read is a signal they have to
+ * go and find. The title is the one line in the overlay every officer reads on every
+ * stage, and every stage rewrites it, so the role goes **into** it — "Review clerk
+ * registration", "Approve clerk registration?", "Clerk registration approved". It is read
+ * as part of the question the officer is answering, at title size, before anything else
+ * on the screen. No icon, no colour, and it works for a third registrant type by adding a
+ * noun.
+ */
+const STAGE_TITLE: Record<Stage, (role: string) => string> = {
+  review: (role) => `Review ${role} registration`,
+  reject: (role) => `Reject ${role} registration?`,
+  approve: (role) => `Approve ${role} registration?`,
+  rejected: (role) => `${capitalise(role)} registration rejected`,
+  approved: (role) => `${capitalise(role)} registration approved`,
 };
+
+function capitalise(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}
 
 /**
  * The request's own state, said once, in the header.
@@ -329,6 +347,7 @@ function RequestBody({
 
   const empty = reason.trim() === "";
   const badge = STAGE_BADGE[stage];
+  const noun = registrantNoun(request.registrantKind);
 
   return (
     <ChromeDialogContent
@@ -361,36 +380,23 @@ function RequestBody({
           half the abruptness. */}
       <DialogHeader
         key={request.id}
-        className="shrink-0 flex-row items-start gap-3 border-b border-hairline p-6 pr-16 animate-in fade-in-0 duration-500 motion-reduce:animate-none"
+        className="shrink-0 gap-2 border-b border-hairline p-6 pr-16 animate-in fade-in-0 duration-500 motion-reduce:animate-none"
       >
-        {/* **Who this is, before a word of it is read** (owner, 2026-09-11). The role's
-            mark, as a tile, beside the title every stage rewrites — so it is on Review,
-            on Approve and Reject, and on the settled card, without a second copy in the
-            body. A clerk's tile is tinted and an advocate's is not, which is what makes
-            the less common request the one that catches the eye; the shapes differ too,
-            so it never depends on colour. See `RoleMark`. */}
-        <RoleMark kind={request.registrantKind} />
-        <div className="flex min-w-0 flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <DialogTitle
-              ref={titleRef}
-              tabIndex={-1}
-              className="text-title-s font-semibold outline-none"
-            >
-              {STAGE_TITLE[stage]}
-            </DialogTitle>
-            <Badge variant={badge.variant}>{badge.label}</Badge>
-          </div>
-          {/* The role in words, first — the mark's text, so a screen reader is told what
-              an eye is shown when the dialog announces its description. D16 kept this
-              line to the one string the applicant can quote; the role joins it because
-              it now changes what every value under it means. */}
-          <DialogDescription className="text-body-compact text-muted-foreground">
-            {roleLabel(request.registrantKind)}
-            {" · "}
-            <span className="tabular-nums">{request.applicationNumber}</span>
-          </DialogDescription>
+        <div className="flex flex-wrap items-center gap-2">
+          <DialogTitle
+            ref={titleRef}
+            tabIndex={-1}
+            className="text-title-s font-semibold outline-none"
+          >
+            {STAGE_TITLE[stage](noun)}
+          </DialogTitle>
+          <Badge variant={badge.variant}>{badge.label}</Badge>
         </div>
+        {/* Back to the one string the applicant can quote (D16): the role is in the title
+            now, and saying it here as well would be one fact twice in one header. */}
+        <DialogDescription className="text-body-compact tabular-nums text-muted-foreground">
+          {request.applicationNumber}
+        </DialogDescription>
       </DialogHeader>
 
       {/* The stage. A tinted canvas under white cards — the scoped work canvas the order
@@ -678,13 +684,9 @@ function DecisionStage({
           {/* The role before the number, because the number means nothing until you know
               which register it belongs to — and on this stage the officer is about to grant
               exactly one of the two credentials. */}
-          <p className="flex flex-wrap items-center gap-x-1.5 text-body-compact text-muted-foreground">
-            {/* The glyph again, at text size, on the line that names the credential: the
-                header's tile is above the fold of this card, and the officer's eye is here
-                when they press Confirm. */}
-            <RoleGlyph kind={request.registrantKind} />
+          <p className="text-body-compact text-muted-foreground">
             {roleLabel(request.registrantKind)}
-            <span aria-hidden>·</span>
+            {" · "}
             <span className="font-mono tabular-nums">
               {request.registrationNumber}
             </span>
