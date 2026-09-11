@@ -43,6 +43,7 @@ import {
   type CaseBundle,
   type CaseBundleDoc,
   type CaseFact,
+  type CaseFactTerm,
   type CaseGroup,
   type CaseRecord,
   type CaseReview,
@@ -126,7 +127,10 @@ export function CaseFileView({ review }: { review: CaseReview }) {
   const visibleGroups = groups.map((view) => view.group);
 
   return (
-    <div className="grid items-start gap-x-6 gap-y-8 xl:grid-cols-[minmax(0,1fr)_1rem_minmax(24rem,28rem)]">
+    /* The documents take 24rem on a laptop and 28rem once the window can spare it: at
+       1440 the wider panel left the file's comparisons too narrow to hold a bank's name
+       on one line (measured). */
+    <div className="grid items-start gap-x-6 gap-y-8 xl:grid-cols-[minmax(0,1fr)_1rem_24rem] 2xl:grid-cols-[minmax(0,1fr)_1rem_28rem]">
       <div className="flex min-w-0 flex-col gap-8">
         <div className="flex flex-wrap items-end gap-3">
           <QueueSearchField
@@ -352,18 +356,23 @@ function Marked({ text, needle }: { text: string; needle: string }) {
 /* ─────────────────────────────── the file ───────────────────────────────── */
 
 /**
- * One group of the form as a card of its own — its mark and name, the record it holds
- * when it holds one (the cheque's number, a party's name), then its particulars cut into
- * the e-filing's own sub-cards (`CASE_FILE_CHUNKS`): the complainant's Contact, Basic
- * details, Address; the cheque's details, return memo and two banks; the debt's nature
- * and payment. A group that holds several records — the witnesses — takes each record as
- * a chunk. Chunks sit two abreast once the card has room, each under its name, so a card
- * reads as a few small blocks rather than one long list (owner, 2026-09-11: *"chunk
- * probably information about, like the payees together or payers together, similar to
- * how we do the e-filing"*).
+ * One group of the form as a card of its own.
  *
- * **The group's mark sits in a tile** (owner, design review): a 32px sunken well with the
- * glyph centred in it, beside the card-title role, 16px at 600.
+ * **Bands, not blocks.** The card is a header — the group's mark in a tile, its name at
+ * the card-title role, the record it holds under it (the cheque's number, a party's name)
+ * — and then one band per chunk of the e-filing's own sub-cards (`CASE_FILE_CHUNKS`),
+ * each ruled from the next with a hairline. On a wide card a band's name sits in a
+ * gutter to the left of its rows, so a card reads in three straight columns — what the
+ * band is, what the field is, what was filed — and the eye runs down each; on a narrow
+ * card the name moves above its rows. The two-abreast chunks this replaces stacked each
+ * label over its value at half width, which made the eye zig-zag (owner, 2026-09-11).
+ *
+ * **One size.** Everything in a card is 14px except its 16px title — the band's name at
+ * 600, the label muted, the value in the foreground. No 12px anywhere in the file (owner,
+ * same day: *"I want that completely removed"*).
+ *
+ * **What is compared is laid out to be compared.** The two banks, and the witnesses, are
+ * a grid with a column each (`MatrixBand`) rather than repeated lists.
  */
 function GroupCard({
   view,
@@ -381,29 +390,13 @@ function GroupCard({
   const { group } = view;
   const Icon = group.icon;
   const docNo = (key: string) => bundle.docs.find((doc) => doc.key === key);
-  /* One record — a cheque, a party, an advocate — names itself under the card's title;
-     several — the witnesses — are each a chunk of their own. */
   const single = (group.records ?? []).length === 1 ? view.records[0] : undefined;
-  const chunks: { key: string; title?: string; tag?: string; items: FactItem[] }[] = [
-    ...(single
-      ? chunkFacts(group.id, single.facts).map((chunk, index) => ({
-          key: `r-${index}`,
-          title: chunk.title,
-          items: chunk.items,
-        }))
-      : view.records.map((record) => ({
-          key: record.record.id,
-          title: record.record.heading,
-          tag: record.record.tag,
-          items: record.facts.map((item) => ({ ...item, label: item.fact.term })),
-        }))),
-    ...chunkFacts(group.id, view.facts).map((chunk, index) => ({
-      key: `g-${index}`,
-      title: chunk.title,
-      items: chunk.items,
-    })),
+  const many = !single && view.records.length > 0;
+  const chunks = [
+    ...(single ? chunkFacts(group.id, single.facts) : []),
+    ...chunkFacts(group.id, view.facts),
   ];
-  const several = chunks.length > 1;
+  const row = { needle, docNo, selected, onShow };
 
   return (
     <Card
@@ -411,7 +404,7 @@ function GroupCard({
       id={`file-group-${group.id}`}
       className="@container scroll-mt-32 gap-0 border-hairline py-0 shadow-raised"
     >
-      <div className="flex items-start gap-3 px-6 pt-6 md:px-8 md:pt-8">
+      <div className="flex items-start gap-3 px-6 py-6 md:px-8">
         <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-muted-foreground">
           <Icon aria-hidden className="size-4" />
         </span>
@@ -421,9 +414,7 @@ function GroupCard({
           </h2>
           {single ? (
             <p className="flex flex-wrap items-baseline gap-x-2 text-body-compact">
-              <span className="font-medium">
-                <Marked text={single.record.heading} needle={needle} />
-              </span>
+              <Marked text={single.record.heading} needle={needle} />
               {single.record.tag ? (
                 <span className="text-muted-foreground">{single.record.tag}</span>
               ) : null}
@@ -432,124 +423,327 @@ function GroupCard({
         </div>
       </div>
 
-      <div
-        className={cn(
-          "grid gap-x-12 gap-y-8 px-6 pt-6 pb-6 md:px-8 md:pb-8",
-          several && "@2xl:grid-cols-2",
-        )}
-      >
-        {group.empty && !needle ? (
-          <p className="text-body-compact text-muted-foreground">
+      {group.empty && !needle ? (
+        <Band>
+          <p className="py-2 text-body-compact text-muted-foreground">
             {group.empty.explanation ??
               (group.empty.reason === "none-named" ? "None named" : "None on record")}
           </p>
-        ) : null}
-        {chunks.map((chunk) => (
-          /* Each chunk measures itself: at half a card's width a label column beside
-             the value squeezed values into three lines, so a narrow chunk stacks label
-             over value, as the summary's compartments do, and a wide one keeps them side
-             by side. */
-          <section key={chunk.key} className="@container flex min-w-0 flex-col gap-3">
-            {chunk.title ? (
-              <h3 className="flex flex-wrap items-baseline gap-x-2 text-body-compact font-semibold">
-                <Marked text={chunk.title} needle={needle} />
-                {chunk.tag ? (
-                  <span className="font-normal text-muted-foreground">{chunk.tag}</span>
-                ) : null}
-              </h3>
-            ) : null}
-            <FactRows
-              items={chunk.items}
-              needle={needle}
-              docNo={docNo}
-              selected={selected}
-              onShow={onShow}
+        </Band>
+      ) : null}
+
+      {many ? (
+        <Band>
+          <MatrixBand
+            rowHeading="Name"
+            records
+            columns={recordColumns(view.records)}
+            rows={view.records.map((record) => ({
+              key: record.record.id,
+              label: record.record.heading,
+              cells: recordColumns(view.records).map((term) =>
+                record.facts.find((item) => item.fact.term === term),
+              ),
+            }))}
+            {...row}
+          />
+        </Band>
+      ) : null}
+
+      {chunks.map((chunk, index) => (
+        <Band key={`${chunk.title ?? "rest"}-${index}`} title={chunk.title} needle={needle}>
+          {chunk.kind === "compare" ? (
+            <MatrixBand
+              columns={chunk.columns}
+              rows={chunk.rows.map((matrixRow) => ({
+                key: matrixRow.label,
+                label: matrixRow.label,
+                cells: matrixRow.cells,
+              }))}
+              {...row}
             />
-          </section>
-        ))}
-      </div>
+          ) : (
+            <DescriptionList>
+              {chunk.items.map((item) => (
+                <FactRow key={item.id} item={item} {...row} />
+              ))}
+            </DescriptionList>
+          )}
+        </Band>
+      ))}
     </Card>
   );
 }
 
+/** The terms a group's records carry, in the order the first one states them. */
+function recordColumns(records: RecordView[]): CaseFactTerm[] {
+  const terms: CaseFactTerm[] = [];
+  for (const record of records) {
+    for (const item of record.facts) {
+      if (!terms.includes(item.fact.term)) terms.push(item.fact.term);
+    }
+  }
+  return terms;
+}
+
 /**
- * Particulars, label beside value — the label in the 12px caption role, the value at 14px
- * medium, so the two never read at one level. A value read from a document ends in a quiet eye: it
- * shows that page beside the file, and the row keeps a light fill while its page is the
- * one on show. The whole row answers a click, for a mouse; the eye is the keyboard's way
- * in and says which document it opens.
+ * A band of a card: ruled from what is above it, its name in the gutter on a wide card
+ * and above its content on a narrow one. The name's `pt-2` is the rows' own top padding,
+ * so it sits on the first row's line. An untitled band keeps the gutter empty, so every
+ * card's labels start on the same vertical.
  */
-function FactRows({
-  items,
-  needle,
-  docNo,
-  selected,
-  onShow,
+function Band({
+  title,
+  needle = "",
+  children,
 }: {
-  items: FactItem[];
+  title?: string;
+  needle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="grid gap-x-8 gap-y-2 border-t border-hairline px-6 py-4 md:px-8 md:py-6 @3xl:grid-cols-[11rem_minmax(0,1fr)]">
+      {title ? (
+        <h3 className="text-body-compact font-semibold @3xl:pt-2">
+          <Marked text={title} needle={needle} />
+        </h3>
+      ) : (
+        <span aria-hidden className="hidden @3xl:block" />
+      )}
+      <div className="min-w-0">{children}</div>
+    </section>
+  );
+}
+
+type RowProps = {
   needle: string;
   docNo: (key: string) => CaseBundleDoc | undefined;
   selected: { key: string; rowId?: string } | null;
   onShow: (key: string | null, rowId?: string) => void;
-}) {
-  if (items.length === 0) return null;
+};
+
+/**
+ * One particular — label beside value on anything wider than a phone, label over value on
+ * a phone. The label is muted, the value is in the foreground; both are 14px.
+ *
+ * **The eye is pinned to the row, not the value** (owner: *"the eye icon hover in some of
+ * those are not aligned properly"*). Inside the value it followed the value's line, so in
+ * a row whose label sat above its value it hung in the lower half of the lit row. It is
+ * now centred on the row itself — its 32px hover square centred in the band whatever the
+ * row's height — and the value keeps clear of it. It comes up with the row's hover, on
+ * focus, and always on touch; the row itself answers a click for a mouse.
+ *
+ * The lit row takes the tables' lighter tone on hover and `accent` while its page is the
+ * one on show — the same pair the queues use.
+ */
+function FactRow({
+  item,
+  needle,
+  docNo,
+  selected,
+  onShow,
+}: RowProps & { item: FactItem }) {
+  const { id, fact, label } = item;
+  const source = fact.source ? docNo(fact.source) : undefined;
+  const current = selected?.rowId === id;
   return (
-    <DescriptionList>
-      {items.map(({ id, fact, label }) => {
-        const source = fact.source ? docNo(fact.source) : undefined;
-        const current = selected?.rowId === id;
-        return (
+    <DescriptionRow
+      id={`fact-${id}`}
+      className={cn(
+        "group/row relative -mx-3 grid-cols-1 gap-0.5 rounded-lg border-0 px-3 py-2 transition-colors @md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)] @md:gap-6",
+        source && "cursor-pointer hover:bg-surface-sunken",
+        current && "bg-accent hover:bg-accent",
+      )}
+      onClick={source ? () => onShow(source.key, id) : undefined}
+    >
+      <DescriptionTerm className="text-body-compact">
+        <Marked text={label ?? fact.term} needle={needle} />
+      </DescriptionTerm>
+      <DescriptionDetails className={cn("min-w-0 text-body-compact", source && "pr-8")}>
+        <Value fact={fact} needle={needle} />
+        {source ? (
+          <EyeButton
+            title={source.title}
+            no={source.no}
+            shown={current}
+            onClick={() => onShow(source.key, id)}
+          />
+        ) : null}
+      </DescriptionDetails>
+    </DescriptionRow>
+  );
+}
+
+/** A value as filed — or, where the form was left empty, the words for that. */
+function Value({ fact, needle }: { fact: CaseFact; needle: string }) {
+  return (
+    <span
+      className={cn(
+        "block min-w-0 break-words whitespace-pre-line",
+        !fact.value && "text-muted-foreground",
+        fact.numeric && "tabular-nums",
+        fact.exception && "text-warning-ink",
+      )}
+    >
+      {fact.value ? <Marked text={fact.value} needle={needle} /> : "Not provided"}
+    </span>
+  );
+}
+
+/** The quiet eye at a row's or a cell's right edge, centred on it. */
+function EyeButton({
+  title,
+  no,
+  shown,
+  onClick,
+  group = "row",
+}: {
+  title: string;
+  no: number;
+  shown: boolean;
+  onClick: () => void;
+  group?: "row" | "cell";
+}) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      className={cn(
+        "absolute top-1/2 right-1 -translate-y-1/2 text-muted-foreground opacity-0 transition-opacity focus-visible:opacity-100 [@media(hover:none)]:opacity-100",
+        group === "row" ? "group-hover/row:opacity-100" : "group-hover/cell:opacity-100",
+        shown && "opacity-100",
+      )}
+      aria-label={`Show ${title}, document ${no}`}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
+    >
+      <EyeIcon aria-hidden />
+    </Button>
+  );
+}
+
+/**
+ * What is compared, laid out to be compared: a label column, then a column per thing —
+ * the payer's bank and the payee's bank, or each witness's fields — with a hairline
+ * between rows so the eye can travel across one.
+ *
+ * On a card too narrow for three columns the same list stacks: the row's label on top,
+ * then each value on its own line with its column's name before it. The names are in the
+ * markup either way — shown when stacked, read out by a screen reader when not — so a
+ * value is never announced without the column it belongs to.
+ *
+ * A value read from a document is its own target: the cell lights on hover and its eye
+ * opens the page, as a row does.
+ */
+function MatrixBand({
+  rowHeading,
+  records = false,
+  columns,
+  rows,
+  needle,
+  docNo,
+  selected,
+  onShow,
+}: RowProps & {
+  rowHeading?: string;
+  /** The rows are records — the witnesses — so each row's name is read as a value. */
+  records?: boolean;
+  columns: string[];
+  rows: { key: string; label: string; cells: (FactItem | undefined)[] }[];
+}) {
+  const grid =
+    columns.length === 3
+      ? "@lg:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]"
+      : "@lg:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_minmax(0,1fr)]";
+  return (
+    <div>
+      <div
+        aria-hidden
+        className={cn(
+          "hidden gap-6 border-b border-hairline pt-2 pb-3 text-body-compact text-muted-foreground @lg:grid",
+          grid,
+        )}
+      >
+        <span className={cn(records && "font-semibold text-foreground")}>{rowHeading}</span>
+        {columns.map((column) => (
+          <span key={column} className="font-semibold text-foreground">
+            {column}
+          </span>
+        ))}
+      </div>
+      <DescriptionList>
+        {rows.map((matrixRow) => (
           <DescriptionRow
-            key={id}
-            id={`fact-${id}`}
+            key={matrixRow.key}
             className={cn(
-              "group/row -mx-3 grid-cols-1 items-baseline gap-1 rounded-lg border-0 px-3 py-2 transition-colors @sm:grid-cols-[minmax(6rem,10rem)_minmax(0,1fr)] @sm:gap-4",
-              source && "cursor-pointer hover:bg-accent",
-              current && "bg-accent",
+              "grid-cols-1 gap-1 border-b border-hairline py-2 last:border-b-0 @lg:gap-6 @lg:py-1",
+              grid,
             )}
-            onClick={source ? () => onShow(source.key, id) : undefined}
           >
-            <DescriptionTerm className="text-caption">
-              <Marked text={label ?? fact.term} needle={needle} />
+            {/* A record's name is a value, not a label: the witnesses' names read in the
+                foreground, where the banks' field names stay muted. */}
+            <DescriptionTerm
+              className={cn("text-body-compact @lg:py-2", records && "text-foreground")}
+            >
+              <Marked text={matrixRow.label} needle={needle} />
             </DescriptionTerm>
-            <DescriptionDetails className="flex min-w-0 items-start gap-2 text-body-compact">
-              <span
-                className={cn(
-                  "min-w-0 flex-1 break-words whitespace-pre-line",
-                  fact.value ? "font-medium" : "text-muted-foreground",
-                  fact.numeric && "tabular-nums",
-                  fact.exception && "text-warning-ink",
-                )}
-              >
-                {fact.value ? <Marked text={fact.value} needle={needle} /> : "Not provided"}
-              </span>
-              {source ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  /* One eye per row, fourteen in a column, was the loudest thing on the
-                     page. It comes up with the row's hover fill, or when the row is the one
-                     on show; the keyboard finds it by focus, and a touch screen, which has
-                     no hover, always shows it (ui-craft §2, repeated rows). */
-                  className={cn(
-                    "-my-1.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 [@media(pointer:coarse)]:size-10",
-                    current && "opacity-100",
-                  )}
-                  aria-label={`Show ${source.title}, document ${source.no}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onShow(source.key, id);
-                  }}
-                >
-                  <EyeIcon aria-hidden />
-                </Button>
-              ) : null}
-            </DescriptionDetails>
+            {matrixRow.cells.map((cell, index) => (
+              <MatrixCell
+                key={columns[index]}
+                column={columns[index]}
+                cell={cell}
+                needle={needle}
+                docNo={docNo}
+                selected={selected}
+                onShow={onShow}
+              />
+            ))}
           </DescriptionRow>
-        );
-      })}
-    </DescriptionList>
+        ))}
+      </DescriptionList>
+    </div>
+  );
+}
+
+function MatrixCell({
+  column,
+  cell,
+  needle,
+  docNo,
+  selected,
+  onShow,
+}: RowProps & { column: string; cell: FactItem | undefined }) {
+  const source = cell?.fact.source ? docNo(cell.fact.source) : undefined;
+  const current = !!cell && selected?.rowId === cell.id;
+  return (
+    <DescriptionDetails
+      id={cell ? `fact-${cell.id}` : undefined}
+      className={cn(
+        "group/cell relative -mx-2 flex min-w-0 gap-2 rounded-lg px-2 text-body-compact transition-colors @lg:py-2",
+        source && "cursor-pointer pr-8 hover:bg-surface-sunken",
+        current && "bg-accent hover:bg-accent",
+      )}
+      onClick={source && cell ? () => onShow(source.key, cell.id) : undefined}
+    >
+      <span className="w-28 shrink-0 text-muted-foreground @lg:sr-only">{column}</span>
+      {cell ? (
+        <Value fact={cell.fact} needle={needle} />
+      ) : (
+        <span className="text-muted-foreground">Not provided</span>
+      )}
+      {source && cell ? (
+        <EyeButton
+          group="cell"
+          title={source.title}
+          no={source.no}
+          shown={current}
+          onClick={() => onShow(source.key, cell.id)}
+        />
+      ) : null}
+    </DescriptionDetails>
   );
 }
 
@@ -678,7 +872,7 @@ function DocumentPanel({
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex shrink-0 items-baseline justify-between gap-3 border-b border-hairline px-6 py-4">
           <h2 className="text-body font-semibold">Documents</h2>
-          <span className="text-caption tabular-nums text-muted-foreground">
+          <span className="text-body-compact tabular-nums text-muted-foreground">
             {bundle.docs.length} filed
           </span>
         </div>
@@ -696,7 +890,7 @@ function DocumentPanel({
               <span className="min-w-0 flex-1 text-body-compact font-medium">
                 <Marked text={candidate.title} needle={query} />
               </span>
-              <span className="shrink-0 text-caption tabular-nums text-muted-foreground">
+              <span className="shrink-0 text-body-compact tabular-nums text-muted-foreground">
                 {candidate.no}
               </span>
             </button>
@@ -708,7 +902,7 @@ function DocumentPanel({
           ) : null}
           {absent.length > 0 ? (
             <>
-              <p className="px-3 pt-4 pb-1 text-caption font-semibold text-muted-foreground">
+              <p className="px-3 pt-4 pb-1 text-body-compact font-semibold text-muted-foreground">
                 Not filed
               </p>
               {absent.map((candidate) => (
@@ -750,7 +944,7 @@ function DocumentPanel({
           <ArrowLeftIcon aria-hidden />
           <span className="sr-only @xs:not-sr-only">All documents</span>
         </Button>
-        <span className="ms-auto text-caption whitespace-nowrap tabular-nums text-muted-foreground">
+        <span className="ms-auto text-body-compact whitespace-nowrap tabular-nums text-muted-foreground">
           {doc.no} of {bundle.docs.length}
         </span>
         <Button
@@ -795,23 +989,21 @@ function DocumentPanel({
 
           {facts.length > 0 ? (
             <div className="flex flex-col gap-3 border-t border-hairline pt-6">
-              <h3 className="text-caption font-semibold text-muted-foreground">
-                Read from this page
-              </h3>
+              <h3 className="text-body-compact font-semibold">Read from this page</h3>
               <DescriptionList className="[&>*:not(:last-child)]:border-b [&>*:not(:last-child)]:border-hairline">
                 {facts.map(({ id, fact }) => (
                   <DescriptionRow
                     key={id}
                     className={cn(
-                      "-mx-2 flex flex-col gap-1 rounded-md border-0 px-2 py-2.5 transition-colors",
+                      "-mx-2 grid-cols-1 gap-0.5 rounded-md border-0 px-2 py-2.5 transition-colors @sm:grid-cols-[minmax(0,9rem)_minmax(0,1fr)] @sm:gap-4",
                       selected?.rowId === id && "bg-accent",
                     )}
                   >
-                    <DescriptionTerm className="text-caption">{fact.term}</DescriptionTerm>
+                    <DescriptionTerm className="text-body-compact">{fact.term}</DescriptionTerm>
                     <DescriptionDetails
                       className={cn(
                         "min-w-0 text-body-compact break-words whitespace-pre-line",
-                        fact.value ? "font-medium" : "text-muted-foreground",
+                        !fact.value && "text-muted-foreground",
                         fact.numeric && "tabular-nums",
                       )}
                     >

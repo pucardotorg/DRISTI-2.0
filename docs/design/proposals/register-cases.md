@@ -201,6 +201,19 @@ first?"*
 | D35 | **One lifted card per group**, 24px apart; the four section eyebrows are gone. A card with one record names it under its title (the cheque's number, a party's name). | Owner ("independent cards… no micro headers") |
 | D36 | **Each card chunked as the e-filing's sub-cards** (`CASE_FILE_CHUNKS`): complainant — Contact, Basic details, Institution details, Address, Power of attorney; accused — Who is summoned for the entity, Contact details, Address details; cheque — On the cheque, Return memo, Payer's bank, Payee's bank (labels shortened inside a chunk that names them: "Bank", "Branch", "IFSC", "Police station"); debt — Nature of debt, Payment against the cheque. Witnesses are a chunk each. Chunks sit two abreast when the card has room; a chunk narrower than 24rem stacks label over value. Tested: every particular of a chunked group lands in a named chunk. | e-filing `*-section.tsx` sub-card titles |
 
+**Case file cards, craft pass (owner, 2026-09-11).** Owner: *"It's still using that 12-point
+font in there. I want that completely removed, optimized for… readability and scannability…
+the eye icon hover in some of those are not aligned properly… This must be your best UI craft
+pass."*
+
+| # | Decision | Measured |
+|---|---|---|
+| D37 | **No 12px in the case file.** Card titles 16px at 600; band names 14px at 600; labels 14px muted; values 14px in the foreground; the documents panel's counts, numbers and headings 14px. | Every text node on the tab: 16px or 14px only, at 1728, 1440, 1280 and 375 |
+| D38 | **Bands, not two-abreast blocks.** Each chunk is a band ruled from the next; on a wide card its name sits in an 11rem gutter, so a card reads in three straight columns — band, field, value — and the eye runs down each. Every band's labels share one 12rem column, so values start on one vertical across the card; an untitled band keeps the gutter empty to hold it. Narrow cards put the name above the rows; phones stack label over value. The two-abreast chunks this replaces stacked label over value at half width and made the eye zig-zag. | One label column per card; list values and the comparison's first column start at the same x (761px at 1728, 553px at 1440) |
+| D39 | **What is compared is a grid.** The payer's and payee's banks are one band — Payer's bank and Payee's bank as columns, Bank / Branch / IFSC / Police station as rows, a hairline between rows (`CASE_FILE_CHUNKS` `columns`). The witnesses are the same grid transposed: Name, Speaks to, Mobile, names read as values. On a narrow card each row stacks with its column's name before each value; the names are in the markup either way, so a screen reader never hears a value without its column. | Every bank value on one line at 1440 and 1728 |
+| D40 | **The eye is pinned to its row**, centred on the row (or on a comparison cell) whatever its height, with the value kept clear of it; it was inside the value and hung low in rows whose label sat above. The lit row takes the tables' lighter tone on hover and `accent` while its page is on show. | 26 of 26 eyes within 1px of their row's centre at all four widths |
+| D41 | **The documents panel is 24rem up to 1536px, 28rem above**, so the file keeps room for its comparisons on a laptop. | — |
+
 **Deferred (owner, 2026-09-11):** the lighter hover stays on tables only. Making it the
 default hover everywhere is a design-system token change (`--accent`), measured and parked:
 on the beige canvas the lighter tone is 1.04:1 against the ground, against 1.07:1 for today's.
@@ -1948,6 +1961,7 @@ reach, not a missing primitive (§8, D24).
 | 2026-09-11 (v3 case file, simplified) | Workbench frame dropped for a scrolling file with search, a tick-rail contents and a page-on-request panel with the values read from it (§0 D23–D27) | owner (Abhiram) |
 | 2026-09-11 (design review) | Eight comments applied; type scale, spacing and the docked documents panel confirmed with the owner first (§0 D28–D33) | owner (Abhiram) |
 | 2026-09-11 (case file chunks) | Case file in the e-filing's order, one card per group, chunked as the e-filing's sub-cards (§0 D34–D36); global hover token deferred | owner (Abhiram) |
+| 2026-09-11 (case file craft) | No 12px; bands with a gutter and one label column; comparisons as grids; the eye centred on its row (§0 D37–D41) | owner (Abhiram) |
 
 | Date | Change | Who |
 |---|---|---|

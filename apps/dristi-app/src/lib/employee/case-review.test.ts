@@ -1237,20 +1237,36 @@ describe("the case file's order and chunks", () => {
         ];
         for (const facts of runs) {
           const chunks = chunkFacts(group.id, facts.map((fact) => ({ fact })));
-          const untitled = chunks.filter((chunk) => !chunk.title).flatMap((chunk) => chunk.items);
+          const untitled = chunks.flatMap((chunk) =>
+            chunk.kind === "list" && !chunk.title ? chunk.items : [],
+          );
           assert.deepEqual(
             untitled.map((item) => item.fact.term),
             [],
             `${complaint.id} ${group.id}: a particular with no chunk`,
           );
-          assert.equal(
-            chunks.reduce((sum, chunk) => sum + chunk.items.length, 0),
-            facts.length,
-            `${complaint.id} ${group.id}: a particular dropped`,
+          const shown = chunks.reduce(
+            (sum, chunk) =>
+              sum +
+              (chunk.kind === "list"
+                ? chunk.items.length
+                : chunk.rows.reduce((cells, row) => cells + row.cells.filter(Boolean).length, 0)),
+            0,
           );
+          assert.equal(shown, facts.length, `${complaint.id} ${group.id}: a particular dropped`);
         }
       }
     }
+  });
+
+  it("reads the two banks as one comparison, a column each", () => {
+    const cheque = caseFileGroups(review("r-1840")).find((group) => group.id === "cheque");
+    assert.ok(cheque?.records?.[0]);
+    const chunks = chunkFacts("cheque", cheque.records[0].facts.map((fact) => ({ fact })));
+    const banks = chunks.find((chunk) => chunk.kind === "compare");
+    assert.ok(banks && banks.kind === "compare");
+    assert.deepEqual(banks.columns, ["Payer's bank", "Payee's bank"]);
+    assert.ok(banks.rows.every((row) => row.cells.length === 2));
   });
 
   it("numbers the documents in the file's order, the complainant's first", () => {

@@ -635,11 +635,20 @@ export function caseFileGroups(review: CaseReview): CaseGroup[] {
  *
  * `label` shortens a term inside a chunk that already names it — under "Payer's bank",
  * "Payer bank" reads as "Bank". A group with no entry here is one chunk, untitled.
+ *
+ * **A comparison is its own shape** (`columns` + `rows`). The payer's bank and the
+ * payee's bank carry the same four fields, so they are read as one band with a column
+ * each — "the payers together, the payees together" (owner, 2026-09-11), and every field
+ * compared across the two on one line rather than looked for in two lists. It is the
+ * registrations review's own rule: anything read against something else is a table.
  */
-export type CaseFileChunkSpec = {
-  title: string;
-  terms: { term: CaseFactTerm; label?: string }[];
-};
+export type CaseFileChunkSpec =
+  | { title: string; terms: { term: CaseFactTerm; label?: string }[] }
+  | {
+      title: string;
+      columns: string[];
+      rows: { label: string; terms: CaseFactTerm[] }[];
+    };
 
 export const CASE_FILE_CHUNKS: Partial<Record<CaseGroupId, CaseFileChunkSpec[]>> = {
   complainant: [
@@ -695,21 +704,16 @@ export const CASE_FILE_CHUNKS: Partial<Record<CaseGroupId, CaseFileChunkSpec[]>>
       ],
     },
     {
-      title: "Payer's bank",
-      terms: [
-        { term: FACT_TERMS.payerBank, label: "Bank" },
-        { term: FACT_TERMS.payerBranch, label: "Branch" },
-        { term: FACT_TERMS.payerIfsc, label: "IFSC" },
-        { term: FACT_TERMS.drawerPolice, label: "Police station" },
-      ],
-    },
-    {
-      title: "Payee's bank",
-      terms: [
-        { term: FACT_TERMS.payeeBank, label: "Bank" },
-        { term: FACT_TERMS.payeeBranch, label: "Branch" },
-        { term: FACT_TERMS.payeeIfsc, label: "IFSC" },
-        { term: FACT_TERMS.payeePolice, label: "Police station" },
+      title: "Banks",
+      columns: ["Payer's bank", "Payee's bank"],
+      rows: [
+        { label: "Bank", terms: [FACT_TERMS.payerBank, FACT_TERMS.payeeBank] },
+        { label: "Branch", terms: [FACT_TERMS.payerBranch, FACT_TERMS.payeeBranch] },
+        { label: "IFSC", terms: [FACT_TERMS.payerIfsc, FACT_TERMS.payeeIfsc] },
+        {
+          label: "Police station",
+          terms: [FACT_TERMS.drawerPolice, FACT_TERMS.payeePolice],
+        },
       ],
     },
   ],
@@ -732,10 +736,12 @@ export const CASE_FILE_CHUNKS: Partial<Record<CaseGroupId, CaseFileChunkSpec[]>>
 };
 
 /**
- * A run of particulars cut into the group's chunks, in the chunk order, each carrying the
- * label it is shown under. Empty chunks drop out (a search may have emptied them); any
- * particular the spec does not name falls into a last, untitled chunk rather than being
- * lost — a test keeps that from happening in the groups that have a spec.
+ * A run of particulars cut into the group's chunks, in the chunk order. A list chunk
+ * carries each particular with the label it is shown under; a comparison carries its
+ * columns and, per row, the particular in each column (or none, where the file has no
+ * such field). Empty chunks drop out — a search may have emptied them — and any
+ * particular the spec does not name falls into a last, untitled list rather than being
+ * lost; a test keeps that from happening in the groups that have a spec.
  */
 export function chunkFacts<T extends { fact: CaseFact }>(
   group: CaseGroupId,
@@ -743,27 +749,41 @@ export function chunkFacts<T extends { fact: CaseFact }>(
 ): CaseFileChunk<T>[] {
   const specs = CASE_FILE_CHUNKS[group];
   const labelled = (item: T) => ({ ...item, label: item.fact.term as string });
-  if (!specs) return items.length ? [{ items: items.map(labelled) }] : [];
+  if (!specs) return items.length ? [{ kind: "list", items: items.map(labelled) }] : [];
   const placed = new Set<T>();
-  const chunks: CaseFileChunk<T>[] = specs
-    .map((spec) => ({
-      title: spec.title as string | undefined,
-      items: spec.terms.flatMap(({ term, label }) =>
-        items
-          .filter((item) => item.fact.term === term)
-          .map((item) => {
-            placed.add(item);
-            return { ...item, label: label ?? item.fact.term };
-          }),
-      ),
-    }))
-    .filter((chunk) => chunk.items.length > 0);
+  const find = (term: CaseFactTerm) => {
+    const item = items.find((candidate) => candidate.fact.term === term);
+    if (item) placed.add(item);
+    return item;
+  };
+  const chunks: CaseFileChunk<T>[] = [];
+  for (const spec of specs) {
+    if ("columns" in spec) {
+      const rows = spec.rows
+        .map((row) => ({ label: row.label, cells: row.terms.map(find) }))
+        .filter((row) => row.cells.some(Boolean));
+      if (rows.length) chunks.push({ kind: "compare", title: spec.title, columns: spec.columns, rows });
+    } else {
+      const list = spec.terms.flatMap(({ term, label }) => {
+        const item = find(term);
+        return item ? [{ ...item, label: label ?? item.fact.term }] : [];
+      });
+      if (list.length) chunks.push({ kind: "list", title: spec.title, items: list });
+    }
+  }
   const rest = items.filter((item) => !placed.has(item));
-  if (rest.length) chunks.push({ items: rest.map(labelled) });
+  if (rest.length) chunks.push({ kind: "list", items: rest.map(labelled) });
   return chunks;
 }
 
-export type CaseFileChunk<T> = { title?: string; items: (T & { label: string })[] };
+export type CaseFileChunk<T> =
+  | { kind: "list"; title?: string; items: (T & { label: string })[] }
+  | {
+      kind: "compare";
+      title: string;
+      columns: string[];
+      rows: { label: string; cells: (T | undefined)[] }[];
+    };
 
 /**
  * The file's documents as a bundle — the filed ones numbered in the order the file
