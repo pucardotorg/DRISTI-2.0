@@ -151,6 +151,30 @@ brief `scrutiny-workbench.md`) — the officer's three-pane reader where marks a
 | D21 | **Folding on the file's own width**, in rem: below 52rem (the three floors) one pane at a time behind a Particulars / Bundle switch, index in a sheet. The workbench's viewport measure squeezed all three panes below their floors at a 1024px window beside the court rail (measured). | `useRoomInRem` logic; render | — |
 | D22 | **Bundle model** `caseBundleFor(review)`: filed documents numbered in file order (a record's before its group's), the empty slots listed, duplicate names told apart by whose they are ("ID proof — Complainant"). Tested: nothing dropped, numbering sequential, every particular's source resolves. | `case-review.ts` | — |
 
+**Case file, simplified (owner, 2026-09-11, same day) — supersedes D15–D21.** Owner, on the
+three-pane build: *"it's almost like a scrutiny officer view. I don't think it's inherently
+wrong. It just needs a little more simplification, like it shouldn't look like another
+workspace… the nearest version had attempted to solve for this by sort of showing that
+floating preview versus, like, a scrolling section… the magistrate is not gonna really go
+and scrutinize things here. He just wants to quickly verify something, if at all. So maybe
+even giving something like a search bar might make sense if he wants to quickly search up
+something and then see it against the preview."* With two reference images: a rail of short
+ticks at a page's edge, and the same rail opened on hover into a card of section names.
+Being faithful to the workbench turned out to mean its *conventions* (sections, lifted
+groups, label beside value, the source of a value one click away) — not its *frame*, which
+is shaped for an officer who works the file rather than a magistrate who checks it.
+
+| # | Decision | Traces to | Gave up |
+|---|---|---|---|
+| D23 | **The file is a page that scrolls**, in the summary's grammar: a section eyebrow over one lifted panel, the section's groups inside it separated by hairlines, each group's particulars label beside value, its documents as chips under them. No fixed frame, no panes, no resizing. | Owner ("not another workspace") | The workbench frame (D15), panes (D16), zoomable bundle (D18) |
+| D24 | **Search the file**, the queues' own field (`QueueSearchField`), filtering as you type: a match on a group's or a record's name keeps all of it, otherwise a particular stays when its label or value matches and a document when its name does; the match is marked; a count is announced; no match is an empty state with Clear. | Owner ("a search bar"); app-wide search rule | — |
+| D25 | **Contents as ticks** (owner's reference): one short rule per group in the gutter beside the file, the group being read in foreground ink; hover or tab in and the names open over the rail in a card, the current one in primary; picking one scrolls there. The card is the real navigation — transparent, not hidden, so the keyboard reaches it and a screen reader hears a list. Hidden when a search leaves fewer than two groups. | Owner's reference images | The section strip (D16) |
+| D26 | **The page, on request, beside the file** — the first build's "floating preview", owner's note. A sticky panel that at rest is the list of documents (numbered, *Not filed* below, narrowed by the search) and, when a document or a particular read from one is picked, is that page in the product's framed preview (`DocumentPreview`, quiet/card, with full view) and under it **Read from this page** — the values taken from it, the one you came from marked — so a value is checked against its source. Back, and previous/next through the bundle. Its height is fitted to the window from wherever it sits, so its foot is never under the fold (measured: 105px was, before). Below 1280px the same panel is a sheet, opened by a Documents button or by picking something. | Owner ("floating preview", "see it against the preview") | A persistent viewer |
+| D27 | **One quiet affordance per row.** A particular read from a document ends in an eye that comes up with the row's hover fill, on focus, and always on touch; the row itself answers a click; the row on show keeps a light fill. Fourteen eyes in a column were the loudest thing on the page. | ui-craft §2, repeated rows | Always-visible glyphs (D17) |
+
+Kept from the workbench build: the bundle model (D22), `PageSheet` (D19) as the page in the
+preview, and the tab row fix below.
+
 **Tab row fix.** The active underline rendered 3px below the rule (rule 211px, mark 214–216px):
 the primitive hangs its mark at `bottom: -5px` under a selector scoped to the horizontal group,
 and a plain `after:-bottom-px` lost on specificity. The override now carries the same scope
@@ -1891,6 +1915,7 @@ reach, not a missing primitive (§8, D24).
 | 2026-09-11 (v3) | v2 deleted; third build at `register-cases-v3` from v2 as a wireframe only — synopsis sheet + timeline side by side, each fact once, scrutiny on the timeline, acts settle in place (§0) | owner (Abhiram) |
 | 2026-09-11 (v3 craft) | Full width; two tiers on one grid; synopsis as six hairline-divided compartments with labels over values; timeline collapsed to its spans with dates on demand; scrutiny its own panel again (§0 D10–D14) | owner (Abhiram) |
 | 2026-09-11 (v3 case file) | Case file built as the scrutiny workbench's three-pane reader, read-only (§0 D15–D22); tab underline fixed onto the rule | owner (Abhiram) |
+| 2026-09-11 (v3 case file, simplified) | Workbench frame dropped for a scrolling file with search, a tick-rail contents and a page-on-request panel with the values read from it (§0 D23–D27) | owner (Abhiram) |
 
 | Date | Change | Who |
 |---|---|---|

@@ -10,7 +10,7 @@ import {
   Undo2Icon,
 } from "lucide-react";
 
-import { CaseFileWorkspace } from "@/components/employee/register-case-file-v3";
+import { CaseFileView } from "@/components/employee/register-case-file-v3";
 import { useCourtToday } from "@/components/employee/use-court-today";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -127,10 +127,7 @@ type Stage = { act: Act; settled: boolean };
  * sideways entrance from flashing a scrollbar; it clips without becoming a scroll
  * container, so the sticky tab row still sticks.
  *
- * **Two shapes of page.** The summary is a document and scrolls like one. The case file is
- * the scrutiny workbench's frame: the page stops at the viewport, the header and tab row
- * hold still, and the three panes below fill what is left and scroll on their own —
- * `100svh` less the chrome bar's `h-14`, the same coupling the workbench makes.
+ * Both tabs are pages that scroll; the tab row sticks under the chrome bar on either.
  */
 function ComplaintPage({
   complaint,
@@ -148,21 +145,10 @@ function ComplaintPage({
   /* The act that was backed out of — its button takes focus again when the header's
      acts return, rather than focus falling to the page. */
   const [returnFocus, setReturnFocus] = React.useState<Act | null>(null);
-  const framed = stage === null && tab === "file";
 
   return (
-    <div
-      className={cn(
-        "flex min-w-0 flex-col overflow-x-clip bg-muted dark:bg-background",
-        framed ? "h-[calc(100svh-3.5rem)] overflow-hidden" : "min-h-0 flex-1",
-      )}
-    >
-      <div
-        className={cn(
-          "flex w-full min-w-0 flex-1 flex-col gap-6 px-6 pt-6 md:px-8 md:pt-8",
-          framed ? "min-h-0" : "pb-12",
-        )}
-      >
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip bg-muted dark:bg-background">
+      <div className="flex w-full min-w-0 flex-1 flex-col gap-6 px-6 pt-6 pb-12 md:px-8 md:pt-8">
         <ComplaintHeader
           complaint={complaint}
           acting={stage !== null}
@@ -174,7 +160,7 @@ function ComplaintPage({
         />
 
         {stage === null ? (
-          <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col", motion && SLIDE[motion])}>
+          <div className={cn("min-w-0", motion && SLIDE[motion])}>
             <ComplaintTabs tab={tab} setTab={setTab} summary={summary} review={review} />
           </div>
         ) : (
@@ -325,18 +311,15 @@ function ComplaintTabs({
   summary: CaseSummary;
   review: CaseReview;
 }) {
-  const file = tab === "file";
-
   return (
     <Tabs
       value={tab}
       onValueChange={(value) => setTab(value as ComplaintTab)}
-      className={cn("min-h-0", file ? "flex-1 gap-0" : "gap-6")}
+      className="gap-6"
     >
       {/* Sticky under the 56px bar, on the canvas's own fill and bled to the page edge
-          so what scrolls beneath is covered cleanly. The rule is the band's, full width:
-          on the case file it is the top edge of the panes beneath, so there is one line
-          across the page, not an inset one over a full-bleed one. */}
+          so what scrolls beneath is covered cleanly. The rule is the band's, full width,
+          as a sticky bar's edge is. */}
       <div className="sticky top-14 z-20 -mx-6 border-b border-hairline bg-muted px-6 md:-mx-8 md:px-8 dark:bg-background">
         <TabsList
           variant="line"
@@ -355,10 +338,8 @@ function ComplaintTabs({
         <ComplaintSummary summary={summary} />
       </TabsContent>
 
-      {/* Full bleed, edge to edge and down to the foot of the frame — the workbench's
-          panes, under the tab row's rule. */}
-      <TabsContent value="file" className="-mx-6 flex min-h-0 flex-1 flex-col md:-mx-8">
-        <CaseFileWorkspace review={review} />
+      <TabsContent value="file" className="text-body-compact">
+        <CaseFileView review={review} />
       </TabsContent>
     </Tabs>
   );
