@@ -11,6 +11,7 @@ import {
   formatDaysWaiting,
   formatDaysWaitingSpoken,
   formatWaitingDuration,
+  idCardName,
   idPhotoLabel,
   identityRows,
   registerName,
@@ -421,6 +422,8 @@ describe("what the row and the overlay call things", () => {
     assert.equal(registrationIdLabel("clerk"), "Clerk registration number");
     assert.equal(idPhotoLabel("advocate"), "Photo of Bar ID card");
     assert.equal(idPhotoLabel("clerk"), "Photo of clerk ID card");
+    assert.equal(idCardName("advocate"), "Bar ID card");
+    assert.equal(idCardName("clerk"), "clerk ID card");
     assert.equal(registrantNoun("advocate"), "advocate");
     assert.equal(registrantNoun("clerk"), "clerk");
   });
@@ -477,8 +480,9 @@ describe("shape one: a term and its value", () => {
     const back = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-118");
     assert.ok(back);
     const rows = allRows(back);
-    // 4 request facts + 4 identity rows (this one has an email) + 4 rejection rounds.
-    assert.equal(rows.length, 12);
+    // 3 request facts + 4 identity rows (this one has an email) + 4 rejection rounds.
+    // (The role is not a row: it is the dialog header's, on every stage.)
+    assert.equal(rows.length, 11);
     for (const row of rows) {
       assert.equal(typeof row.term, "string");
       assert.ok(row.term.length > 0, "a row with no term");
@@ -521,12 +525,11 @@ describe("shape one: a term and its value", () => {
 
   it("carries the queue cell's own escalation into the overlay's Waiting row", () => {
     for (const request of REGISTER_ADVOCATES_QUEUE) {
-      const [role, submitted, waiting, kind] = requestRows(request);
+      const [submitted, waiting, kind] = requestRows(request);
       assert.deepEqual(
-        [role.term, submitted.term, waiting.term, kind.term],
-        ["Role", "Submitted", "Waiting", "Request type"],
+        [submitted.term, waiting.term, kind.term],
+        ["Submitted", "Waiting", "Request type"],
       );
-      assert.equal(role.tone, undefined);
       assert.equal(waiting.tone, registrationWaitTone(request.daysWaiting));
       assert.equal(waiting.value, formatWaitingDuration(request.daysWaiting));
       assert.equal(submitted.tone, undefined);
@@ -579,8 +582,8 @@ describe("the register speaks only when it disagrees", () => {
     assert.ok(clean);
     assert.equal(registerAnswer(clean), null);
     assert.equal(registerFindingRow(clean), null);
-    // …and the Request group is its four facts, with nothing appended.
-    assert.equal(requestRows(clean).length, 4);
+    // …and the Request group is its three facts, with nothing appended.
+    assert.equal(requestRows(clean).length, 3);
   });
 
   it("reaches its three answers, each as one row in the Request group", () => {
@@ -623,7 +626,7 @@ describe("the register speaks only when it disagrees", () => {
     for (const request of REGISTER_ADVOCATES_QUEUE) {
       const finding = registerFindingRow(request);
       const rows = requestRows(request);
-      assert.equal(rows.length, finding ? 5 : 4);
+      assert.equal(rows.length, finding ? 4 : 3);
       // Nothing in the Identity block mentions a register, matching or otherwise.
       for (const row of identityRows(request)) {
         assert.ok(
@@ -762,13 +765,18 @@ describe("an advocate clerk's request", () => {
     );
   });
 
-  it("says what it is registering as, first, in the sign-up's own word", () => {
-    assert.equal(roleLabel("clerk"), "Advocate clerk");
+  it("says what it is registering as in one word that differs from the other at once", () => {
+    // "Clerk", not the sign-up's "Advocate clerk": in a column of two values the eye
+    // should not have to reach the end of the cell to tell them apart (owner, 2026-09-11).
+    assert.equal(roleLabel("clerk"), "Clerk");
     assert.equal(roleLabel("advocate"), "Advocate");
+    assert.notEqual(roleLabel("clerk")[0], roleLabel("advocate")[0]);
+    // The role is the header's, on every stage — never a row as well.
     for (const request of REGISTER_ADVOCATES_QUEUE) {
-      const [role] = requestRows(request);
-      assert.equal(role.id, "role");
-      assert.equal(role.value, roleLabel(request.registrantKind));
+      assert.equal(
+        requestRows(request).some((row) => row.id === "role"),
+        false,
+      );
     }
   });
 

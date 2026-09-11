@@ -19,6 +19,7 @@ import {
 } from "@/components/chrome/table-plate";
 import { DocumentPreview } from "@/components/cases/document-preview";
 import { ReviewRow } from "@/components/cases/filing-form-shared";
+import { RoleGlyph, RoleMark } from "@/components/employee/role-mark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -50,6 +51,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   comparisonBlocks,
   identityRows,
+  idCardName,
   idPhotoLabel,
   registrantNoun,
   rejectionRows,
@@ -359,21 +361,36 @@ function RequestBody({
           half the abruptness. */}
       <DialogHeader
         key={request.id}
-        className="shrink-0 gap-2 border-b border-hairline p-6 pr-16 animate-in fade-in-0 duration-500 motion-reduce:animate-none"
+        className="shrink-0 flex-row items-start gap-3 border-b border-hairline p-6 pr-16 animate-in fade-in-0 duration-500 motion-reduce:animate-none"
       >
-        <div className="flex flex-wrap items-center gap-2">
-          <DialogTitle
-            ref={titleRef}
-            tabIndex={-1}
-            className="text-title-s font-semibold outline-none"
-          >
-            {STAGE_TITLE[stage]}
-          </DialogTitle>
-          <Badge variant={badge.variant}>{badge.label}</Badge>
+        {/* **Who this is, before a word of it is read** (owner, 2026-09-11). The role's
+            mark, as a tile, beside the title every stage rewrites — so it is on Review,
+            on Approve and Reject, and on the settled card, without a second copy in the
+            body. A clerk's tile is tinted and an advocate's is not, which is what makes
+            the less common request the one that catches the eye; the shapes differ too,
+            so it never depends on colour. See `RoleMark`. */}
+        <RoleMark kind={request.registrantKind} />
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <DialogTitle
+              ref={titleRef}
+              tabIndex={-1}
+              className="text-title-s font-semibold outline-none"
+            >
+              {STAGE_TITLE[stage]}
+            </DialogTitle>
+            <Badge variant={badge.variant}>{badge.label}</Badge>
+          </div>
+          {/* The role in words, first — the mark's text, so a screen reader is told what
+              an eye is shown when the dialog announces its description. D16 kept this
+              line to the one string the applicant can quote; the role joins it because
+              it now changes what every value under it means. */}
+          <DialogDescription className="text-body-compact text-muted-foreground">
+            {roleLabel(request.registrantKind)}
+            {" · "}
+            <span className="tabular-nums">{request.applicationNumber}</span>
+          </DialogDescription>
         </div>
-        <DialogDescription className="text-body-compact tabular-nums text-muted-foreground">
-          {request.applicationNumber}
-        </DialogDescription>
       </DialogHeader>
 
       {/* The stage. A tinted canvas under white cards — the scoped work canvas the order
@@ -582,9 +599,7 @@ function EvidenceColumn({ request }: { request: AdvocateRegistration }) {
         content: (
           <IdCardPhoto
             src={request.photo.src}
-            alt={`Photograph of the ${
-              request.registrantKind === "clerk" ? "clerk" : "Bar"
-            } ID card uploaded with ${request.applicationNumber}`}
+            alt={`Photograph of the ${idCardName(request.registrantKind)} uploaded with ${request.applicationNumber}`}
             noun={noun}
           />
         ),
@@ -663,9 +678,13 @@ function DecisionStage({
           {/* The role before the number, because the number means nothing until you know
               which register it belongs to — and on this stage the officer is about to grant
               exactly one of the two credentials. */}
-          <p className="text-body-compact text-muted-foreground">
+          <p className="flex flex-wrap items-center gap-x-1.5 text-body-compact text-muted-foreground">
+            {/* The glyph again, at text size, on the line that names the credential: the
+                header's tile is above the fold of this card, and the officer's eye is here
+                when they press Confirm. */}
+            <RoleGlyph kind={request.registrantKind} />
             {roleLabel(request.registrantKind)}
-            {" · "}
+            <span aria-hidden>·</span>
             <span className="font-mono tabular-nums">
               {request.registrationNumber}
             </span>
@@ -717,7 +736,7 @@ function DecisionStage({
                   id={id}
                   ref={reasonRef}
                   className="min-h-32 text-body"
-                  placeholder="e.g. The name on the Bar ID card is different from the name you typed. Please check and submit again."
+                  placeholder={`e.g. The name on the ${idCardName(request.registrantKind)} is different from the name you typed. Please check and submit again.`}
                   value={reason}
                   onChange={(event) => onChange(event.target.value)}
                 />

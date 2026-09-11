@@ -7,6 +7,7 @@ import {
   tableBodyClass,
   tableRowClass,
 } from "@/components/chrome/table-plate";
+import { RoleGlyph } from "@/components/employee/role-mark";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -160,21 +161,29 @@ export function RegisterAdvocatesTable({
                   rides the name so a screen reader does not read Malayalam letters with an
                   English voice (ACCESSIBILITY §13). */}
               <TableCell
-                className={cn(TABLE_CELL, "min-w-40 font-medium whitespace-normal")}
+                className={cn(
+                  TABLE_CELL,
+                  "min-w-40 font-medium whitespace-normal",
+                )}
                 lang={request.fullNameLang}
               >
                 {request.fullName}
               </TableCell>
-              {/* Plain, muted text: a category, not a status, so it takes no chip and no
-                  colour — the row's one colour is still the wait, and its one chip is
-                  still the request type. */}
+              {/* The role's mark and its word — not a chip, because it is a category and
+                  not a status, and the row's one chip is still the request type. The mark
+                  is what makes the column scannable: a briefcase or a clipboard, and a
+                  clipboard in the info ink, so the clerks in a long queue are found by
+                  looking rather than reading (see `RoleGlyph`). */}
               <TableCell
                 className={cn(
                   TABLE_CELL,
                   "whitespace-nowrap text-muted-foreground",
                 )}
               >
-                {roleLabel(request.registrantKind)}
+                <span className="inline-flex items-center gap-1.5">
+                  <RoleGlyph kind={request.registrantKind} />
+                  {roleLabel(request.registrantKind)}
+                </span>
               </TableCell>
               <TableCell
                 className={cn(TABLE_CELL, "tabular-nums whitespace-nowrap")}

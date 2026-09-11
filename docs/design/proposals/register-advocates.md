@@ -1239,8 +1239,9 @@ Bar Council database, which holds advocates.
 
 **The screen, changed at four points and no others:**
 
-- **Role**, first in the Request group and as a column beside the name, with the sign-up's
-  own two values: *Advocate*, *Advocate clerk*. First because it decides how everything
+- **Role**, first in the Request group *(moved to the dialog header by D32)* and as a column
+  beside the name, with the sign-up's own two values: *Advocate*, *Advocate clerk* *(now
+  "Clerk", D32)*. First because it decides how everything
   after it is read — which number, which card, whether a register was ever asked. Filled on
   every row, the norm included: an empty Role cell would mean nothing in a column where both
   values are ordinary (unlike Request type, whose blank plainly means "first
@@ -1276,6 +1277,48 @@ design and never truncates, so the cost is a line on the longest names. It now f
 
 *Rule:* owner 2026-09-11; handover §5.1 `REG-13a`, `REG-14a`, §5.2 `REG-17`/`REG-18`;
 `lib/registration/content.ts` for every label.
+
+### D32 — **New.** Advocate and clerk look different before they are read
+
+Owner, 2026-09-11, mid-build: *"instead of saying Advocate Clerk, it should just say Clerk,
+because it'll be easier to scan."* And: *"when I click into an item, I want a very visual
+indicator… that I'm currently looking at the advocate registration and not the clerk
+registration… not very loud, but distinct enough that it catches my attention… just a
+small word of Advocate and Clerk does not do it. It needs a better signifier — especially
+in the approval screen and rejection screen."*
+
+**"Clerk".** The sign-up's "Advocate clerk" exists so an applicant can tell the role from a
+court's bench clerk while choosing. An officer reading down a column of two values needs
+them to differ in their first word, and "Advocate" / "Advocate clerk" did not.
+
+**A mark, in two sizes — shape first, colour for the exception** (`role-mark.tsx`).
+
+- *Shape.* A briefcase for an advocate (the brief is the advocate's case papers) and a
+  clipboard for a clerk (who keeps the list). Both were unused in the product.
+  `ScaleIcon` was the obvious advocate mark and was rejected because the advocate product
+  already uses it for *cases*. Shape is what survives colour blindness, greyscale and dark.
+- *Colour.* Advocates are most of the queue, so their mark takes the neutral well tone and
+  recedes; clerks take `info`, which on this screen already means "not the ordinary case,
+  nothing wrong" (the Profile update chip). The less common request is therefore the one
+  that catches the eye. A clerk is never a profile update, so no row carries two blues.
+
+**Where it appears.** As a **tile** beside the dialog title — the one part of the overlay
+present on every stage, so the officer is shown what they are granting on Review, on
+Approve and Reject, and on the settled card — with the role's word leading the header's
+description, so a screen reader is told what an eye is shown. As a **glyph** on the lines
+that already say the role: the table's Role cell, the phone list, and the decision card's
+identity line, where the officer's eye is when they press Confirm.
+
+**The Role row leaves the Request group.** It was a row for one round (D31); with the role
+in the header on every stage, a row as well would be one fact in two places.
+
+**And one copy defect it exposed:** the rejection placeholder said "the Bar ID card" to a
+clerk. It now names the right card (`idCardName`).
+
+*Rejected:* a coloured strip or edge on the decision card per role — it would have
+competed with the settled state's green and red on the same element; a Badge per role in
+the header — two chips side by side (state and role) read as two statuses, and the role is
+not one.
 
 ## 6. What I cut (and why)
 
@@ -1587,6 +1630,16 @@ exists to name it.
 
 ## 13. Gaps in the DS (if any)
 
+**Filed 2026-09-11: a categorical tint for identity.** D32 needed two roles to differ in
+colour, and the DS has no sanctioned family for it: `chart-1…5` are solids that AGENTS.md
+scopes to data visualisation ("never status", and by implication never UI identity), with
+no muted pair, so a pale tile would have to be faked with an opacity modifier — which rule
+6 forbids. The build borrows `info` for clerks and leaves advocates neutral, which is
+defensible on this screen and would not survive a third role. **Proposal for the DS:** a
+small categorical family (two or three hues) with the same three treatments as a status —
+solid, muted, ink — explicitly for "which kind of thing is this", distinct from status and
+from data series.
+
 **None filed, and the attribute row is not one.** The row is
 `DescriptionRow` + `DescriptionTerm` + `DescriptionDetails` (all real, in
 `vendor/pucar-design-system/src/components/ui/description-list.tsx`), with the source line
@@ -1641,6 +1694,7 @@ dependency here. Request #9 stands on its own merits for the screens that raised
 | **2026-09-10 (evening)** | **D16 added.** Request metadata is its own attribute group, not header prose; the application number stays in the header description and is not repeated; the advocate's name **leaves** the header, because printing a value under verification as the record's title asserts it. | ux-designer |
 | **2026-09-10 (evening)** | **D9 and D11 corrected for two parallel cross-cutting changes** — search filters as you type (the Search button goes away app-wide) and the whole table row becomes the click target. The queue page therefore has **no page-level primary**, which is what D9 argued was correct all along; the "teal on the queue page is Search" line is void, and two code comments asserting it must change with the rebuild. | orchestrator / ux-designer |
 | **2026-09-10 (evening)** | **§6 clarified** so the brief cannot be read as rejecting structure wholesale: the officer's rejection reason stays free text (`REG-22`) because it is *user data in a consistent slot*; what was rejected is *product copy narrating machine results*. Reason chips remain cut; a per-attribute rejection is filed as §12.10 for the owner to decide. | ux-designer |
+| **2026-09-11 (role mark)** | **Advocate and clerk get a signifier** (D32): "Clerk" replaces "Advocate clerk"; a role mark — briefcase / clipboard, neutral for advocates and `info` for clerks — as a tile beside the dialog title on every stage and as a glyph in the Role column, the phone list and the decision card's identity line. The Role row leaves the Request group for the header. The rejection placeholder now names the clerk ID card for clerks. DS gap filed for a categorical identity tint (§13). | owner (direction) / orchestrator |
 | **2026-09-11 (clerks)** | **Advocate clerks join the queue; the section is renamed "Approve registrations"** (D31). Clerks read off the sign-up and the handover: same five values, a clerk registration number and clerk ID card, no register (new `none` lookup state) and never a profile update. Role returns as a column and as the first Request row; the number column becomes "Registration number"; the advocate term aligns to the sign-up's "Bar registration number"; the decision card shows the role before the number. Three demo clerks added. Name column floor lowered after six columns measured 25px over at 1280. Filter explicitly deferred by the owner pending the product-wide filter pattern. D4 and D13 amended; §12.12 and a slug risk opened. | owner (direction) / orchestrator |
 | **2026-09-11 (design-mode round 6)** | **Three comments, one offer.** The edit comparison returns as an open section under Request; the type reads "Profile update" in the overlay and the queue chip alike; the register finding names the attribute ("Full name does not match") and opens two aligned rows instead of a one-row table; the ID card becomes a 160px band across the decision card with real alt text (D30). The owner's initials-badge idea declined, with reasons, at their invitation. D23 amended. | owner (direction) / orchestrator |
 | **2026-09-11 (design-mode round 5)** | **Four corrections.** The settled strip reports the account (created / rejected), not the byproduct; the reject label returns to body-compact and takes a 16px destructive mark instead of size; the decision card lifts at rest and its header strip goes white with a rule, after the old `surface-sunken` strip measured 1.01:1 against the stage; the ID card photograph goes to 80×128 `object-contain` (D28). "View next application" stopped remounting `Dialog.Content` — the abruptness was Radix's open animation replaying — and a new record now rises and fades in its own motion, with focus sent to the fact column (D29). | owner (direction) / orchestrator |
