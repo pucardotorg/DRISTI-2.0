@@ -11,11 +11,12 @@
     "start": "npm run start -w @pucar/dristi-app",
     "lint": "npm run lint -w @pucar/dristi-app",
     "setup:ds": "node scripts/ensure-ds.mjs",
-    "check:ds-fresh": "npm run check:ds-fresh -w @pucar/dristi-app",
+    "check:ds-fresh": "npm run check:ds-fresh -w @pucar/dristi-app --",
     "ds:bump": "node scripts/bump-ds.mjs",
     "check:tokens": "npm run check:tokens -w @pucar/dristi-app",
     "check:typography": "npm run check:typography -w @pucar/dristi-app",
     "check:ui-sync": "npm run check:ui-sync -w @pucar/dristi-app",
+    "check:spacing": "npm run check:spacing -w @pucar/dristi-app --",
     "check:rails": "node scripts/check-rails.mjs",
     "sync:ui": "npm run sync:ui -w @pucar/dristi-app --"
   }

@@ -6,6 +6,12 @@ layered on top of identical national law.
 
 **Docs map:** [docs/README.md](docs/README.md)
 
+**Branches** (`pucardotorg/dristi-fe`): three long-lived — `main` (default, dev team),
+`design` (design team), `develop` (dev team). Merges land only through PRs; a PR into
+`design` needs the design owner's approval. Design work cuts from `origin/design` and PRs
+back into `design` — `git checkout -b feature/<kebab-case> origin/design` — never stacked
+on another feature, never committed straight to a long-lived branch.
+
 | Layer | Path |
 |---|---|
 | Dristi App | [apps/dristi-app](apps/dristi-app) |
@@ -18,9 +24,9 @@ layered on top of identical national law.
 `ds.lock.json` pins the one DS commit the whole repo builds against; `npm install`
 checks it out. Run `npm run check:ds-fresh` first — the other gates compare us to
 whatever is in `vendor/`, so the wrong version passes them all. Bump the pin only
-with `npm run ds:bump`, on main.
-Gates: `npm run check:ds-fresh`, `npm run check:tokens`, `npm run check:typography`, `npm run check:ui-sync`, and
-`npm run check:rails`. See [docs/design/design-system.md](docs/design/design-system.md).
+with `npm run ds:bump`, on `design`.
+Gates: `npm run check:ds-fresh`, `npm run check:tokens`, `npm run check:typography`, `npm run check:ui-sync`,
+`npm run check:spacing`, and `npm run check:rails`. See [docs/design/design-system.md](docs/design/design-system.md).
 **Craft (mandatory, every iteration):** also load the `ui-craft` skill for any UI build,
 change, or polish — layering (canvas → chrome → panel → well), strokes, type, elevation —
 and run its pre-flight checklist on the render before reporting done.

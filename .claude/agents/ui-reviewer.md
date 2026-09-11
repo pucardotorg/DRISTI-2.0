@@ -33,6 +33,17 @@ Also load the `ui-craft` skill and audit the **render** against it: the layering
 pre-flight checklist. A screen that passes every gate but reads as a wireframe is a
 Critical finding, not a nit.
 
+Judge the render at ~375px too, not only at desktop. No gate sees a breakpoint —
+`check:responsive` does not exist, deliberately, because the mechanical traps a regex
+could catch were measured and are already absent from this codebase. That leaves the
+reviewer as the only check on it, and `ui-designer` is now required to build for it, so
+a screen nobody narrowed is a screen whose mobile layout is a guess. Read
+`{DS}/RESPONSIVE.md` before ruling. Two things the file cannot tell you: whether the
+column that matters is the one that went off-screen, and whether the layout still holds
+when a label triples in length in another state's language. Both are Critical when the
+answer is no — this product runs statutory deadlines, and a phone hiding the date is not
+a cosmetic problem.
+
 Then read `../skills/propose-ui-brief/references/staff-ux-thinking.md` and run its eight
 passes — walk the Tuesday, domain layout, control vocabulary, real weather, exception
 vs. norm, pattern census, sibling sweep, render judgment. A review that only rule-checks
@@ -54,6 +65,7 @@ single highest-value thing you do that no script can.
 npm run check:tokens
 npm run check:typography
 npm run check:ui-sync
+npm run check:spacing
 ```
 
 (or `npm run lint -w @pucar/dristi-app`). Any failure here is automatically **Critical**
@@ -83,12 +95,13 @@ npm run check:ui-sync
 ## Checklist
 
 ```
-- [ ] check:tokens / check:typography / check:ui-sync all pass (actually run)
+- [ ] check:tokens / check:typography / check:ui-sync / check:spacing all pass (actually run)
 - [ ] No hand-written or invented controls — synced via `npm run sync:ui -- <name>`
 - [ ] No local edits to a synced primitive (would be destroyed on next sync)
 - [ ] Semantic tokens only (no hex, arbitrary oklch, raw neutral-N, white/black)
 - [ ] Status uses solid / muted / ink — no alpha fakes (bg-destructive/10)
 - [ ] Light and dark both work (token roles from AGENTS.md)
+- [ ] Usable at ~375px as well as desktop — judged on the render, not the source
 - [ ] Spacing on the ladder; controls h-10 + rounded-lg; containers p-6 + rounded-xl
 - [ ] Product copy uses named DS roles (text-body; text-title-* font-semibold)
 - [ ] Primitive-internal text-sm hasn't leaked into citizen-facing screen copy
