@@ -59,20 +59,21 @@ motion grammar D25 reuses) · `lib/employee/register-cases.ts` (the 35 rows; **f
 
 ---
 
-## 0. Second build — `/employee/register-cases-v2` (owner, 2026-09-11)
+## 0. Third build — `/employee/register-cases-v3` (owner, 2026-09-11)
 
 The owner declared the complaint's screen (§5a-i A/B) foundationally broken and is
-rebuilding it as a **second rail row, "Register cases v2"**, beside the first rather than
-over it. The queue is reused unchanged; only where a row opens differs. When v2 is good,
-v1's screen and route are deleted and v2 takes the name and the route.
+rebuilding it as a **separate rail row beside the first build**, so the two can be read
+against each other. The queue is reused unchanged; only where a row opens differs. When
+the rebuild is good, v1's screen and route are deleted and it takes the name and route.
 
-What v2 keeps: `lib/employee/case-review.ts` (the model, the checks, the synopsis and
-scrutiny record, all tested) and the approved-registrations overlay grammar — eyebrow,
-lifted card, description list, 14px throughout, status inline. What it drops: the
-document-reader architecture, the attention alert, the timeline side sheet, everything
-under `case-review-screen.tsx` / `case-file-screen.tsx`.
+A **second build** (`register-cases-v2`, commit `615c41a`) was made and then deleted the
+same day. Owner, on it: *"redo the thing again, or make V3, and delete v2 — please please
+please dont recreate it as it is, i want you to use it only only only as a rough wireframe
+so that we can improve on v1 completely in terms of UX and UI."* v2's content — header, two
+acts, two tabs, scrutiny, timeline, the six-head synopsis — is the wireframe v3 was built
+from. Nothing of its composition survives.
 
-Owner's brief for the first version, quoted: *"it should show what the case number and
+The owner's brief for the first version, quoted: *"it should show what the case number and
 case title is, of course, and then the action of either registering or sending it back to
 scrutiny. But mainly there are two tabs: the summary and the case file. Let's first build
 out the summary tab, which is according to the synopsis format… The idea of this is that
@@ -81,15 +82,66 @@ the timeline of the case: how long did they take, and how long was it stuck in s
 Information about scrutiny: who it was cleared by, how many rounds it took, and what were
 the kind of errors, maybe in a very summarized format."*
 
-**Summary tab, first version** — eight sections in this order: Scrutiny (cleared by,
-rounds, *sent back for* one line per round with the defect class from the closed
-`SCRUTINY_ISSUES` enum, took), Timeline (the seven §138 steps dated, each window measured
-on the step that closes it; then taken up by registry, cleared on, in this queue), then the
-owner's synopsis: Parties, Cheque, Dishonour, Demand notice, Cause of action, Prayer. The
-windows are stated once, on the timeline, and not repeated in the synopsis sections. The
-defect classes are a mark per complaint (`scrutinyIssues`), never derived. **Case file tab:
-an empty state until it is built.** Acts progress in place (one surface, no modal), and
-neither performs anything.
+**Job** (owner's words above): the magistrate's post-scrutiny read, deciding to register or
+send back to scrutiny. Confirmed; not inferred.
+
+### 0.1 What was wrong with v2 (measured on its render, 1440 × 900)
+
+1. **Eight identical lifted cards in one 768px column** — 2,812px tall, three screens to
+   read one complaint, and no surface more important than any other.
+2. **Every date stated twice.** The timeline card and the synopsis heads both carried the
+   cheque date, presentation, return memo, dispatch, delivery, cause of action and filing.
+3. **Forty per cent of the canvas empty** at desktop while the page scrolled three screens.
+4. **The timeline was a description list of dates.** The spans the owner asked about were
+   caption notes under rows, not a line you could follow.
+5. **Scrutiny's numbers twice.** "Took 32 days" in the scrutiny card and "32 days in
+   scrutiny · 3 rounds" in the timeline card.
+6. **Constant values presented as facts** — "Company" under every accused, "Complainant's
+   bank branch" under every jurisdiction, "Twice the cheque amount…" under every prayer.
+7. **"Cleared by — By a registry officer"** read as a stutter on the render.
+8. **Send-back copy addressed the advocate** ("nobody to send it to") though the act now
+   returns the complaint to scrutiny.
+9. **Both acts were dead ends** — the confirm button was disabled, so the flow never reached
+   an outcome.
+
+### 0.2 Decisions (v3)
+
+| # | Decision | Traces to | Gave up |
+|---|---|---|---|
+| D1 | **Two surfaces side by side from 1280px**: *Synopsis* (what the complaint says) left, *Timeline* (when, and how long) right. Stacked below 1280, synopsis first. The approved registrations review's own shape — facts left, their companion right. | Owner's wireframe; `register-advocates-dialog.tsx` review stage; problems 1, 3 | A single reading column |
+| D2 | **Each fact once.** Dates live only on the timeline; the synopsis carries the particulars. **Deviation** from the owner's synopsis format, which lists dates under each head — logged here for sign-off. | Problem 2; facts-are-attributes | The format's per-head dates |
+| D3 | **The synopsis is one sheet, not six cards.** Head name in a left gutter, term and value beside it; hairline between heads only, spacing between rows. The panel is a `@container`: gutter layout at ≥36rem, head above its rows below that, term over value on a phone. | ui-craft §1.1 separation ladder; problem 1 | Per-head cards and eyebrows |
+| D4 | **The timeline is the DS `Timeline`.** The seven §138 steps, each statutory window measured under the step that closes it (all three fall between adjacent steps), muted when inside, `text-warning-ink` when outside, early, or late with condonation sought. The fixed 15-day payment gap is not stated. | Owner's "how long did they take"; problem 4 | Proportional or horizontal timelines |
+| D5 | **Scrutiny is one span on the timeline**, dated taken-up to cleared, carrying cleared by, rounds, took, and — only when there were send-backs — each round's defect class from the closed `SCRUTINY_ISSUES` list. Then *Waiting to be registered · Today* as the current step with days since scrutiny. | Owner's scrutiny ask; problem 5 | A separate scrutiny card |
+| D6 | **Constant values dropped**: accused type, jurisdiction basis, the compensation note, the payment gap. `SCRUTINY_MODES` are nouns ("Registry officer", "Automated scrutiny"). | Facts-are-attributes; problems 6, 7 | — |
+| D7 | **Three sizes on the page**: 24px title, 14px everything else, 12px only for the two eyebrows. Tabs at 14px. | Owner, 2026-09-11 ("14 is what we are using") | 16px tab labels |
+| D8 | **Acts progress in place to an outcome.** The body gives way to one card; its strip names the act, and confirming resolves the same strip into *Registered* (success pair) or *Sent back to scrutiny* (warning pair). Then *Next complaint* / *Back to register cases*. Nothing is performed; the settled state says so once. Focus follows the stage and returns to the act on Back. | `beige-canvas-and-one-modal-defaults`; registrations decision card; problem 9 | Disabled confirm buttons |
+| D9 | **Send back returns to scrutiny**, with a required reason. No advocate-recipient copy. | Owner's wireframe; problem 8 | — |
+
+**Case file tab**: an empty state until it is built.
+
+### 0.3 What I cut
+Documents on the summary (the case file's job — open question below); the attention
+alert; the timeline side sheet; any header meta line; per-row rules; the registry's
+pickup delay as its own row (visible as the gap between filing and the span's start).
+
+### 0.4 Open questions
+- Does the magistrate need document presence (cheque, memo, notice, service proof,
+  affidavit) on the summary, or is that settled by scrutiny having cleared it?
+- Does a send-back go to the officer who cleared it, or back into the scrutiny queue?
+- The defect classes in `SCRUTINY_ISSUES` are the prototype's; which the registry keeps is
+  §12.22.
+- Should the moved dates (D2) come back under their heads if the owner's format is
+  binding?
+
+### 0.5 Upstream DS feedback (restated in §13)
+- `Timeline`: the rail stretches only to the item's content box, so the `pb-6` between
+  items is unlined and the line reads as stubs. v3 moves the same 24px inside the item's
+  content via the item's `className`; the primitive should span its own padding.
+- `TimelineItem.title` is typed `string & ReactNode` (it collides with the HTML `title`
+  attribute), so a title cannot carry a `<time>`. v3 composes steps as children.
+- The rail is `bg-border` (neutral-8), the loudest stroke on the screen; `hairline` would
+  read as a line rather than a rule.
 
 ## 1. Context
 
@@ -1761,7 +1813,9 @@ product-user questions; filing them there is product's call, not this brief's.
 ## 13. Gaps in the DS (if any)
 
 **None blocking.** Everything here composes from existing primitives. Five observations for
-the DS repo and for Dristi's own components — none a licence to invent:
+the DS repo and for Dristi's own components — none a licence to invent (and three more from
+the v3 build, listed in §0.5: the `Timeline` rail stops short of the item's padding,
+`TimelineItem.title` cannot take a node, and the rail is drawn in full `border`):
 
 1. **`Banner` binds its icon to its variant.** `neutral` is a `MegaphoneIcon`, which is an
    announcement, not a report. Worth an `icon` override or a fifth variant whose semantics
@@ -1793,6 +1847,7 @@ reach, not a missing primitive (§8, D24).
 ## 14. Decision log
 
 | 2026-09-11 (v2) | Second build as a new rail row, `register-cases-v2`; summary tab first, in the approved-registrations grammar; scrutiny record gains per-round defect class, taken-up date and queue wait | owner (Abhiram) |
+| 2026-09-11 (v3) | v2 deleted; third build at `register-cases-v3` from v2 as a wireframe only — synopsis sheet + timeline side by side, each fact once, scrutiny on the timeline, acts settle in place (§0) | owner (Abhiram) |
 
 | Date | Change | Who |
 |---|---|---|

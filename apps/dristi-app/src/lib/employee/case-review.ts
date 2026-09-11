@@ -180,6 +180,7 @@ export type CaseHeaderTerm =
  * then who and how much, then the dates as a line, then the particulars.
  */
 export const SUMMARY_TERMS = {
+  synopsis: "Synopsis",
   scrutiny: "Scrutiny",
   parties: "Parties",
   cheque: "Cheque",
@@ -199,8 +200,6 @@ export const SYNOPSIS_FIELDS = {
   took: "Took",
   clearedOn: "Cleared on",
   sentBack: "Sent back for",
-  takenUpOn: "Taken up by registry",
-  waiting: "In this queue",
   complainant: "Complainant",
   accused: "Accused",
   advocate: "Complainant's advocate",
@@ -240,8 +239,10 @@ export type SynopsisField = (typeof SYNOPSIS_FIELDS)[keyof typeof SYNOPSIS_FIELD
  * `HistoryEvent` stream with its `Filing.who`.
  */
 export const SCRUTINY_MODES = {
-  officer: "By a registry officer",
-  automated: "Automated",
+  /* Nouns, because they are read under the term "Cleared by" — "By a registry officer"
+     there read "Cleared by by a registry officer" on the render. */
+  officer: "Registry officer",
+  automated: "Automated scrutiny",
 } as const;
 
 export type ScrutinyMode = keyof typeof SCRUTINY_MODES;
@@ -318,6 +319,8 @@ export type CaseScrutiny = {
   /** The day the registry first opened it. */
   takenUpOn: string;
   takenUpOnLabel: string;
+  /** "6 Dec 2025" — the day as it sits in a row of other days (`formatListingDate`). */
+  takenUpOnShortLabel: string;
   /** Whole days between filing and the registry taking it up. */
   daysToTakeUp: number;
   /** Whole days between the registry taking it up and the pass that cleared it. */
@@ -325,6 +328,7 @@ export type CaseScrutiny = {
   clearedOn: string;
   /** The same day, written out — the header's own pairing, for the same reason. */
   clearedOnLabel: string;
+  clearedOnShortLabel: string;
   /** Whole days from the clearing pass to today — how long it has sat in this queue. */
   daysWaiting: number;
 };
@@ -1257,10 +1261,12 @@ export function scrutinyFor(
     returns,
     takenUpOn,
     takenUpOnLabel: formatCaseDate(takenUpOn),
+    takenUpOnShortLabel: formatListingDate(takenUpOn),
     daysToTakeUp: takenUpIn,
     days,
     clearedOn,
     clearedOnLabel: formatCaseDate(clearedOn),
+    clearedOnShortLabel: formatListingDate(clearedOn),
     daysWaiting: wait - takenUpIn - days,
   };
 }

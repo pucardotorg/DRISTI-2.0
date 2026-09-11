@@ -1,0 +1,943 @@
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  CircleCheckIcon,
+  FileQuestionIcon,
+  FolderOpenIcon,
+  Undo2Icon,
+} from "lucide-react";
+
+import { useCourtToday } from "@/components/employee/use-court-today";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  DescriptionDetails,
+  DescriptionList,
+  DescriptionRow,
+  DescriptionTerm,
+} from "@/components/ui/description-list";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Timeline, TimelineItem } from "@/components/ui/timeline";
+import {
+  CASE_REVIEW_STATUS,
+  caseSummaryFor,
+  SCRUTINY_MODES,
+  SUMMARY_TERMS,
+  SYNOPSIS_FIELDS,
+  type CaseScrutiny,
+  type CaseSummary,
+  type CaseSummaryWindow,
+} from "@/lib/employee/case-review";
+import { causeTitle } from "@/lib/employee/hearings";
+import {
+  REGISTER_QUEUE,
+  registerCaseById,
+  type RegisterCase,
+} from "@/lib/employee/register-cases";
+import { cn } from "@/lib/utils";
+
+/**
+ * Register cases, third build — one waiting complaint, as the magistrate reads it before
+ * taking it on the register or sending it back to scrutiny.
+ *
+ * The second build was a column of eight identical cards: three screens tall, every date
+ * stated twice, forty per cent of the canvas empty. This one is composed around two
+ * questions the owner put — *what does the complaint say*, and *how did it get here* —
+ * and gives each its own surface, side by side, so the whole decision fits on one desktop
+ * screen (brief §0, D1–D9).
+ *
+ * - **Synopsis** is one sheet in the owner's order — parties, cheque, dishonour, demand
+ *   notice, cause of action, prayer. Each head names itself once in a gutter and its
+ *   particulars sit beside it. No dates: those are the timeline's.
+ * - **Timeline** is the complaint's life on the DS timeline: the seven §138 steps, each
+ *   statutory window measured under the step that closes it, then scrutiny as one span
+ *   carrying who cleared it, how many rounds, how long, and what each round was sent
+ *   back for — then today.
+ *
+ * Every value comes from `lib/employee/case-review.ts` through one slot; every term from
+ * its declared lists. Colour appears only where the file is outside a limit or another
+ * complaint is pending. 14px throughout; 12px only for the two eyebrows.
+ *
+ * Two acts and no third (owner, 2026-09-11). Both progress in place — the body gives way
+ * to one card, the header stays, and confirming settles that same card into its outcome.
+ * Nothing is performed, and the settled state says so once.
+ */
+export function RegisterCaseV3Screen({ caseId }: { caseId: string }) {
+  const today = useCourtToday();
+  const complaint = registerCaseById(caseId);
+  const summary = caseSummaryFor(caseId, today);
+
+  if (!complaint || !summary) return <ComplaintMissing />;
+
+  /* Keyed on the complaint, so "Next complaint" opens a fresh page rather than the
+     previous complaint's settled act. */
+  return <ComplaintPage key={caseId} complaint={complaint} summary={summary} />;
+}
+
+/** Where this queue lives — its rows open beneath it. */
+const QUEUE_HREF = "/employee/register-cases-v3";
+
+/** Section labels above a surface — scaffolding, so it reads as scaffolding. */
+const EYEBROW = "text-caption font-semibold text-muted-foreground";
+
+/**
+ * The two directions the body moves. The act arrives from the right, where it is going;
+ * Back brings the summary in from the left, where it came from. `fill-mode-both` holds
+ * the first frame so nothing flashes before it moves; reduced motion gets a plain swap.
+ */
+const SLIDE = {
+  forward:
+    "animate-in fade-in-0 slide-in-from-right-8 fill-mode-both duration-300 motion-reduce:animate-none",
+  back: "animate-in fade-in-0 slide-in-from-left-8 fill-mode-both duration-300 motion-reduce:animate-none",
+} as const;
+
+/* ─────────────────────────────── the page ───────────────────────────────── */
+
+type Act = "register" | "send-back";
+type Stage = { act: Act; settled: boolean };
+
+/**
+ * The frame: warm canvas, the header naming the complaint and holding the two acts, then
+ * either the tabs or the act in progress.
+ *
+ * `bg-muted` in light, `dark:bg-background` in dark — the canvas under lifted white
+ * panels that the registrations queue set as the default. `overflow-x-clip` keeps the
+ * sideways entrance from flashing a scrollbar; it clips without becoming a scroll
+ * container, so the sticky tab row still sticks.
+ */
+function ComplaintPage({
+  complaint,
+  summary,
+}: {
+  complaint: RegisterCase;
+  summary: CaseSummary;
+}) {
+  const [stage, setStage] = React.useState<Stage | null>(null);
+  /* Null on arrival: nothing slides in when the page first opens. */
+  const [motion, setMotion] = React.useState<keyof typeof SLIDE | null>(null);
+  /* The act that was backed out of — its button takes focus again when the header's
+     acts return, rather than focus falling to the page. */
+  const [returnFocus, setReturnFocus] = React.useState<Act | null>(null);
+
+  return (
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip bg-muted dark:bg-background">
+      <div className="flex w-full max-w-6xl min-w-0 flex-1 flex-col gap-6 px-6 pt-6 pb-12 md:px-8 md:pt-8">
+        <ComplaintHeader
+          complaint={complaint}
+          acting={stage !== null}
+          returnFocus={returnFocus}
+          onAct={(act) => {
+            setMotion("forward");
+            setStage({ act, settled: false });
+          }}
+        />
+
+        {stage === null ? (
+          <div className={cn("min-w-0", motion && SLIDE[motion])}>
+            <ComplaintTabs summary={summary} />
+          </div>
+        ) : (
+          <ActStage
+            key={stage.act}
+            act={stage.act}
+            settled={stage.settled}
+            next={nextInQueue(complaint.id)}
+            onBack={() => {
+              setMotion("back");
+              setReturnFocus(stage.act);
+              setStage(null);
+            }}
+            onConfirm={() => setStage({ act: stage.act, settled: true })}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** The complaint after this one, in the queue's own order — or none at the end. */
+function nextInQueue(id: string): RegisterCase | null {
+  const index = REGISTER_QUEUE.findIndex((complaint) => complaint.id === id);
+  return index >= 0 ? (REGISTER_QUEUE[index + 1] ?? null) : null;
+}
+
+/**
+ * Which complaint, and what can be done with it. The number above the cause, the two
+ * acts opposite: send back is outline, register the page's one primary. The acts leave
+ * while one is in progress — the act's own card carries its controls.
+ */
+function ComplaintHeader({
+  complaint,
+  acting,
+  returnFocus,
+  onAct,
+}: {
+  complaint: RegisterCase;
+  acting: boolean;
+  returnFocus: Act | null;
+  onAct: (act: Act) => void;
+}) {
+  return (
+    <header
+      aria-labelledby="complaint-title"
+      className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between md:gap-8"
+    >
+      <div className="flex min-w-0 flex-col gap-1">
+        <p className="text-body-compact tabular-nums text-muted-foreground">
+          {complaint.caseNumber}
+        </p>
+        <h1
+          id="complaint-title"
+          className="text-balance font-semibold text-title"
+        >
+          {causeTitle(complaint)}
+        </h1>
+      </div>
+      {acting ? null : <HeaderActs returnFocus={returnFocus} onAct={onAct} />}
+    </header>
+  );
+}
+
+/** The two acts. Mounting again after Back, they hand focus to the one backed out of. */
+function HeaderActs({
+  returnFocus,
+  onAct,
+}: {
+  returnFocus: Act | null;
+  onAct: (act: Act) => void;
+}) {
+  const sendBackRef = React.useRef<HTMLButtonElement>(null);
+  const registerRef = React.useRef<HTMLButtonElement>(null);
+
+  React.useEffect(() => {
+    if (returnFocus === "send-back") sendBackRef.current?.focus();
+    if (returnFocus === "register") registerRef.current?.focus();
+    // On mount only: this is the moment the acts come back.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className="flex shrink-0 flex-wrap gap-3">
+      <Button
+        ref={sendBackRef}
+        type="button"
+        variant="outline"
+        onClick={() => onAct("send-back")}
+      >
+        Send back to scrutiny
+      </Button>
+      <Button ref={registerRef} type="button" onClick={() => onAct("register")}>
+        Register
+      </Button>
+    </div>
+  );
+}
+
+/* ─────────────────────────────── the tabs ───────────────────────────────── */
+
+type ComplaintTab = "summary" | "file";
+
+/** Which tab is open, held in the URL as `?file=1` so the browser's Back closes it. */
+function useComplaintTab(): [ComplaintTab, (next: ComplaintTab) => void] {
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const tab: ComplaintTab = params.get("file") === "1" ? "file" : "summary";
+
+  const setTab = React.useCallback(
+    (next: ComplaintTab) => {
+      const query = new URLSearchParams(params.toString());
+      if (next === "file") query.set("file", "1");
+      else query.delete("file");
+      const search = query.toString();
+      router.push(search ? `${pathname}?${search}` : pathname, { scroll: false });
+    },
+    [params, pathname, router],
+  );
+
+  return [tab, setTab];
+}
+
+/* The DS trigger at the page's one size, keeping its width, with the active mark moved
+   onto the row's own rule rather than floating under it (ui-craft §2). */
+const TRIGGER = "h-full flex-none px-0.5 text-body-compact after:-bottom-px";
+
+function ComplaintTabs({ summary }: { summary: CaseSummary }) {
+  const [tab, setTab] = useComplaintTab();
+
+  return (
+    <Tabs
+      value={tab}
+      onValueChange={(value) => setTab(value as ComplaintTab)}
+      className="gap-6"
+    >
+      {/* Sticky under the 56px bar, on the canvas's own fill and bled to the page edge
+          so what scrolls beneath is covered cleanly. */}
+      <div className="sticky top-14 z-20 -mx-6 bg-muted px-6 md:-mx-8 md:px-8 dark:bg-background">
+        <TabsList
+          variant="line"
+          className="w-full justify-start gap-6 rounded-none border-b border-hairline p-0 group-data-horizontal/tabs:h-11"
+        >
+          <TabsTrigger value="summary" className={TRIGGER}>
+            Summary
+          </TabsTrigger>
+          <TabsTrigger value="file" className={TRIGGER}>
+            Case file
+          </TabsTrigger>
+        </TabsList>
+      </div>
+
+      <TabsContent value="summary" className="text-body-compact">
+        <ComplaintSummary summary={summary} />
+      </TabsContent>
+
+      <TabsContent value="file">
+        <Empty className="border-0 p-0 py-12">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <FolderOpenIcon aria-hidden />
+            </EmptyMedia>
+            <EmptyTitle className="font-semibold text-title-s">
+              The case file comes next
+            </EmptyTitle>
+            <EmptyDescription className="text-body-compact">
+              This version settles the summary first. The particulars and the
+              documents the complaint was filed with will open here.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+/* ─────────────────────────────── the summary ────────────────────────────── */
+
+/**
+ * What the complaint says, and how it got here — side by side from 1280px, so the eye
+ * moves between a particular and its date without scrolling; stacked below that,
+ * synopsis first. The shape is the approved registrations review's own: the facts on
+ * the left, their companion on the right.
+ */
+function ComplaintSummary({ summary }: { summary: CaseSummary }) {
+  return (
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
+      <SynopsisPanel summary={summary} />
+      <TimelinePanel summary={summary} />
+    </div>
+  );
+}
+
+/**
+ * The synopsis as one sheet — the owner's six heads, in the owner's order.
+ *
+ * One lifted panel rather than six: the heads are sections of a single document, and six
+ * shadows stacked down a page were what made the second build read as a form. Inside,
+ * the separation ladder does the work — spacing between particulars, a hairline between
+ * heads, nothing between rows.
+ *
+ * The panel is its own container, so the sheet lays itself out by the room it has rather
+ * than by the window: the head in a gutter beside its particulars when there is width
+ * for three tracks, above them when there is not, and term over value on a phone.
+ *
+ * **No dates here.** Each date is stated once, on the timeline, where it can be measured
+ * against the one before it. The owner's synopsis format lists them under each head;
+ * moving them is the one deviation from it, and it is logged (brief §0, D2).
+ */
+function SynopsisPanel({ summary }: { summary: CaseSummary }) {
+  const { synopsis, cheque } = summary;
+
+  return (
+    <section aria-labelledby="synopsis-heading" className="flex min-w-0 flex-col gap-2">
+      <h2 id="synopsis-heading" className={EYEBROW}>
+        {SUMMARY_TERMS.synopsis}
+      </h2>
+      <Card size="sm" className="@container gap-0 border-hairline py-0 shadow-raised">
+        <SynopsisSection label={SUMMARY_TERMS.parties}>
+          <Fact term={SYNOPSIS_FIELDS.complainant} note={summary.complainant.type}>
+            {summary.complainant.name}
+          </Fact>
+          {/* No type under the accused: every accused in the queue is a company, and a
+              value identical on every file is not a fact. */}
+          <Fact term={SYNOPSIS_FIELDS.accused}>{summary.accused.name}</Fact>
+          <Fact term={SYNOPSIS_FIELDS.advocate}>
+            {summary.advocate ?? <Absent>None on record</Absent>}
+          </Fact>
+        </SynopsisSection>
+
+        <SynopsisSection label={SUMMARY_TERMS.cheque}>
+          <Fact
+            term={SYNOPSIS_FIELDS.amount}
+            format="figure"
+            note={cheque.partPaid ? `${cheque.partPaid} paid before filing` : undefined}
+          >
+            {cheque.amount}
+          </Fact>
+          <Fact term={SYNOPSIS_FIELDS.chequeNumber} format="figure">
+            {cheque.number}
+          </Fact>
+          <Fact term={SYNOPSIS_FIELDS.drawnOn}>
+            {synopsis.cheque.drawerBank}, {synopsis.cheque.drawerBranch}
+          </Fact>
+        </SynopsisSection>
+
+        <SynopsisSection label={SUMMARY_TERMS.dishonour}>
+          <Fact term={SYNOPSIS_FIELDS.presentedAt}>
+            {synopsis.dishonour.payeeBank}, {synopsis.dishonour.payeeBranch}
+          </Fact>
+          <Fact term={SYNOPSIS_FIELDS.returnReason}>{cheque.returnReason}</Fact>
+        </SynopsisSection>
+
+        <SynopsisSection label={SUMMARY_TERMS.notice}>
+          <Fact term={SYNOPSIS_FIELDS.mode}>{synopsis.notice.mode}</Fact>
+          <Fact term={SYNOPSIS_FIELDS.tracking} format="code">
+            {synopsis.notice.tracking}
+          </Fact>
+          <Fact term={SYNOPSIS_FIELDS.replied}>
+            {synopsis.notice.replied ? "Received" : <Absent>None</Absent>}
+          </Fact>
+        </SynopsisSection>
+
+        <SynopsisSection label={SUMMARY_TERMS.causeOfAction}>
+          {/* The branch alone: the basis beside it read "Complainant's bank branch" on
+              every complaint in the queue, which is a caption, not a fact. */}
+          <Fact term={SYNOPSIS_FIELDS.jurisdiction}>
+            {synopsis.causeOfAction.jurisdiction}
+          </Fact>
+          <Fact
+            term={SYNOPSIS_FIELDS.otherPending}
+            tone={synopsis.causeOfAction.otherPending ? "warning" : undefined}
+          >
+            {synopsis.causeOfAction.otherPending ? "One pending" : <Absent>None</Absent>}
+          </Fact>
+        </SynopsisSection>
+
+        <SynopsisSection label={SUMMARY_TERMS.prayer}>
+          <Fact term={SYNOPSIS_FIELDS.compensation} format="figure">
+            {synopsis.prayer.compensation}
+          </Fact>
+          <Fact term={SYNOPSIS_FIELDS.interim} format="figure">
+            {synopsis.prayer.interim}
+          </Fact>
+        </SynopsisSection>
+      </Card>
+    </section>
+  );
+}
+
+/** One head of the synopsis: its name, then its particulars. */
+function SynopsisSection({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  const id = React.useId();
+  return (
+    <section
+      aria-labelledby={id}
+      className="grid gap-x-6 gap-y-3 border-t border-hairline p-4 first:border-t-0 @xl:grid-cols-[8rem_minmax(0,1fr)]"
+    >
+      <h3 id={id} className="text-body-compact font-semibold">
+        {label}
+      </h3>
+      <DescriptionList className="gap-2">{children}</DescriptionList>
+    </section>
+  );
+}
+
+/** How a value is set: plain, as a figure that lines up, or as a code. */
+const FORMAT = {
+  text: "",
+  figure: "tabular-nums",
+  code: "font-mono tabular-nums",
+} as const;
+
+type FactFormat = keyof typeof FORMAT;
+
+/**
+ * One particular: a term and its value, with an optional second line.
+ *
+ * No rule under it — the rows of one head are separated by their spacing, and the
+ * hairline is saved for the break between heads. `tone` is the one colour a value can
+ * take, and only where the file needs the reader's attention.
+ */
+function Fact({
+  term,
+  format = "text",
+  tone,
+  note,
+  children,
+}: {
+  term: string;
+  format?: FactFormat;
+  tone?: "warning";
+  note?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <DescriptionRow className="grid-cols-1 gap-x-4 gap-y-1 border-0 py-0 @md:grid-cols-[11rem_minmax(0,1fr)] @xl:grid-cols-[10rem_minmax(0,1fr)]">
+      <DescriptionTerm className="text-body-compact">{term}</DescriptionTerm>
+      <DescriptionDetails className="min-w-0 text-body-compact">
+        <span
+          className={cn(
+            "block",
+            FORMAT[format],
+            tone === "warning" && "text-warning-ink",
+          )}
+        >
+          {children}
+        </span>
+        {note ? <span className="block text-muted-foreground">{note}</span> : null}
+      </DescriptionDetails>
+    </DescriptionRow>
+  );
+}
+
+/** A value that is an absence — said in words, in the quiet voice. */
+function Absent({ children }: { children: React.ReactNode }) {
+  return <span className="text-muted-foreground">{children}</span>;
+}
+
+/* ─────────────────────────────── the timeline ───────────────────────────── */
+
+/**
+ * How the complaint got here, dated — the §138 chain, then the court's own steps.
+ *
+ * The three statutory windows each fall between two adjacent steps, so each is measured
+ * directly under the step that closes it: the days it took, against what the law allows.
+ * Muted when inside; warning ink when outside, early, or late with condonation sought.
+ * The gap from service to the cause of action is fifteen days on every file and is not
+ * stated.
+ *
+ * Scrutiny is one span on the same line rather than a card of its own — the second
+ * build stated its rounds and days twice — carrying its attributes under it. Today is the
+ * current step, the one place the brand colour marks "now".
+ */
+function TimelinePanel({ summary }: { summary: CaseSummary }) {
+  const { scrutiny } = summary;
+
+  return (
+    <section aria-labelledby="timeline-heading" className="flex min-w-0 flex-col gap-2">
+      <h2 id="timeline-heading" className={EYEBROW}>
+        {SUMMARY_TERMS.timeline}
+      </h2>
+      <Card size="sm" className="border-hairline shadow-raised">
+        <CardContent>
+          <Timeline className="text-body-compact">
+            {summary.steps.map((step) => {
+              const window = summary.windows.find(
+                (candidate) => candidate.to === step.id,
+              );
+              return (
+                <Step
+                  key={step.id}
+                  label={step.label}
+                  date={<time dateTime={step.on}>{step.onShortLabel}</time>}
+                >
+                  {window ? <WindowMeasure window={window} /> : null}
+                </Step>
+              );
+            })}
+
+            {scrutiny ? <ScrutinyStep scrutiny={scrutiny} /> : null}
+
+            <Step status="current" label={CASE_REVIEW_STATUS} date="Today">
+              {scrutiny ? <Measure>{sinceScrutiny(scrutiny.daysWaiting)}</Measure> : null}
+            </Step>
+          </Timeline>
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+/**
+ * One step: its name, and its date against the far edge where dates line up, then
+ * whatever the step carries. Composed as the item's children because the DS item's own
+ * title slot takes a string, and a step's date is a `<time>`.
+ *
+ * **The spacing between steps lives inside the step, not under it.** The DS item spaces
+ * itself with `pb-6` on the `li`, and its rail stretches only to the item's content box —
+ * so on the render the line stopped at every step and the 24px between them was blank,
+ * and the timeline read as a column of stubs. Moving the same 24px into the content
+ * makes the rail run through it to the next dot. Upstream DS feedback: the rail should
+ * span the item's padding (brief §0, §13).
+ */
+function Step({
+  status = "past",
+  label,
+  date,
+  children,
+}: {
+  status?: "past" | "current";
+  label: string;
+  date: React.ReactNode;
+  children?: React.ReactNode;
+}) {
+  return (
+    <TimelineItem status={status} className="pb-0">
+      <div className="pb-6 group-last/timeline-item:pb-0">
+        <p className="flex items-baseline justify-between gap-3 font-medium">
+          <span className="min-w-0">{label}</span>
+          <span className="shrink-0 font-normal tabular-nums text-muted-foreground">
+            {date}
+          </span>
+        </p>
+        {children}
+      </div>
+    </TimelineItem>
+  );
+}
+
+/** The line under a step — a span measured, in the quiet voice unless it is late. */
+function Measure({
+  tone,
+  children,
+}: {
+  tone?: "warning";
+  children: React.ReactNode;
+}) {
+  return (
+    <p
+      className={cn(
+        "mt-1 tabular-nums",
+        tone === "warning" ? "text-warning-ink" : "text-muted-foreground",
+      )}
+    >
+      {children}
+    </p>
+  );
+}
+
+/** A statutory window, measured — the days it took against the limit. */
+function WindowMeasure({ window }: { window: CaseSummaryWindow }) {
+  const took = days(window.days);
+  switch (window.status) {
+    case "within":
+      return (
+        <Measure>
+          {took} · within {window.limitLabel}
+        </Measure>
+      );
+    case "outside":
+      return (
+        <Measure tone="warning">
+          {took} · beyond {window.limitLabel}
+        </Measure>
+      );
+    case "condonation-sought":
+      return (
+        <Measure tone="warning">
+          {took} · beyond {window.limitLabel} · condonation sought
+        </Measure>
+      );
+    case "early":
+      return <Measure tone="warning">Before the cause of action arose</Measure>;
+  }
+}
+
+/**
+ * Scrutiny, as one span: the day the registry took it up to the day it cleared, and
+ * under it who cleared it, how many rounds, how long, and what each round before the
+ * last was sent back for — the kind of defect, never the officer's remark. A complaint
+ * cleared first time has nothing to list, and the round count already says so.
+ */
+function ScrutinyStep({ scrutiny }: { scrutiny: CaseScrutiny }) {
+  return (
+    <Step
+      label={SUMMARY_TERMS.scrutiny}
+      date={
+        <>
+          <time dateTime={scrutiny.takenUpOn}>{scrutiny.takenUpOnShortLabel}</time>
+          {" – "}
+          <time dateTime={scrutiny.clearedOn}>{scrutiny.clearedOnShortLabel}</time>
+        </>
+      }
+    >
+      <DescriptionList className="mt-2 gap-1">
+        <ScrutinyFact term={SYNOPSIS_FIELDS.clearedBy}>
+          {SCRUTINY_MODES[scrutiny.mode]}
+        </ScrutinyFact>
+        <ScrutinyFact term={SYNOPSIS_FIELDS.rounds} format="figure">
+          {scrutiny.rounds}
+        </ScrutinyFact>
+        <ScrutinyFact term={SYNOPSIS_FIELDS.took} format="figure">
+          {days(scrutiny.days)}
+        </ScrutinyFact>
+        {scrutiny.returns.length > 0 ? (
+          <ScrutinyFact term={SYNOPSIS_FIELDS.sentBack}>
+            <ol className="flex flex-col gap-1">
+              {scrutiny.returns.map((sendBack) => (
+                <li key={sendBack.round} className="flex gap-2">
+                  <span className="shrink-0 tabular-nums text-muted-foreground">
+                    Round {sendBack.round}
+                  </span>
+                  <span className="min-w-0">{sendBack.label}</span>
+                </li>
+              ))}
+            </ol>
+          </ScrutinyFact>
+        ) : null}
+      </DescriptionList>
+    </Step>
+  );
+}
+
+/** A particular of the scrutiny span — a narrow term, because the column is narrow. */
+function ScrutinyFact({
+  term,
+  format = "text",
+  children,
+}: {
+  term: string;
+  format?: FactFormat;
+  children: React.ReactNode;
+}) {
+  return (
+    <DescriptionRow className="grid-cols-[6rem_minmax(0,1fr)] gap-3 border-0 py-0">
+      <DescriptionTerm className="text-body-compact">{term}</DescriptionTerm>
+      <DescriptionDetails className={cn("min-w-0 text-body-compact", FORMAT[format])}>
+        {children}
+      </DescriptionDetails>
+    </DescriptionRow>
+  );
+}
+
+function days(count: number): string {
+  return `${count} ${count === 1 ? "day" : "days"}`;
+}
+
+/** How long it has waited here — "same day" rather than a bare zero. */
+function sinceScrutiny(count: number): string {
+  return count === 0 ? "Cleared today" : `${days(count)} since scrutiny`;
+}
+
+/* ─────────────────────────────── the acts ───────────────────────────────── */
+
+/**
+ * The act, as one card that becomes its own outcome — the registrations queue's decision
+ * card, on a page.
+ *
+ * A strip across the top names what is happening; confirming resolves it in place into
+ * what happened, in the status's own muted pair, and the controls under the card change
+ * from Back and the act to where to go next. Nothing translates and nothing unmounts, so
+ * the eye never has to find its place again.
+ *
+ * Send back needs a reason before it will go — the one gate, shown only once it has been
+ * tripped. Register needs nothing but the consequence stated.
+ */
+function ActStage({
+  act,
+  settled,
+  next,
+  onBack,
+  onConfirm,
+}: {
+  act: Act;
+  settled: boolean;
+  next: RegisterCase | null;
+  onBack: () => void;
+  onConfirm: () => void;
+}) {
+  const sending = act === "send-back";
+  const [reason, setReason] = React.useState("");
+  const [touched, setTouched] = React.useState(false);
+  const empty = reason.trim() === "";
+  const stripRef = React.useRef<HTMLParagraphElement>(null);
+  const reasonRef = React.useRef<HTMLTextAreaElement>(null);
+
+  /* Focus follows the stage: into the box when there is one to fill, otherwise onto the
+     strip, which is what just changed. */
+  React.useEffect(() => {
+    if (sending && !settled) reasonRef.current?.focus();
+    else stripRef.current?.focus();
+  }, [sending, settled]);
+
+  function confirm() {
+    if (sending && empty) {
+      setTouched(true);
+      reasonRef.current?.focus();
+      return;
+    }
+    onConfirm();
+  }
+
+  return (
+    <section
+      aria-labelledby="act-strip"
+      className={cn("flex min-w-0 flex-1 flex-col items-center pb-8", SLIDE.forward)}
+    >
+      <div className="flex w-full max-w-xl flex-col gap-4 md:my-auto">
+        <Card size="sm" className="gap-0 border-hairline py-0 shadow-raised">
+          <ActStrip act={act} settled={settled} stripRef={stripRef} />
+
+          <div className="p-4">
+            {sending ? (
+              settled ? (
+                /* The box fills in rather than leaving: the same footprint, holding the
+                   same words, so the card does not collapse as it settles. */
+                <p className="min-h-32 rounded-lg bg-surface-sunken p-3 text-body-compact whitespace-pre-line text-pretty animate-in fade-in-0 duration-500 motion-reduce:animate-none">
+                  {reason}
+                </p>
+              ) : (
+                <Field data-invalid={touched && empty}>
+                  <FieldLabel htmlFor="send-back-reason" className="text-body-compact font-medium">
+                    Why are you sending this back?
+                  </FieldLabel>
+                  <Textarea
+                    id="send-back-reason"
+                    ref={reasonRef}
+                    className="min-h-32 text-body-compact"
+                    placeholder="e.g. The affidavit is not attested. Please ask the advocate to file an attested copy."
+                    value={reason}
+                    onChange={(event) => {
+                      setReason(event.target.value);
+                      setTouched(true);
+                    }}
+                  />
+                  {touched && empty ? <FieldError>Write a reason first.</FieldError> : null}
+                </Field>
+              )
+            ) : (
+              <p className="text-body-compact text-muted-foreground">
+                Registering takes cognizance of the complaint. It cannot be undone from
+                this screen.
+              </p>
+            )}
+          </div>
+        </Card>
+
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          {settled ? (
+            <>
+              <Button asChild variant={next ? "ghost" : "default"}>
+                <Link href={QUEUE_HREF}>Back to register cases</Link>
+              </Button>
+              {next ? (
+                <Button asChild>
+                  <Link href={`${QUEUE_HREF}/${next.id}`}>Next complaint</Link>
+                </Button>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" onClick={onBack}>
+                Back
+              </Button>
+              <Button type="button" onClick={confirm}>
+                {sending ? "Send back" : "Register"}
+              </Button>
+            </>
+          )}
+        </div>
+
+        {/* Reserved before the act and revealed after it, so nothing below the card
+            moves at the moment the card claims to stay still. */}
+        <p
+          aria-hidden={!settled}
+          className={cn(
+            "text-center text-caption text-pretty text-muted-foreground",
+            settled ? "animate-in fade-in-0 duration-500 motion-reduce:animate-none" : "invisible",
+          )}
+        >
+          {sending
+            ? "Not part of this build — the reason was not sent anywhere."
+            : "Not part of this build — nothing was registered and nobody was told."}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The one thing that changes when the act is performed. Before: white, with a rule under
+ * it, naming what is about to happen. After: the outcome's muted pair — success for
+ * registered, warning for sent back — with a 16px mark and one line. Keyed so the swap
+ * replays its entrance: a fade and a millimetre of fall.
+ */
+function ActStrip({
+  act,
+  settled,
+  stripRef,
+}: {
+  act: Act;
+  settled: boolean;
+  stripRef: React.RefObject<HTMLParagraphElement | null>;
+}) {
+  const sending = act === "send-back";
+  const Mark = sending ? Undo2Icon : CircleCheckIcon;
+
+  return (
+    <div
+      key={settled ? "settled" : "open"}
+      className={cn(
+        "flex items-center gap-2 px-4 py-2.5 animate-in fade-in-0 duration-500 motion-reduce:animate-none",
+        !settled && "border-b border-hairline text-muted-foreground",
+        settled && "slide-in-from-top-1",
+        settled && !sending && "bg-success-muted text-success-muted-foreground",
+        settled && sending && "bg-warning-muted text-warning-muted-foreground",
+      )}
+    >
+      {settled ? <Mark aria-hidden className="size-4 shrink-0" /> : null}
+      <p
+        id="act-strip"
+        ref={stripRef}
+        tabIndex={-1}
+        role={settled ? "status" : undefined}
+        className="text-body-compact font-medium outline-none"
+      >
+        {settled
+          ? sending
+            ? "Sent back to scrutiny"
+            : "Registered"
+          : sending
+            ? "You are sending this back to scrutiny"
+            : "You are registering"}
+      </p>
+    </div>
+  );
+}
+
+/* ─────────────────────────────── the miss ───────────────────────────────── */
+
+/** An id this queue does not hold — a stale link, a typed URL, a complaint gone. */
+function ComplaintMissing() {
+  return (
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col p-6 md:p-8">
+      <Empty className="border-0 p-0">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <FileQuestionIcon aria-hidden />
+          </EmptyMedia>
+          <EmptyTitle className="font-semibold text-title-s">
+            This complaint is not in the register queue
+          </EmptyTitle>
+          <EmptyDescription className="text-body">
+            A complaint opens from the list of those waiting to be registered. This one
+            is not on it.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button asChild>
+            <Link href={QUEUE_HREF}>Back to register cases</Link>
+          </Button>
+        </EmptyContent>
+      </Empty>
+    </div>
+  );
+}
