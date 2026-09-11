@@ -1382,8 +1382,13 @@ the content, as a mark the eye picks up on its way to the values.
   column is renamed to match ("Account type", not "Role") and shows the same pill. So does the
   decision card, beside the registration number, and the phone list. One category, one
   presentation, learned on the list and recognised in the record.
+- **Request type is text, not a pill** *(owner, the same afternoon: "the two pills look a
+  little odd")*. With the account type in a pill, a second pill on every exceptional row
+  read as two tags competing for one glance. The account type is the row's one mark; the
+  request type is a fact, set like the facts beside it, in the table and the phone list
+  alike (it was already text in the record).
 - **Colour answers one question per screen.** Every pill that reports a state — *Pending
-  approval*, *Resubmitted · round N*, *Profile update* — is the DS's neutral `secondary`
+  approval* (the one state pill left) — is the DS's neutral `secondary`
   (neutral-5, the warm grey the owner described). The only pills with a hue are the account
   type's. D7's coloured request-type chips (owner, round one) are reversed by the owner here.
 - **The two hues.** With the states neutral, `warning` still means the wait escalation and a
@@ -1776,6 +1781,7 @@ dependency here. Request #9 stands on its own merits for the screens that raised
 | **2026-09-10 (evening)** | **D16 added.** Request metadata is its own attribute group, not header prose; the application number stays in the header description and is not repeated; the advocate's name **leaves** the header, because printing a value under verification as the record's title asserts it. | ux-designer |
 | **2026-09-10 (evening)** | **D9 and D11 corrected for two parallel cross-cutting changes** — search filters as you type (the Search button goes away app-wide) and the whole table row becomes the click target. The queue page therefore has **no page-level primary**, which is what D9 argued was correct all along; the "teal on the queue page is Search" line is void, and two code comments asserting it must change with the rebuild. | orchestrator / ux-designer |
 | **2026-09-10 (evening)** | **§6 clarified** so the brief cannot be read as rejecting structure wholesale: the officer's rejection reason stays free text (`REG-22`) because it is *user data in a consistent slot*; what was rejected is *product copy narrating machine results*. Reason chips remain cut; a per-attribute rejection is filed as §12.10 for the owner to decide. | ux-designer |
+| **2026-09-11 (request type as text)** | Request type drops its pill in the queue and the phone list — owner: "the two pills look a little odd". Account type is the row's only pill. Owner signed off the rest of D34 as built. | owner |
 | **2026-09-11 (account-type pill)** | **Account type is a pill, read first** (D34): first row of the Request group, the queue's renamed column, the decision card and the phone list, all the same pill — Advocate `info`, Clerk `success`. Every state pill (*Pending approval*, *Resubmitted*, *Profile update*) goes neutral `secondary`; colour now means account type only. D7's coloured request-type chips reversed. D33's title kept as the accessible name, no longer the signal. | owner (direction) / orchestrator |
 | **2026-09-11 (role in the title)** | **D32's role mark reversed** (D33): the owner had to hunt for it, and the table's lone icon column read as cheap. The role now leads every stage title — *Review clerk registration*, *Approve clerk registration?*, *Clerk registration approved* — and every other mention is plain text. Header description back to the application number alone. `role-mark.tsx` deleted. | owner (direction) / orchestrator |
 | **2026-09-11 (role mark)** | **Advocate and clerk get a signifier** (D32): "Clerk" replaces "Advocate clerk"; a role mark — briefcase / clipboard, neutral for advocates and `info` for clerks — as a tile beside the dialog title on every stage and as a glyph in the Role column, the phone list and the decision card's identity line. The Role row leaves the Request group for the header. The rejection placeholder now names the clerk ID card for clerks. DS gap filed for a categorical identity tint (§13). | owner (direction) / orchestrator |
