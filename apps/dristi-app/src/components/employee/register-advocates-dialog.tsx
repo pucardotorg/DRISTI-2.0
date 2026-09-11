@@ -54,6 +54,7 @@ import {
   registrantNoun,
   rejectionRows,
   requestRows,
+  roleLabel,
   type AdvocateRegistration,
   type ComparisonBlock,
   type FactRow,
@@ -659,8 +660,15 @@ function DecisionStage({
           >
             {request.fullName}
           </p>
-          <p className="font-mono text-body-compact tabular-nums text-muted-foreground">
-            {request.barRegistrationId}
+          {/* The role before the number, because the number means nothing until you know
+              which register it belongs to — and on this stage the officer is about to grant
+              exactly one of the two credentials. */}
+          <p className="text-body-compact text-muted-foreground">
+            {roleLabel(request.registrantKind)}
+            {" · "}
+            <span className="font-mono tabular-nums">
+              {request.registrationNumber}
+            </span>
           </p>
         </div>
         {/* **The card the decision turns on, at a size that can carry it.** Twice sized up

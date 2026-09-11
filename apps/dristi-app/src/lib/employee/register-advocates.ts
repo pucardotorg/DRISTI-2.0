@@ -49,15 +49,19 @@ import { parseIsoDay } from "./hearings";
 import type { RegisteredAdvocate } from "@/lib/filing/registry";
 
 /**
- * Who is registering.
+ * Who is asking — an advocate or an advocate's clerk (handover §5, `REG-13a`/`REG-14a`).
  *
- * `REG-13a` / `REG-14a` put **clerk** registrations through the same scrutiny-officer
- * approval with their own identifier and their own ID card, and the owner named only
- * advocates. So the distinction lives in the row from the start and every label is read
- * off it — but no column and no filter ships for it while every row says "advocate",
- * because a column whose every cell reads the same is the exact defect this screen's
- * predecessor had (brief D13). The day clerks join, the constant becomes a real
- * distinction and the column earns its place then.
+ * Both self-register and both wait for the same scrutiny officer, with the same five
+ * values in the same order. What differs is words and one absence: a clerk gives a **clerk
+ * registration number** and a **photo of their clerk ID card** where an advocate gives the
+ * Bar ones, and nothing looks a clerk up — `REG-13`'s Bar Council lookup is an advocate
+ * requirement, and the handover names no register for clerks. So a clerk's `lookup` is
+ * `none`, and the overlay says nothing about a register rather than inventing one.
+ *
+ * Until 2026-09-11 every row here was an advocate and this distinction lived in the model
+ * with no column, because a column whose every cell reads the same is the defect D4 was
+ * written against. Clerks joining the queue is what that paragraph was waiting for: the
+ * constant became a real distinction, and the Role column came back as a real one.
  */
 export type RegistrantKind = "advocate" | "clerk";
 
@@ -76,7 +80,7 @@ export type RegistrantKind = "advocate" | "clerk";
 export type RequestKind = "first" | "edited" | "resubmission";
 
 /** The four claim fields the registration flow collects — `REG-10`, `REG-12`, `REG-13`, `REG-15`. */
-export type ClaimField = "fullName" | "barRegistrationId" | "mobile" | "email";
+export type ClaimField = "fullName" | "registrationNumber" | "mobile" | "email";
 
 /**
  * One value the holder of a pre-created account changed at first login (`REG-18`).
@@ -147,7 +151,14 @@ export type BarCouncilLookup =
   /** The number is not in the register. Ordinary — see above. */
   | { state: "no-entry" }
   /** The register could not be reached. **The decision is not blocked.** */
-  | { state: "not-checked" };
+  | { state: "not-checked" }
+  /**
+   * Nothing is looked up for this registrant — a clerk, for whom the handover names no
+   * register (`REG-13a`). Distinct from `not-checked`, which is a register that exists and
+   * did not answer: saying "could not be reached" about a register that was never asked
+   * would put a system failure on a request that has none.
+   */
+  | { state: "none" };
 
 export type AdvocateRegistration = {
   id: string;
@@ -167,7 +178,7 @@ export type AdvocateRegistration = {
    */
   fullNameLang?: string;
   /** `REG-13`. The claim under verification, and the second thing an officer searches by. */
-  barRegistrationId: string;
+  registrationNumber: string;
   /** `REG-10` — OTP-verified, and the account's primary key (`REG-07`). */
   mobile: string;
   /** `REG-15` — optional. Absent, not empty: the claim block omits the row entirely. */
@@ -234,12 +245,36 @@ export function formatRegistrationLongDate(day: string): string {
 
 /** What this registrant's identifier is called (brief D13). */
 export function registrationIdLabel(kind: RegistrantKind): string {
-  return kind === "clerk" ? "Clerk registration number" : "Bar registration ID";
+  /* "Bar registration **number**", which is what the advocate's own sign-up form calls it
+     (`verificationSteps.advocate.numberLabel`), and which now reads as a pair with the
+     clerk's "Clerk registration number" rather than as a different kind of thing. */
+  return kind === "clerk" ? "Clerk registration number" : "Bar registration number";
 }
 
 /** What the photograph is called (`REG-14` / `REG-14a`). */
 export function idPhotoLabel(kind: RegistrantKind): string {
   return kind === "clerk" ? "Photo of clerk ID card" : "Photo of Bar ID card";
+}
+
+/**
+ * The section's name — the screen heading, the browser tab and the rail row read this one
+ * string, so they cannot drift (owner, 2026-09-11: "Register advocates" named half a
+ * queue that now holds clerks too). See the heading in `RegisterAdvocatesScreen` for why
+ * these two words.
+ *
+ * The route and the file names still say `register-advocates`. Renaming them is a
+ * mechanical change with links and a parallel session's navigation work in its way, so it
+ * is left for a quiet moment rather than folded into a copy change (brief §11).
+ */
+export const APPROVE_REGISTRATIONS_TITLE = "Approve registrations";
+
+/**
+ * What the person is registering as — the label they chose on the sign-up's first step
+ * (`roleStep.advocate` / `roleStep.advocateClerk` in `lib/registration/content.ts`), so
+ * the officer's column and the applicant's choice are the same word.
+ */
+export function roleLabel(kind: RegistrantKind): string {
+  return kind === "clerk" ? "Advocate clerk" : "Advocate";
 }
 
 /** The noun for the person, in a sentence. */
@@ -425,6 +460,16 @@ function sameValue(a: string, b: string): boolean {
  */
 export function requestRows(request: AdvocateRegistration): FactRow[] {
   const rows: FactRow[] = [
+    /* First, because it decides how everything under it is read: which registration
+       number this is, which card the photograph should be, and whether a register was
+       ever going to be asked. The queue mixes both kinds now, so the officer needs it on
+       every request — not only the exceptional ones. */
+    {
+      id: "role",
+      term: "Role",
+      value: roleLabel(request.registrantKind),
+      format: "text",
+    },
     {
       id: "submitted",
       term: "Submitted",
@@ -543,6 +588,7 @@ export function registerAnswer(
   request: AdvocateRegistration,
 ): RegisterAnswer | null {
   const { lookup } = request;
+  if (lookup.state === "none") return null;
   if (lookup.state === "no-entry") return "no-entry";
   if (lookup.state === "not-checked") return "not-checked";
   return sameValue(lookup.entry.name, request.fullName) ? null : "differs";
@@ -610,9 +656,9 @@ export function identityRows(request: AdvocateRegistration): FactRow[] {
       format: "text",
     },
     {
-      id: "barRegistrationId",
+      id: "registrationNumber",
       term: registrationIdLabel(request.registrantKind),
-      value: request.barRegistrationId,
+      value: request.registrationNumber,
       format: "code",
     },
     {
@@ -824,7 +870,7 @@ const PENDING: AdvocateRegistration[] = [
     /* The long one. Four given names and a title, which is ordinary in this bar and
        wraps every column it is put in. */
     fullName: "Fathima Beevi Abdul Rahman Kunju Rawther",
-    barRegistrationId: "KL/1109/2009",
+    registrationNumber: "KL/1109/2009",
     mobile: "9847116620",
     email: "fathimabeevi.rawther@example.com",
     photo: { src: PALE_CARD, filename: "bar-id-kl-1109-2009.jpg" },
@@ -873,7 +919,7 @@ const PENDING: AdvocateRegistration[] = [
     applicationNumber: "KL-ADV-000164-2026",
     fullName: "അനിൽകുമാർ പി. നായർ",
     fullNameLang: "ml",
-    barRegistrationId: "KL/0873/2004",
+    registrationNumber: "KL/0873/2004",
     mobile: "9446203318",
     photo: { src: CARD, filename: "bar-id-kl-0873-2004.jpg" },
     daysWaiting: 19,
@@ -887,7 +933,7 @@ const PENDING: AdvocateRegistration[] = [
     id: "adv-181",
     applicationNumber: "KL-ADV-000181-2026",
     fullName: "Meera Suresh",
-    barRegistrationId: "KL/3312/2021",
+    registrationNumber: "KL/3312/2021",
     mobile: "9895447120",
     email: "meera.suresh@example.com",
     photo: { src: CARD, filename: "bar-id-kl-3312-2021.jpg" },
@@ -913,7 +959,7 @@ const PENDING: AdvocateRegistration[] = [
     id: "adv-184",
     applicationNumber: "KL-ADV-000184-2026",
     fullName: "Sandeep Deshmukh",
-    barRegistrationId: "MAH/2201/2010",
+    registrationNumber: "MAH/2201/2010",
     mobile: "9820114576",
     email: "sandeep.deshmukh@example.com",
     photo: { src: CARD, filename: "bar-id-mah-2201-2010.jpg" },
@@ -936,7 +982,7 @@ const PENDING: AdvocateRegistration[] = [
        name at first login — so this row is both `changed` and `differs`, which is the
        case the overlay has to hold two chips for. */
     fullName: "Thomas Kurian Varghese",
-    barRegistrationId: "KL/3077/2020",
+    registrationNumber: "KL/3077/2020",
     /* REG-18: the account was auto-created from the Bar Council record and he changed
        three things at first login. The officer verifies the change, not the record. */
     mobile: "9895204471",
@@ -966,7 +1012,7 @@ const PENDING: AdvocateRegistration[] = [
     applicationNumber: "KL-ADV-000196-2026",
     fullName: "ഷൈലജ രാമകൃഷ്ണൻ",
     fullNameLang: "ml",
-    barRegistrationId: "KL/2306/2016",
+    registrationNumber: "KL/2306/2016",
     mobile: "9744810352",
     photo: { src: PALE_CARD, filename: "bar-id-kl-2306-2016.jpg" },
     daysWaiting: 6,
@@ -988,7 +1034,7 @@ const PENDING: AdvocateRegistration[] = [
     id: "adv-198",
     applicationNumber: "KL-ADV-000198-2026",
     fullName: "Nazeer Muhammed",
-    barRegistrationId: "KL/2140/2015",
+    registrationNumber: "KL/2140/2015",
     mobile: "9961227804",
     email: "nazeer.muhammed@example.com",
     /* The photograph that will not open. The well says so in words and keeps Download
@@ -1019,7 +1065,7 @@ const PENDING: AdvocateRegistration[] = [
     id: "adv-201",
     applicationNumber: "KL-ADV-000201-2026",
     fullName: "Prakash Vaidya",
-    barRegistrationId: "G/60/1992",
+    registrationNumber: "G/60/1992",
     mobile: "9825031147",
     photo: { src: CARD, filename: "bar-id-g-60-1992.jpg" },
     daysWaiting: 4,
@@ -1040,7 +1086,7 @@ const PENDING: AdvocateRegistration[] = [
     fullName: "Aparna Krishnan",
     /* The longest identifier on the screen, and from another state's bar — the column is
        sized off this rather than off Kerala's short form. */
-    barRegistrationId: "KAR/12453/2018",
+    registrationNumber: "KAR/12453/2018",
     mobile: "9880412206",
     email: "aparna.krishnan@example.com",
     photo: { src: CARD, filename: "bar-id-kar-12453-2018.jpg" },
@@ -1055,7 +1101,7 @@ const PENDING: AdvocateRegistration[] = [
     id: "adv-204",
     applicationNumber: "KL-ADV-000204-2026",
     fullName: "Vishnu Prasad",
-    barRegistrationId: "KL/2588/2017",
+    registrationNumber: "KL/2588/2017",
     mobile: "9847339015",
     photo: { src: CARD, filename: "bar-id-kl-2588-2017.jpg" },
     daysWaiting: 3,
@@ -1074,7 +1120,7 @@ const PENDING: AdvocateRegistration[] = [
     id: "adv-206",
     applicationNumber: "KL-ADV-000206-2026",
     fullName: "Ritu Sabharwal",
-    barRegistrationId: "D/1450/2013",
+    registrationNumber: "D/1450/2013",
     mobile: "9810226741",
     email: "ritu.sabharwal@example.com",
     photo: { src: CARD, filename: "bar-id-d-1450-2013.jpg" },
@@ -1094,7 +1140,7 @@ const PENDING: AdvocateRegistration[] = [
     id: "adv-207",
     applicationNumber: "KL-ADV-000207-2026",
     fullName: "Joseph Mathew",
-    barRegistrationId: "KL/1877/2014",
+    registrationNumber: "KL/1877/2014",
     mobile: "9605178432",
     photo: { src: CARD, filename: "bar-id-kl-1877-2014.jpg" },
     daysWaiting: 2,
@@ -1113,7 +1159,7 @@ const PENDING: AdvocateRegistration[] = [
     id: "adv-209",
     applicationNumber: "KL-ADV-000209-2026",
     fullName: "Sreelakshmi Pillai",
-    barRegistrationId: "KL/1533/2012",
+    registrationNumber: "KL/1533/2012",
     mobile: "9497260813",
     email: "sreelakshmi.pillai@example.com",
     photo: { src: CARD, filename: "bar-id-kl-1533-2012.jpg" },
@@ -1133,7 +1179,7 @@ const PENDING: AdvocateRegistration[] = [
     id: "adv-211",
     applicationNumber: "KL-ADV-000211-2026",
     fullName: "Deepak Menon",
-    barRegistrationId: "KL/0421/2004",
+    registrationNumber: "KL/0421/2004",
     mobile: "9846015529",
     photo: { src: CARD, filename: "bar-id-kl-0421-2004.jpg" },
     daysWaiting: 1,
@@ -1147,6 +1193,68 @@ const PENDING: AdvocateRegistration[] = [
         bar: KERALA,
       },
     },
+  },
+
+  /* ─── Advocate clerks (`REG-13a`, `REG-14a`) ───────────────────────────────────────
+     Same five values, their own identifier, their own card, and **no lookup** — the
+     handover names no register for clerks. Application numbers take the sign-up's own
+     `KL-CLERK-` series (`registration-flow.tsx`, `applicationId`). No clerk is an
+     `edited` request: `REG-17`/`REG-18` pre-create accounts from the Bar Council
+     database, which holds advocates.
+
+     **The registration-number format is a placeholder.** The sign-up's clerk field has
+     no example ("Your clerk registration number") where the advocate's shows
+     "K/1234/2020", so there is no source to copy. `CLK/serial/year` is shaped like the
+     Bar numbers so the column sizes sensibly; it is not a claimed format (brief §12.12). */
+  {
+    id: "clk-187",
+    applicationNumber: "KL-CLERK-000187-2026",
+    fullName: "Sreejith Ramachandran",
+    registrationNumber: "CLK/1522/2016",
+    mobile: "9447381206",
+    email: "sreejith.r@example.com",
+    photo: { src: CARD, filename: "clerk-id-clk-1522-2016.jpg" },
+    daysWaiting: 13,
+    registrantKind: "clerk",
+    requestKind: "resubmission",
+    lookup: { state: "none" },
+    rejections: [
+      {
+        round: 1,
+        daysAgo: 20,
+        reason:
+          "The registration number on your clerk ID card cannot be read. Please upload a clearer photo.",
+      },
+    ],
+  },
+  {
+    id: "clk-192",
+    applicationNumber: "KL-CLERK-000192-2026",
+    fullName: "Rajesh Kumar Pillai",
+    registrationNumber: "CLK/2143/2018",
+    mobile: "9895462017",
+    email: "rajesh.pillai@example.com",
+    photo: { src: CARD, filename: "clerk-id-clk-2143-2018.jpg" },
+    daysWaiting: 9,
+    registrantKind: "clerk",
+    requestKind: "first",
+    lookup: { state: "none" },
+  },
+  {
+    id: "clk-210",
+    applicationNumber: "KL-CLERK-000210-2026",
+    /* A clerk's name in Malayalam script, so the Role column and the name column are
+       exercised together on a row that is taller than its neighbours. No email: `REG-15`
+       is optional for clerks as for advocates. */
+    fullName: "സുമ ബാലകൃഷ്ണൻ",
+    fullNameLang: "ml",
+    registrationNumber: "CLK/0876/2021",
+    mobile: "9072518834",
+    photo: { src: PALE_CARD, filename: "clerk-id-clk-0876-2021.jpg" },
+    daysWaiting: 3,
+    registrantKind: "clerk",
+    requestKind: "first",
+    lookup: { state: "none" },
   },
 ];
 
@@ -1244,7 +1352,7 @@ export function filterRegistrations(
     matchesQuery(
       filters.query,
       request.fullName,
-      request.barRegistrationId,
+      request.registrationNumber,
       request.applicationNumber,
     ),
   );

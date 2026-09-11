@@ -12,7 +12,10 @@ import { APPROVE_COPY_QUEUE_COUNT } from "./approve-copy-application";
 import { DELAY_CONDONATION_QUEUE_COUNT } from "./delay-condonation";
 import { hearingById, TODAYS_HEARING_COUNT } from "./hearings";
 import { OTHER_APPLICATIONS_QUEUE_COUNT } from "./other-applications";
-import { REGISTER_ADVOCATES_QUEUE_COUNT } from "./register-advocates";
+import {
+  APPROVE_REGISTRATIONS_TITLE,
+  REGISTER_ADVOCATES_QUEUE_COUNT,
+} from "./register-advocates";
 import { registerCaseById, REGISTER_QUEUE_COUNT } from "./register-cases";
 import { findFiling, SCRUTINY_QUEUE_COUNT } from "./scrutiny/queue";
 import { RESCHEDULING_QUEUE_COUNT } from "./rescheduling-request";
@@ -184,7 +187,7 @@ export const COURT_NAV_GROUPS: CourtNavGroup[] = [
          share the group with it. */
       {
         id: "register-advocates",
-        label: "Register advocates",
+        label: APPROVE_REGISTRATIONS_TITLE,
         href: "/employee/register-advocates",
         count: REGISTER_ADVOCATES_QUEUE_COUNT,
       },

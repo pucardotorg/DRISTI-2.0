@@ -1,4 +1,7 @@
-# Register advocates
+# Approve registrations
+
+*(Formerly "Register advocates". Renamed 2026-09-11 when advocate clerks joined the queue —
+D31. The route and this file keep the old slug for now; §11.)*
 
 Status: draft — **the decision overlay is being rebuilt.** The queue screen shipped
 (`f453fd1`); the owner rejected what is inside the overlay on 2026-09-10 and this brief
@@ -415,6 +418,9 @@ point.
 
 ### D4 — Queue columns: application number, name, Bar registration ID, request type, days waiting
 
+> **Amended 2026-09-11 (D31):** six columns now — Role returned beside the name, and "Bar
+> registration ID" became "Registration number" because it holds clerks' numbers too.
+
 *(Unchanged in substance. One amendment: with the whole row now the click target (§1), the
 application number is no longer the row's only opener — it stays the row's first cell and
 the start of the row's accessible name.)*
@@ -674,6 +680,10 @@ complaint's own progression, and an advocate's registration is not part of any c
 *Judgment.*
 
 ### D13 — Built so clerks can be added later without restructuring
+
+> **Tested 2026-09-11 (D31): clerks were added, and the claim held.** The overlay needed no
+> new block, no new state and no new sentence — one lookup state (`none`), one row (Role)
+> and one column (Role). The "no User Type column" line below is superseded.
 
 *(Unchanged, and strengthened by D2.)* `REG-13a`/`REG-14a` put clerk registrations through
 the same approval. The row model carries a `kind`, and every **term** in the attribute list
@@ -1206,6 +1216,67 @@ product or a Kerala court uses, so the mark would be invented for half the queue
 *Rule:* owner 2026-09-11; DS Laws (description list for a record's fields; nested media
 well inside a card); ui-craft §5 (the Chanel pass).
 
+### D31 — **New.** Advocate clerks join the queue, and the section is renamed for both
+
+Owner, 2026-09-11: *"this is not just for registering advocates. It can also be used to
+register clerks… some of the things like their bar ID may not be relevant for a clerk… If
+you look in the sign-up view, you will see what kind of information we are collecting for a
+clerk… Register Advocates is not the right term for this section."* The filter was
+explicitly deferred: a product-wide pattern for grouping filters is coming.
+
+**What a clerk submits** — read off the sign-up (`lib/registration/content.ts`,
+`verificationSteps.advocateClerk`) and the handover (§5.1): the same five values as an
+advocate, in the same order, with two of them renamed. A **clerk registration number**
+(`REG-13a`) instead of a Bar registration number, and a **photo of the clerk ID card**
+(`REG-14a`) instead of the Bar ID card. Nothing else is collected, so nothing else is shown.
+
+**What a clerk does not have** — a register. `REG-13`'s Bar Council lookup is an advocate
+requirement and the handover names none for clerks, so a clerk's lookup is a new state,
+`none`, which renders nothing. It is deliberately not `not-checked`: "could not be reached"
+about a register that was never asked would put a system failure on a request that has
+none. And no clerk is a *Profile update* — `REG-17`/`REG-18` pre-create accounts from the
+Bar Council database, which holds advocates.
+
+**The screen, changed at four points and no others:**
+
+- **Role**, first in the Request group and as a column beside the name, with the sign-up's
+  own two values: *Advocate*, *Advocate clerk*. First because it decides how everything
+  after it is read — which number, which card, whether a register was ever asked. Filled on
+  every row, the norm included: an empty Role cell would mean nothing in a column where both
+  values are ordinary (unlike Request type, whose blank plainly means "first
+  registration").
+- **"Registration number"** as the column header; the overlay keeps the specific term per
+  row. The advocate's term became **"Bar registration number"**, the sign-up's own word, so
+  the two read as a pair.
+- **The decision card** reads *Advocate clerk · CLK/1522/2016* under the name — the number
+  means nothing until you know which register it belongs to, and on that stage the officer
+  is about to grant exactly one of the two credentials.
+- **Copy that assumed an advocate** — header count, both empty states, the search
+  placeholder — now counts and names *registrations*.
+
+**The title is "Approve registrations".** Verb and object, like every row in the Actions
+group ("Register cases", "Approve copy application"), and *approve* because it is the word
+the screen already speaks in — *Pending approval*, *Confirm approval*, *waiting for
+approval*. The officer rejects here too, the way they refuse copies under "Approve copy
+application"; the group names each queue by what it exists to grant. "Registrations" rather
+than "accounts" because it is the thing waiting — an account does not exist until this
+screen approves one. One constant (`APPROVE_REGISTRATIONS_TITLE`) feeds the heading, the
+browser tab and the rail row, so the three cannot disagree.
+
+*Rejected:* "Verify registrations" — names the work well but not the outcome the rest of the
+screen is written around; "Register advocates & clerks" — long, and the next registrant
+type would rename it again.
+
+**Measured:** six columns came to 935px in the 910px panel at 1280, the narrowest width the
+table is shown at, and the column pushed off the edge was *Days waiting* — the one the queue
+is read by. The Full name column's floor dropped from `min-w-48` to `min-w-40`; it wraps by
+design and never truncates, so the cost is a line on the longest names. It now fits with
+~7px to spare, which is thin — a seventh column would need the table→list swap to move to
+`2xl`.
+
+*Rule:* owner 2026-09-11; handover §5.1 `REG-13a`, `REG-14a`, §5.2 `REG-17`/`REG-18`;
+`lib/registration/content.ts` for every label.
+
 ## 6. What I cut (and why)
 
 **Read this first, because the critique could be misread as "add structure everywhere":**
@@ -1391,6 +1462,12 @@ the data rather than only in this table.
 
 ## 11. Risks accepted
 
+- **The slug still says `register-advocates`** (2026-09-11). The section is "Approve
+  registrations" everywhere a person reads it; the route, the component and module names,
+  and this file keep the old slug. Renaming them is mechanical, but it moves a URL the owner
+  reviews on and touches the rail module a parallel session works in, so it is left for a
+  quiet moment rather than folded into a copy change.
+
 - **No bulk path.** Clearing a large queue is slow by construction (D9). Accepted; the
   alternative voids the only identity check the product has.
 - **Deep links lost.** No URL per request (D1). Accepted.
@@ -1498,6 +1575,16 @@ is never anything but silent and neither the Request row nor the comparison tabl
 What product has to settle is whether the court is entitled to assert a mismatch against a
 register at all — and, if so, whose register and how current.
 
+### 12.12 — What does a clerk registration number look like, and is there a register? **[PRODUCT]**
+
+The sign-up's clerk field gives no example ("Your clerk registration number") where the
+advocate's shows "K/1234/2020", and the handover names no issuing body. The demo's
+`CLK/serial/year` is shaped like the Bar numbers so the column sizes sensibly — **it is not a
+claimed format.** Two answers are needed: the real format (it drives the column width and
+search), and whether any register can be consulted for clerks. If one can, the `none` lookup
+becomes a real one and `registerCheckTerm("clerk")` — "Clerk register check" — already
+exists to name it.
+
 ## 13. Gaps in the DS (if any)
 
 **None filed, and the attribute row is not one.** The row is
@@ -1554,6 +1641,7 @@ dependency here. Request #9 stands on its own merits for the screens that raised
 | **2026-09-10 (evening)** | **D16 added.** Request metadata is its own attribute group, not header prose; the application number stays in the header description and is not repeated; the advocate's name **leaves** the header, because printing a value under verification as the record's title asserts it. | ux-designer |
 | **2026-09-10 (evening)** | **D9 and D11 corrected for two parallel cross-cutting changes** — search filters as you type (the Search button goes away app-wide) and the whole table row becomes the click target. The queue page therefore has **no page-level primary**, which is what D9 argued was correct all along; the "teal on the queue page is Search" line is void, and two code comments asserting it must change with the rebuild. | orchestrator / ux-designer |
 | **2026-09-10 (evening)** | **§6 clarified** so the brief cannot be read as rejecting structure wholesale: the officer's rejection reason stays free text (`REG-22`) because it is *user data in a consistent slot*; what was rejected is *product copy narrating machine results*. Reason chips remain cut; a per-attribute rejection is filed as §12.10 for the owner to decide. | ux-designer |
+| **2026-09-11 (clerks)** | **Advocate clerks join the queue; the section is renamed "Approve registrations"** (D31). Clerks read off the sign-up and the handover: same five values, a clerk registration number and clerk ID card, no register (new `none` lookup state) and never a profile update. Role returns as a column and as the first Request row; the number column becomes "Registration number"; the advocate term aligns to the sign-up's "Bar registration number"; the decision card shows the role before the number. Three demo clerks added. Name column floor lowered after six columns measured 25px over at 1280. Filter explicitly deferred by the owner pending the product-wide filter pattern. D4 and D13 amended; §12.12 and a slug risk opened. | owner (direction) / orchestrator |
 | **2026-09-11 (design-mode round 6)** | **Three comments, one offer.** The edit comparison returns as an open section under Request; the type reads "Profile update" in the overlay and the queue chip alike; the register finding names the attribute ("Full name does not match") and opens two aligned rows instead of a one-row table; the ID card becomes a 160px band across the decision card with real alt text (D30). The owner's initials-badge idea declined, with reasons, at their invitation. D23 amended. | owner (direction) / orchestrator |
 | **2026-09-11 (design-mode round 5)** | **Four corrections.** The settled strip reports the account (created / rejected), not the byproduct; the reject label returns to body-compact and takes a 16px destructive mark instead of size; the decision card lifts at rest and its header strip goes white with a rule, after the old `surface-sunken` strip measured 1.01:1 against the stage; the ID card photograph goes to 80×128 `object-contain` (D28). "View next application" stopped remounting `Dialog.Content` — the abruptness was Radix's open animation replaying — and a new record now rises and fades in its own motion, with focus sent to the fact column (D29). | owner (direction) / orchestrator |
 | **2026-09-11 (design-mode round 4)** | **One note, three complaints.** Confirming and having confirmed became one card that resolves in place — five stages, three scenes, no remount and no slide between the act and its outcome (D27). The settled state lost its 48px disc and title-size ink line for a 16px mark on a muted strip; the reject composer lost its red heading; the semantics of green and red survive at lower volume. The Bar ID photograph joins the card as a thumbnail, and the settled card keeps the rows it had a moment before. D21 and D25 amended. | owner (direction) / orchestrator |
