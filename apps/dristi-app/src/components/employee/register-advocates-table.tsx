@@ -7,7 +7,6 @@ import {
   tableBodyClass,
   tableRowClass,
 } from "@/components/chrome/table-plate";
-import { RoleGlyph } from "@/components/employee/role-mark";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -169,21 +168,13 @@ export function RegisterAdvocatesTable({
               >
                 {request.fullName}
               </TableCell>
-              {/* The role's mark and its word — not a chip, because it is a category and
-                  not a status, and the row's one chip is still the request type. The mark
-                  is what makes the column scannable: a briefcase or a clipboard, and a
-                  clipboard in the info ink, so the clerks in a long queue are found by
-                  looking rather than reading (see `RoleGlyph`). */}
-              <TableCell
-                className={cn(
-                  TABLE_CELL,
-                  "whitespace-nowrap text-muted-foreground",
-                )}
-              >
-                <span className="inline-flex items-center gap-1.5">
-                  <RoleGlyph kind={request.registrantKind} />
-                  {roleLabel(request.registrantKind)}
-                </span>
+              {/* Plain text, set like the registration number beside it. It had a glyph for
+                  one round, and a single column wearing icons in a table of plain values read
+                  as the odd one out rather than as a signal (owner, 2026-09-11). What tells a
+                  clerk from an advocate at a glance is the word itself — the two differ from
+                  their first letter — and, once a request is open, the dialog's title. */}
+              <TableCell className={cn(TABLE_CELL, "whitespace-nowrap")}>
+                {roleLabel(request.registrantKind)}
               </TableCell>
               <TableCell
                 className={cn(TABLE_CELL, "tabular-nums whitespace-nowrap")}

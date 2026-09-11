@@ -1278,7 +1278,11 @@ design and never truncates, so the cost is a line on the longest names. It now f
 *Rule:* owner 2026-09-11; handover §5.1 `REG-13a`, `REG-14a`, §5.2 `REG-17`/`REG-18`;
 `lib/registration/content.ts` for every label.
 
-### D32 — **New.** Advocate and clerk look different before they are read
+### D32 — **Superseded by D33.** Advocate and clerk look different before they are read
+
+> **Reversed the same afternoon.** The mark below failed on the render: the owner had to
+> *"literally hunt for where this information is"*, and the table's lone icon column read
+> as cheap. D33 records why, and what replaced it. Kept for the reasoning, not the build.
 
 Owner, 2026-09-11, mid-build: *"instead of saying Advocate Clerk, it should just say Clerk,
 because it'll be easier to scan."* And: *"when I click into an item, I want a very visual
@@ -1319,6 +1323,45 @@ clerk. It now names the right card (`idCardName`).
 competed with the settled state's green and red on the same element; a Badge per role in
 the header — two chips side by side (state and role) read as two statuses, and the role is
 not one.
+
+### D33 — **New.** The role is in the title, and nowhere as an ornament
+
+Owner, 2026-09-11, on D32 as built: *"I don't think it's evident enough… I had to
+literally hunt for where this information is. I think it needs a little bit more rethinking
+on how it can be shown more explicitly. I don't like the icons being used also, and how
+it's getting shown in the table view. It looks very cheap because that's the only column
+with an icon."*
+
+**Why the mark failed, stated so it is not tried again.** A signal placed *beside* the
+thing people read is a signal they have to go and find. The tile sat left of a generic
+title and the word sat in the small line under it, so the one line every officer reads on
+every stage — the title — said nothing about the role. Colour and shape did their job as
+decoration and failed as information. And in the table, one column of icons among five of
+plain values reads as the odd one out, not as a signal: the treatment was local to one
+column, which is the "new unique way" the owner has flagged three times.
+
+**What replaced it.** The role goes **into the title**, on every stage:
+
+- *Review advocate registration* / *Review clerk registration*
+- *Approve clerk registration?* · *Reject clerk registration?*
+- *Clerk registration approved* · *Clerk registration rejected*
+
+It is read as part of the question the officer is answering, at title size, before anything
+else on the screen; a screen reader gets it as the dialog's name. No icon and no colour, so
+nothing depends on either, and a third registrant type costs a noun.
+
+**Everything else goes plain.** The Role column is text set like the registration number
+beside it. The phone list's caption is text. The header description returns to the
+application number alone (D16) — with the role in the title, saying it there too would be
+one fact twice in one header. The decision card keeps "Clerk · CLK/2143/2018" under the name,
+because there the word is doing a different job: naming which register the number belongs
+to. `role-mark.tsx` is deleted.
+
+**The DS gap filed with D32 stands** (§13) — it is still true that the system has no
+categorical identity tint — but this screen no longer needs one.
+
+*Rule:* owner 2026-09-11; ui-craft §2 (one presentation per data type across siblings);
+the owner's recurring *"a new unique way of implementing"* objection.
 
 ## 6. What I cut (and why)
 
@@ -1630,8 +1673,8 @@ exists to name it.
 
 ## 13. Gaps in the DS (if any)
 
-**Filed 2026-09-11: a categorical tint for identity.** D32 needed two roles to differ in
-colour, and the DS has no sanctioned family for it: `chart-1…5` are solids that AGENTS.md
+**Filed 2026-09-11: a categorical tint for identity.** *(D33 no longer needs it on this
+screen; the gap is still real.)* D32 needed two roles to differ in colour, and the DS has no sanctioned family for it: `chart-1…5` are solids that AGENTS.md
 scopes to data visualisation ("never status", and by implication never UI identity), with
 no muted pair, so a pale tile would have to be faked with an opacity modifier — which rule
 6 forbids. The build borrows `info` for clerks and leaves advocates neutral, which is
@@ -1694,6 +1737,7 @@ dependency here. Request #9 stands on its own merits for the screens that raised
 | **2026-09-10 (evening)** | **D16 added.** Request metadata is its own attribute group, not header prose; the application number stays in the header description and is not repeated; the advocate's name **leaves** the header, because printing a value under verification as the record's title asserts it. | ux-designer |
 | **2026-09-10 (evening)** | **D9 and D11 corrected for two parallel cross-cutting changes** — search filters as you type (the Search button goes away app-wide) and the whole table row becomes the click target. The queue page therefore has **no page-level primary**, which is what D9 argued was correct all along; the "teal on the queue page is Search" line is void, and two code comments asserting it must change with the rebuild. | orchestrator / ux-designer |
 | **2026-09-10 (evening)** | **§6 clarified** so the brief cannot be read as rejecting structure wholesale: the officer's rejection reason stays free text (`REG-22`) because it is *user data in a consistent slot*; what was rejected is *product copy narrating machine results*. Reason chips remain cut; a per-attribute rejection is filed as §12.10 for the owner to decide. | ux-designer |
+| **2026-09-11 (role in the title)** | **D32's role mark reversed** (D33): the owner had to hunt for it, and the table's lone icon column read as cheap. The role now leads every stage title — *Review clerk registration*, *Approve clerk registration?*, *Clerk registration approved* — and every other mention is plain text. Header description back to the application number alone. `role-mark.tsx` deleted. | owner (direction) / orchestrator |
 | **2026-09-11 (role mark)** | **Advocate and clerk get a signifier** (D32): "Clerk" replaces "Advocate clerk"; a role mark — briefcase / clipboard, neutral for advocates and `info` for clerks — as a tile beside the dialog title on every stage and as a glyph in the Role column, the phone list and the decision card's identity line. The Role row leaves the Request group for the header. The rejection placeholder now names the clerk ID card for clerks. DS gap filed for a categorical identity tint (§13). | owner (direction) / orchestrator |
 | **2026-09-11 (clerks)** | **Advocate clerks join the queue; the section is renamed "Approve registrations"** (D31). Clerks read off the sign-up and the handover: same five values, a clerk registration number and clerk ID card, no register (new `none` lookup state) and never a profile update. Role returns as a column and as the first Request row; the number column becomes "Registration number"; the advocate term aligns to the sign-up's "Bar registration number"; the decision card shows the role before the number. Three demo clerks added. Name column floor lowered after six columns measured 25px over at 1280. Filter explicitly deferred by the owner pending the product-wide filter pattern. D4 and D13 amended; §12.12 and a slug risk opened. | owner (direction) / orchestrator |
 | **2026-09-11 (design-mode round 6)** | **Three comments, one offer.** The edit comparison returns as an open section under Request; the type reads "Profile update" in the overlay and the queue chip alike; the register finding names the attribute ("Full name does not match") and opens two aligned rows instead of a one-row table; the ID card becomes a 160px band across the decision card with real alt text (D30). The owner's initials-badge idea declined, with reasons, at their invitation. D23 amended. | owner (direction) / orchestrator |
