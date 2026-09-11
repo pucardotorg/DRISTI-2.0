@@ -138,11 +138,13 @@ export function RegisterAdvocateDialog({
       }}
     >
       {request ? (
-        /* Keyed on the request so opening the next one starts at Review rather than
-           inheriting this one's stage, its scroll position — or, worse, a rejection reason
-           typed about somebody else. */
+        /* **Deliberately not keyed on the request.** It was, and that made "View next
+           application" tear the whole `Dialog.Content` down and build it again — which
+           replays Radix's own open animation, a 100ms zoom, in the middle of a session
+           that never closed. The owner read exactly that as abrupt (2026-09-11). The body
+           now survives the switch and resets itself instead (see `RequestBody`), so what
+           changes is the record inside a window that stays put. */
         <RequestBody
-          key={request.id}
           request={request}
           next={next}
           onApprove={onApprove}
@@ -217,11 +219,23 @@ const SCENE: Record<Stage, "review" | "approve" | "reject"> = {
  * before the animation starts; `motion-reduce:animate-none` respects the OS setting and
  * leaves a plain swap.
  */
-const SLIDE: Record<"forward" | "back", string> = {
+const SLIDE: Record<Motion, string> = {
   forward:
     "animate-in fade-in-0 slide-in-from-right-8 fill-mode-both duration-300 motion-reduce:animate-none",
   back: "animate-in fade-in-0 slide-in-from-left-8 fill-mode-both duration-300 motion-reduce:animate-none",
+  /**
+   * A different request arriving in the same window.
+   *
+   * Not a slide: nothing progressed, the record was replaced. So it rises and fades over
+   * half a second — long enough to read as a new thing settling in, slow enough that the
+   * officer's eye follows it rather than being startled by it. The distinction is the
+   * point: sideways means "this request moved on", upward means "here is another one".
+   */
+  arrive:
+    "animate-in fade-in-0 slide-in-from-bottom-3 fill-mode-both duration-500 ease-out motion-reduce:animate-none",
 };
+
+type Motion = "forward" | "back" | "arrive";
 
 function RequestBody({
   request,
@@ -239,9 +253,7 @@ function RequestBody({
   onReturnFocus: () => void;
 }) {
   const [stage, setStage] = React.useState<Stage>("review");
-  const [direction, setDirection] = React.useState<"forward" | "back">(
-    "forward",
-  );
+  const [motion, setMotion] = React.useState<Motion>("forward");
   const [reason, setReason] = React.useState("");
   const [touched, setTouched] = React.useState(false);
   const reasonRef = React.useRef<HTMLTextAreaElement>(null);
@@ -249,14 +261,47 @@ function RequestBody({
   /* Where the overlay lands on open — see `onOpenAutoFocus` below. */
   const factsRef = React.useRef<HTMLDivElement>(null);
   const previousStage = React.useRef<Stage>("review");
+  const focusedFor = React.useRef(request.id);
+  const [shownRequest, setShownRequest] = React.useState(request.id);
+
+  /**
+   * A different request, in the same body — the reset a `key` used to do by destroying
+   * everything (React's documented "adjusting state when a prop changes", which runs
+   * during render and re-renders immediately, so nothing stale is ever painted).
+   *
+   * It matters that this is not an effect: the new request must never appear for a frame
+   * wearing the last one's stage, and it must never appear carrying a rejection reason
+   * typed about somebody else.
+   */
+  if (shownRequest !== request.id) {
+    setShownRequest(request.id);
+    setStage("review");
+    setMotion("arrive");
+    setReason("");
+    setTouched(false);
+  }
 
   function go(to: Stage) {
-    setDirection(to === "review" ? "back" : "forward");
+    setMotion(to === "review" ? "back" : "forward");
     setStage(to);
   }
 
   /**
-   * Focus follows the stage.
+   * Focus follows the record.
+   *
+   * The button that opened this request is gone — it was in the footer of the settled
+   * state that just left — so without this the keyboard lands on the document body with a
+   * modal open. The fact column takes it, which is where the overlay puts focus when it
+   * opens: the same landing place for the same situation.
+   */
+
+  /**
+   * Focus follows the stage — and, before that, the record.
+   *
+   * **A different request arriving** takes focus to the fact column, which is where the
+   * overlay puts it when it opens: the button that opened this one is gone (it was in the
+   * footer of the settled state that just left), so without this the keyboard lands on
+   * the document body with a modal still open.
    *
    * Into Reject it lands on the textarea, because writing the reason is the only thing
    * that stage is for. Into every other stage it lands on the header title, which has
@@ -266,14 +311,19 @@ function RequestBody({
    * from firing on arrival: the initial open keeps the dialog's own landing place.
    */
   React.useEffect(() => {
+    if (focusedFor.current !== request.id) {
+      focusedFor.current = request.id;
+      previousStage.current = "review";
+      factsRef.current?.focus();
+      return;
+    }
     if (previousStage.current === stage) return;
     previousStage.current = stage;
     if (stage === "reject") reasonRef.current?.focus();
     else titleRef.current?.focus();
-  }, [stage]);
+  }, [stage, request.id]);
 
   const empty = reason.trim() === "";
-  const noun = registrantNoun(request.registrantKind);
   const badge = STAGE_BADGE[stage];
 
   return (
@@ -302,7 +352,13 @@ function RequestBody({
           looked at the card. It is the first row of Identity instead. The header is the
           overlay's chrome — white, over the tinted stage below — so it reads as the fixed
           frame the stages move inside. */}
-      <DialogHeader className="shrink-0 gap-2 border-b border-hairline p-6 pr-16">
+      {/* Keyed on the request so the title, the state and the number fade in with the
+          record they name — a header that swapped instantly over a body that animated was
+          half the abruptness. */}
+      <DialogHeader
+        key={request.id}
+        className="shrink-0 gap-2 border-b border-hairline p-6 pr-16 animate-in fade-in-0 duration-500 motion-reduce:animate-none"
+      >
         <div className="flex flex-wrap items-center gap-2">
           <DialogTitle
             ref={titleRef}
@@ -327,8 +383,8 @@ function RequestBody({
           each one mounts fresh and plays its entrance. */}
       <div className="relative min-h-0 flex-1 overflow-hidden bg-muted dark:bg-background">
         <div
-          key={SCENE[stage]}
-          className={cn("flex h-full min-h-0 flex-col", SLIDE[direction])}
+          key={`${request.id}:${SCENE[stage]}`}
+          className={cn("flex h-full min-h-0 flex-col", SLIDE[motion])}
         >
           {stage === "review" ? (
             <ReviewStage request={request} factsRef={factsRef} />
@@ -336,7 +392,6 @@ function RequestBody({
             <DecisionStage
               stage={stage}
               request={request}
-              noun={noun}
               reason={reason}
               touched={touched}
               reasonRef={reasonRef}
@@ -560,7 +615,6 @@ function EvidenceColumn({ request }: { request: AdvocateRegistration }) {
 function DecisionStage({
   stage,
   request,
-  noun,
   reason,
   touched,
   reasonRef,
@@ -568,7 +622,6 @@ function DecisionStage({
 }: {
   stage: Exclude<Stage, "review">;
   request: AdvocateRegistration;
-  noun: string;
   reason: string;
   touched: boolean;
   reasonRef: React.RefObject<HTMLTextAreaElement | null>;
@@ -585,13 +638,8 @@ function DecisionStage({
 
   return (
     <FocusedStage>
-      <StageCard flush settled={settled}>
-        <StatusStrip
-          stage={stage}
-          noun={noun}
-          rejecting={rejecting}
-          settled={settled}
-        />
+      <StageCard flush>
+        <StatusStrip stage={stage} rejecting={rejecting} settled={settled} />
 
         <div className="flex items-center gap-4 px-4 py-4">
           <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -605,11 +653,16 @@ function DecisionStage({
               {request.barRegistrationId}
             </p>
           </div>
-          {/* The card the whole decision turned on, at the size of a stamp. It is what
-              keeps this from reading as a receipt: the officer is vouching for a person
-              against a photograph, and the photograph is still here while they do it. Not
-              decoration — the fifth submitted value (`REG-14`), the same file the review
-              stage opens full size. */}
+          {/* The card the whole decision turned on. It is what keeps this from reading as
+              a receipt: the officer is vouching for a person against a photograph, and the
+              photograph is still here while they do it. Not decoration — the fifth
+              submitted value (`REG-14`), the same file the review stage opens full size.
+
+              Sized up from a 48px stamp on the owner's note (2026-09-11): *"that image can
+              be slightly bigger because it's the ID card they upload — we can use it to
+              personalise this entire modal according to each person."* At 80×128 with
+              `object-contain` the whole card is visible rather than a cropped band of it,
+              which is the difference between a thumbnail and a likeness. */}
           <CardThumbnail request={request} />
         </div>
 
@@ -627,10 +680,22 @@ function DecisionStage({
               </div>
             ) : (
               <Field data-invalid={touched && empty}>
-                {/* Body weight, foreground ink, no mark. The stage is already a rejection
-                    — the dialog title says so and the footer's button is destructive — so
-                    a title-size line in red was the third telling, and the loudest. */}
-                <FieldLabel htmlFor={id} className="text-body font-medium">
+                {/* **The icon carries the act; the type stays out of it** (owner,
+                    2026-09-11: *"instead of making it big, it should remain as a normal
+                    14-pixel token, but it should have an icon in it to bring attention"*).
+                    Two rounds ago this was a title-size line in destructive ink and read
+                    as an alarm; one round ago it lost the mark with the size and read as
+                    an ordinary form field. A 16px mark in destructive ink beside a
+                    body-compact label is the measured version: the stage is legibly a
+                    rejection, and nothing is shouting. */}
+                <FieldLabel
+                  htmlFor={id}
+                  className="gap-1.5 text-body-compact font-medium"
+                >
+                  <CircleXIcon
+                    aria-hidden
+                    className="size-4 shrink-0 text-destructive-ink"
+                  />
                   Why are you rejecting this?
                 </FieldLabel>
                 <Textarea
@@ -705,7 +770,7 @@ function CardThumbnail({ request }: { request: AdvocateRegistration }) {
       alt=""
       aria-hidden
       onError={() => setFailed(true)}
-      className="h-12 w-20 shrink-0 rounded-md border border-hairline bg-surface-sunken object-cover"
+      className="h-20 w-32 shrink-0 rounded-md border border-hairline bg-surface-sunken object-contain"
     />
   );
 }
@@ -721,12 +786,10 @@ function CardThumbnail({ request }: { request: AdvocateRegistration }) {
  */
 function StatusStrip({
   stage,
-  noun,
   rejecting,
   settled,
 }: {
   stage: Exclude<Stage, "review">;
-  noun: string;
   rejecting: boolean;
   settled: boolean;
 }) {
@@ -739,7 +802,11 @@ function StatusStrip({
         "flex items-center gap-2 px-4 py-2.5 text-body-compact animate-in fade-in-0 duration-500 motion-reduce:animate-none",
         settled
           ? "slide-in-from-top-1"
-          : "bg-surface-sunken text-muted-foreground",
+          : /* White, with a rule under it, rather than a sunken fill: the fill it used to
+               carry is the stage's own tone, so the card began in the page. The rule is
+               what separates it from the name below, and the card's shadow is what
+               separates the whole thing from the stage. */
+            "border-b border-hairline text-muted-foreground",
         approved && "bg-success-muted text-success-muted-foreground",
         stage === "rejected" &&
           "bg-destructive-muted text-destructive-muted-foreground",
@@ -754,8 +821,14 @@ function StatusStrip({
           )}
           {/* `role="status"` gets the outcome spoken: focus lands on the header title,
               which announces itself and nothing below it. */}
+          {/* **What happened to the account, not what happened to the reason** (owner,
+              2026-09-11: *"the actual action here was the account didn't get created…
+              reason sent to advocate is just a byproduct"*). The two strings are now a
+              pair — created / rejected — so the strip reports the same kind of fact
+              whichever way the decision went, and the reason sitting in the well below
+              needs no sentence to explain that it was sent. */}
           <span role="status" className="font-medium">
-            {approved ? "Account created" : `Reason sent to the ${noun}`}
+            {approved ? "Account created" : "Account rejected"}
           </span>
         </>
       ) : (
@@ -799,27 +872,25 @@ function FocusedStage({ children }: { children: React.ReactNode }) {
 function StageCard({
   className,
   flush = false,
-  settled = false,
   children,
 }: {
   className?: string;
   /** The card's own padding is off; the children draw their own rules edge to edge. */
   flush?: boolean;
-  /**
-   * The act has been performed. The card keeps the raised shadow it otherwise borrows on
-   * hover — the quietest way to say a thing that was a form is now a record.
-   */
-  settled?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <Card
       size="sm"
       className={cn(
-        "border-hairline transition-shadow",
-        settled
-          ? "shadow-raised"
-          : "hover:shadow-raised has-focus-visible:shadow-raised",
+        /* **Lifted at rest, always.** The pre-act strip is `surface-sunken` and the stage
+           under it is `muted` — measured 1.01:1 against each other, so the top of the card
+           dissolved into the page and the owner read the header as unreadable
+           (2026-09-11). A panel on a tinted stage is exactly what ui-craft §1 lifts with
+           a shadow rather than separating with a stroke; the shadow was previously
+           rationed to hover, which is a state a card on a decision screen is mostly not
+           in. */
+        "border-hairline shadow-raised",
         flush && "gap-0 py-0",
       )}
     >
