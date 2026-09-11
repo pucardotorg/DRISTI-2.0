@@ -1095,6 +1095,65 @@ dialog itself, which animates the modal's frame around content that is not movin
 *Given up:* ~15px of settle on reject, where a 128px composer becomes a 96px well. Reserving
 the full height would have left a well of empty space under a two-line reason.
 
+### D28 — **New.** Four corrections to the decision card
+
+*(Round five, 2026-09-11 morning. Each is small; together they are the difference between
+the shape being right and the screen being right.)*
+
+**The strip reports the account, not the reason.** *"The actual action here was the account
+didn't get created. So 'account rejected' should be the actual thing — 'reason sent to
+advocate' is just a byproduct."* Correct, and the pair is now symmetrical: **Account
+created** / **Account rejected**. The reason sits in the well below and needs no sentence
+saying it was sent.
+
+**The reject label keeps its size and gains a mark.** *"Instead of making it big, it should
+remain as a normal 14-pixel token, but it should have an icon in it to bring attention."*
+Three rounds have now tuned this one line: title-size in destructive ink (an alarm),
+body-size with nothing (an ordinary form field), and now **body-compact with a 16px
+destructive mark**. The rule the sequence establishes is worth keeping: *when a control
+needs to declare its consequence, give the consequence to an icon and leave the type
+alone.*
+
+**The card lifts, and its header stops dissolving.** *"This banner is not readable against
+the base background — that card top portion is just merging."* Measured: the pre-act strip
+was `surface-sunken` on a `muted` stage, **1.01:1** — no boundary at all. The strip is now
+white with a hairline under it, and the card carries `shadow-raised` **at rest** rather
+than only on hover. A panel on a tinted stage is exactly what ui-craft §1 lifts; rationing
+that lift to hover was the error, since a card on a decision screen is mostly not hovered.
+
+**The ID card is big enough to be a likeness.** *"That image can be slightly bigger because
+it's the ID card they upload — we can use it to personalise this entire modal according to
+each person."* 48px → 80×128, and `object-contain` instead of `object-cover`, so the whole
+card shows rather than a cropped band of it.
+
+### D29 — **New.** "View next application" stops re-opening the dialog
+
+*"The animation when I click on view next application is too abrupt."*
+
+The cause was structural, not a timing value. `RequestBody` was keyed on the request, so
+opening the next one **tore down `Dialog.Content` and built it again** — which replays
+Radix's own open animation (a 100ms zoom) in the middle of a session that never closed. The
+window appeared to slam shut and open.
+
+The body is no longer keyed. It resets itself instead, during render, via React's
+documented "adjusting state when a prop changes" — which matters over an effect because the
+new request must never be painted for a frame wearing the last one's stage, or carrying a
+rejection reason typed about somebody else. The dialog element survives; the record inside
+it changes.
+
+With the remount gone, the arrival gets its own motion: **not a slide**. Sideways means
+"this request moved on"; a new record **rises and fades over half a second**, and the header
+fades with it so the title and number do not swap instantly over a body that is animating.
+
+One thing the remount was silently doing had to be rebuilt: focus. The button that opened
+the next request is gone with the settled footer it lived in, so focus is sent to the fact
+column — the same landing place the overlay uses when it opens.
+
+*Rule:* owner 2026-09-11; React "adjusting state when a prop changes"; ACCESSIBILITY §6
+(focus is never dropped to the body while a modal is open).
+*Rejected:* lengthening the dialog's own open/close duration to disguise the remount — it
+would have slowed every real open to hide a transition that should not have existed.
+
 ## 6. What I cut (and why)
 
 **Read this first, because the critique could be misread as "add structure everywhere":**
@@ -1443,6 +1502,7 @@ dependency here. Request #9 stands on its own merits for the screens that raised
 | **2026-09-10 (evening)** | **D16 added.** Request metadata is its own attribute group, not header prose; the application number stays in the header description and is not repeated; the advocate's name **leaves** the header, because printing a value under verification as the record's title asserts it. | ux-designer |
 | **2026-09-10 (evening)** | **D9 and D11 corrected for two parallel cross-cutting changes** — search filters as you type (the Search button goes away app-wide) and the whole table row becomes the click target. The queue page therefore has **no page-level primary**, which is what D9 argued was correct all along; the "teal on the queue page is Search" line is void, and two code comments asserting it must change with the rebuild. | orchestrator / ux-designer |
 | **2026-09-10 (evening)** | **§6 clarified** so the brief cannot be read as rejecting structure wholesale: the officer's rejection reason stays free text (`REG-22`) because it is *user data in a consistent slot*; what was rejected is *product copy narrating machine results*. Reason chips remain cut; a per-attribute rejection is filed as §12.10 for the owner to decide. | ux-designer |
+| **2026-09-11 (design-mode round 5)** | **Four corrections.** The settled strip reports the account (created / rejected), not the byproduct; the reject label returns to body-compact and takes a 16px destructive mark instead of size; the decision card lifts at rest and its header strip goes white with a rule, after the old `surface-sunken` strip measured 1.01:1 against the stage; the ID card photograph goes to 80×128 `object-contain` (D28). "View next application" stopped remounting `Dialog.Content` — the abruptness was Radix's open animation replaying — and a new record now rises and fades in its own motion, with focus sent to the fact column (D29). | owner (direction) / orchestrator |
 | **2026-09-11 (design-mode round 4)** | **One note, three complaints.** Confirming and having confirmed became one card that resolves in place — five stages, three scenes, no remount and no slide between the act and its outcome (D27). The settled state lost its 48px disc and title-size ink line for a 16px mark on a muted strip; the reject composer lost its red heading; the semantics of green and red survive at lower volume. The Bar ID photograph joins the card as a thumbnail, and the settled card keeps the rows it had a moment before. D21 and D25 amended. | owner (direction) / orchestrator |
 | **2026-09-11 (design-mode round 3)** | **Eight render comments.** Comparison tables moved behind the row that announces them, as disclosures spanning the card (D23) — which voids D20's no-duplicate-pairs rule; the lookup row renamed for the act, with the register naming itself in the column header (D24); caption group labels removed from every focused stage, the person made the heading, the settled state collapsed to one card, the reject stage recomposed in destructive ink at title size, and the confirming CTAs renamed to "Confirm approval" / "Confirm rejection" (D25); the evidence well given a framed title strip so its icons stop floating (D26). D15 amended. | owner (direction) / orchestrator |
 | **2026-09-11 (design-mode round 2)** | **Nine render comments.** The overlay's fact model rebuilt around **two shapes** — a term/value row and a comparison table on the product's own `table-plate` (D20); strikethroughs and the `Differs`/`Changed` chips deleted; the register reduced to one Request row that speaks only when it disagrees, `matches` and `OTP: verified` deleted (D19); Reject, Approve and both settled states became focused single-column stages, the settled outcome a heading rather than a sentence with a name in it, the next request moved out of the card and its number dropped, approved/rejected now green/red (D21); explanatory copy removed from the reject label and the approve stage (D8, D21); the review split widened to 3:2 and the overlay to `max-w-5xl`; the beige page built as a reversible iteration (D22). D5 superseded; §12.11 opened on whether the Bar Council lookup exists at all. | owner (direction) / orchestrator |
