@@ -12,7 +12,8 @@ import {
 
 import { ChromeDialogContent } from "@/components/chrome/app-chrome";
 import { CaseFileView } from "@/components/employee/register-case-file";
-import { ARRIVAL, markArrival, useArrival } from "@/components/employee/use-arrival";
+import { ARRIVAL, OVERLAY_RISE } from "@/components/chrome/motion";
+import { markArrival, useArrival } from "@/components/employee/use-arrival";
 import { useCourtToday } from "@/components/employee/use-court-today";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -161,7 +162,7 @@ function ComplaintPage({
   const act = (next: Act) => setStage({ act: next, settled: false });
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip bg-muted dark:bg-background">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip">
       <div
         className={cn(
           "flex w-full min-w-0 flex-1 flex-col gap-8 px-6 pt-6 pb-16 md:px-8 md:pt-8 xl:px-12",
@@ -1130,7 +1131,10 @@ function ActBody({
 
   return (
     <ChromeDialogContent
-      className="flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg"
+      className={cn(
+        "flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg",
+        OVERLAY_RISE,
+      )}
       onOpenAutoFocus={(event) => {
         event.preventDefault();
         if (sending) reasonRef.current?.focus();

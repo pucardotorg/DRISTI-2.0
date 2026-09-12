@@ -297,6 +297,42 @@ dialog over whatever it sits in. It is a viewer rather than a step in a flow, wh
 it has not been changed — but it is a modal on a modal, and the rule above does not yet
 say whether a lightbox is exempt.
 
+## 8. Motion — four movements, and what each one says
+
+Owner, 2026-09-12, after three rounds of it: *"I want, like, certain consistency to be
+there for all the animation."* Motion is not decoration here — it says **what happened to
+what the reader was looking at**. So the same event moves the same way everywhere, and
+nothing else moves at all. The vocabulary is four movements, in
+`components/chrome/motion.ts`; reach for one of them before inventing a fifth.
+
+- **Arriving forward rises.** A record opened from a list, or the next one replacing it:
+  `slide-in-from-bottom-8` + fade, 500ms (`ARRIVAL.next`) — a file laid on the desk. **The
+  direction cannot be guessed from the URL**, so the control that navigates declares it
+  (`markArrival`) and the screen that mounts takes it once. A reload, a typed URL or a
+  bookmark is not a journey and animates nothing.
+- **Going back comes from the left.** `slide-in-from-left-8`, 300ms (`ARRIVAL.back`) —
+  the direction the list was left in. Returning must not look like arriving.
+- **An overlay rises too, shorter.** `OVERLAY_RISE`: the DS fade, no zoom, up 16px over
+  300ms, out in 200. A decision that snaps open at 95% scale reads as a menu, not a
+  question.
+- **An outcome resolves in place.** `RESOLVE_IN_PLACE`: the one thing that changed fades
+  and lifts a few pixels while everything around it stays put — see §7. Reserve its space
+  first, and measure that the container is the same height before and after.
+
+Durations, so two screens do not disagree about what "quick" means: **150ms** hover and
+colour, **200–300ms** a disclosure opening or an overlay, **300ms** a step going forward,
+**500ms** an arrival or an outcome settling. Anything slower is a screen making the reader
+wait; anything faster than 150 is not perceived as movement at all.
+
+Three bans. **Never animate what did not change** — a header that swaps instantly over an
+animating body is half a transition, and a list that re-animates on every keystroke is
+noise. **Never stack movements**: one gesture is one movement, so no slide *and* zoom *and*
+scale on the same element. **Never let motion move the layout** — if something will appear,
+reserve its space; a card that grows as it settles has told the reader it was not ready.
+
+Every animation carries `motion-reduce:animate-none` (or `motion-reduce:transition-none`),
+and `fill-mode-both` where it starts from a displaced position.
+
 ## 6. Escalation — token values are upstream, not yours
 
 Open upstream items (restate them in build reports until the DS resolves them):

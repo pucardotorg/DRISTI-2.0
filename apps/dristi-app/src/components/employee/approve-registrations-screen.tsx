@@ -151,7 +151,7 @@ export function ApproveRegistrationsScreen() {
        panel is the only lifted thing on the screen. The top bar stays `bg-card`, so the
        chrome still reads as chrome. Dark keeps `bg-background`, because `muted` sits above
        `card` there and a tinted canvas would invert the depth. */
-    <div className="flex min-w-0 flex-1 flex-col gap-8 bg-muted p-6 md:p-8 dark:bg-background">
+    <div className="flex min-w-0 flex-1 flex-col gap-8 p-6 md:p-8">
       <header className="flex flex-col gap-2">
         {/* **"Approve registrations"**, not "Approve registrations" (owner, 2026-09-11: the
             queue is advocates *and* their clerks, so the old title named half of it). Verb

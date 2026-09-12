@@ -2,6 +2,8 @@
 
 import * as React from "react";
 
+import type { Arrival } from "@/components/chrome/motion";
+
 /**
  * Which way the reader just travelled, so the screen they land on can say so.
  *
@@ -18,8 +20,6 @@ import * as React from "react";
  * survive a reload (a refreshed page has not travelled anywhere), and nothing else should
  * be able to read it.
  */
-export type Arrival = "next" | "back";
-
 let pending: Arrival | null = null;
 
 /** Called by the control that navigates, just before it does. */
@@ -39,19 +39,3 @@ export function useArrival(): Arrival | null {
   });
   return arrival;
 }
-
-/**
- * How each arrival plays.
- *
- * **Forward rises.** The complaint after this one is new work, and new work comes up from
- * below — the gesture of a file being laid on the desk, not of a page sliding sideways.
- * **Back slides in from the left**, the direction the queue was left in, so returning
- * reads as returning rather than as another new thing.
- *
- * `fill-mode-both` holds the first frame so nothing flashes at its final position before
- * the animation starts, and `motion-reduce` leaves a plain swap.
- */
-export const ARRIVAL: Record<Arrival, string> = {
-  next: "animate-in fade-in-0 slide-in-from-bottom-8 fill-mode-both duration-500 motion-reduce:animate-none",
-  back: "animate-in fade-in-0 slide-in-from-left-8 fill-mode-both duration-300 motion-reduce:animate-none",
-};

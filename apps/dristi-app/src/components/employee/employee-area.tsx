@@ -32,7 +32,16 @@ export function EmployeeArea({ children }: { children: React.ReactNode }) {
       topBar={<EmployeeTopBar />}
       railCollapsible="icon"
     >
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</main>
+      {/* **The beige canvas, once, for the whole area** (owner, 2026-09-12: *"this base
+          change that we added for the surface, can you add it to all other pages also"*).
+          It was per-screen while it was an experiment; it is the default now (`ui-craft`
+          §1.0), so it belongs to the area's own column rather than to each screen that
+          remembers to ask for it. The top bar and the rail keep their own fills, so the
+          tint reads as the surface the work sits on. Dark keeps `bg-background`, because
+          `muted` sits above `card` there and a tinted canvas would invert the depth. */}
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-muted dark:bg-background">
+        {children}
+      </main>
     </ChromeShell>
   );
 }

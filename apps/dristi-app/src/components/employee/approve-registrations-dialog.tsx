@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { ChromeDialogContent } from "@/components/chrome/app-chrome";
+import { OVERLAY_RISE } from "@/components/chrome/motion";
 import {
   TABLE_CELL,
   TABLE_HEAD,
@@ -355,7 +356,10 @@ function RequestBody({
 
   return (
     <ChromeDialogContent
-      className="flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl md:h-[85dvh]"
+      className={cn(
+        "flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl md:h-[85dvh]",
+        OVERLAY_RISE,
+      )}
       /* Radix focuses the first tabbable thing it finds. With the preview's header band
          gone (D15) that is the evidence well itself — it is a scroll container, so it is
          focusable — and the overlay opened with a 3px teal ring around the whole right
@@ -678,26 +682,26 @@ function DecisionStage({
       <StageCard flush>
         <StatusStrip stage={stage} rejecting={rejecting} settled={settled} />
 
-        <div className="flex flex-col gap-1 px-4 py-4">
+        <div className="flex flex-col items-start gap-1 px-4 py-4">
+          {/* **The pill above the name, not beside the number** — where the act overlay on
+              Register cases puts its state, and for the same reason: a tag that starts
+              wherever the line above it ended reads as untidy rather than as a label
+              (owner, 2026-09-12). It is still the one coloured pill in this flow, learned
+              on the queue and recognised here, on the stage where what is being granted
+              matters most. */}
+          <Badge variant={accountTypeVariant(request.registrantKind)}>
+            {roleLabel(request.registrantKind)}
+          </Badge>
           <p
             lang={request.fullNameLang}
             className="text-title-s font-semibold text-balance"
           >
             {request.fullName}
           </p>
-          {/* The role before the number, because the number means nothing until you know
-              which register it belongs to — and on this stage the officer is about to grant
-              exactly one of the two credentials. */}
-          {/* The account type's pill, on the card the officer is confirming — the same
-              pill as the list and the review, so what they are granting is recognised
-              rather than read, on the stage where it matters most. */}
-          <p className="flex flex-wrap items-center gap-2 text-body-compact text-muted-foreground">
-            <Badge variant={accountTypeVariant(request.registrantKind)}>
-              {roleLabel(request.registrantKind)}
-            </Badge>
-            <span className="font-mono tabular-nums">
-              {request.registrationNumber}
-            </span>
+          {/* The number under the name: it means nothing until you know which register it
+              belongs to, and the pill above has just said. */}
+          <p className="font-mono text-body-compact tabular-nums text-muted-foreground">
+            {request.registrationNumber}
           </p>
         </div>
         {/* **The card the decision turns on, at a size that can carry it.** Twice sized up

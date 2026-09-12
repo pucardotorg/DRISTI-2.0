@@ -7,7 +7,8 @@ import { CounselCell } from "@/components/employee/counsel-cell";
 import { ListFooter } from "@/components/employee/list-footer";
 import { QueueAnnouncer } from "@/components/employee/queue-announcer";
 import { QueueSearchField } from "@/components/employee/queue-search-field";
-import { ARRIVAL, useArrival } from "@/components/employee/use-arrival";
+import { ARRIVAL } from "@/components/chrome/motion";
+import { useArrival } from "@/components/employee/use-arrival";
 import { rowActivation } from "@/lib/employee/row-activation";
 import { cn } from "@/lib/utils";
 import {
