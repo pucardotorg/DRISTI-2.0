@@ -5,7 +5,7 @@
 > `design`. When that happens, this is the body for the registrations half — paste it,
 > merge it with the other half's, and delete this file in the same pull request.
 >
-> Brief: [register-advocates.md](register-advocates.md) (decisions D1–D35).
+> Brief: [approve-registrations.md](approve-registrations.md) (decisions D1–D35).
 
 ---
 
@@ -13,7 +13,7 @@
 
 The scrutiny officer's queue for **self-registered advocates and advocate clerks**, and the
 overlay where each request is verified against its ID card and approved or rejected without
-leaving the list. Formerly "Register advocates"; renamed when clerks joined the queue.
+leaving the list. Formerly "Approve registrations"; renamed when clerks joined the queue.
 
 This pull request also changes two defaults for everything built after it. They were
 worked out on this screen across several review rounds with the design owner and are
@@ -68,7 +68,7 @@ outcome are each a *stage* of the same modal, conveyed with motion.
   composer, to the content when a new record arrives. It is never dropped to the body with
   a modal open.
 
-Reference implementation: `components/employee/register-advocates-dialog.tsx`. Where it
+Reference implementation: `components/employee/approve-registrations-dialog.tsx`. Where it
 lives: `ui-craft` §7 (new).
 
 **Open for the owner:** the document **Full view** is still a dialog over a dialog. It is a
@@ -112,7 +112,7 @@ looks a clerk up, since no register is named, and a clerk is never a profile upd
   holds the actions.
 - **Search placeholders** across the court-side queues are sentence case.
 
-This branch shares history with `feature/register-advocates`, which also carries the
+This branch shares history with `feature/approve-registrations`, which also carries the
 register-cases and case-review work from a parallel stream. Those commits are described in
 their own brief, [register-cases.md](register-cases.md), and belong to the other half of the
 combined pull request.
@@ -126,7 +126,7 @@ combined pull request.
   there is no lookup, so this does not block.
 - **The clerk registration number format is unknown**, as is whether any register exists
   for clerks (§12.12). The demo's `CLK/1522/2016` is a placeholder.
-- **The slug still says `register-advocates`**: the route, the modules and the brief.
+- **The slug still says `approve-registrations`**: the route, the modules and the brief.
   Renaming them is mechanical and was left for a quiet moment.
 - **Approve and Reject perform no act.** They drop the row from the demo queue, and the end
   states say so.

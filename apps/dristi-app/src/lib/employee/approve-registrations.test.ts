@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  EMPTY_REGISTER_ADVOCATES_FILTERS,
-  REGISTER_ADVOCATES_QUEUE,
-  REGISTER_ADVOCATES_QUEUE_COUNT,
+  EMPTY_REGISTRATIONS_FILTERS,
+  REGISTRATIONS_QUEUE,
+  REGISTRATIONS_QUEUE_COUNT,
   currentRound,
   editFor,
   filterRegistrations,
@@ -32,12 +32,12 @@ import {
   roleLabel,
   sortByLongestWait,
   submissionDay,
-  type AdvocateRegistration,
+  type RegistrationRequest,
   type FactRow,
-} from "./register-advocates";
+} from "./approve-registrations";
 
 /** Every fact row the overlay renders, for a request — the groups, in order. */
-function allRows(request: AdvocateRegistration): FactRow[] {
+function allRows(request: RegistrationRequest): FactRow[] {
   return [
     ...requestRows(request),
     ...identityRows(request),
@@ -45,26 +45,26 @@ function allRows(request: AdvocateRegistration): FactRow[] {
   ];
 }
 
-describe("REGISTER_ADVOCATES_QUEUE", () => {
+describe("REGISTRATIONS_QUEUE", () => {
   it("is long enough to page, and the count the rail shows is the list's own", () => {
     // 14 advocates and 3 advocate clerks — the queue is both kinds now.
-    assert.equal(REGISTER_ADVOCATES_QUEUE.length, 17);
+    assert.equal(REGISTRATIONS_QUEUE.length, 17);
     assert.equal(
-      REGISTER_ADVOCATES_QUEUE_COUNT,
-      REGISTER_ADVOCATES_QUEUE.length,
+      REGISTRATIONS_QUEUE_COUNT,
+      REGISTRATIONS_QUEUE.length,
     );
   });
 
   it("gives every row, application number and Bar registration ID its own identity", () => {
     for (const key of ["id", "applicationNumber", "registrationNumber"] as const) {
-      const values = REGISTER_ADVOCATES_QUEUE.map((row) => row[key]);
+      const values = REGISTRATIONS_QUEUE.map((row) => row[key]);
       assert.equal(new Set(values).size, values.length, `duplicate ${key}`);
     }
   });
 
   it("keeps the application number in the form each person is shown on their own waiting screen", () => {
     // The sign-up's own two series (`registration-flow.tsx`, `applicationId`).
-    for (const row of REGISTER_ADVOCATES_QUEUE) {
+    for (const row of REGISTRATIONS_QUEUE) {
       assert.match(
         row.applicationNumber,
         row.registrantKind === "clerk"
@@ -76,7 +76,7 @@ describe("REGISTER_ADVOCATES_QUEUE", () => {
   });
 
   it("carries the three kinds of request the lifecycle actually has", () => {
-    const kinds = new Set(REGISTER_ADVOCATES_QUEUE.map((r) => r.requestKind));
+    const kinds = new Set(REGISTRATIONS_QUEUE.map((r) => r.requestKind));
     assert.deepEqual(
       [...kinds].sort(),
       ["edited", "first", "resubmission"].sort(),
@@ -84,7 +84,7 @@ describe("REGISTER_ADVOCATES_QUEUE", () => {
   });
 
   it("carries all three answers the Bar Council lookup can give, and none for a clerk", () => {
-    const states = new Set(REGISTER_ADVOCATES_QUEUE.map((r) => r.lookup.state));
+    const states = new Set(REGISTRATIONS_QUEUE.map((r) => r.lookup.state));
     assert.deepEqual(
       [...states].sort(),
       ["found", "no-entry", "none", "not-checked"].sort(),
@@ -92,7 +92,7 @@ describe("REGISTER_ADVOCATES_QUEUE", () => {
     // The handover names no register for clerks (`REG-13a`), and the Bar Council's is
     // an advocate requirement (`REG-13`) — so nothing is looked up for a clerk, and every
     // advocate is looked up.
-    for (const row of REGISTER_ADVOCATES_QUEUE) {
+    for (const row of REGISTRATIONS_QUEUE) {
       assert.equal(
         row.lookup.state === "none",
         row.registrantKind === "clerk",
@@ -102,7 +102,7 @@ describe("REGISTER_ADVOCATES_QUEUE", () => {
   });
 
   it("exercises the wait escalation at both thresholds and below them", () => {
-    const tones = REGISTER_ADVOCATES_QUEUE.map((r: AdvocateRegistration) =>
+    const tones = REGISTRATIONS_QUEUE.map((r: RegistrationRequest) =>
       registrationWaitTone(r.daysWaiting),
     );
     assert.equal(tones.filter((t) => t === "destructive").length, 2);
@@ -111,7 +111,7 @@ describe("REGISTER_ADVOCATES_QUEUE", () => {
   });
 
   it("holds a name in a script Helvetica does not cover, tagged so it can be spoken", () => {
-    const tagged = REGISTER_ADVOCATES_QUEUE.filter((r) => r.fullNameLang);
+    const tagged = REGISTRATIONS_QUEUE.filter((r) => r.fullNameLang);
     assert.ok(tagged.length >= 2, "expected at least two non-English names");
     for (const row of tagged) {
       assert.match(
@@ -123,7 +123,7 @@ describe("REGISTER_ADVOCATES_QUEUE", () => {
   });
 
   it("tags the register's own answer, rather than borrowing the claimant's script", () => {
-    for (const row of REGISTER_ADVOCATES_QUEUE) {
+    for (const row of REGISTRATIONS_QUEUE) {
       if (row.lookup.state !== "found") continue;
       const nonLatin = /[ഀ-ൿ]/.test(row.lookup.entry.name);
       assert.equal(
@@ -136,14 +136,14 @@ describe("REGISTER_ADVOCATES_QUEUE", () => {
 
   it("holds a name long enough to wrap the column it sits in", () => {
     const longest = Math.max(
-      ...REGISTER_ADVOCATES_QUEUE.map((r) => r.fullName.length),
+      ...REGISTRATIONS_QUEUE.map((r) => r.fullName.length),
     );
     assert.ok(longest >= 36, `the longest name is only ${longest} characters`);
   });
 
   it("holds Bar registration IDs from more than one state bar, so the column is not sized off Kerala", () => {
     const prefixes = new Set(
-      REGISTER_ADVOCATES_QUEUE.map((r) => r.registrationNumber.split("/")[0]),
+      REGISTRATIONS_QUEUE.map((r) => r.registrationNumber.split("/")[0]),
     );
     assert.ok(
       prefixes.size >= 4,
@@ -152,15 +152,15 @@ describe("REGISTER_ADVOCATES_QUEUE", () => {
   });
 
   it("leaves email off the rows that never gave one — it is optional, not blank", () => {
-    const without = REGISTER_ADVOCATES_QUEUE.filter((r) => r.email === undefined);
+    const without = REGISTRATIONS_QUEUE.filter((r) => r.email === undefined);
     assert.ok(without.length > 0, "every demo row has an email");
-    for (const row of REGISTER_ADVOCATES_QUEUE) {
+    for (const row of REGISTRATIONS_QUEUE) {
       assert.notEqual(row.email, "", `${row.applicationNumber} has a blank email`);
     }
   });
 
   it("attaches rejection rounds only to a resubmission, and edits only to an edited account", () => {
-    for (const row of REGISTER_ADVOCATES_QUEUE) {
+    for (const row of REGISTRATIONS_QUEUE) {
       if (row.requestKind === "resubmission") {
         assert.ok(row.rejections?.length, `${row.id} came back with no reason`);
       } else {
@@ -176,7 +176,7 @@ describe("REGISTER_ADVOCATES_QUEUE", () => {
   });
 
   it("never says a request came back before the rejection that sent it back", () => {
-    for (const row of REGISTER_ADVOCATES_QUEUE) {
+    for (const row of REGISTRATIONS_QUEUE) {
       const rounds = row.rejections ?? [];
       for (const round of rounds) {
         assert.ok(
@@ -195,7 +195,7 @@ describe("REGISTER_ADVOCATES_QUEUE", () => {
   });
 
   it("gives every reason enough words to be acted on — the failure the gate exists to stop", () => {
-    for (const row of REGISTER_ADVOCATES_QUEUE) {
+    for (const row of REGISTRATIONS_QUEUE) {
       for (const round of row.rejections ?? []) {
         assert.ok(
           round.reason.trim().split(/\s+/).length >= 8,
@@ -206,7 +206,7 @@ describe("REGISTER_ADVOCATES_QUEUE", () => {
   });
 
   it("holds one photograph that will not open, so the well's failure state is reachable", () => {
-    const missing = REGISTER_ADVOCATES_QUEUE.filter((r) =>
+    const missing = REGISTRATIONS_QUEUE.filter((r) =>
       r.photo.src.includes("not-uploaded"),
     );
     assert.equal(missing.length, 1);
@@ -215,7 +215,7 @@ describe("REGISTER_ADVOCATES_QUEUE", () => {
 
 describe("sortByLongestWait", () => {
   it("puts the longest wait first — the queue is a work list", () => {
-    const days = REGISTER_ADVOCATES_QUEUE.map((r) => r.daysWaiting);
+    const days = REGISTRATIONS_QUEUE.map((r) => r.daysWaiting);
     assert.deepEqual(days, [...days].sort((a, b) => b - a));
   });
 
@@ -245,11 +245,11 @@ describe("sortByLongestWait", () => {
 });
 
 describe("filterRegistrations", () => {
-  const all = REGISTER_ADVOCATES_QUEUE;
+  const all = REGISTRATIONS_QUEUE;
 
   it("asks for everything when the box is empty", () => {
     assert.equal(
-      filterRegistrations(all, EMPTY_REGISTER_ADVOCATES_FILTERS).length,
+      filterRegistrations(all, EMPTY_REGISTRATIONS_FILTERS).length,
       all.length,
     );
     assert.equal(filterRegistrations(all, { query: "   " }).length, all.length);
@@ -314,26 +314,26 @@ describe("filterRegistrations", () => {
 describe("removing a decided request from the queue", () => {
   /* The screen holds the ids it has decided and filters them out; the count line and the
      rail count are both read off what is left. This is that arithmetic, without React. */
-  function remaining(decided: Set<string>): AdvocateRegistration[] {
-    return REGISTER_ADVOCATES_QUEUE.filter((r) => !decided.has(r.id));
+  function remaining(decided: Set<string>): RegistrationRequest[] {
+    return REGISTRATIONS_QUEUE.filter((r) => !decided.has(r.id));
   }
 
   it("drops exactly the row that was decided, and leaves the order alone", () => {
-    const first = REGISTER_ADVOCATES_QUEUE[0];
+    const first = REGISTRATIONS_QUEUE[0];
     const rows = remaining(new Set([first.id]));
-    assert.equal(rows.length, REGISTER_ADVOCATES_QUEUE.length - 1);
+    assert.equal(rows.length, REGISTRATIONS_QUEUE.length - 1);
     assert.ok(!rows.some((r) => r.id === first.id));
     const days = rows.map((r) => r.daysWaiting);
     assert.deepEqual(days, [...days].sort((a, b) => b - a));
   });
 
   it("takes the count down with it — the header and the rail read the same list", () => {
-    const decided = new Set(REGISTER_ADVOCATES_QUEUE.slice(0, 3).map((r) => r.id));
-    assert.equal(remaining(decided).length, REGISTER_ADVOCATES_QUEUE_COUNT - 3);
+    const decided = new Set(REGISTRATIONS_QUEUE.slice(0, 3).map((r) => r.id));
+    assert.equal(remaining(decided).length, REGISTRATIONS_QUEUE_COUNT - 3);
   });
 
   it("empties to the good-empty state rather than to an error", () => {
-    const decided = new Set(REGISTER_ADVOCATES_QUEUE.map((r) => r.id));
+    const decided = new Set(REGISTRATIONS_QUEUE.map((r) => r.id));
     assert.deepEqual(remaining(decided), []);
   });
 });
@@ -354,7 +354,7 @@ describe("registrationWaitTone", () => {
 
 describe("what the row and the overlay call things", () => {
   it("leaves a first registration unmarked — the norm gets no badge", () => {
-    const first = REGISTER_ADVOCATES_QUEUE.find(
+    const first = REGISTRATIONS_QUEUE.find(
       (r) => r.requestKind === "first",
     );
     assert.ok(first);
@@ -362,14 +362,14 @@ describe("what the row and the overlay call things", () => {
   });
 
   it("marks an edited pre-created account, and a resubmission with its round", () => {
-    const edited = REGISTER_ADVOCATES_QUEUE.find(
+    const edited = REGISTRATIONS_QUEUE.find(
       (r) => r.requestKind === "edited",
     );
     assert.ok(edited);
     // The queue chip and the overlay row say the same thing: one fact, one name.
     assert.equal(requestKindLabel(edited), "Profile update");
 
-    const back = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-118");
+    const back = REGISTRATIONS_QUEUE.find((r) => r.id === "adv-118");
     assert.ok(back);
     assert.equal(currentRound(back), 5);
     assert.equal(requestKindLabel(back), "Resubmitted · round 5");
@@ -384,7 +384,7 @@ describe("what the row and the overlay call things", () => {
   });
 
   it("counts a request with one rejection behind it as round 2", () => {
-    const back = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-198");
+    const back = REGISTRATIONS_QUEUE.find((r) => r.id === "adv-198");
     assert.ok(back);
     assert.equal(currentRound(back), 2);
     assert.deepEqual(
@@ -394,9 +394,9 @@ describe("what the row and the overlay call things", () => {
   });
 
   it("names the three kinds of request as values, not as sentences", () => {
-    const first = REGISTER_ADVOCATES_QUEUE.find((r) => r.requestKind === "first");
-    const edited = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-191");
-    const back = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-118");
+    const first = REGISTRATIONS_QUEUE.find((r) => r.requestKind === "first");
+    const edited = REGISTRATIONS_QUEUE.find((r) => r.id === "adv-191");
+    const back = REGISTRATIONS_QUEUE.find((r) => r.id === "adv-118");
     assert.ok(first && edited && back);
     assert.equal(requestTypeValue(first), "New registration");
     // Three answers to one question. Where the account came from is provenance, not the
@@ -423,7 +423,7 @@ describe("what the row and the overlay call things", () => {
   });
 
   it("finds the changed value for a field, and nothing for one that was not touched", () => {
-    const edited = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-191");
+    const edited = REGISTRATIONS_QUEUE.find((r) => r.id === "adv-191");
     assert.ok(edited);
     assert.equal(editFor(edited, "mobile")?.was, "9847051204");
     // An email the Bar Council record never held is an addition, not a change.
@@ -441,14 +441,14 @@ describe("what the row and the overlay call things", () => {
 
 describe("the dates the overlay shows", () => {
   it("derives the submission day from the wait, so the two can never disagree", () => {
-    const back = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-118");
+    const back = REGISTRATIONS_QUEUE.find((r) => r.id === "adv-118");
     assert.ok(back);
     assert.equal(back.daysWaiting, 61);
     assert.equal(submissionDay(back), "2026-07-11");
   });
 
   it("puts every rejection round before the submission it sent back", () => {
-    for (const request of REGISTER_ADVOCATES_QUEUE) {
+    for (const request of REGISTRATIONS_QUEUE) {
       const submitted = submissionDay(request);
       for (const round of request.rejections ?? []) {
         assert.ok(
@@ -471,7 +471,7 @@ describe("the dates the overlay shows", () => {
  */
 describe("shape one: a term and its value", () => {
   it("renders the request, the four submitted values and every round through one shape", () => {
-    const back = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-118");
+    const back = REGISTRATIONS_QUEUE.find((r) => r.id === "adv-118");
     assert.ok(back);
     const rows = allRows(back);
     // 4 request facts (account type first) + 4 identity rows + 4 rejection rounds.
@@ -485,7 +485,7 @@ describe("shape one: a term and its value", () => {
   });
 
   it("collects exactly four attribute rows — five collected values less the photograph", () => {
-    for (const request of REGISTER_ADVOCATES_QUEUE) {
+    for (const request of REGISTRATIONS_QUEUE) {
       const rows = identityRows(request);
       assert.deepEqual(
         rows.map((row) => row.id),
@@ -502,7 +502,7 @@ describe("shape one: a term and its value", () => {
     // against the photograph holds what the advocate typed and stops. Anything a source
     // has to say about it is a comparison table, never a decoration on the value.
     const carried = ["id", "term", "value", "format", "valueLang"];
-    for (const request of REGISTER_ADVOCATES_QUEUE) {
+    for (const request of REGISTRATIONS_QUEUE) {
       for (const row of identityRows(request)) {
         for (const key of Object.keys(row)) {
           assert.ok(
@@ -517,7 +517,7 @@ describe("shape one: a term and its value", () => {
   });
 
   it("carries the queue cell's own escalation into the overlay's Waiting row", () => {
-    for (const request of REGISTER_ADVOCATES_QUEUE) {
+    for (const request of REGISTRATIONS_QUEUE) {
       const [account, submitted, waiting, kind] = requestRows(request);
       assert.deepEqual(
         [account.term, submitted.term, waiting.term, kind.term],
@@ -532,7 +532,7 @@ describe("shape one: a term and its value", () => {
   });
 
   it("puts the newest rejection first, every round in the same row", () => {
-    const back = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-118");
+    const back = REGISTRATIONS_QUEUE.find((r) => r.id === "adv-118");
     assert.ok(back);
     const rounds = rejectionRows(back);
     assert.deepEqual(
@@ -544,11 +544,11 @@ describe("shape one: a term and its value", () => {
       assert.ok(round.note && /^\d+ \w+ \d{4}$/.test(round.note));
     }
     assert.equal(rounds[0].note, "8 July 2026");
-    assert.deepEqual(rejectionRows(REGISTER_ADVOCATES_QUEUE[1]), []);
+    assert.deepEqual(rejectionRows(REGISTRATIONS_QUEUE[1]), []);
   });
 
   it("never repeats the application number the dialog header already carries", () => {
-    for (const request of REGISTER_ADVOCATES_QUEUE) {
+    for (const request of REGISTRATIONS_QUEUE) {
       for (const row of allRows(request)) {
         assert.ok(
           !row.value.includes(request.applicationNumber),
@@ -559,8 +559,8 @@ describe("shape one: a term and its value", () => {
   });
 
   it("reads every term off the registrant, so a clerk queue needs no new row", () => {
-    const request = REGISTER_ADVOCATES_QUEUE[0];
-    const clerk: AdvocateRegistration = { ...request, registrantKind: "clerk" };
+    const request = REGISTRATIONS_QUEUE[0];
+    const clerk: RegistrationRequest = { ...request, registrantKind: "clerk" };
     assert.equal(identityRows(request)[1].term, "Bar registration number");
     assert.equal(identityRows(clerk)[1].term, "Clerk registration number");
     assert.deepEqual(
@@ -572,7 +572,7 @@ describe("shape one: a term and its value", () => {
 
 describe("the register speaks only when it disagrees", () => {
   it("says nothing at all when the entry agrees", () => {
-    const clean = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-207");
+    const clean = REGISTRATIONS_QUEUE.find((r) => r.id === "adv-207");
     assert.ok(clean);
     assert.equal(registerAnswer(clean), null);
     assert.equal(registerFindingRow(clean), null);
@@ -581,9 +581,9 @@ describe("the register speaks only when it disagrees", () => {
   });
 
   it("reaches its three answers, each as one row in the Request group", () => {
-    const differs = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-181");
-    const noEntry = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-203");
-    const notChecked = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-164");
+    const differs = REGISTRATIONS_QUEUE.find((r) => r.id === "adv-181");
+    const noEntry = REGISTRATIONS_QUEUE.find((r) => r.id === "adv-203");
+    const notChecked = REGISTRATIONS_QUEUE.find((r) => r.id === "adv-164");
     assert.ok(differs && noEntry && notChecked);
 
     assert.equal(registerAnswer(differs), "differs");
@@ -617,7 +617,7 @@ describe("the register speaks only when it disagrees", () => {
   });
 
   it("never puts the finding anywhere but that one row", () => {
-    for (const request of REGISTER_ADVOCATES_QUEUE) {
+    for (const request of REGISTRATIONS_QUEUE) {
       const finding = registerFindingRow(request);
       const rows = requestRows(request);
       assert.equal(rows.length, finding ? 5 : 4);
@@ -634,13 +634,13 @@ describe("the register speaks only when it disagrees", () => {
 
 describe("shape two: two values, side by side", () => {
   it("compares nothing on an ordinary request", () => {
-    const clean = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-207");
+    const clean = REGISTRATIONS_QUEUE.find((r) => r.id === "adv-207");
     assert.ok(clean);
     assert.deepEqual(comparisonBlocks(clean), []);
   });
 
   it("puts a disagreeing register in its own table, claim first", () => {
-    const differs = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-181");
+    const differs = REGISTRATIONS_QUEUE.find((r) => r.id === "adv-181");
     assert.ok(differs);
     const [block, ...rest] = comparisonBlocks(differs);
     assert.deepEqual(rest, []);
@@ -661,7 +661,7 @@ describe("shape two: two values, side by side", () => {
   });
 
   it("shows before and after as two columns, never a struck-through value", () => {
-    const edited = REGISTER_ADVOCATES_QUEUE.find((r) => r.id === "adv-191");
+    const edited = REGISTRATIONS_QUEUE.find((r) => r.id === "adv-191");
     assert.ok(edited);
     const blocks = comparisonBlocks(edited);
     /* Both, now that each sits behind the row that announces it: the register's finding
@@ -695,7 +695,7 @@ describe("shape two: two values, side by side", () => {
   });
 
   it("folds the register's evidence behind its finding, and leaves the edit open", () => {
-    for (const request of REGISTER_ADVOCATES_QUEUE) {
+    for (const request of REGISTRATIONS_QUEUE) {
       const rows = requestRows(request);
       const built = comparisonBlocks(request).map((block) => block.id);
       // The register's finding opens the register's comparison — an exception to look into.
@@ -713,7 +713,7 @@ describe("shape two: two values, side by side", () => {
   });
 
   it("names every attribute the register disagrees with, in the finding itself", () => {
-    for (const request of REGISTER_ADVOCATES_QUEUE) {
+    for (const request of REGISTRATIONS_QUEUE) {
       const finding = registerFindingRow(request);
       if (registerAnswer(request) !== "differs") continue;
       assert.ok(finding);
@@ -727,7 +727,7 @@ describe("shape two: two values, side by side", () => {
   });
 
   it("gives every row one value per column, on every request", () => {
-    for (const request of REGISTER_ADVOCATES_QUEUE) {
+    for (const request of REGISTRATIONS_QUEUE) {
       for (const block of comparisonBlocks(request)) {
         assert.ok(block.rows.length > 0, `${block.id} rendered an empty table`);
         for (const row of block.rows) {
@@ -746,7 +746,7 @@ describe("shape two: two values, side by side", () => {
 });
 
 describe("an advocate clerk's request", () => {
-  const clerks = REGISTER_ADVOCATES_QUEUE.filter(
+  const clerks = REGISTRATIONS_QUEUE.filter(
     (r) => r.registrantKind === "clerk",
   );
 
@@ -754,8 +754,8 @@ describe("an advocate clerk's request", () => {
     assert.equal(clerks.length, 3);
     // The queue stays one list in wait order; there is no clerks-first or clerks-last.
     assert.deepEqual(
-      REGISTER_ADVOCATES_QUEUE,
-      sortByLongestWait(REGISTER_ADVOCATES_QUEUE),
+      REGISTRATIONS_QUEUE,
+      sortByLongestWait(REGISTRATIONS_QUEUE),
     );
   });
 
@@ -766,7 +766,7 @@ describe("an advocate clerk's request", () => {
     assert.equal(roleLabel("advocate"), "Advocate");
     assert.notEqual(roleLabel("clerk")[0], roleLabel("advocate")[0]);
     // The account type leads the Request group, as the pill the queue's column shows.
-    for (const request of REGISTER_ADVOCATES_QUEUE) {
+    for (const request of REGISTRATIONS_QUEUE) {
       const [account] = requestRows(request);
       assert.equal(account.id, "accountType");
       assert.equal(account.value, roleLabel(request.registrantKind));
@@ -809,7 +809,7 @@ describe("an advocate clerk's request", () => {
   });
 
   it("is found by its clerk registration number", () => {
-    const rows = filterRegistrations(REGISTER_ADVOCATES_QUEUE, {
+    const rows = filterRegistrations(REGISTRATIONS_QUEUE, {
       query: "CLK/2143",
     });
     assert.deepEqual(
@@ -845,8 +845,8 @@ describe("the next request after a decision", () => {
 
 /** A minimal row, for the sort tests — only the fields those tests read are meaningful. */
 function row(
-  over: Partial<AdvocateRegistration> & { id: string },
-): AdvocateRegistration {
+  over: Partial<RegistrationRequest> & { id: string },
+): RegistrationRequest {
   return {
     applicationNumber: "KL-ADV-000100-2026",
     fullName: "Test Advocate",

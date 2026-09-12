@@ -1,6 +1,6 @@
 # Approve registrations
 
-*(Formerly "Register advocates". Renamed 2026-09-11 when advocate clerks joined the queue —
+*(Formerly "Approve registrations". Renamed 2026-09-11 when advocate clerks joined the queue —
 D31. The route and this file keep the old slug for now; §11.)*
 
 Status: draft — **the decision overlay is being rebuilt.** The queue screen shipped
@@ -25,10 +25,10 @@ and the `src/components/ui/` catalog. Files opened for **this revision**: `AGENT
 `src/components/ui/description-list.tsx`, `item.tsx`, `badge.tsx`, `button.tsx`,
 `document-slot.tsx`, and the catalog re-globbed (68 components).
 
-Code read for this revision: `components/employee/register-advocates-dialog.tsx` ·
-`components/employee/register-advocates-screen.tsx` ·
-`components/employee/register-advocates-table.tsx` ·
-`lib/employee/register-advocates.ts` · `components/cases/document-preview.tsx` ·
+Code read for this revision: `components/employee/approve-registrations-dialog.tsx` ·
+`components/employee/approve-registrations-screen.tsx` ·
+`components/employee/approve-registrations-table.tsx` ·
+`lib/employee/approve-registrations.ts` · `components/cases/document-preview.tsx` ·
 `components/cases/filing-form-shared.tsx` (`ReviewRow`) ·
 `components/chrome/app-chrome.tsx` (`ChromeDialogContent`) ·
 `components/cases/case-file.tsx` (the `DocumentPreviewActions` precedent).
@@ -112,11 +112,11 @@ rather than buried in a paragraph.
 `ui-designer` and adopted here rather than re-decided:
 
 1. **Search filters as you type** — the Search button is going away app-wide. This screen's
-   `draft` / `applied` two-state (`register-advocates-screen.tsx` lines 76–110) goes with
+   `draft` / `applied` two-state (`approve-registrations-screen.tsx` lines 76–110) goes with
    it. Consequence for this brief: D11 and the teal budget in D9 (both revised below).
 2. **The whole table row becomes the click target**, replacing the application-number-only
-   opener in `register-advocates-table.tsx` lines 125–134 and the item-list opener in
-   `register-advocates-screen.tsx` lines 387–394. Constraint this brief keeps: the row's
+   opener in `approve-registrations-table.tsx` lines 125–134 and the item-list opener in
+   `approve-registrations-screen.tsx` lines 387–394. Constraint this brief keeps: the row's
    accessible name still **starts with the application number** (WCAG 2.5.3, and it is the
    string the advocate can quote), and the row is one keyboard target, not five.
 
@@ -167,8 +167,8 @@ statement of *what* must exist, never *how*. **Problems 9 and 10 are defects in 
 build**, found by the owner on the render and confirmed here line by line in the source.
 
 1. ~~**The row does not exist.**~~ **Resolved** by the 2026-09-10 build (`f453fd1`): the
-   rail carries *Register advocates* and the screen exists at
-   `/employee/register-advocates`.
+   rail carries *Approve registrations* and the screen exists at
+   `/employee/approve-registrations`.
 2. ~~**The reference's detail page shows fields the new flow no longer collects**~~ — ID
    Type (Aadhar), ID Proof (PDF), Permanent Address, Current Residential Address, Location
    (View on map); roughly six of nine values dead. **Resolved** by D3: those fields are
@@ -194,7 +194,7 @@ build**, found by the owner on the render and confirmed here line by line in the
    do the heavy lifting of the product conveying information, but it should have a specific
    set of attributes and show that mindfully."* One machine result — the Bar Council lookup
    — is rendered as **four different prose variants** in
-   `components/employee/register-advocates-dialog.tsx` `BarCouncilLine` (lines 561–627):
+   `components/employee/approve-registrations-dialog.tsx` `BarCouncilLine` (lines 561–627):
 
    | Lookup state | What the screen says today | Lines |
    |---|---|---|
@@ -216,7 +216,7 @@ build**, found by the owner on the render and confirmed here line by line in the
      product can say something the data does not support.
    - **None of it is data.** A prose variant cannot be filtered, sorted, counted, or shown
      on any other screen. The queue table consequently shows no lookup result at all
-     (`register-advocates-table.tsx` has no lookup cell), which means the brief's own D5 —
+     (`approve-registrations-table.tsx` has no lookup cell), which means the brief's own D5 —
      "a mark on the row when it disagrees" — was never true of the build. Resolved in the
      revised D5.
    - **A reader parses a paragraph to learn one fact.** The `disagrees` variant is 34 words
@@ -229,7 +229,7 @@ build**, found by the owner on the render and confirmed here line by line in the
     own.** `DocumentPreview` renders a sticky header — an `h3` "Photo of Bar ID card", a
     sub-line "Uploaded 31 August 2026", and two ghost text buttons *Download* and *Full
     view* (`components/cases/document-preview.tsx` lines 141–165), fed from
-    `register-advocates-dialog.tsx` lines 399–428. In this overlay that band sits roughly
+    `approve-registrations-dialog.tsx` lines 399–428. In this overlay that band sits roughly
     100px under `DialogTitle` "Review registration request", so the top of the screen holds
     **two headings and two controls fighting for the same job**. Three separate faults:
 
@@ -481,7 +481,7 @@ What changed:
    complete for a given state** (§12.4).
 4. **The queue row carries no lookup mark**, resolving a contradiction: the first pass's D5
    promised "a mark on the row when it disagrees" and the build never had one
-   (`register-advocates-table.tsx` has no lookup cell). Decided deliberately rather than
+   (`approve-registrations-table.tsx` has no lookup cell). Decided deliberately rather than
    patched: there is no bulk path (D9), so the officer opens every request anyway, and the
    table's own doc comment already rations the row to **one** status cue — the wait.
 5. **Where the "no answer at all" case is stated.** A row never renders an empty source
@@ -554,7 +554,7 @@ account** (`REG-18`), **resubmission** (`REG-23`). What changes is that each is 
 *Rejected:* keeping the heading "Why this was rejected last time" (product copy doing the
 work a group label does); rendering the latest rejection as a quote block and the earlier
 ones as timeline items — that is **one fact with two treatments**, a pass-7 defect the
-build shipped (`register-advocates-dialog.tsx` lines 232–288). All rounds now use one row;
+build shipped (`approve-registrations-dialog.tsx` lines 232–288). All rounds now use one row;
 the `Collapsible` governs how many are visible, not how they look.
 *Given up:* a timeline that runs oldest → newest, which is the conventional direction.
 Newest-first wins because the officer's question on a resubmission is "did they fix what I
@@ -616,8 +616,8 @@ comment says exactly this ("they cap primaries, they do not require one"). Clear
 stays `ghost` or becomes an affordance inside the input; either way it acquires no teal.
 The **only** teal on this feature is Approve, in the overlay.
 *Consequence for the rebuild:* two code comments now assert the old rule and must change
-with it — `register-advocates-table.tsx` line ~122 ("the teal on this page is rationed for
-Search") and `register-advocates-screen.tsx` lines 250–252.
+with it — `approve-registrations-table.tsx` line ~122 ("the teal on this page is rationed for
+Search") and `approve-registrations-screen.tsx` lines 250–252.
 
 *Rejected:* bulk approve for lookup-agreeing rows; a "next request" conveyor after each
 decision (a pattern no sibling has — §6); promoting Clear search to primary to "keep a teal
@@ -671,8 +671,8 @@ revisit with §12.5.
 *(Unchanged.)*
 
 ```
-{ id: "register-advocates", label: "Register advocates",
-  href: "/employee/register-advocates", count: REGISTER_ADVOCATES_QUEUE_COUNT }
+{ id: "approve-registrations", label: "Approve registrations",
+  href: "/employee/approve-registrations", count: REGISTRATIONS_QUEUE_COUNT }
 ```
 
 **Last in the group**, after Approve copy application: the group's internal order is a
@@ -1269,7 +1269,7 @@ screen approves one. One constant (`APPROVE_REGISTRATIONS_TITLE`) feeds the head
 browser tab and the rail row, so the three cannot disagree.
 
 *Rejected:* "Verify registrations" — names the work well but not the outcome the rest of the
-screen is written around; "Register advocates & clerks" — long, and the next registrant
+screen is written around; "Approve registrations & clerks" — long, and the next registrant
 type would rename it again.
 
 **Measured:** six columns came to 935px in the 910px panel at 1280, the narrowest width the
@@ -1487,11 +1487,11 @@ in for a value. Structured rejection-reason chips remain cut.
 
 ## 7. Layout & hierarchy
 
-**Queue screen** (`/employee/register-advocates`) — as built, with the two cross-cutting
+**Queue screen** (`/employee/approve-registrations`) — as built, with the two cross-cutting
 changes from §1 applied:
 
 - Page `p-6 md:p-8`, `gap-8` between header and panel.
-- `h1` `text-title sm:text-title-l font-semibold` — "Register advocates". Supporting line
+- `h1` `text-title sm:text-title-l font-semibold` — "Approve registrations". Supporting line
   in `text-body text-muted-foreground` carrying the count once.
 - **One** lifted panel: `rounded-xl border border-hairline bg-card shadow-raised p-6`,
   `gap-6`, holding search → table → `ListFooter`.
@@ -1570,7 +1570,7 @@ source line are `text-muted-foreground` — they are scaffolding, not findings.
 
 **Removed from the previous composition:** `Alert` / `AlertTitle` / `AlertDescription` (the
 lookup banner) and the hand-written `blockquote` + `h3` for the last rejection reason
-(`register-advocates-dialog.tsx` lines 226–244). Both go with D5 and D7.
+(`approve-registrations-dialog.tsx` lines 226–244). Both go with D5 and D7.
 
 Every DS name above exists in `vendor/pucar-design-system/src/components/ui/` (catalog
 re-globbed for this revision, 68 components). **Nothing new is proposed — see §13 for why
@@ -1626,7 +1626,7 @@ the data rather than only in this table.
 
 ## 11. Risks accepted
 
-- **The slug still says `register-advocates`** (2026-09-11). The branch carrying this work
+- **The slug still says `approve-registrations`** (2026-09-11). The branch carrying this work
   is `feature/approve-registrations`; the route, module and brief file were not renamed with
   it. The section is "Approve
   registrations" everywhere a person reads it; the route, the component and module names,
@@ -1809,7 +1809,7 @@ dependency here. Request #9 stands on its own merits for the screens that raised
 | 2026-09-10 | D10 corrected: the rail count does not drop after a decision; the sibling has the identical limitation. Accepted as a codebase-wide gap. | orchestrator |
 | 2026-09-10 | ui-reviewer audit: no new criticals, gates green. S1 (table↔list swap at `xl`), S2 (`Collapsible`), S3 (focus returns to Reject), S5 ("Kind" → "Request type"), S6 (`aria-describedby`), N3 (register name carries its own `lang`) applied. | ui-reviewer / ui-designer |
 | **2026-09-10 (evening)** | **Owner rejected the decision overlay's contents on the render** — *"the information inside this modal does not make any sense… it's not at all scalable… You are relying too much on custom copy to do the heavy lifting."* The overlay **shape** (D1) is explicitly kept: *"I like that it's a hover, like a modal that opens up."* | owner |
-| **2026-09-10 (evening)** | **Problems 9 and 10 added** — prose-instead-of-attributes (four lookup variants + two narrated request kinds, cited to `register-advocates-dialog.tsx`), and the evidence region's competing title band (cited to `document-preview.tsx` 141–165). Problems 1, 2, 4, 5, 6, 7, 8 marked **resolved** by the build and kept in the record; problem 3 marked half-resolved and folded into 9. | ux-designer |
+| **2026-09-10 (evening)** | **Problems 9 and 10 added** — prose-instead-of-attributes (four lookup variants + two narrated request kinds, cited to `approve-registrations-dialog.tsx`), and the evidence region's competing title band (cited to `document-preview.tsx` 141–165). Problems 1, 2, 4, 5, 6, 7, 8 marked **resolved** by the build and kept in the record; problem 3 marked half-resolved and folded into 9. | ux-designer |
 | **2026-09-10 (evening)** | **D2 rewritten.** The overlay's left column becomes one repeated attribute row — `term · value · source line · previous line · marks` — in three groups (Request, Identity, Earlier rejections). Two-column submitted-vs-source **rejected**: it is blank on 3 of 5 attributes and does not survive ~190px per value with Malayalam names. The claim-vs-evidence split from the first D2 survives; its prose contents do not. | owner (direction) / ux-designer |
 | **2026-09-10 (evening)** | **D5 rewritten.** The register's answer moves onto the attribute it checks as a closed status enum (`matches` / `differs` / `no-entry` / `not-checked` / `verified` / `none`); the banner `Alert` is deleted. `warning`-not-`destructive` and never-colour-alone **survive**; `no-entry` and `not-checked` **lose** their warning treatment. Also resolved a live contradiction: the first D5 promised a row-level mismatch mark the build never had — decided deliberately that the queue row carries **no** lookup mark. | ux-designer |
 | **2026-09-10 (evening)** | **D7 revised.** The three-kind classification survives; its prose rendering does not. Request type becomes a closed value in the Request group; the "This account was created from the Bar Council record…" paragraph and the "Round 4, rejected 8 July 2026…" sentence are deleted. All rejection rounds now render with **one** row (newest first) instead of a quote block plus a timeline — a pass-7 defect the build shipped. The history's `decision` field is not rendered while "Rejected" is its only value. | ux-designer |

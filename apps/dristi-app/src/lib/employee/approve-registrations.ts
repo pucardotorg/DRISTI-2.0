@@ -14,13 +14,13 @@
  *
  * Source for every field and every state below:
  * `/Users/abhiramrajilan/Desktop/account-creation-handover.md` §5 (`REG-10`–`REG-24`) and
- * `docs/design/proposals/register-advocates.md`. Only what the registration flow actually
+ * `docs/design/proposals/approve-registrations.md`. Only what the registration flow actually
  * collects is modelled — mobile (OTP-verified, the account's primary key), full name, Bar
  * registration ID, the photo of the card, and an optional email. **Address, ID type and
  * ID proof are deliberately absent**: handover §5.1 says they are not collected, and a
  * row that carried them would be inventing data the product never asks for.
  *
- * **There is no backend.** `REGISTER_ADVOCATES_QUEUE` is demo data shaped to exercise
+ * **There is no backend.** `REGISTRATIONS_QUEUE` is demo data shaped to exercise
  * what the screen has to survive: two names in Malayalam script, one name long enough to
  * wrap its column twice, Bar registration IDs from four state bars so the column is sized
  * off the longest rather than off Kerala's short form, waits spread from one day to two
@@ -160,7 +160,7 @@ export type BarCouncilLookup =
    */
   | { state: "none" };
 
-export type AdvocateRegistration = {
+export type RegistrationRequest = {
   id: string;
   /**
    * `KL-ADV-000207-2026` — the string the advocate is shown on their own waiting screen,
@@ -213,7 +213,7 @@ export type AdvocateRegistration = {
 const DEMO_TODAY = "2026-09-10";
 
 /** The ISO day a request was submitted, derived from its age. */
-export function submissionDay(request: AdvocateRegistration): string {
+export function submissionDay(request: RegistrationRequest): string {
   return dayBefore(DEMO_TODAY, request.daysWaiting);
 }
 
@@ -258,11 +258,11 @@ export function idPhotoLabel(kind: RegistrantKind): string {
 
 /**
  * The section's name — the screen heading, the browser tab and the rail row read this one
- * string, so they cannot drift (owner, 2026-09-11: "Register advocates" named half a
- * queue that now holds clerks too). See the heading in `RegisterAdvocatesScreen` for why
+ * string, so they cannot drift (owner, 2026-09-11: "Approve registrations" named half a
+ * queue that now holds clerks too). See the heading in `ApproveRegistrationsScreen` for why
  * these two words.
  *
- * The route and the file names still say `register-advocates`. Renaming them is a
+ * The route and the file names still say `approve-registrations`. Renaming them is a
  * mechanical change with links and a parallel session's navigation work in its way, so it
  * is left for a quiet moment rather than folded into a copy change (brief §11).
  */
@@ -297,7 +297,7 @@ export function registrantNoun(kind: RegistrantKind): string {
  * A first registration is the norm and carries **no badge** — marking every row would
  * spend the column's whole ration on a fact that distinguishes nothing (brief D7).
  */
-export function requestKindLabel(request: AdvocateRegistration): string | null {
+export function requestKindLabel(request: RegistrationRequest): string | null {
   if (request.requestKind === "edited") return "Profile update";
   if (request.requestKind === "resubmission") {
     return `Resubmitted · round ${currentRound(request)}`;
@@ -338,7 +338,7 @@ export function accountTypeVariant(kind: RegistrantKind): AccountTypeVariant {
  * One past the number of rejections behind it: a request that has been refused four times
  * and sent back is on round 5.
  */
-export function currentRound(request: AdvocateRegistration): number {
+export function currentRound(request: RegistrationRequest): number {
   return (request.rejections?.length ?? 0) + 1;
 }
 
@@ -364,7 +364,7 @@ export function registerCheckTerm(kind: RegistrantKind): string {
 
 /** What the holder changed in this field at first login, if anything (`REG-18`). */
 export function editFor(
-  request: AdvocateRegistration,
+  request: RegistrationRequest,
   field: ClaimField,
 ): RegistrationEdit | undefined {
   return request.edits?.find((edit) => edit.field === field);
@@ -384,7 +384,7 @@ export type WaitTone = "plain" | "warning" | "destructive";
  *
  * **The thresholds are borrowed, not derived.** 7 and 14 days are the scrutiny registry's
  * own clock. Nobody has told us what "too long" means for a registration
- * (`register-advocates.md` §12.5), and until they do, two court-side queues speaking with
+ * (`approve-registrations.md` §12.5), and until they do, two court-side queues speaking with
  * one voice beats this one inventing a number. What is not borrowed is that a wait here
  * is a live harm: `REG-24` says a pending advocate cannot act at all, and §138 runs on
  * statutory clocks that do not pause while they wait
@@ -476,7 +476,7 @@ function sameValue(a: string, b: string): boolean {
  * facts before it becomes a paragraph. The application number is **not** here: it is the
  * dialog's description, and carrying it twice would be one fact with two treatments.
  */
-export function requestRows(request: AdvocateRegistration): FactRow[] {
+export function requestRows(request: RegistrationRequest): FactRow[] {
   const rows: FactRow[] = [
     /* **First, as a pill** (owner, 2026-09-11: *"what's the first thing you read and then
        you understand, okay, it's a clerk. You don't read the heading… especially when you
@@ -535,7 +535,7 @@ export function requestRows(request: AdvocateRegistration): FactRow[] {
  * Council record, the advocate changed the marked values at first login" — is carried by
  * this value plus the `Changed at first login` comparison. Nothing is narrated.
  */
-export function requestTypeValue(request: AdvocateRegistration): string {
+export function requestTypeValue(request: RegistrationRequest): string {
   /* **"Profile update", not "Edited Bar Council account"** (owner, 2026-09-11: *"edited
      bar council account does not make sense to me — update profile could be a request
      type"*). Their words, turned from an instruction into the noun a value column wants:
@@ -589,7 +589,7 @@ const REGISTER_FINDING: Record<Exclude<RegisterAnswer, "differs">, string> = {
  * nothing else. Returned as terms rather than field ids because the terms are what the
  * officer reads, and they already know how to name themselves on a clerk queue.
  */
-export function mismatchedTerms(request: AdvocateRegistration): string[] {
+export function mismatchedTerms(request: RegistrationRequest): string[] {
   const { lookup } = request;
   if (lookup.state !== "found") return [];
   const rows = identityRows(request);
@@ -606,7 +606,7 @@ function joinTerms(terms: string[]): string {
 
 /** The register's answer about this request, or `null` when it simply agreed. */
 export function registerAnswer(
-  request: AdvocateRegistration,
+  request: RegistrationRequest,
 ): RegisterAnswer | null {
   const { lookup } = request;
   if (lookup.state === "none") return null;
@@ -625,7 +625,7 @@ export function registerAnswer(
  * already records). The words carry it, so the finding is never colour alone.
  */
 export function registerFindingRow(
-  request: AdvocateRegistration,
+  request: RegistrationRequest,
 ): FactRow | null {
   const answer = registerAnswer(request);
   if (!answer) return null;
@@ -667,7 +667,7 @@ export function registerFindingRow(
  * advocate typed and stops. Every comparison — with the register, with the account before
  * it was edited — is a table of its own below (`comparisonBlocks`).
  */
-export function identityRows(request: AdvocateRegistration): FactRow[] {
+export function identityRows(request: RegistrationRequest): FactRow[] {
   const rows: FactRow[] = [
     {
       id: "fullName",
@@ -765,7 +765,7 @@ export type ComparisonBlock = {
  * record's own history.
  */
 export function comparisonBlocks(
-  request: AdvocateRegistration,
+  request: RegistrationRequest,
 ): ComparisonBlock[] {
   const blocks: ComparisonBlock[] = [];
   const current = identityRows(request);
@@ -862,7 +862,7 @@ export function comparisonBlocks(
  * was a rejection, because an approved request leaves the queue, so a chip saying so
  * would mark the norm. The group's own label carries it.
  */
-export function rejectionRows(request: AdvocateRegistration): FactRow[] {
+export function rejectionRows(request: RegistrationRequest): FactRow[] {
   return [...(request.rejections ?? [])].reverse().map((round) => ({
     id: `round-${round.round}`,
     term: `Round ${round.round}`,
@@ -884,7 +884,7 @@ const MISSING_CARD = "/demo/bar-id-card-not-uploaded.svg";
 
 const KERALA = "Bar Council of Kerala";
 
-const PENDING: AdvocateRegistration[] = [
+const PENDING: RegistrationRequest[] = [
   {
     id: "adv-118",
     applicationNumber: "KL-ADV-000118-2026",
@@ -1288,8 +1288,8 @@ const PENDING: AdvocateRegistration[] = [
  * count, and it is the older serial that wins, because it is the older request.
  */
 export function sortByLongestWait(
-  rows: AdvocateRegistration[],
-): AdvocateRegistration[] {
+  rows: RegistrationRequest[],
+): RegistrationRequest[] {
   return [...rows].sort(
     (a, b) =>
       b.daysWaiting - a.daysWaiting ||
@@ -1298,7 +1298,7 @@ export function sortByLongestWait(
 }
 
 /** The registrations this court has not yet decided, longest wait first. */
-export const REGISTER_ADVOCATES_QUEUE: AdvocateRegistration[] =
+export const REGISTRATIONS_QUEUE: RegistrationRequest[] =
   sortByLongestWait(PENDING);
 
 /**
@@ -1317,15 +1317,15 @@ export const REGISTER_ADVOCATES_QUEUE: AdvocateRegistration[] =
  * is asked.
  */
 export function nextInQueue(
-  rows: AdvocateRegistration[],
-  decided: AdvocateRegistration,
-): AdvocateRegistration | null {
+  rows: RegistrationRequest[],
+  decided: RegistrationRequest,
+): RegistrationRequest | null {
   const after = rows.find((row) => comesAfter(row, decided));
   return after ?? rows.find((row) => row.id !== decided.id) ?? null;
 }
 
 /** `a` sits below `b` in the queue's longest-wait-first order. */
-function comesAfter(a: AdvocateRegistration, b: AdvocateRegistration): boolean {
+function comesAfter(a: RegistrationRequest, b: RegistrationRequest): boolean {
   return (
     a.daysWaiting < b.daysWaiting ||
     (a.daysWaiting === b.daysWaiting &&
@@ -1342,9 +1342,9 @@ function comesAfter(a: AdvocateRegistration, b: AdvocateRegistration): boolean {
  * cannot disagree about the size of the queue. Every row here is pending — a decided
  * request leaves the queue (see the module header) — so the length *is* the pending count.
  */
-export const REGISTER_ADVOCATES_QUEUE_COUNT = REGISTER_ADVOCATES_QUEUE.length;
+export const REGISTRATIONS_QUEUE_COUNT = REGISTRATIONS_QUEUE.length;
 
-export type RegisterAdvocatesFilters = {
+export type RegistrationsFilters = {
   /**
    * Free text over the full name, the Bar registration ID and the application number.
    *
@@ -1361,14 +1361,14 @@ export type RegisterAdvocatesFilters = {
   query: string;
 };
 
-export const EMPTY_REGISTER_ADVOCATES_FILTERS: RegisterAdvocatesFilters = {
+export const EMPTY_REGISTRATIONS_FILTERS: RegistrationsFilters = {
   query: "",
 };
 
 export function filterRegistrations(
-  rows: AdvocateRegistration[],
-  filters: RegisterAdvocatesFilters,
-): AdvocateRegistration[] {
+  rows: RegistrationRequest[],
+  filters: RegistrationsFilters,
+): RegistrationRequest[] {
   return rows.filter((request) =>
     matchesQuery(
       filters.query,

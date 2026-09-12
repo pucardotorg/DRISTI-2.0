@@ -57,12 +57,12 @@ import {
   rejectionRows,
   requestRows,
   roleLabel,
-  type AdvocateRegistration,
+  type RegistrationRequest,
   type ComparisonBlock,
   type FactRow,
   type RowFormat,
   type WaitTone,
-} from "@/lib/employee/register-advocates";
+} from "@/lib/employee/approve-registrations";
 import { cn } from "@/lib/utils";
 
 /**
@@ -100,10 +100,10 @@ import { cn } from "@/lib/utils";
  * See `registerAnswer` for why agreement is not information.
  *
  * **Approve and Reject perform no act.** Both drop the row from the demo queue — see
- * `lib/employee/register-advocates.ts`. No account is opened, no access is granted or
+ * `lib/employee/approve-registrations.ts`. No account is opened, no access is granted or
  * refused, no reason is sent and nobody is told, and the end states say so once.
  */
-export function RegisterAdvocateDialog({
+export function RegistrationDialog({
   request,
   next,
   onOpenChange,
@@ -112,26 +112,26 @@ export function RegisterAdvocateDialog({
   onNext,
   onReturnFocus,
 }: {
-  request: AdvocateRegistration | null;
+  request: RegistrationRequest | null;
   /**
    * The request the end state offers to open next — `nextInQueue` on the screen's own
    * list, so it respects the officer's search. `null` means the list is empty.
    */
-  next: AdvocateRegistration | null;
-  onOpenChange: (request: AdvocateRegistration | null) => void;
+  next: RegistrationRequest | null;
+  onOpenChange: (request: RegistrationRequest | null) => void;
   /** Commit the demo act. Must **not** close the overlay: the end state renders after it. */
-  onApprove: (request: AdvocateRegistration) => void;
+  onApprove: (request: RegistrationRequest) => void;
   /**
    * **The reason is not handed back, on purpose.** It is what unlocks the button — the
    * gate `REG-22` asks for — and there is nothing on the court side that could carry it:
-   * no notification channel is decided (`register-advocates.md` §12.1) and this build
+   * no notification channel is decided (`approve-registrations.md` §12.1) and this build
    * sends nothing. A callback that passed the sentence up would imply somewhere for it to
    * go. **ENGINEERING SEAM:** when the registration service exists, the reason travels
    * from here, and this signature is the line that changes.
    */
-  onReject: (request: AdvocateRegistration) => void;
+  onReject: (request: RegistrationRequest) => void;
   /** Open `next` in this same overlay. */
-  onNext: (request: AdvocateRegistration) => void;
+  onNext: (request: RegistrationRequest) => void;
   onReturnFocus: () => void;
 }) {
   return (
@@ -271,11 +271,11 @@ function RequestBody({
   onNext,
   onReturnFocus,
 }: {
-  request: AdvocateRegistration;
-  next: AdvocateRegistration | null;
-  onApprove: (request: AdvocateRegistration) => void;
-  onReject: (request: AdvocateRegistration) => void;
-  onNext: (request: AdvocateRegistration) => void;
+  request: RegistrationRequest;
+  next: RegistrationRequest | null;
+  onApprove: (request: RegistrationRequest) => void;
+  onReject: (request: RegistrationRequest) => void;
+  onNext: (request: RegistrationRequest) => void;
   onReturnFocus: () => void;
 }) {
   const [stage, setStage] = React.useState<Stage>("review");
@@ -547,7 +547,7 @@ function ReviewStage({
   request,
   factsRef,
 }: {
-  request: AdvocateRegistration;
+  request: RegistrationRequest;
   factsRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const rounds = rejectionRows(request);
@@ -595,7 +595,7 @@ function ReviewStage({
  * edge, so the photograph sits on a white sheet with a hairline instead — the same object
  * as the cards beside it, because it is the fifth attribute.
  */
-function EvidenceColumn({ request }: { request: AdvocateRegistration }) {
+function EvidenceColumn({ request }: { request: RegistrationRequest }) {
   const noun = registrantNoun(request.registrantKind);
   return (
     <DocumentPreview
@@ -658,7 +658,7 @@ function DecisionStage({
   onChange,
 }: {
   stage: Exclude<Stage, "review">;
-  request: AdvocateRegistration;
+  request: RegistrationRequest;
   reason: string;
   touched: boolean;
   reasonRef: React.RefObject<HTMLTextAreaElement | null>;
@@ -787,7 +787,7 @@ function DecisionStage({
  * It carries real alt text now. At 48px it was ornament and hid itself from assistive
  * technology; at this size it is the evidence the stage is built around.
  */
-function CardPhoto({ request }: { request: AdvocateRegistration }) {
+function CardPhoto({ request }: { request: RegistrationRequest }) {
   const [failed, setFailed] = React.useState(false);
   if (failed) return null;
 

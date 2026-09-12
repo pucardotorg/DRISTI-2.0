@@ -262,7 +262,7 @@ Run before declaring any screen done (after the token gates):
 
 Owner, 2026-09-11, making this the product default: progressive actions within a modal are
 conveyed with **motion inside the modal**, and there is **never a modal-on-modal
-interaction**. Reference implementation: `components/employee/register-advocates-dialog.tsx`.
+interaction**. Reference implementation: `components/employee/approve-registrations-dialog.tsx`.
 
 - **No step of a flow opens a dialog over the dialog.** A confirmation, a composer, an
   outcome — each is a *stage* of the same modal, never an `AlertDialog` or a second

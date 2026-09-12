@@ -153,28 +153,6 @@ export type CaseFactTerm = (typeof FACT_TERMS)[keyof typeof FACT_TERMS];
 export const DOCUMENTS_ROW = { term: "Documents" } as const;
 
 /**
- * The four cells above the file — Court · Amount · Submitted · Waiting.
- *
- * A second, smaller vocabulary rather than four more `FACT_TERMS`, because three of
- * these are not attributes of the complaint at all: Court, Submitted and Waiting say
- * where this complaint sits and how long it has sat, which is the *page's* context. Only
- * `Amount` is a row of the file, and it deliberately reads the same word here as it does
- * there — one attribute, one name, two places (brief D18).
- *
- * Declared for the same reason `FACT_TERMS` is: a term typed into the screen is a term
- * that can be invented, and `case-review.test.ts` checks both vocabularies the same way.
- */
-export const CASE_HEADER_TERMS = {
-  court: "Court",
-  amount: FACT_TERMS.amount,
-  submitted: "Submitted",
-  waiting: "Waiting",
-} as const;
-
-export type CaseHeaderTerm =
-  (typeof CASE_HEADER_TERMS)[keyof typeof CASE_HEADER_TERMS];
-
-/**
  * The names on the summary — the four answers in the verdict strip, and the cards below
  * it. Declared here rather than typed at the call site for the reason `FACT_TERMS` is: a
  * name written in the screen is a name nobody sourced, and `case-review.test.ts` holds the
@@ -544,30 +522,6 @@ export type CaseSection = {
 };
 
 /**
- * The second line of a timeline step, and what kind of thing it is.
- *
- * One `detail: string` used to hold three: a formatted day on the past steps, a spoken
- * duration on the wait, and the name of a state on the decision nobody has made. A slot
- * carrying three kinds of thing is the defect the reply row was already fixed for —
- * nothing can put a `<time>` around the day, nothing can recount the wait in another
- * language, and the module that formats them is the one furthest from the render. The
- * kind is named here and the screen branches on it.
- */
-export type CaseTimelineDetail =
-  /** The day the step happened, as an ISO day. */
-  | { kind: "date"; on: string }
-  /** How long the complaint has been in this step, in whole days. */
-  | { kind: "elapsed"; days: number }
-  /** A step that has not happened, named by the state it is in. */
-  | { kind: "state"; state: string };
-
-export type CaseTimelineStep = {
-  label: string;
-  detail: CaseTimelineDetail;
-  status: "past" | "current" | "future";
-};
-
-/**
  * A complaint's whole file, as this screen reads it.
  *
  * No `category` and no `type`: "Criminal" and "S.138, Negotiable Instruments Act, 1881"
@@ -601,7 +555,6 @@ export type CaseReview = {
    */
   amount: string;
   sections: CaseSection[];
-  timeline: CaseTimelineStep[];
 };
 
 /**
@@ -1771,6 +1724,24 @@ type AdvocateSlotRef = `advocate-${number}-${AdvocateSlotKey}`;
  */
 export type CaseFactSource = CaseSlotKey | AdvocateSlotRef;
 
+/**
+ * What a slot key names — the label, the kind of document, and the head it is filed
+ * under. Read by the summary, to name a required slot nobody filled, and by the file,
+ * to say where a fact's source sits.
+ */
+export function caseSlotFor(key: string):
+  | { label: string; kind: CaseDocumentKind; group: CaseGroupId; head: string }
+  | undefined {
+  if (key in CASE_SLOTS) {
+    return CASE_SLOTS[key as CaseSlotKey];
+  }
+  /* An advocate's own slots are keyed per record, so they cannot sit in the map. */
+  const advocate = /^advocate-\d+-(bar-id-card|vakalatnama)$/.exec(key);
+  if (!advocate) return undefined;
+  const spec = ADVOCATE_SLOTS[advocate[1] as AdvocateSlotKey];
+  return { ...spec, group: "advocates", head: "Advocate details" };
+}
+
 /** `filed`, unless this file is one of the ones with that slot left empty. */
 function slot(key: CaseSlotKey, missing: string[]): CaseDocument {
   const spec = CASE_SLOTS[key];
@@ -1847,7 +1818,6 @@ export function caseReviewFor(
       additionalSection(complaint, seed, marks),
       paymentSection(seed, marks),
     ],
-    timeline: timelineFor(complaint, submittedOn, marks),
   };
 }
 
@@ -2360,7 +2330,7 @@ function additionalSection(
             {
               term: FACT_TERMS.barRegistration,
               value: `KER/${1000 + ((seed + index * 37) % 8000)}/20${10 + ((seed + index) % 15)}`,
-              /* The pair `register-advocates` verifies, on this file's own copy of it —
+              /* The pair `approve-registrations` verifies, on this file's own copy of it —
                  and keyed per record, so the third advocate's row points at the third
                  advocate's card rather than at the first one's. */
               source: advocateSlotKey(index + 1, "bar-id-card"),
@@ -2414,497 +2384,6 @@ function paymentSection(seed: number, marks: CaseFileMarks): CaseSection {
   };
 }
 
-/**
- * Where the complaint has got to — four steps, each one an event the product records.
- *
- * Trimmed on 2026-09-10 to what can be traced (brief §5a.9). *Placed before the
- * magistrate* and *Letter from the accused received* are gone: neither appears anywhere
- * in `docs/product/`, the Kerala spine runs filing → scrutiny → **cognizance** with no
- * placement step between, and nothing records a filing from an accused who has not been
- * summoned.
- *
- * **Trimmed again on 2026-09-11** (brief D21, D23): the two scrutiny steps are gone as
- * well. They were the last unbacked events here, and what replaced them — the report's
- * four sourced cells — is both more honest and more useful, since it is on the landing
- * rather than behind a control. Every step that remains names its source on the line
- * above it, and every one of them is a field.
- *
- * Oldest first, like the case history on a listing's overview: two orderings for the
- * same kind of column on the same side of the app is how two screens start disagreeing
- * about which end is the present.
- */
-function timelineFor(
-  complaint: RegisterCase,
-  submittedOn: string,
-  marks: CaseFileMarks,
-): CaseTimelineStep[] {
-  const wait = complaint.daysSinceSubmitted;
-  const steps: CaseTimelineStep[] = [
-    /* `FilingDraft.status: "filed"` + `submittedAt`; spine step 1. */
-    pastStep("Complaint submitted", submittedOn),
-    /* `SignState.paid` / `paidAt` / `paidAmount`; spine step 1, court fee on filing. */
-    pastStep("Court fee received", submittedOn),
-  ];
-
-  /* `Jurisdiction.condonationReason` + the application's own `IntakeSlot` — and only
-     when the application is actually on the file. A delayed complaint whose application
-     was never uploaded already says so in the delay-condonation group; claiming it was
-     filed here would contradict that row. */
-  if (marks.delayed && !marks.missing.includes("delay-application")) {
-    steps.push(pastStep("Delay condonation application filed", submittedOn));
-  }
-
-  /* **Spine step 2 is not a timeline step any more** (brief D21, D23). *Taken up for
-     scrutiny* and *Scrutiny completed* used to be pushed here on `wait >= 3` and
-     `wait >= 7` — two events derived from a modulo on the wait, with no attribute behind
-     either and no store holding one. They are replaced, not deleted: `scrutinyFor` states
-     the same thing as four named values with a mode, a round count and a duration, and
-     it states them on the report where the magistrate actually reads them. A fabricated
-     step in a history is worse than a derived value in a report, because a history
-     claims the court recorded it. */
-
-  /* Derived from `daysSinceSubmitted` — the queue's own current state. */
-  steps.push({
-    label: "Waiting to be registered",
-    detail: { kind: "elapsed", days: wait },
-    status: "current",
-  });
-  /* The act this build does not perform (brief §5.7, §12.4). */
-  steps.push({
-    label: "Registration decision",
-    detail: { kind: "state", state: "Not made" },
-    status: "future",
-  });
-  return steps;
-}
-
-function pastStep(label: string, on: string): CaseTimelineStep {
-  return { label, detail: { kind: "date", on }, status: "past" };
-}
-
-/* ── The checks ─────────────────────────────────────────────────────────────────────
- *
- * **NO CHECK READS A DOCUMENT, AND NONE EVER MAY.** Every one of the seven below
- * compares entered values with other entered values — two dates against a statutory
- * window, a slot against whether anything is in it, a count against zero. Not one of
- * them opens, parses or looks inside a filed page, and there is no document store on the
- * court side that would let it. The glance says so out loud, in a caption under the
- * ledger line — *"Checks compare entered values with each other. No document was read."*
- * — and that caption is the only thing that makes the ledger honest: a forged cheque, a
- * wrong date typed consistently across two fields, or a photograph of the wrong page
- * passes all seven. If a future check wants to read a page, it is a different kind of
- * thing and it needs its own words on the screen before it needs code here.
- *
- * They exist because a magistrate glances (brief §1, D13): what he needs from this
- * screen is not a surface to check the file on, it is a statement of what has already
- * been checked and what could not be. Seven of his questions are decidable by machine
- * today over fields the registry already holds, and this is those seven — no eighth.
- * Specifically **not** the cheque's return reason (§138 requires insufficiency of funds
- * or an amount exceeding the arrangement; the registry holds a `string`, brief §12.7)
- * and **not** jurisdiction (§142(2) turns on where the payee's bank sits, and nothing in
- * the product maps a branch to a court). Inventing either would be the machine asserting
- * law it cannot compute.
- *
- * Every function here is pure and takes exactly the fields it compares, so each can be
- * fired in a test without a file around it — which is how `case-review-checks.test.ts`
- * proves a check fires on the complaint it should and on no other.
- */
-
-/** How much a finding weighs. Two values, derived, never authored — and never a third. */
-export type CaseCheckClass =
-  /** A statutory or completeness failure. Takes `warning-ink` on the screen. */
-  | "flag"
-  /**
-   * A lawful condition with a consequence for the reading or for the act. Plain ink,
-   * never inked as a defect: appearing in person is not a defect, and the magistrate
-   * still has to know it, because it is the send-back's missing recipient (brief §12.12).
-   */
-  | "note";
-
-/** The seven, by name. Closed, so a screen cannot render a finding this file cannot make. */
-export type CaseCheckId =
-  | "presentation-window"
-  | "notice-window"
-  | "premature-filing"
-  | "filing-window"
-  | "required-documents"
-  | "advocate-on-record"
-  | "part-payment";
-
-/** How many run. Every complaint, every time — it is what the ledger's first line counts. */
-export const CASE_CHECK_COUNT = 7;
-
-/**
- * One entered value a check compared.
- *
- * The term comes from one of the two declared vocabularies and never from a call site,
- * for the reason no term string lives in the screen: a finding that named a field the
- * file does not have would be the machine inventing an attribute at the exact moment a
- * reader is deciding whether to trust it.
- */
-export type CaseCheckValue = {
-  term: CaseFactTerm | CaseHeaderTerm;
-  value: string;
-  numeric?: boolean;
-};
-
-/** A document that would settle a finding — or the slot whose emptiness *is* one. */
-export type CaseCheckDocument = {
-  /** The slot's key, which is what a deep link carries. */
-  key: string;
-  label: string;
-  kind: CaseDocumentKind;
-  state: "filed" | "absent";
-  /** The head it was filed under, and where the full file states it. */
-  group: CaseGroupId;
-  head: string;
-};
-
-/** Where in the full file a finding is stated. */
-export type CaseCheckLink = {
-  group: CaseGroupId;
-  /** The document to open in the file view's pane on arrival, when there is one. */
-  doc?: string;
-};
-
-/**
- * One finding.
- *
- * Nothing richer: no severity ladder, no "cleared" state, no assignee. Each of those is
- * scrutiny tooling, and this screen is explicitly not the scrutiny workbench (brief §4).
- */
-export type CaseCheck = {
-  id: CaseCheckId;
-  class: CaseCheckClass;
-  /** The finding in words — the row's own text, and never colour alone. */
-  finding: string;
-  /** The entered values the check read. The detail shows these and nothing else. */
-  values: CaseCheckValue[];
-  /** The documents that would settle it, filed or absent. */
-  documents: CaseCheckDocument[];
-  link: CaseCheckLink;
-};
-
-/** What a slot key names, for the checks and for a deep link arriving at the file. */
-export function caseSlotFor(key: string):
-  | { label: string; kind: CaseDocumentKind; group: CaseGroupId; head: string }
-  | undefined {
-  if (key in CASE_SLOTS) {
-    return CASE_SLOTS[key as CaseSlotKey];
-  }
-  /* An advocate's own slots are keyed per record, so they cannot sit in the map. */
-  const advocate = /^advocate-\d+-(bar-id-card|vakalatnama)$/.exec(key);
-  if (!advocate) return undefined;
-  const spec = ADVOCATE_SLOTS[advocate[1] as AdvocateSlotKey];
-  return { ...spec, group: "advocates", head: "Advocate details" };
-}
-
-/** The slot as a check states it: the key, the label, and whether anything is in it. */
-function checkDocument(key: string, missing: string[]): CaseCheckDocument {
-  const spec = caseSlotFor(key);
-  /* Unreachable: every caller passes a key this module declared. Answered rather than
-     thrown, because a missing document is never worth failing a magistrate's screen. */
-  if (!spec) {
-    return {
-      key,
-      label: key,
-      kind: "letter",
-      state: "absent",
-      group: "complaint",
-      head: "Complaint",
-    };
-  }
-  return { key, ...spec, state: missing.includes(key) ? "absent" : "filed" };
-}
-
-/**
- * 1 · Was the cheque deposited within three months of its date? — §138(a), `flag`.
- *
- * The one check the file already surfaced, as row 14 of the cheque group
- * (`FACT_TERMS.depositedInTime`). Fires on `r-1333`.
- */
-export function presentationWindowCheck(
-  chain: Pick<CaseChain, "chequeOn" | "depositedOn">,
-  missing: string[],
-): CaseCheck | undefined {
-  const days = daysBetween(chain.chequeOn, chain.depositedOn);
-  if (days <= PRESENTATION_WINDOW_DAYS) return undefined;
-  return {
-    id: "presentation-window",
-    class: "flag",
-    finding: `Cheque deposited ${days} days after its date — outside the three months §138(a) allows.`,
-    values: [
-      {
-        term: FACT_TERMS.chequeDated,
-        value: formatCaseDate(chain.chequeOn),
-        numeric: true,
-      },
-      {
-        term: FACT_TERMS.depositedOn,
-        value: formatCaseDate(chain.depositedOn),
-        numeric: true,
-      },
-    ],
-    documents: [
-      checkDocument("dishonoured-cheque", missing),
-      checkDocument("deposit-proof", missing),
-    ],
-    link: { group: "cheque", doc: "dishonoured-cheque" },
-  };
-}
-
-/**
- * 2 · Was the notice sent within thirty days of the return? — §138(b), `flag`.
- *
- * Fires on nothing in the demo data, because `chainFor` builds every complaint inside
- * the window. **The fixtures must not be bent to demonstrate it** (brief D15): the
- * chain's integrity is what makes all thirty-five files legally coherent, and a real
- * registry is not a generated chain.
- */
-export function noticeWindowCheck(
-  chain: Pick<CaseChain, "returnedOn" | "noticeSentOn">,
-  missing: string[],
-): CaseCheck | undefined {
-  const days = daysBetween(chain.returnedOn, chain.noticeSentOn);
-  if (days <= NOTICE_WINDOW_DAYS) return undefined;
-  return {
-    id: "notice-window",
-    class: "flag",
-    finding: `Notice sent ${days} days after the cheque was returned — outside the thirty days §138(b) allows.`,
-    values: [
-      {
-        term: FACT_TERMS.returnedOn,
-        value: formatCaseDate(chain.returnedOn),
-        numeric: true,
-      },
-      {
-        term: FACT_TERMS.noticeDispatched,
-        value: formatCaseDate(chain.noticeSentOn),
-        numeric: true,
-      },
-    ],
-    documents: [
-      checkDocument("return-memo", missing),
-      checkDocument("dispatch-proof", missing),
-    ],
-    link: { group: "demand-notice", doc: "dispatch-proof" },
-  };
-}
-
-/**
- * 3 · Was the complaint filed after the fifteen days ran? — §138(c), `flag`.
- *
- * The offence is not complete until the drawer has had fifteen days from service, so a
- * complaint filed on or before the day the notice period ends is not maintainable. Fires
- * on nothing in the demo data, for the same reason as check 2 and with the same refusal
- * to bend a fixture.
- *
- * No day count in the words. The gap can be zero — filed on the very day the period
- * ended, which is still premature — and "filed 0 days early" is a sentence that reads as
- * a bug. The two dates are in the detail, where the reader can see the gap themselves.
- */
-export function prematureFilingCheck(
-  chain: Pick<CaseChain, "noticeServedOn" | "accruedOn" | "submittedOn">,
-  missing: string[],
-): CaseCheck | undefined {
-  if (daysBetween(chain.accruedOn, chain.submittedOn) > 0) return undefined;
-  return {
-    id: "premature-filing",
-    class: "flag",
-    finding:
-      "Complaint filed on or before the day the notice period ended — the fifteen days §138(c) allows the drawer had not run.",
-    values: [
-      {
-        term: FACT_TERMS.noticeServed,
-        value: formatCaseDate(chain.noticeServedOn),
-        numeric: true,
-      },
-      {
-        term: FACT_TERMS.noticePeriodEnded,
-        value: formatCaseDate(chain.accruedOn),
-        numeric: true,
-      },
-      {
-        term: CASE_HEADER_TERMS.submitted,
-        value: formatCaseDate(chain.submittedOn),
-        numeric: true,
-      },
-    ],
-    documents: [checkDocument("service-proof", missing)],
-    link: { group: "demand-notice", doc: "service-proof" },
-  };
-}
-
-/**
- * 4 · Was it filed within the month, or is an application to condone on the file? —
- * §142(b), `flag`. Fires on `r-1588`.
- *
- * Two ways to pass, and the second is why this is one check rather than two rows: a
- * complaint filed late *with* an application to condone the delay is a complaint the
- * court can act on, and flagging it would be flagging the norm for every delayed filing
- * in the queue.
- */
-export function filingWindowCheck(
-  chain: Pick<CaseChain, "accruedOn" | "submittedOn" | "sinceAccrual">,
-  applicationOnFile: boolean,
-  missing: string[],
-): CaseCheck | undefined {
-  if (chain.sinceAccrual <= FILING_WINDOW_DAYS) return undefined;
-  if (applicationOnFile) return undefined;
-  const beyond = chain.sinceAccrual - FILING_WINDOW_DAYS;
-  return {
-    id: "filing-window",
-    class: "flag",
-    finding: `Filed ${beyond} days beyond the month §142(b) allows, with no application to condone the delay on the file.`,
-    values: [
-      {
-        term: FACT_TERMS.noticePeriodEnded,
-        value: formatCaseDate(chain.accruedOn),
-        numeric: true,
-      },
-      {
-        term: CASE_HEADER_TERMS.submitted,
-        value: formatCaseDate(chain.submittedOn),
-        numeric: true,
-      },
-      {
-        term: FACT_TERMS.daysBeyondMonth,
-        value: String(beyond),
-        numeric: true,
-      },
-    ],
-    documents: [checkDocument("delay-application", missing)],
-    link: { group: "delay-condonation" },
-  };
-}
-
-/**
- * 5 · Is every document the form required on the file? — `flag`. Fires on `r-1490`.
- *
- * The interim rule is `IntakeSlot.file === null` over the slots the form required, which
- * is exactly what `CaseFileMarks.missing` records. The conditional slots are excluded by
- * construction rather than by a list: the reply slot on a complaint with no reply is
- * empty *correctly* and never enters `missing`, and a real list of mandatory slots from
- * product replaces this rule (brief §12.16).
- *
- * The row states the count and the detail names the slots, because the count is what a
- * glance needs and the names are what a decision needs.
- */
-export function requiredDocumentsCheck(
-  absent: CaseCheckDocument[],
-): CaseCheck | undefined {
-  if (absent.length === 0) return undefined;
-  return {
-    id: "required-documents",
-    class: "flag",
-    finding:
-      absent.length === 1
-        ? "1 document the form required is not on file."
-        : `${absent.length} documents the form required are not on file.`,
-    values: [],
-    documents: absent,
-    link: { group: absent[0].group },
-  };
-}
-
-/**
- * 6 · Is an advocate on record? — `note`. Fires on `r-1490`.
- *
- * A **note**, never a flag. A complaint in person is lawful and inking it as a defect
- * would be the screen telling a magistrate that a citizen conducting their own matter is
- * something wrong with the file. He still has to be told, because it is the send-back's
- * missing recipient — brief §12.12, undesigned and open.
- */
-export function advocateOnRecordCheck(counsel: number): CaseCheck | undefined {
-  if (counsel > 0) return undefined;
-  return {
-    id: "advocate-on-record",
-    class: "note",
-    finding: "No advocate on record — the complainant appears in person.",
-    values: [],
-    documents: [],
-    link: { group: "advocates" },
-  };
-}
-
-/**
- * 7 · Has anything been paid against the cheque? — `note`. Fires on `r-330`, `r-1654`.
- *
- * `DemandNotice.paymentStatus === "part"`. Lawful, and it changes what is at stake: the
- * balance is what the complaint is really about. A note, not a flag.
- */
-export function partPaymentCheck(
-  partPayment: boolean,
-  amount: number,
-  partAmount: number,
-): CaseCheck | undefined {
-  if (!partPayment) return undefined;
-  return {
-    id: "part-payment",
-    class: "note",
-    finding: `Part payment of ${formatChequeAmount(partAmount)} was made against the cheque — ${formatChequeAmount(amount - partAmount)} remains.`,
-    values: [
-      { term: FACT_TERMS.amount, value: formatChequeAmount(amount), numeric: true },
-      {
-        term: FACT_TERMS.partAmount,
-        value: formatChequeAmount(partAmount),
-        numeric: true,
-      },
-    ],
-    documents: [],
-    link: { group: "debt" },
-  };
-}
-
-/**
- * What the seven found on one complaint, in the order the ledger prints them.
- *
- * **Flags in statutory order, then notes** — deterministic, so two magistrates reading
- * the same complaint see the same list in the same order.
- *
- * **No check says the same thing twice.** When the absent document *is* the
- * delay-condonation application, check 4 names it and check 5 does not count it again:
- * one fact with two treatments inside one region is the defect this brief caught four
- * times over.
- */
-export function caseChecksFor(
-  id: string,
-  today: string,
-): CaseCheck[] | undefined {
-  const complaint = registerCaseById(id);
-  if (!complaint) return undefined;
-
-  const seed = serialOf(complaint.caseNumber);
-  const marks = marksFor(complaint.id);
-  const submittedOn = shiftDay(today, -complaint.daysSinceSubmitted);
-  const chain = chainFor(submittedOn, seed, marks.delayed, marks.depositedLate);
-  const amount = chequeAmountFor(seed);
-  const partAmount = partAmountFor(amount);
-  const applicationOnFile =
-    marks.delayed && !marks.missing.includes("delay-application");
-
-  const filingWindow = filingWindowCheck(
-    chain,
-    applicationOnFile,
-    marks.missing,
-  );
-
-  const absent = marks.missing
-    /* Check 4 has already named the application; counting it here would put one
-       absence on the ledger twice, under two headings, in two inks. */
-    .filter((key) => !(filingWindow && key === "delay-application"))
-    .map((key) => checkDocument(key, marks.missing));
-
-  return [
-    presentationWindowCheck(chain, marks.missing),
-    noticeWindowCheck(chain, marks.missing),
-    prematureFilingCheck(chain, marks.missing),
-    filingWindow,
-    requiredDocumentsCheck(absent),
-    advocateOnRecordCheck(counselFor(complaint, "complainant").length),
-    partPaymentCheck(marks.partPayment, amount, partAmount),
-  ].filter((check): check is CaseCheck => check !== undefined);
-}
 
 /* ─────────────────────────── The summary (the glance) ─────────────────────────── */
 
@@ -3240,44 +2719,15 @@ export function caseSummaryFor(
 }
 
 /**
- * A deep link from a finding into the full file — **on the complaint's own route**
- * (brief D25).
- *
- * It used to point at `/<id>/file`. The file is now a disclosure of `/<id>` with its
- * state in the query, so the link opens the region, scrolls to the head the finding is
- * stated under, and loads the named document into the pane — on one page, with Back
- * still closing it. The meaning of every part is unchanged: `file=1` is the disclosure,
- * `doc` is the slot the pane opens on arrival (the one time a starting point is asserted
- * by the reader rather than by the screen), and the hash is the group the finding is
- * stated under.
- *
- * Built here rather than at the call site because two places follow these links — a
- * finding's own row and its document rows — and a route spelled twice is a route that
- * eventually disagrees with itself.
- */
-export function caseFileHref(id: string, link?: CaseCheckLink): string {
-  const base = `/employee/register-cases/${id}`;
-  const query = new URLSearchParams({ file: "1" });
-  if (link?.doc) query.set("doc", link.doc);
-  const hash = link ? `#${caseGroupAnchor(link.group)}` : "";
-  return `${base}?${query.toString()}${hash}`;
-}
-
-/** The id a group carries on the full file, and what a deep link's hash names. */
-export function caseGroupAnchor(group: CaseGroupId): string {
-  return `case-group-${group}`;
-}
-
-/**
  * "281 days so far" — the wait, spoken, for the one place it is not a column.
  *
  * The eyebrow's "281 days waiting" is *not* here any more. It was a fourth
  * `formatDaysWaiting` in `lib/employee/`, and — the part that made it a defect rather
  * than a duplication — it returned a different string under a name two sibling modules
- * already export ("281" on both queues). `register-advocates.ts` already spells this
+ * already export ("281" on both queues). `approve-registrations.ts` already spells this
  * one `formatDaysWaitingSpoken` and returns the identical words, so the screen calls
  * that. The three surviving `formatDaysWaiting` exports still disagree with each other
- * across `register-cases.ts` and `register-advocates.ts`; consolidating them is a
+ * across `register-cases.ts` and `approve-registrations.ts`; consolidating them is a
  * separate pass and is noted rather than done here.
  */
 export function formatDaysWaitingLong(days: number): string {

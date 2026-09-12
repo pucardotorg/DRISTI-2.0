@@ -170,7 +170,7 @@ export function DocumentPreview({
   if (variant === "quiet" && surface === "card") {
     /*
       A framed well: a title strip with the two actions in it, a hairline, and the
-      document below. Added 2026-09-11 for the register-advocates overlay, where the
+      document below. Added 2026-09-11 for the approve-registrations overlay, where the
       owner read floating icons over a mostly empty white sheet as unresolved — *"the
       download and enlarge icon also looks like it's floating… maybe it should have a
       slight line to separate those as action items of the section"*.

@@ -14,8 +14,8 @@ import { hearingById, TODAYS_HEARING_COUNT } from "./hearings";
 import { OTHER_APPLICATIONS_QUEUE_COUNT } from "./other-applications";
 import {
   APPROVE_REGISTRATIONS_TITLE,
-  REGISTER_ADVOCATES_QUEUE_COUNT,
-} from "./register-advocates";
+  REGISTRATIONS_QUEUE_COUNT,
+} from "./approve-registrations";
 import { registerCaseById, REGISTER_QUEUE_COUNT } from "./register-cases";
 import { findFiling, SCRUTINY_QUEUE_COUNT } from "./scrutiny/queue";
 import { RESCHEDULING_QUEUE_COUNT } from "./rescheduling-request";
@@ -52,7 +52,7 @@ import { WITNESS_DEPOSITION_QUEUE_COUNT } from "./sign-witness-deposition";
  * performs. The exceptions are the built rows whose counts are derived from the lists
  * they lead to (`lib/employee/hearings.ts`, `lib/employee/schedule.ts`,
  * `lib/employee/register-cases.ts`, `lib/employee/approve-copy-application.ts`,
- * `lib/employee/register-advocates.ts`,
+ * `lib/employee/approve-registrations.ts`,
  * `lib/employee/rescheduling-request.ts`,
  * `lib/employee/delay-condonation.ts`, `lib/employee/other-applications.ts`,
  * `lib/employee/sign-forms.ts`, `lib/employee/sign-orders.ts`,
@@ -186,10 +186,10 @@ export const COURT_NAV_GROUPS: CourtNavGroup[] = [
          all, so putting it at the head would break that reading for the three rows that
          share the group with it. */
       {
-        id: "register-advocates",
+        id: "approve-registrations",
         label: APPROVE_REGISTRATIONS_TITLE,
-        href: "/employee/register-advocates",
-        count: REGISTER_ADVOCATES_QUEUE_COUNT,
+        href: "/employee/approve-registrations",
+        count: REGISTRATIONS_QUEUE_COUNT,
       },
     ],
   },

@@ -22,9 +22,9 @@ import {
   accountTypeVariant,
   requestKindLabel,
   roleLabel,
-  type AdvocateRegistration,
+  type RegistrationRequest,
   type WaitTone,
-} from "@/lib/employee/register-advocates";
+} from "@/lib/employee/approve-registrations";
 import {
   rowActivation,
   rowOpener,
@@ -71,12 +71,12 @@ const waitClass: Record<WaitTone, string> = {
  * The panel shell (border, fill, shadow) lives on the screen around this, so the table is
  * one panel rather than a box inside a box.
  */
-export function RegisterAdvocatesTable({
+export function RegistrationsTable({
   rows,
   onOpen,
 }: {
-  rows: AdvocateRegistration[];
-  onOpen: (request: AdvocateRegistration) => void;
+  rows: RegistrationRequest[];
+  onOpen: (request: RegistrationRequest) => void;
 }) {
   return (
     <Table className="w-full border-separate border-spacing-0 text-body-compact">

@@ -6,8 +6,8 @@ import { SearchXIcon, UserCheckIcon } from "lucide-react";
 import { ListFooter } from "@/components/employee/list-footer";
 import { QueueAnnouncer } from "@/components/employee/queue-announcer";
 import { QueueSearchField } from "@/components/employee/queue-search-field";
-import { RegisterAdvocateDialog } from "@/components/employee/register-advocates-dialog";
-import { RegisterAdvocatesTable } from "@/components/employee/register-advocates-table";
+import { RegistrationDialog } from "@/components/employee/approve-registrations-dialog";
+import { RegistrationsTable } from "@/components/employee/approve-registrations-table";
 import {
   rowActivation,
   rowOpener,
@@ -25,8 +25,8 @@ import {
 } from "@/components/ui/empty";
 import { PAGE_SIZE, type HearingsPageSize } from "@/lib/employee/hearings";
 import {
-  EMPTY_REGISTER_ADVOCATES_FILTERS,
-  REGISTER_ADVOCATES_QUEUE,
+  EMPTY_REGISTRATIONS_FILTERS,
+  REGISTRATIONS_QUEUE,
   filterRegistrations,
   formatDaysWaitingSpoken,
   nextInQueue,
@@ -35,10 +35,10 @@ import {
   requestKindLabel,
   roleLabel,
   APPROVE_REGISTRATIONS_TITLE,
-  type AdvocateRegistration,
-  type RegisterAdvocatesFilters,
+  type RegistrationRequest,
+  type RegistrationsFilters,
   type WaitTone,
-} from "@/lib/employee/register-advocates";
+} from "@/lib/employee/approve-registrations";
 import { cn } from "@/lib/utils";
 
 const waitClass: Record<WaitTone, string> = {
@@ -48,7 +48,7 @@ const waitClass: Record<WaitTone, string> = {
 };
 
 /**
- * Register advocates — the registration requests waiting on this court's scrutiny officer.
+ * Approve registrations — the registration requests waiting on this court's scrutiny officer.
  *
  * Deliberately the same screen as its siblings in the rail: the page title stands on the
  * page, and **one** lifted panel holds the search, the table and the pagination footer
@@ -74,28 +74,28 @@ const waitClass: Record<WaitTone, string> = {
  * the product has. Clearing the queue is therefore slow by construction.
  *
  * **Nothing here is approved or refused.** Both paths drop their rows from the demo queue
- * and nothing else — see `lib/employee/register-advocates.ts`. No account is opened, no
+ * and nothing else — see `lib/employee/approve-registrations.ts`. No account is opened, no
  * access is granted or withheld, no reason is sent, and nothing persists past a reload.
  */
-export function RegisterAdvocatesScreen() {
+export function ApproveRegistrationsScreen() {
   /* One state, not a draft and an applied one: the list answers the box as it is typed,
      so there is never a moment where what the officer has written and what the table is
      showing disagree. Every change resets to page one — the old Search button did that,
      and a keystroke that narrows thirty-nine requests to four must not leave the reader
      on page three of nothing. */
-  const [filters, setFilters] = React.useState<RegisterAdvocatesFilters>(
-    EMPTY_REGISTER_ADVOCATES_FILTERS,
+  const [filters, setFilters] = React.useState<RegistrationsFilters>(
+    EMPTY_REGISTRATIONS_FILTERS,
   );
   const [pageSize, setPageSize] = React.useState<HearingsPageSize>(PAGE_SIZE);
   const [page, setPage] = React.useState(1);
   const [decidedIds, setDecidedIds] = React.useState<ReadonlySet<string>>(
     () => new Set(),
   );
-  const [open, setOpen] = React.useState<AdvocateRegistration | null>(null);
+  const [open, setOpen] = React.useState<RegistrationRequest | null>(null);
   const [announcement, setAnnouncement] = React.useState("");
   const searchRef = React.useRef<HTMLInputElement>(null);
 
-  const remaining = REGISTER_ADVOCATES_QUEUE.filter(
+  const remaining = REGISTRATIONS_QUEUE.filter(
     (request) => !decidedIds.has(request.id),
   );
   const rows = filterRegistrations(remaining, filters);
@@ -106,13 +106,13 @@ export function RegisterAdvocatesScreen() {
   const pageRows = rows.slice(start, start + pageSize);
   const isFiltered = filters.query.trim() !== "";
 
-  function changeFilters(next: RegisterAdvocatesFilters) {
+  function changeFilters(next: RegistrationsFilters) {
     setFilters(next);
     setPage(1);
   }
 
   function clearFilters() {
-    changeFilters(EMPTY_REGISTER_ADVOCATES_FILTERS);
+    changeFilters(EMPTY_REGISTRATIONS_FILTERS);
   }
 
   /** Both decisions end here: the row leaves the demo queue, and nothing else happens. */
@@ -124,14 +124,14 @@ export function RegisterAdvocatesScreen() {
   /* The overlay stays open through both: it ends on a settled stage that says what
      happened and offers the next request, and the row has already left the list behind
      it (`nextInQueue` is read off `rows`, which no longer holds this one). */
-  function approveOne(request: AdvocateRegistration) {
+  function approveOne(request: RegistrationRequest) {
     removeFromQueue(
       request.id,
       `${request.applicationNumber} approved on this screen and removed from the queue. No account was opened and nobody was told.`,
     );
   }
 
-  function rejectOne(request: AdvocateRegistration) {
+  function rejectOne(request: RegistrationRequest) {
     removeFromQueue(
       request.id,
       `${request.applicationNumber} rejected on this screen and removed from the queue. The reason was not sent to anyone.`,
@@ -153,7 +153,7 @@ export function RegisterAdvocatesScreen() {
        `card` there and a tinted canvas would invert the depth. */
     <div className="flex min-w-0 flex-1 flex-col gap-8 bg-muted p-6 md:p-8 dark:bg-background">
       <header className="flex flex-col gap-2">
-        {/* **"Approve registrations"**, not "Register advocates" (owner, 2026-09-11: the
+        {/* **"Approve registrations"**, not "Approve registrations" (owner, 2026-09-11: the
             queue is advocates *and* their clerks, so the old title named half of it). Verb
             and object, like every other row in the Actions group — "Register cases",
             "Approve copy application" — and "approve" because it is the word the screen
@@ -215,7 +215,7 @@ export function RegisterAdvocatesScreen() {
                   wait out in words. (The sibling tables are five columns too and clip the
                   same way; whether they move with this one is their own change.) */}
               <div className="hidden xl:block">
-                <RegisterAdvocatesTable rows={pageRows} onOpen={setOpen} />
+                <RegistrationsTable rows={pageRows} onOpen={setOpen} />
               </div>
               <div className="xl:hidden">
                 <RegistrationItemList rows={pageRows} onOpen={setOpen} />
@@ -223,7 +223,7 @@ export function RegisterAdvocatesScreen() {
             </div>
 
             <ListFooter
-              id="register-advocates-page-size"
+              id="approve-registrations-page-size"
               from={start + 1}
               to={start + pageRows.length}
               total={rows.length}
@@ -246,7 +246,7 @@ export function RegisterAdvocatesScreen() {
         {announcement}
       </p>
 
-      <RegisterAdvocateDialog
+      <RegistrationDialog
         request={open}
         next={open ? nextInQueue(rows, open) : null}
         onOpenChange={setOpen}
@@ -291,9 +291,9 @@ function RegistrationFilters({
   searchRef,
   onChange,
 }: {
-  filters: RegisterAdvocatesFilters;
+  filters: RegistrationsFilters;
   searchRef: React.Ref<HTMLInputElement>;
-  onChange: (filters: RegisterAdvocatesFilters) => void;
+  onChange: (filters: RegistrationsFilters) => void;
 }) {
   return (
     <form
@@ -373,8 +373,8 @@ function RegistrationItemList({
   rows,
   onOpen,
 }: {
-  rows: AdvocateRegistration[];
-  onOpen: (request: AdvocateRegistration) => void;
+  rows: RegistrationRequest[];
+  onOpen: (request: RegistrationRequest) => void;
 }) {
   return (
     <ul className="flex flex-col gap-3">
