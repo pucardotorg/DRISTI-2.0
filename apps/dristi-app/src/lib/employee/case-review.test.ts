@@ -422,16 +422,21 @@ describe("a fact and its source document", () => {
     }
   });
 
-  it("leaves the fifteen declared-only rows on r-1840 without one", () => {
-    /* D27's own number, and the reason it is worth locking: those fifteen rows are
-       deliberately **not controls**, and the count is what the check caption's limit is
-       about. A row quietly gaining a source would make it pressable without anyone
-       deciding that it should be. */
+  it("leaves the seventeen declared-only rows on r-1840 without one", () => {
+    /* D27's own number, and the reason it is worth locking: those rows are deliberately
+       **not controls**, and the count is what the check caption's limit is about. A row
+       quietly gaining a source would make it pressable without anyone deciding that it
+       should be.
+
+       47 rows, not 41, since 2026-09-12: the six identity rows that used to be printed
+       under a card's title are rows of the file now (D49). Four of them carry a source —
+       a name is read off an ID proof, a cheque number off the cheque — and the two
+       litigant types do not, because no instrument states them. */
     const rows = sourced("r-1840").map(({ fact }) => fact);
-    assert.equal(rows.length, 41, "the file's own fact rows");
+    assert.equal(rows.length, 47, "the file's own fact rows");
     assert.equal(
       rows.filter((fact) => fact.source === undefined).length,
-      15,
+      17,
       "declared-only rows",
     );
   });

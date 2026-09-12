@@ -100,6 +100,9 @@ export function RegisterCaseV3Screen({ caseId }: { caseId: string }) {
 /** Where this queue lives — its rows open beneath it. */
 const QUEUE_HREF = "/employee/register-cases-v3";
 
+/** The employee shell's own bar, which the tab row sticks under (`top-14`). */
+const CHROME_HEIGHT = 56;
+
 /** Section labels above a surface — scaffolding, so it reads as scaffolding. */
 const EYEBROW = "text-caption font-semibold text-muted-foreground";
 
@@ -393,26 +396,50 @@ function ComplaintTabs({
   /** The acts, once the header's own pair has scrolled away — else nothing. */
   acts: React.ReactNode;
 }) {
+  /* Where the tab row sits in the page, as opposed to where it has stuck. */
+  const anchorRef = React.useRef<HTMLDivElement>(null);
+
+  /* The two tabs are two documents of different lengths, and switching kept the scroll
+     offset: leaving the summary half way down landed the reader half way into the case
+     file, and coming back from deep in the file landed them at the foot of a summary
+     they had not scrolled (owner, 2026-09-12 — "something about the scroll here is
+     broken"). Switching now winds back to the tab row when the reader is below it, and
+     leaves the page alone when they are not. */
+  const toTabRow = () => {
+    const anchor = anchorRef.current;
+    if (!anchor) return;
+    const top = anchor.getBoundingClientRect().top + window.scrollY - CHROME_HEIGHT;
+    if (window.scrollY > top) window.scrollTo({ top });
+  };
+
   return (
     <Tabs
       value={tab}
-      onValueChange={(value) => setTab(value as ComplaintTab)}
+      onValueChange={(value) => {
+        setTab(value as ComplaintTab);
+        toTabRow();
+      }}
       className="gap-8"
     >
+      <div ref={anchorRef} aria-hidden className="h-0" />
       {/* Sticky under the 56px bar, on the canvas's own fill and bled to the page edge
           so what scrolls beneath is covered cleanly. The rule is the band's, full width,
           as a sticky bar's edge is. */}
       <div className="sticky top-14 z-20 -mx-6 border-b border-hairline bg-muted px-6 md:-mx-8 md:px-8 xl:-mx-12 xl:px-12 dark:bg-background">
-        {/* The acts sit at the far end of the tab row, against the same rule, at the size
-            they are in the header — a button that shrinks as it crosses into the bar
-            reads as a glitch, not as a transition (owner, 2026-09-12). The bar is 64px
-            tall whether or not the acts are in it, so their arrival moves nothing: they
-            fade in where they will stay. On a phone the row cannot hold both, so they
-            take a line of their own below the tabs. */}
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+        {/* The acts sit at the far end of the tab row, at the size they are in the header
+            — a button that shrinks as it crosses into the bar reads as a glitch, not as a
+            transition (owner, 2026-09-12). The **tabs keep their own height**: stretching
+            the list to fill a taller bar pushed the labels 20px off their underline, and
+            that underline is the tab component's, not this screen's to move. The bar
+            takes its room above instead, and both sit on its foot — the acts' bottom edge
+            on the same line as the tabs', which is the rule. The height does not change
+            when the acts arrive, so nothing moves as they fade in. On a phone the row
+            cannot hold both, so they take a line of their own above the tabs, where the
+            underline still meets the rule. */}
+        <div className="flex flex-col-reverse gap-2 pt-3 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
           <TabsList
             variant="line"
-            className="w-full justify-start gap-6 rounded-none p-0 group-data-horizontal/tabs:h-11 sm:group-data-horizontal/tabs:h-16"
+            className="w-full justify-start gap-6 rounded-none p-0 group-data-horizontal/tabs:h-11"
           >
             <TabsTrigger value="summary" className={TRIGGER}>
               Summary
@@ -422,7 +449,7 @@ function ComplaintTabs({
             </TabsTrigger>
           </TabsList>
           {acts ? (
-            <div className="shrink-0 pt-2 animate-in fade-in-0 slide-in-from-top-1 duration-300 ease-out motion-reduce:animate-none sm:pt-0 sm:pb-3">
+            <div className="shrink-0 pt-2 animate-in fade-in-0 slide-in-from-top-1 duration-300 ease-out motion-reduce:animate-none sm:pt-0">
               {acts}
             </div>
           ) : null}
@@ -901,11 +928,7 @@ const WINDOW_COUNTED_FROM: Record<CaseSummaryWindow["id"], string> = {
 function StepGroup({ heading, children }: { heading: string; children: React.ReactNode }) {
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      {/* Indented past the rail, so the phase's name starts on the same vertical as the
-          steps under it rather than half a dot to their left. */}
-      <h3 className="ps-6 text-body-compact font-semibold text-muted-foreground">
-        {heading}
-      </h3>
+      <h3 className="text-body-compact font-semibold text-muted-foreground">{heading}</h3>
       <Timeline className="text-body-compact">{children}</Timeline>
     </div>
   );
@@ -945,7 +968,8 @@ function Step({
           closed. The date column is fixed, so every date in the chain shares one edge
           and one right margin however long the step's name runs. Narrow, the note drops
           to a line of its own under the step and the date keeps the far corner. */}
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-6 pb-4 group-last/timeline-item:pb-0 @xl:grid-cols-[minmax(0,13rem)_minmax(0,1fr)_6.5rem]">
+      <div className="pb-4 group-last/timeline-item:pb-0">
+        <div className="-mx-3 grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-6 rounded-lg px-3 py-2 transition-colors hover:bg-surface-sunken @xl:grid-cols-[minmax(0,13rem)_minmax(0,1fr)_6.5rem]">
         {/* Regular weight: the group's heading is the one semibold line in the column, and
             the date's muted ink is what separates it from the step's name. */}
         <span className="col-start-1 row-start-1 min-w-0">{label}</span>
@@ -967,6 +991,7 @@ function Step({
             ) : null}
           </span>
         ) : null}
+        </div>
       </div>
     </TimelineItem>
   );

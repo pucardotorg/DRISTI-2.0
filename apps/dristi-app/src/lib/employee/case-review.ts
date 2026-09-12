@@ -86,6 +86,11 @@ import { registerCaseById, type RegisterCase } from "./register-cases";
  */
 export const FACT_TERMS = {
   /* Litigants — `Complainant` / `Accused` in `lib/filing/types.ts`. */
+  /* Who the record is, as rows in the card rather than a line under its title: a name
+     printed under a heading is a fact without a label, and the reader has to infer which
+     field it came from (owner, 2026-09-12). */
+  name: "Name",
+  litigantType: "Type",
   mobile: "Mobile",
   email: "Email",
   age: "Age",
@@ -96,6 +101,7 @@ export const FACT_TERMS = {
   registeredOffice: "Registered office",
 
   /* The cheque — `ChequeDetails` and `Jurisdiction`. */
+  chequeNumber: "Cheque number",
   amount: "Amount",
   chequeDated: "Cheque dated",
   payeeBank: "Payee bank",
@@ -664,6 +670,10 @@ export type CaseFileChunkSpec =
 export const CASE_FILE_CHUNKS: Partial<Record<CaseGroupId, CaseFileChunkSpec[]>> = {
   complainant: [
     {
+      title: "The complainant",
+      terms: [{ term: FACT_TERMS.name }, { term: FACT_TERMS.litigantType }],
+    },
+    {
       title: "Contact",
       terms: [{ term: FACT_TERMS.mobile }, { term: FACT_TERMS.email }],
     },
@@ -689,7 +699,15 @@ export const CASE_FILE_CHUNKS: Partial<Record<CaseGroupId, CaseFileChunkSpec[]>>
   ],
   accused: [
     {
-      title: "Who is summoned for the entity",
+      title: "The accused",
+      terms: [{ term: FACT_TERMS.name }, { term: FACT_TERMS.litigantType }],
+    },
+    {
+      /* Not "Who is summoned for the entity" — the owner read that and could not tell
+         what it was claiming (2026-09-12), and it claimed more than the file says: a
+         summons has not issued yet. What the file states is who signed for the company,
+         which is the person S-141 makes answerable with it. */
+      title: "Who signs for the company",
       terms: [{ term: FACT_TERMS.authorisedSignatory }],
     },
     {
@@ -703,7 +721,11 @@ export const CASE_FILE_CHUNKS: Partial<Record<CaseGroupId, CaseFileChunkSpec[]>>
       /* Not "Cheque details" — that is the card's own name. What is written on the
          instrument, as the e-filing's own tip for these two fields puts it. */
       title: "On the cheque",
-      terms: [{ term: FACT_TERMS.amount }, { term: FACT_TERMS.chequeDated }],
+      terms: [
+        { term: FACT_TERMS.chequeNumber },
+        { term: FACT_TERMS.amount },
+        { term: FACT_TERMS.chequeDated },
+      ],
     },
     {
       title: "Return memo",
@@ -1823,6 +1845,11 @@ function litigantSection(
    * §12.14's neighbour) rather than a link pointing at the accused's copy.
    */
   const complainantFacts: CaseFact[] = [
+    /* Who this record is, stated as rows the way every other value on the card is — and
+       the name carries the document it is read off, so the row opens the ID proof like
+       every other sourced row. The type is declared only: no instrument states it. */
+    { term: FACT_TERMS.name, value: complainant, source: "complainant-id-proof" as const },
+    { term: FACT_TERMS.litigantType, value: LITIGANT_TYPES[marks.complainantType] },
     ...(entity
       ? [
           {
@@ -1898,6 +1925,8 @@ function litigantSection(
                somebody who answers for it, which is the row below. */
             tag: LITIGANT_TYPES.institution,
             facts: [
+              { term: FACT_TERMS.name, value: accused, source: "company-documents" },
+              { term: FACT_TERMS.litigantType, value: LITIGANT_TYPES.institution },
               /* Both read off the company documents the accused's head collects — who
                  signs for the company under S-141, and where it is registered. The two
                  contact rows are not: nothing on a court file states a mobile number. */
@@ -1961,6 +1990,12 @@ function caseSpecificSection(
           id: "cheque-1",
           heading: `Cheque no. ${chequeNumber}`,
           facts: [
+            {
+              term: FACT_TERMS.chequeNumber,
+              value: String(chequeNumber),
+              source: "dishonoured-cheque",
+              numeric: true,
+            },
             /* `source` on every row the brief's §5a-iii table gives a document for, and
                on no other. The payee's bank sits on the deposit proof (it is the bank
                the cheque was presented *to*); the payer's is printed on the cheque
@@ -2285,6 +2320,11 @@ function additionalSection(
              so "For the complainant" was the same words under every name — and before
              summons the accused has no counsel for it to be distinguished from. */
           facts: [
+            {
+              term: FACT_TERMS.name,
+              value: counsel.name,
+              source: advocateSlotKey(index + 1, "bar-id-card"),
+            },
             {
               term: FACT_TERMS.barRegistration,
               value: `KER/${1000 + ((seed + index * 37) % 8000)}/20${10 + ((seed + index) % 15)}`,

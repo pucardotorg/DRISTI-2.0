@@ -81,7 +81,6 @@ export function CaseFileView({ review }: { review: CaseReview }) {
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const wide = useMinWidth(1280);
   const asideRef = React.useRef<HTMLElement>(null);
-  useFitToWindow(asideRef);
 
   const needle = query.trim().toLowerCase();
   const groups = React.useMemo(
@@ -236,38 +235,6 @@ export function CaseFileView({ review }: { review: CaseReview }) {
   );
 }
 
-/**
- * Keep the docked panel's foot on the window's foot wherever the panel is.
- *
- * Sized "the window less the stuck offset", the panel is right only once it has stuck:
- * before that it starts lower, and its foot sat under the fold (measured, 1440×900). Sizing
- * it to the space actually left below its top, every frame it moves, keeps it running
- * exactly to the bottom of the window.
- */
-function useFitToWindow(ref: React.RefObject<HTMLElement | null>) {
-  React.useEffect(() => {
-    let frame = 0;
-    const fit = () => {
-      frame = 0;
-      const el = ref.current;
-      if (!el) return;
-      const top = el.getBoundingClientRect().top;
-      el.style.height = `${Math.max(360, window.innerHeight - top)}px`;
-    };
-    const schedule = () => {
-      if (!frame) frame = requestAnimationFrame(fit);
-    };
-    window.addEventListener("scroll", schedule, { passive: true });
-    window.addEventListener("resize", schedule);
-    fit();
-    return () => {
-      window.removeEventListener("scroll", schedule);
-      window.removeEventListener("resize", schedule);
-      cancelAnimationFrame(frame);
-    };
-  }, [ref]);
-}
-
 /* ─────────────────────────────── the search ─────────────────────────────── */
 
 type FactItem = { id: string; fact: CaseFact; label?: string };
@@ -409,27 +376,18 @@ function GroupCard({
       id={`file-group-${group.id}`}
       className="@container scroll-mt-32 gap-0 border-hairline py-0 shadow-raised"
     >
-      {/* The icon sits in the far corner, not before the title. In front of it, it pushed
-          the title and the record's name 44px in while every row below them started at the
-          card's own edge — one card with two left margins (owner, 2026-09-12). Out here it
-          marks the card without moving anything, and the heading column runs down the page
-          with the labels. */}
-      <div className="flex items-start justify-between gap-4 px-6 py-6 md:px-8">
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <h2 id={`file-group-${group.id}-title`} className="text-body font-semibold">
-            <Marked text={group.title} needle={needle} />
-          </h2>
-          {single ? (
-            <p className="flex flex-wrap items-baseline gap-x-2 text-body-compact">
-              <Marked text={single.record.heading} needle={needle} />
-              {single.record.tag ? (
-                <span className="text-muted-foreground">{single.record.tag}</span>
-              ) : null}
-            </p>
-          ) : null}
-        </div>
-        <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-muted-foreground">
-          <Icon aria-hidden className="size-4" />
+      {/* A heading band, not a first row: the card's name on the sunken fill the rest of
+          the app uses for a well, so a long card reads as headed rather than as a list
+          that happens to start with bigger text (owner, 2026-09-12). It holds the name
+          and nothing else — who the record is now sits in the body as labelled rows,
+          where a reader can tell which field each value came from. The icon keeps the far
+          corner, and on the tinted band it takes the card's own white with a hairline. */}
+      <div className="flex items-center justify-between gap-4 border-b border-hairline bg-surface-sunken px-6 py-4 md:px-8">
+        <h2 id={`file-group-${group.id}-title`} className="min-w-0 text-body font-semibold">
+          <Marked text={group.title} needle={needle} />
+        </h2>
+        <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-hairline bg-card text-muted-foreground">
+          <Icon aria-hidden className="size-5" />
         </span>
       </div>
 
