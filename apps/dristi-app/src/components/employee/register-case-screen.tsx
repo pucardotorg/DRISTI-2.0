@@ -1072,12 +1072,18 @@ const ACT_TITLE: Record<Act, { asking: string; settled: string }> = {
 };
 
 /**
- * What the complaint is while it is still a question — the queue's own word for it.
- *
- * There is no settled counterpart: once the act has gone through, the header states the
- * outcome in the outcome's own colour, and a chip beside it would say it twice.
+ * What the complaint is, at each step of the act — one chip, in one place, all the way
+ * through. Neutral while it is a question, the outcome's own muted pair once it is
+ * answered, and the words are on the chip so the state is never colour alone.
  */
-const ACT_BADGE = { variant: "secondary", label: CASE_REVIEW_STATUS } as const;
+const ACT_BADGE: Record<
+  "waiting" | "sent-back" | "registered",
+  { variant: "secondary" | "success" | "warning"; label: string }
+> = {
+  waiting: { variant: "secondary", label: CASE_REVIEW_STATUS },
+  "sent-back": { variant: "warning", label: "Sent back to scrutiny" },
+  registered: { variant: "success", label: "Registered" },
+};
 
 function ActBody({
   stage,
@@ -1111,7 +1117,7 @@ function ActBody({
     titleRef.current?.focus();
   }, [settled]);
 
-  const badge = ACT_BADGE;
+  const badge = ACT_BADGE[settled ? (sending ? "sent-back" : "registered") : "waiting"];
 
   function confirm() {
     if (sending && empty) {
@@ -1139,44 +1145,51 @@ function ActBody({
           Settled, the header itself takes the outcome's muted pair and an icon, rather
           than a chip and a band repeating the title's own words underneath it. One
           statement, in colour, with the words and a mark — never colour alone. */}
-      <DialogHeader
-        className={cn(
-          "shrink-0 items-start gap-2 border-b border-hairline p-6 pr-16 transition-colors",
-          settled && sending && "bg-warning-muted text-warning-muted-foreground",
-          settled && !sending && "bg-success-muted text-success-muted-foreground",
-        )}
-      >
-        {/* The state above the question, on a line of its own: beside a title of its own
-            length it sat wherever the title happened to end, which read as untidy rather
-            than as a label (owner, 2026-09-12). Settled, the state is the title's own
-            colour and mark, so the chip goes. */}
-        {settled ? null : <Badge variant={badge.variant}>{badge.label}</Badge>}
-        <DialogTitle
-          ref={titleRef}
-          tabIndex={-1}
-          role={settled ? "status" : undefined}
-          className="flex items-center gap-2 text-title-s font-semibold outline-none"
+      <DialogHeader className="shrink-0 items-start gap-2 border-b border-hairline p-6 pr-16">
+        {/* **The tag is the state, before and after.** It was a neutral chip that vanished
+            on the act and a tinted header band that replaced it — two treatments for one
+            fact, and a layout that jumped between them. The chip stays where it is and
+            becomes the outcome: its fill crosses to the outcome's muted pair, a mark
+            appears, and the words change under them (owner, 2026-09-12). Nothing else in
+            the header moves. */}
+        <Badge
+          variant={badge.variant}
+          className="gap-1.5 transition-colors duration-500 motion-reduce:transition-none"
         >
-          {/* Round, like the tick the success state uses — one shape for an outcome mark,
-              whichever way the decision went (owner, 2026-09-12). */}
           {settled ? (
             sending ? (
               <CircleArrowLeftIcon
                 aria-hidden
-                className="size-5 shrink-0 animate-in fade-in-0 duration-500 motion-reduce:animate-none"
+                className="size-3.5 shrink-0 animate-in fade-in-0 zoom-in-50 duration-500 motion-reduce:animate-none"
               />
             ) : (
               <CircleCheckIcon
                 aria-hidden
-                className="size-5 shrink-0 animate-in fade-in-0 duration-500 motion-reduce:animate-none"
+                className="size-3.5 shrink-0 animate-in fade-in-0 zoom-in-50 duration-500 motion-reduce:animate-none"
               />
             )
           ) : null}
-          {settled ? ACT_TITLE[act].settled : ACT_TITLE[act].asking}
-        </DialogTitle>
-        <DialogDescription
-          className={cn("text-body-compact", settled || "text-muted-foreground")}
+          <span
+            key={settled ? "settled" : "asking"}
+            role={settled ? "status" : undefined}
+            className="animate-in fade-in-0 slide-in-from-bottom-1 duration-500 motion-reduce:animate-none"
+          >
+            {badge.label}
+          </span>
+        </Badge>
+        <DialogTitle
+          ref={titleRef}
+          tabIndex={-1}
+          className="text-title-s font-semibold outline-none"
         >
+          <span
+            key={settled ? "settled" : "asking"}
+            className="inline-block animate-in fade-in-0 slide-in-from-bottom-1 duration-500 motion-reduce:animate-none"
+          >
+            {settled ? ACT_TITLE[act].settled : ACT_TITLE[act].asking}
+          </span>
+        </DialogTitle>
+        <DialogDescription className="text-body-compact text-muted-foreground">
           <span className="tabular-nums">{complaint.caseNumber}</span>
           {" · "}
           {causeTitle(complaint)}
