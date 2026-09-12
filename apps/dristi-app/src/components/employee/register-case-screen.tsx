@@ -10,9 +10,11 @@ import {
   Undo2Icon,
 } from "lucide-react";
 
+import { ChromeDialogContent } from "@/components/chrome/app-chrome";
 import { CaseFileView } from "@/components/employee/register-case-file";
 import { useCourtToday } from "@/components/employee/use-court-today";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
   Collapsible,
@@ -33,6 +35,13 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import {
+  Dialog,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -107,17 +116,6 @@ const CHROME_HEIGHT = 56;
 /** Section labels above a surface — scaffolding, so it reads as scaffolding. */
 const EYEBROW = "text-caption font-semibold text-muted-foreground";
 
-/**
- * The two directions the body moves. The act arrives from the right, where it is going;
- * Back brings the summary in from the left, where it came from. `fill-mode-both` holds
- * the first frame so nothing flashes before it moves; reduced motion gets a plain swap.
- */
-const SLIDE = {
-  forward:
-    "animate-in fade-in-0 slide-in-from-right-8 fill-mode-both duration-300 motion-reduce:animate-none",
-  back: "animate-in fade-in-0 slide-in-from-left-8 fill-mode-both duration-300 motion-reduce:animate-none",
-} as const;
-
 /* ─────────────────────────────── the page ───────────────────────────────── */
 
 type Act = "register" | "send-back";
@@ -144,11 +142,10 @@ function ComplaintPage({
   review: CaseReview;
 }) {
   const [tab, setTab] = useComplaintTab();
+  /* The act in progress, in the overlay over this page — `null` while there is none. */
   const [stage, setStage] = React.useState<Stage | null>(null);
-  /* Null on arrival: nothing slides in when the page first opens. */
-  const [motion, setMotion] = React.useState<keyof typeof SLIDE | null>(null);
-  /* The act that was backed out of — its button takes focus again when the header's
-     acts return, rather than focus falling to the page. */
+  /* The act the overlay was opened from: its button takes focus again when the overlay
+     closes, rather than focus falling to the page. */
   const [returnFocus, setReturnFocus] = React.useState<Act | null>(null);
   /* The acts ride along in the sticky tab bar once the header's own pair has scrolled
      off — the owner had to scroll back to the top of a three-screen file to act on it
@@ -157,48 +154,44 @@ function ComplaintPage({
   const actsRef = React.useRef<HTMLDivElement>(null);
   const actsOffScreen = useScrolledPast(actsRef);
 
-  const act = (next: Act) => {
-    setMotion("forward");
-    setStage({ act: next, settled: false });
-  };
+  const act = (next: Act) => setStage({ act: next, settled: false });
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip bg-muted dark:bg-background">
       <div className="flex w-full min-w-0 flex-1 flex-col gap-8 px-6 pt-6 pb-16 md:px-8 md:pt-8 xl:px-12">
         <ComplaintHeader
           complaint={complaint}
-          acting={stage !== null}
           actsRef={actsRef}
           offScreen={actsOffScreen}
           returnFocus={returnFocus}
           onAct={act}
         />
 
-        {stage === null ? (
-          <div className={cn("min-w-0", motion && SLIDE[motion])}>
-            <ComplaintTabs
-              tab={tab}
-              setTab={setTab}
-              summary={summary}
-              review={review}
-              acts={actsOffScreen ? <HeaderActs returnFocus={null} onAct={act} /> : null}
-            />
-          </div>
-        ) : (
-          <ActStage
-            key={stage.act}
-            act={stage.act}
-            settled={stage.settled}
-            next={nextInQueue(complaint.id)}
-            onBack={() => {
-              setMotion("back");
-              setReturnFocus(stage.act);
-              setStage(null);
-            }}
-            onConfirm={() => setStage({ act: stage.act, settled: true })}
+        <div className="min-w-0">
+          <ComplaintTabs
+            tab={tab}
+            setTab={setTab}
+            summary={summary}
+            review={review}
+            acts={actsOffScreen ? <HeaderActs returnFocus={null} onAct={act} /> : null}
           />
-        )}
+        </div>
       </div>
+
+      {/* The act happens over the page, not instead of it (owner, 2026-09-12): whichever
+          tab the magistrate decided on stays behind the overlay, so the decision is taken
+          against the thing that was read. One overlay, carrying its own stages — the
+          registrations queue's grammar, on a page. */}
+      <ActDialog
+        stage={stage}
+        complaint={complaint}
+        next={nextInQueue(complaint.id)}
+        onClose={() => {
+          setReturnFocus(stage?.act ?? null);
+          setStage(null);
+        }}
+        onConfirm={() => setStage((current) => (current ? { ...current, settled: true } : null))}
+      />
     </div>
   );
 }
@@ -211,19 +204,18 @@ function nextInQueue(id: string): RegisterCase | null {
 
 /**
  * Which complaint, and what can be done with it. The number above the cause, the two
- * acts opposite: send back is outline, register the page's one primary. The acts leave
- * while one is in progress — the act's own card carries its controls.
+ * acts opposite: send back is outline, register the page's one primary. They stay put
+ * while an act is in progress — the act is an overlay over this page, and the page it
+ * covers is the one the magistrate was reading.
  */
 function ComplaintHeader({
   complaint,
-  acting,
   actsRef,
   offScreen,
   returnFocus,
   onAct,
 }: {
   complaint: RegisterCase;
-  acting: boolean;
   actsRef: React.RefObject<HTMLDivElement | null>;
   /** The header's acts have scrolled under the sticky bar, which now carries them. */
   offScreen: boolean;
@@ -252,8 +244,7 @@ function ComplaintHeader({
           {causeTitle(complaint)}
         </h1>
       </div>
-      {acting ? null : (
-        <HeaderActs
+      <HeaderActs
           ref={actsRef}
           /* Scrolled past, this pair is the one in the sticky bar's shadow: left in
              place so nothing reflows, but taken out of the tab order and off the
@@ -262,7 +253,6 @@ function ComplaintHeader({
           returnFocus={returnFocus}
           onAct={onAct}
         />
-      )}
     </header>
   );
 }
@@ -1014,43 +1004,107 @@ function days(count: number): string {
 /* ─────────────────────────────── the acts ───────────────────────────────── */
 
 /**
- * The act, as one card that becomes its own outcome — the registrations queue's decision
- * card, on a page.
+ * The act, as one overlay over the page it was decided on.
  *
- * A strip across the top names what is happening; confirming resolves it in place into
- * what happened, in the status's own muted pair, and the controls under the card change
- * from Back and the act to where to go next. Nothing translates and nothing unmounts, so
- * the eye never has to find its place again.
+ * **The registrations queue's grammar, on a page** (owner, 2026-09-12: *"similar to how
+ * we had done the flow in approve registration, a modal should just come up on the
+ * current screen"*). The summary or the case file stays behind it, so the decision is
+ * taken against the thing that was read; nothing navigates, and no second modal ever
+ * opens over this one (`ui-craft` §7).
  *
- * Send back needs a reason before it will go — the one gate, shown only once it has been
- * tripped. Register needs nothing but the consequence stated.
+ * Two acts, one shape. Send back asks for the reason the magistrate is returning it —
+ * the one gate, because a file going back with no reason is a file the registry cannot
+ * act on. Register asks for nothing but the consequence, stated once. Confirming does
+ * not close the overlay: the same card resolves in place, its strip taking the outcome's
+ * own tone, and the footer changes from *Cancel / the act* to where to go next.
  */
-function ActStage({
-  act,
-  settled,
+function ActDialog({
+  stage,
+  complaint,
   next,
-  onBack,
+  onClose,
   onConfirm,
 }: {
-  act: Act;
-  settled: boolean;
+  stage: Stage | null;
+  complaint: RegisterCase;
+  /** The complaint after this one, offered when the act has settled. */
   next: RegisterCase | null;
-  onBack: () => void;
+  onClose: () => void;
+  /** Settle the act in place. Must **not** close the overlay — the outcome renders here. */
   onConfirm: () => void;
 }) {
+  return (
+    <Dialog
+      open={stage !== null}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      {stage ? (
+        <ActBody
+          stage={stage}
+          complaint={complaint}
+          next={next}
+          onClose={onClose}
+          onConfirm={onConfirm}
+        />
+      ) : null}
+    </Dialog>
+  );
+}
+
+/** What the header says at each step of each act. */
+const ACT_TITLE: Record<Act, { asking: string; settled: string }> = {
+  "send-back": {
+    asking: "Send this complaint back to scrutiny?",
+    settled: "Sent back to scrutiny",
+  },
+  register: { asking: "Register this complaint?", settled: "Complaint registered" },
+};
+
+/** The complaint's own state, said once, in the header. */
+const ACT_BADGE: Record<
+  "waiting" | "sent-back" | "registered",
+  { variant: "secondary" | "success" | "warning"; label: string }
+> = {
+  waiting: { variant: "secondary", label: CASE_REVIEW_STATUS },
+  "sent-back": { variant: "warning", label: "Sent back" },
+  registered: { variant: "success", label: "Registered" },
+};
+
+function ActBody({
+  stage,
+  complaint,
+  next,
+  onClose,
+  onConfirm,
+}: {
+  stage: Stage;
+  complaint: RegisterCase;
+  next: RegisterCase | null;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const { act, settled } = stage;
   const sending = act === "send-back";
   const [reason, setReason] = React.useState("");
   const [touched, setTouched] = React.useState(false);
   const empty = reason.trim() === "";
-  const stripRef = React.useRef<HTMLParagraphElement>(null);
+  const titleRef = React.useRef<HTMLHeadingElement>(null);
   const reasonRef = React.useRef<HTMLTextAreaElement>(null);
+  const settledBefore = React.useRef(settled);
 
-  /* Focus follows the stage: into the box when there is one to fill, otherwise onto the
-     strip, which is what just changed. */
+  /* Into the reason box, because writing it is the only thing that step is for; onto the
+     title on every other step, because the title has just changed to say what happened
+     and a keyboard reader should hear it. Not on the first frame: the dialog's own
+     landing place handles the opening. */
   React.useEffect(() => {
-    if (sending && !settled) reasonRef.current?.focus();
-    else stripRef.current?.focus();
-  }, [sending, settled]);
+    if (settledBefore.current === settled) return;
+    settledBefore.current = settled;
+    titleRef.current?.focus();
+  }, [settled]);
+
+  const badge = ACT_BADGE[settled ? (sending ? "sent-back" : "registered") : "waiting"];
 
   function confirm() {
     if (sending && empty) {
@@ -1062,13 +1116,38 @@ function ActStage({
   }
 
   return (
-    <section
-      aria-labelledby="act-strip"
-      className={cn("flex min-w-0 flex-1 flex-col items-center pb-8", SLIDE.forward)}
+    <ChromeDialogContent
+      className="flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
+      onOpenAutoFocus={(event) => {
+        event.preventDefault();
+        if (sending) reasonRef.current?.focus();
+        else titleRef.current?.focus();
+      }}
     >
-      <div className="flex w-full max-w-xl flex-col gap-4 md:my-auto">
-        <Card size="sm" className="gap-0 border-hairline py-0 shadow-raised">
-          <ActStrip act={act} settled={settled} stripRef={stripRef} />
+      {/* The frame the stages move inside: white chrome over the tinted stage below. */}
+      <DialogHeader className="shrink-0 gap-2 border-b border-hairline p-6 pr-16">
+        <div className="flex flex-wrap items-center gap-2">
+          <DialogTitle
+            ref={titleRef}
+            tabIndex={-1}
+            className="text-title-s font-semibold outline-none"
+          >
+            {settled ? ACT_TITLE[act].settled : ACT_TITLE[act].asking}
+          </DialogTitle>
+          <Badge variant={badge.variant}>{badge.label}</Badge>
+        </div>
+        <DialogDescription className="text-body-compact text-muted-foreground">
+          <span className="tabular-nums">{complaint.caseNumber}</span>
+          {" · "}
+          {causeTitle(complaint)}
+        </DialogDescription>
+      </DialogHeader>
+
+      {/* The scoped work canvas the registrations overlay uses: a tint under the one card
+          the act is about, with the chrome above and below it left white. */}
+      <div className="min-h-0 flex-1 overflow-y-auto bg-muted p-6 dark:bg-background">
+        <Card size="sm" className="gap-0 overflow-hidden border-hairline py-0 shadow-raised">
+          <ActStrip act={act} settled={settled} />
 
           <div className="p-4">
             {sending ? (
@@ -1099,43 +1178,20 @@ function ActStage({
               )
             ) : (
               <p className="text-body-compact text-muted-foreground">
-                Registering takes cognizance of the complaint. It cannot be undone from
-                this screen.
+                {settled
+                  ? "The complaint is on the register. It appears in the court's case list from today."
+                  : "Registering takes cognizance of the complaint. It cannot be undone from this screen."}
               </p>
             )}
           </div>
         </Card>
 
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          {settled ? (
-            <>
-              <Button asChild variant={next ? "ghost" : "default"}>
-                <Link href={QUEUE_HREF}>Back to register cases</Link>
-              </Button>
-              {next ? (
-                <Button asChild>
-                  <Link href={`${QUEUE_HREF}/${next.id}`}>Next complaint</Link>
-                </Button>
-              ) : null}
-            </>
-          ) : (
-            <>
-              <Button type="button" variant="ghost" onClick={onBack}>
-                Back
-              </Button>
-              <Button type="button" onClick={confirm}>
-                {sending ? "Send back" : "Register"}
-              </Button>
-            </>
-          )}
-        </div>
-
-        {/* Reserved before the act and revealed after it, so nothing below the card
-            moves at the moment the card claims to stay still. */}
+        {/* Reserved before the act and revealed after it, so nothing moves at the moment
+            the card claims to stay still. */}
         <p
           aria-hidden={!settled}
           className={cn(
-            "text-center text-caption text-pretty text-muted-foreground",
+            "pt-4 text-center text-caption text-pretty text-muted-foreground",
             settled ? "animate-in fade-in-0 duration-500 motion-reduce:animate-none" : "invisible",
           )}
         >
@@ -1144,25 +1200,42 @@ function ActStage({
             : "Not part of this build — nothing was registered and nobody was told."}
         </p>
       </div>
-    </section>
+
+      <DialogFooter className="mx-0 mb-0 shrink-0 border-hairline bg-card">
+        {settled ? (
+          <>
+            <Button asChild variant={next ? "ghost" : "default"}>
+              <Link href={QUEUE_HREF}>Back to register cases</Link>
+            </Button>
+            {next ? (
+              <Button asChild>
+                <Link href={`${QUEUE_HREF}/${next.id}`}>Next complaint</Link>
+              </Button>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={confirm}>
+              {sending ? "Send back" : "Confirm registration"}
+            </Button>
+          </>
+        )}
+      </DialogFooter>
+    </ChromeDialogContent>
   );
 }
 
 /**
- * The one thing that changes when the act is performed. Before: white, with a rule under
- * it, naming what is about to happen. After: the outcome's muted pair — success for
- * registered, warning for sent back — with a 16px mark and one line. Keyed so the swap
- * replays its entrance: a fade and a millimetre of fall.
+ * The strip across the card: what is about to happen, and then what happened.
+ *
+ * Neutral while it is a question — white with a rule under it, so the card starts in the
+ * page — and the outcome's own muted pair once it has settled, with an icon and the
+ * words, never colour alone.
  */
-function ActStrip({
-  act,
-  settled,
-  stripRef,
-}: {
-  act: Act;
-  settled: boolean;
-  stripRef: React.RefObject<HTMLParagraphElement | null>;
-}) {
+function ActStrip({ act, settled }: { act: Act; settled: boolean }) {
   const sending = act === "send-back";
   const Mark = sending ? Undo2Icon : CircleCheckIcon;
 
@@ -1170,7 +1243,7 @@ function ActStrip({
     <div
       key={settled ? "settled" : "open"}
       className={cn(
-        "flex items-center gap-2 px-4 py-2.5 animate-in fade-in-0 duration-500 motion-reduce:animate-none",
+        "flex items-center gap-2 px-4 py-2.5 text-body-compact animate-in fade-in-0 duration-500 motion-reduce:animate-none",
         !settled && "border-b border-hairline text-muted-foreground",
         settled && "slide-in-from-top-1",
         settled && !sending && "bg-success-muted text-success-muted-foreground",
@@ -1178,21 +1251,15 @@ function ActStrip({
       )}
     >
       {settled ? <Mark aria-hidden className="size-4 shrink-0" /> : null}
-      <p
-        id="act-strip"
-        ref={stripRef}
-        tabIndex={-1}
-        role={settled ? "status" : undefined}
-        className="text-body-compact font-medium outline-none"
-      >
+      <span role={settled ? "status" : undefined} className="font-medium">
         {settled
           ? sending
             ? "Sent back to scrutiny"
             : "Registered"
           : sending
             ? "You are sending this back to scrutiny"
-            : "You are registering"}
-      </p>
+            : "You are registering this complaint"}
+      </span>
     </div>
   );
 }

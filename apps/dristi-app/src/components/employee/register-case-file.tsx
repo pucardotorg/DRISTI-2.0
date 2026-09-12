@@ -213,14 +213,20 @@ export function CaseFileView({ review }: { review: CaseReview }) {
           rule — `-mt-8` takes back the tabs' gap — runs to the window's right edge through
           the page margin and down to its foot, and sticks there under the tab row as the
           file scrolls. A straight hairline down its left is the clean edge the contents
-          ticks sit against. Chrome, not a panel: card white, no radius, no shadow. */}
+          ticks sit against. Chrome, not a panel: card white, no radius, no shadow.
+
+          **It sticks to the tab bar's foot, not 13px under it.** At `top-25` the panel
+          stuck at 100px while the bar ends at 113, so its own heading spent every scroll
+          behind the bar and the panel read as cut off at the top and short at the bottom
+          (owner, 2026-09-12). `top-28` is the bar's foot, and the height is the window
+          less that, so the panel's foot lands on the fold. */}
       <aside
         ref={asideRef}
         aria-label="Documents"
         /* The fill runs to the window's edge; the contents stop where the page's own
            right margin is, so "18 filed" and the document numbers line up with the
            Register button above them (owner, 2026-09-12). */
-        className="sticky top-25 -mt-8 hidden h-[calc(100svh-6.25rem)] min-h-0 flex-col self-start border-l border-hairline bg-card xl:-mr-12 xl:flex xl:pr-6"
+        className="sticky top-28 -mt-8 hidden h-[calc(100svh-7rem)] min-h-0 flex-col self-start border-l border-hairline bg-card xl:-mr-12 xl:flex xl:pr-6"
       >
         {panel}
       </aside>
