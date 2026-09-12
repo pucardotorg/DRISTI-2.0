@@ -71,8 +71,8 @@ import { cn } from "@/lib/utils";
  *   label over its value. No dates: those are the timeline's.
  * - **Scrutiny** — who cleared it, how many rounds, how long; the rounds themselves open
  *   as a timeline of send-backs, so a file that went round four times costs no room here.
- * - **Timeline** — the dates, directly: the §138 chain in one column and the court's steps
- *   in the other, each statutory limit stated under the step that closes it.
+ * - **Timeline** — the dates, directly: the §138 chain, then the court's steps under it,
+ *   one rail after another, each row a step, what it means, and the day it closed.
  *
  * Every value comes from `lib/employee/case-review.ts` through one slot; every term from
  * its declared lists. Colour appears only where the file is outside a limit or another
@@ -177,9 +177,7 @@ function ComplaintPage({
               setTab={setTab}
               summary={summary}
               review={review}
-              acts={
-                actsOffScreen ? <HeaderActs compact returnFocus={null} onAct={act} /> : null
-              }
+              acts={actsOffScreen ? <HeaderActs returnFocus={null} onAct={act} /> : null}
             />
           </div>
         ) : (
@@ -268,18 +266,16 @@ function ComplaintHeader({
 /**
  * The two acts. Mounting again after Back, they hand focus to the one backed out of.
  *
- * `compact` is the pair riding in the sticky tab bar: the same two buttons at the bar's
- * own height, so the act is never more than a glance away on a long file.
+ * The same component carries the pair in the sticky tab bar, at the same size: the act is
+ * never more than a glance away on a long file, and never a smaller button.
  */
 function HeaderActs({
   ref,
-  compact,
   offScreen,
   returnFocus,
   onAct,
 }: {
   ref?: React.RefObject<HTMLDivElement | null>;
-  compact?: boolean;
   offScreen?: boolean;
   returnFocus: Act | null;
   onAct: (act: Act) => void;
@@ -305,17 +301,11 @@ function HeaderActs({
         ref={sendBackRef}
         type="button"
         variant="outline"
-        size={compact ? "sm" : "default"}
         onClick={() => onAct("send-back")}
       >
         Send back to scrutiny
       </Button>
-      <Button
-        ref={registerRef}
-        type="button"
-        size={compact ? "sm" : "default"}
-        onClick={() => onAct("register")}
-      >
+      <Button ref={registerRef} type="button" onClick={() => onAct("register")}>
         Register
       </Button>
     </div>
@@ -413,13 +403,16 @@ function ComplaintTabs({
           so what scrolls beneath is covered cleanly. The rule is the band's, full width,
           as a sticky bar's edge is. */}
       <div className="sticky top-14 z-20 -mx-6 border-b border-hairline bg-muted px-6 md:-mx-8 md:px-8 xl:-mx-12 xl:px-12 dark:bg-background">
-        {/* The acts sit at the far end of the tab row, against the same rule. On a phone
-            the row cannot hold both, so they take a line of their own below the tabs —
-            still within reach, still the one pair on the page. */}
-        <div className="flex flex-col gap-2 pb-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:pb-0">
+        {/* The acts sit at the far end of the tab row, against the same rule, at the size
+            they are in the header — a button that shrinks as it crosses into the bar
+            reads as a glitch, not as a transition (owner, 2026-09-12). The bar is 64px
+            tall whether or not the acts are in it, so their arrival moves nothing: they
+            fade in where they will stay. On a phone the row cannot hold both, so they
+            take a line of their own below the tabs. */}
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
           <TabsList
             variant="line"
-            className="w-full justify-start gap-6 rounded-none p-0 group-data-horizontal/tabs:h-11"
+            className="w-full justify-start gap-6 rounded-none p-0 group-data-horizontal/tabs:h-11 sm:group-data-horizontal/tabs:h-16"
           >
             <TabsTrigger value="summary" className={TRIGGER}>
               Summary
@@ -429,7 +422,7 @@ function ComplaintTabs({
             </TabsTrigger>
           </TabsList>
           {acts ? (
-            <div className="shrink-0 animate-in fade-in-0 slide-in-from-top-1 duration-200 motion-reduce:animate-none">
+            <div className="shrink-0 pt-2 animate-in fade-in-0 slide-in-from-top-1 duration-300 ease-out motion-reduce:animate-none sm:pt-0 sm:pb-3">
               {acts}
             </div>
           ) : null}
@@ -816,7 +809,12 @@ function TimelinePanel({ summary }: { summary: CaseSummary }) {
   return (
     <Panel id="timeline-heading" label={SUMMARY_TERMS.timeline} className="xl:col-span-2">
       <Card className={cn(SHEET, "@container")}>
-        <div className="grid gap-x-12 gap-y-8 p-6 @2xl:grid-cols-2 md:p-8">
+        {/* One column, not two. Side by side, each phase had 278px to write in: the
+            dates ended in a ragged column, every limit wrapped across two lines under
+            one, and the shorter phase left a third of the card blank. Stacked, the two
+            phases read in the order they happened, one rail under another, and every row
+            has the panel's full width for a label, its note and a date that lines up. */}
+        <div className="flex flex-col gap-8 p-6 md:p-8">
           <StepGroup heading="Before filing">
             {beforeFiling.map((step) => (
               <Step
@@ -836,19 +834,14 @@ function TimelinePanel({ summary }: { summary: CaseSummary }) {
               />
             ) : null}
             {scrutiny ? (
+              /* The date column holds the day a step closed, one date to a row, so the
+                 column has one edge. Scrutiny's other end is its note. */
               <Step
                 label={SUMMARY_TERMS.scrutiny}
                 date={
-                  <>
-                    <time dateTime={scrutiny.takenUpOn}>
-                      {scrutiny.takenUpOnShortLabel}
-                    </time>
-                    {" – "}
-                    <time dateTime={scrutiny.clearedOn}>
-                      {scrutiny.clearedOnShortLabel}
-                    </time>
-                  </>
+                  <time dateTime={scrutiny.clearedOn}>{scrutiny.clearedOnShortLabel}</time>
                 }
+                note={`taken up ${scrutiny.takenUpOnShortLabel}`}
               />
             ) : null}
             {/* The one step with no date of its own: it is still happening. How long it
@@ -877,7 +870,11 @@ function TimelinePanel({ summary }: { summary: CaseSummary }) {
  * Where the window that closes on a step sits against the limit the law sets, in the
  * statute's own terms and anchored to the day it is counted from — never a bare figure.
  */
-function windowNote(window: CaseSummaryWindow): { note: string; tone?: "warning" } {
+function windowNote(window: CaseSummaryWindow): {
+  note: string;
+  aside?: string;
+  tone?: "warning";
+} {
   const limit = `${window.limitLabel} of ${WINDOW_COUNTED_FROM[window.id]}`;
   switch (window.status) {
     case "within":
@@ -885,7 +882,9 @@ function windowNote(window: CaseSummaryWindow): { note: string; tone?: "warning"
     case "outside":
       return { note: `beyond ${limit}`, tone: "warning" };
     case "condonation-sought":
-      return { note: `beyond ${limit} · condonation sought`, tone: "warning" };
+      /* Two facts, so two lines rather than one that wraps: the file is late, and there
+         is an application on record asking the court to excuse it. */
+      return { note: `beyond ${limit}`, aside: "condonation sought", tone: "warning" };
     case "early":
       return { note: "before the cause of action arose", tone: "warning" };
   }
@@ -902,7 +901,11 @@ const WINDOW_COUNTED_FROM: Record<CaseSummaryWindow["id"], string> = {
 function StepGroup({ heading, children }: { heading: string; children: React.ReactNode }) {
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <h3 className="text-body-compact font-semibold text-muted-foreground">{heading}</h3>
+      {/* Indented past the rail, so the phase's name starts on the same vertical as the
+          steps under it rather than half a dot to their left. */}
+      <h3 className="ps-6 text-body-compact font-semibold text-muted-foreground">
+        {heading}
+      </h3>
       <Timeline className="text-body-compact">{children}</Timeline>
     </div>
   );
@@ -924,6 +927,7 @@ function Step({
   label,
   date,
   note,
+  aside,
   tone,
 }: {
   status?: "past" | "current";
@@ -931,21 +935,37 @@ function Step({
   date: React.ReactNode;
   /** What the step means for the decision — a statutory limit, or the wait so far. */
   note?: string;
+  /** A second fact about the same step, always quiet — "condonation sought". */
+  aside?: string;
   tone?: "warning";
 }) {
   return (
     <TimelineItem status={status} className="pb-0">
-      <div className="flex flex-col gap-0.5 pb-4 group-last/timeline-item:pb-0">
+      {/* Three columns once the panel is wide: the step, what it means, and the day it
+          closed. The date column is fixed, so every date in the chain shares one edge
+          and one right margin however long the step's name runs. Narrow, the note drops
+          to a line of its own under the step and the date keeps the far corner. */}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-6 pb-4 group-last/timeline-item:pb-0 @xl:grid-cols-[minmax(0,13rem)_minmax(0,1fr)_6.5rem]">
         {/* Regular weight: the group's heading is the one semibold line in the column, and
             the date's muted ink is what separates it from the step's name. */}
-        <p className="flex items-baseline justify-between gap-4">
-          <span className="min-w-0">{label}</span>
-          <span className="shrink-0 tabular-nums text-muted-foreground">{date}</span>
-        </p>
+        <span className="col-start-1 row-start-1 min-w-0">{label}</span>
+        <span className="col-start-2 row-start-1 shrink-0 text-right tabular-nums text-muted-foreground @xl:col-start-3">
+          {date}
+        </span>
         {note ? (
-          <p className={tone === "warning" ? "text-warning-ink" : "text-muted-foreground"}>
+          <span
+            className={cn(
+              "col-span-2 col-start-1 row-start-2 min-w-0 @xl:col-span-1 @xl:col-start-2 @xl:row-start-1",
+              tone === "warning" ? "text-warning-ink" : "text-muted-foreground",
+            )}
+          >
             {note}
-          </p>
+            {aside ? (
+              <span className={cn("block", tone === "warning" && "text-muted-foreground")}>
+                {aside}
+              </span>
+            ) : null}
+          </span>
         ) : null}
       </div>
     </TimelineItem>
