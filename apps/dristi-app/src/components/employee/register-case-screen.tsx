@@ -1056,21 +1056,19 @@ function ActDialog({
 /** What the header says at each step of each act. */
 const ACT_TITLE: Record<Act, { asking: string; settled: string }> = {
   "send-back": {
-    asking: "Send this complaint back to scrutiny?",
+    asking: "Send back to scrutiny?",
     settled: "Sent back to scrutiny",
   },
   register: { asking: "Register this complaint?", settled: "Complaint registered" },
 };
 
-/** The complaint's own state, said once, in the header. */
-const ACT_BADGE: Record<
-  "waiting" | "sent-back" | "registered",
-  { variant: "secondary" | "success" | "warning"; label: string }
-> = {
-  waiting: { variant: "secondary", label: CASE_REVIEW_STATUS },
-  "sent-back": { variant: "warning", label: "Sent back" },
-  registered: { variant: "success", label: "Registered" },
-};
+/**
+ * What the complaint is while it is still a question — the queue's own word for it.
+ *
+ * There is no settled counterpart: once the act has gone through, the header states the
+ * outcome in the outcome's own colour, and a chip beside it would say it twice.
+ */
+const ACT_BADGE = { variant: "secondary", label: CASE_REVIEW_STATUS } as const;
 
 function ActBody({
   stage,
@@ -1104,7 +1102,7 @@ function ActBody({
     titleRef.current?.focus();
   }, [settled]);
 
-  const badge = ACT_BADGE[settled ? (sending ? "sent-back" : "registered") : "waiting"];
+  const badge = ACT_BADGE;
 
   function confirm() {
     if (sending && empty) {
@@ -1117,81 +1115,105 @@ function ActBody({
 
   return (
     <ChromeDialogContent
-      className="flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
+      className="flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg"
       onOpenAutoFocus={(event) => {
         event.preventDefault();
         if (sending) reasonRef.current?.focus();
         else titleRef.current?.focus();
       }}
     >
-      {/* The frame the stages move inside: white chrome over the tinted stage below. */}
-      <DialogHeader className="shrink-0 gap-2 border-b border-hairline p-6 pr-16">
+      {/* **One surface, and the outcome said once.** This was a white card on a tinted
+          stage inside a white dialog — a box in a box in a box, and the owner read it as
+          exactly that (2026-09-12). The dialog is the panel now: the question is its
+          header, the answer is its body.
+
+          Settled, the header itself takes the outcome's muted pair and an icon, rather
+          than a chip and a band repeating the title's own words underneath it. One
+          statement, in colour, with the words and a mark — never colour alone. */}
+      <DialogHeader
+        className={cn(
+          "shrink-0 gap-2 p-6 pr-16 transition-colors",
+          settled && "border-b border-hairline",
+          settled && sending && "bg-warning-muted text-warning-muted-foreground",
+          settled && !sending && "bg-success-muted text-success-muted-foreground",
+        )}
+      >
         <div className="flex flex-wrap items-center gap-2">
+          {settled ? (
+            sending ? (
+              <Undo2Icon
+                aria-hidden
+                className="size-5 shrink-0 animate-in fade-in-0 duration-500 motion-reduce:animate-none"
+              />
+            ) : (
+              <CircleCheckIcon
+                aria-hidden
+                className="size-5 shrink-0 animate-in fade-in-0 duration-500 motion-reduce:animate-none"
+              />
+            )
+          ) : null}
           <DialogTitle
             ref={titleRef}
             tabIndex={-1}
+            role={settled ? "status" : undefined}
             className="text-title-s font-semibold outline-none"
           >
             {settled ? ACT_TITLE[act].settled : ACT_TITLE[act].asking}
           </DialogTitle>
-          <Badge variant={badge.variant}>{badge.label}</Badge>
+          {/* Only while it is a question: settled, the header says the state in full and
+              a chip beside it would be the same word twice. */}
+          {settled ? null : <Badge variant={badge.variant}>{badge.label}</Badge>}
         </div>
-        <DialogDescription className="text-body-compact text-muted-foreground">
+        <DialogDescription
+          className={cn("text-body-compact", settled || "text-muted-foreground")}
+        >
           <span className="tabular-nums">{complaint.caseNumber}</span>
           {" · "}
           {causeTitle(complaint)}
         </DialogDescription>
       </DialogHeader>
 
-      {/* The scoped work canvas the registrations overlay uses: a tint under the one card
-          the act is about, with the chrome above and below it left white. */}
-      <div className="min-h-0 flex-1 overflow-y-auto bg-muted p-6 dark:bg-background">
-        <Card size="sm" className="gap-0 overflow-hidden border-hairline py-0 shadow-raised">
-          <ActStrip act={act} settled={settled} />
-
-          <div className="p-4">
-            {sending ? (
-              settled ? (
-                /* The box fills in rather than leaving: the same footprint, holding the
-                   same words, so the card does not collapse as it settles. */
-                <p className="min-h-32 rounded-lg bg-surface-sunken p-3 text-body-compact whitespace-pre-line text-pretty animate-in fade-in-0 duration-500 motion-reduce:animate-none">
-                  {reason}
-                </p>
-              ) : (
-                <Field data-invalid={touched && empty}>
-                  <FieldLabel htmlFor="send-back-reason" className="text-body-compact font-medium">
-                    Why are you sending this back?
-                  </FieldLabel>
-                  <Textarea
-                    id="send-back-reason"
-                    ref={reasonRef}
-                    className="min-h-32 text-body-compact"
-                    placeholder="e.g. The affidavit is not attested. Please ask the advocate to file an attested copy."
-                    value={reason}
-                    onChange={(event) => {
-                      setReason(event.target.value);
-                      setTouched(true);
-                    }}
-                  />
-                  {touched && empty ? <FieldError>Write a reason first.</FieldError> : null}
-                </Field>
-              )
-            ) : (
-              <p className="text-body-compact text-muted-foreground">
-                {settled
-                  ? "The complaint is on the register. It appears in the court's case list from today."
-                  : "Registering takes cognizance of the complaint. It cannot be undone from this screen."}
-              </p>
-            )}
-          </div>
-        </Card>
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+        {sending ? (
+          settled ? (
+            /* The reason as it was written, quiet now that it has gone: the well is the
+               same height the box was, so nothing collapses as the act settles. */
+            <p className="min-h-32 rounded-lg bg-surface-sunken p-3 text-body-compact whitespace-pre-line text-pretty">
+              {reason}
+            </p>
+          ) : (
+            <Field data-invalid={touched && empty}>
+              <FieldLabel htmlFor="send-back-reason" className="text-body-compact font-medium">
+                Why are you sending this back?
+              </FieldLabel>
+              <Textarea
+                id="send-back-reason"
+                ref={reasonRef}
+                className="min-h-32 text-body-compact"
+                placeholder="e.g. The affidavit is not attested. Please ask the advocate to file an attested copy."
+                value={reason}
+                onChange={(event) => {
+                  setReason(event.target.value);
+                  setTouched(true);
+                }}
+              />
+              {touched && empty ? <FieldError>Write a reason first.</FieldError> : null}
+            </Field>
+          )
+        ) : (
+          <p className="text-body-compact text-pretty">
+            {settled
+              ? "The complaint is on the register. It appears in the court's case list from today."
+              : "Registering takes cognizance of the complaint. It cannot be undone from this screen."}
+          </p>
+        )}
 
         {/* Reserved before the act and revealed after it, so nothing moves at the moment
-            the card claims to stay still. */}
+            the overlay claims to stay still. */}
         <p
           aria-hidden={!settled}
           className={cn(
-            "pt-4 text-center text-caption text-pretty text-muted-foreground",
+            "pt-6 text-caption text-pretty text-muted-foreground",
             settled ? "animate-in fade-in-0 duration-500 motion-reduce:animate-none" : "invisible",
           )}
         >
@@ -1225,42 +1247,6 @@ function ActBody({
         )}
       </DialogFooter>
     </ChromeDialogContent>
-  );
-}
-
-/**
- * The strip across the card: what is about to happen, and then what happened.
- *
- * Neutral while it is a question — white with a rule under it, so the card starts in the
- * page — and the outcome's own muted pair once it has settled, with an icon and the
- * words, never colour alone.
- */
-function ActStrip({ act, settled }: { act: Act; settled: boolean }) {
-  const sending = act === "send-back";
-  const Mark = sending ? Undo2Icon : CircleCheckIcon;
-
-  return (
-    <div
-      key={settled ? "settled" : "open"}
-      className={cn(
-        "flex items-center gap-2 px-4 py-2.5 text-body-compact animate-in fade-in-0 duration-500 motion-reduce:animate-none",
-        !settled && "border-b border-hairline text-muted-foreground",
-        settled && "slide-in-from-top-1",
-        settled && !sending && "bg-success-muted text-success-muted-foreground",
-        settled && sending && "bg-warning-muted text-warning-muted-foreground",
-      )}
-    >
-      {settled ? <Mark aria-hidden className="size-4 shrink-0" /> : null}
-      <span role={settled ? "status" : undefined} className="font-medium">
-        {settled
-          ? sending
-            ? "Sent back to scrutiny"
-            : "Registered"
-          : sending
-            ? "You are sending this back to scrutiny"
-            : "You are registering this complaint"}
-      </span>
-    </div>
   );
 }
 
