@@ -409,11 +409,13 @@ function GroupCard({
       id={`file-group-${group.id}`}
       className="@container scroll-mt-32 gap-0 border-hairline py-0 shadow-raised"
     >
-      <div className="flex items-start gap-3 px-6 py-6 md:px-8">
-        <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-muted-foreground">
-          <Icon aria-hidden className="size-4" />
-        </span>
-        <div className="flex min-w-0 flex-col gap-0.5 pt-1">
+      {/* The icon sits in the far corner, not before the title. In front of it, it pushed
+          the title and the record's name 44px in while every row below them started at the
+          card's own edge — one card with two left margins (owner, 2026-09-12). Out here it
+          marks the card without moving anything, and the heading column runs down the page
+          with the labels. */}
+      <div className="flex items-start justify-between gap-4 px-6 py-6 md:px-8">
+        <div className="flex min-w-0 flex-col gap-0.5">
           <h2 id={`file-group-${group.id}-title`} className="text-body font-semibold">
             <Marked text={group.title} needle={needle} />
           </h2>
@@ -426,6 +428,9 @@ function GroupCard({
             </p>
           ) : null}
         </div>
+        <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-muted-foreground">
+          <Icon aria-hidden className="size-4" />
+        </span>
       </div>
 
       {group.empty && !needle ? (

@@ -199,7 +199,6 @@ export const SYNOPSIS_FIELDS = {
   rounds: "Rounds",
   took: "Took",
   clearedOn: "Cleared on",
-  sentBack: "Sent back for",
   complainant: "Complainant",
   accused: "Accused",
   advocate: "Complainant's advocate",
@@ -273,12 +272,24 @@ export const SCRUTINY_ISSUES = {
 
 export type ScrutinyIssueId = keyof typeof SCRUTINY_ISSUES;
 
-/** One send-back: which round, and what it was for. */
+/** One send-back: which round, when it went back, and what it was for. */
 export type ScrutinyReturn = {
   /** The round that ended in this send-back — 1 for the first pass. */
   round: number;
   issue: ScrutinyIssueId;
   label: string;
+  /**
+   * The day the round ended and the file went back to the advocate.
+   *
+   * Derived, like every other day in this record: the rounds divide the span the
+   * registry held the file (`takenUpOn` → `clearedOn`), which is the same class of
+   * derivation as the §138 chain and is declared as demo data in brief §11.2. What the
+   * registry really keeps per round is §12.22.
+   */
+  sentBackOn: string;
+  sentBackOnLabel: string;
+  /** "15 Jul 2026" — the day as it sits in a column of other days. */
+  sentBackOnShortLabel: string;
 };
 
 /**
@@ -1498,7 +1509,18 @@ export function scrutinyFor(
   const issues = marks.scrutinyIssues;
   const returns: ScrutinyReturn[] = Array.from({ length: rounds - 1 }, (_, index) => {
     const issue = issues[index] ?? issues[issues.length - 1] ?? "document-unreadable";
-    return { round: index + 1, issue, label: SCRUTINY_ISSUES[issue] };
+    /* Each round ends in a send-back, so the send-backs fall where the rounds divide the
+       span the registry held the file. The last round is the one that cleared it and
+       ends at `clearedOn`, which is why the count stops one short. */
+    const sentBackOn = shiftDay(takenUpOn, Math.round(((index + 1) * days) / rounds));
+    return {
+      round: index + 1,
+      issue,
+      label: SCRUTINY_ISSUES[issue],
+      sentBackOn,
+      sentBackOnLabel: formatCaseDate(sentBackOn),
+      sentBackOnShortLabel: formatListingDate(sentBackOn),
+    };
   });
 
   return {

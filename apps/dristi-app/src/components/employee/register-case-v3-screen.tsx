@@ -69,9 +69,10 @@ import { cn } from "@/lib/utils";
  * - **Synopsis** is one sheet of six compartments in the owner's order — parties, cheque,
  *   dishonour, demand notice, cause of action, prayer — divided by hairlines, each fact a
  *   label over its value. No dates: those are the timeline's.
- * - **Scrutiny** — who cleared it, rounds, how long, what each round was sent back for.
- * - **Timeline** — collapsed to the spans that decide it (each statutory window against
- *   its limit, and the wait since scrutiny); opened, it adds the dated steps in place.
+ * - **Scrutiny** — who cleared it, how many rounds, how long; the rounds themselves open
+ *   as a timeline of send-backs, so a file that went round four times costs no room here.
+ * - **Timeline** — the dates, directly: the §138 chain in one column and the court's steps
+ *   in the other, each statutory limit stated under the step that closes it.
  *
  * Every value comes from `lib/employee/case-review.ts` through one slot; every term from
  * its declared lists. Colour appears only where the file is outside a limit or another
@@ -145,6 +146,17 @@ function ComplaintPage({
   /* The act that was backed out of — its button takes focus again when the header's
      acts return, rather than focus falling to the page. */
   const [returnFocus, setReturnFocus] = React.useState<Act | null>(null);
+  /* The acts ride along in the sticky tab bar once the header's own pair has scrolled
+     off — the owner had to scroll back to the top of a three-screen file to act on it
+     (2026-09-12). The header's pair stays in place so nothing reflows under the reader,
+     but goes `inert` while the bar carries them: one Register in the tab order, always. */
+  const actsRef = React.useRef<HTMLDivElement>(null);
+  const actsOffScreen = useScrolledPast(actsRef);
+
+  const act = (next: Act) => {
+    setMotion("forward");
+    setStage({ act: next, settled: false });
+  };
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip bg-muted dark:bg-background">
@@ -152,16 +164,23 @@ function ComplaintPage({
         <ComplaintHeader
           complaint={complaint}
           acting={stage !== null}
+          actsRef={actsRef}
+          offScreen={actsOffScreen}
           returnFocus={returnFocus}
-          onAct={(act) => {
-            setMotion("forward");
-            setStage({ act, settled: false });
-          }}
+          onAct={act}
         />
 
         {stage === null ? (
           <div className={cn("min-w-0", motion && SLIDE[motion])}>
-            <ComplaintTabs tab={tab} setTab={setTab} summary={summary} review={review} />
+            <ComplaintTabs
+              tab={tab}
+              setTab={setTab}
+              summary={summary}
+              review={review}
+              acts={
+                actsOffScreen ? <HeaderActs compact returnFocus={null} onAct={act} /> : null
+              }
+            />
           </div>
         ) : (
           <ActStage
@@ -196,20 +215,31 @@ function nextInQueue(id: string): RegisterCase | null {
 function ComplaintHeader({
   complaint,
   acting,
+  actsRef,
+  offScreen,
   returnFocus,
   onAct,
 }: {
   complaint: RegisterCase;
   acting: boolean;
+  actsRef: React.RefObject<HTMLDivElement | null>;
+  /** The header's acts have scrolled under the sticky bar, which now carries them. */
+  offScreen: boolean;
   returnFocus: Act | null;
   onAct: (act: Act) => void;
 }) {
   return (
     <header
       aria-labelledby="complaint-title"
-      className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between md:gap-8"
+      /* The acts sit beside the title only once there is room for both: a long cause
+         title — two Malayalam names and a company's full style — squeezed the title
+         column to 141px at 768px wide while the buttons kept theirs, so the heading came
+         down the page one word at a time (measured 2026-09-12). Below 1024px the acts
+         take their own line under the title, and the title column grows to the width the
+         header has. */
+      className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-8"
     >
-      <div className="flex min-w-0 flex-col gap-1">
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
         <p className="text-body-compact tabular-nums text-muted-foreground">
           {complaint.caseNumber}
         </p>
@@ -220,16 +250,37 @@ function ComplaintHeader({
           {causeTitle(complaint)}
         </h1>
       </div>
-      {acting ? null : <HeaderActs returnFocus={returnFocus} onAct={onAct} />}
+      {acting ? null : (
+        <HeaderActs
+          ref={actsRef}
+          /* Scrolled past, this pair is the one in the sticky bar's shadow: left in
+             place so nothing reflows, but taken out of the tab order and off the
+             accessibility tree, so the page never offers two Registers. */
+          offScreen={offScreen}
+          returnFocus={returnFocus}
+          onAct={onAct}
+        />
+      )}
     </header>
   );
 }
 
-/** The two acts. Mounting again after Back, they hand focus to the one backed out of. */
+/**
+ * The two acts. Mounting again after Back, they hand focus to the one backed out of.
+ *
+ * `compact` is the pair riding in the sticky tab bar: the same two buttons at the bar's
+ * own height, so the act is never more than a glance away on a long file.
+ */
 function HeaderActs({
+  ref,
+  compact,
+  offScreen,
   returnFocus,
   onAct,
 }: {
+  ref?: React.RefObject<HTMLDivElement | null>;
+  compact?: boolean;
+  offScreen?: boolean;
   returnFocus: Act | null;
   onAct: (act: Act) => void;
 }) {
@@ -244,20 +295,58 @@ function HeaderActs({
   }, []);
 
   return (
-    <div className="flex shrink-0 flex-wrap gap-3">
+    <div
+      ref={ref}
+      inert={offScreen || undefined}
+      aria-hidden={offScreen || undefined}
+      className="flex shrink-0 flex-wrap gap-3"
+    >
       <Button
         ref={sendBackRef}
         type="button"
         variant="outline"
+        size={compact ? "sm" : "default"}
         onClick={() => onAct("send-back")}
       >
         Send back to scrutiny
       </Button>
-      <Button ref={registerRef} type="button" onClick={() => onAct("register")}>
+      <Button
+        ref={registerRef}
+        type="button"
+        size={compact ? "sm" : "default"}
+        onClick={() => onAct("register")}
+      >
         Register
       </Button>
     </div>
   );
+}
+
+/**
+ * Whether an element has scrolled off the top of the page, under the sticky chrome.
+ *
+ * The margin is the chrome's own height — the 56px bar and the 44px tab row — so the
+ * acts are considered gone exactly when the tab bar covers them, and the pair that
+ * replaces them appears in the same motion.
+ */
+function useScrolledPast(ref: React.RefObject<HTMLElement | null>): boolean {
+  const [past, setPast] = React.useState(false);
+
+  React.useEffect(() => {
+    const element = ref.current;
+    if (!element) {
+      setPast(false);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => setPast(!entry.isIntersecting),
+      { rootMargin: "-100px 0px 0px 0px" },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ref]);
+
+  return past;
 }
 
 /* ─────────────────────────────── the tabs ───────────────────────────────── */
@@ -305,11 +394,14 @@ function ComplaintTabs({
   setTab,
   summary,
   review,
+  acts,
 }: {
   tab: ComplaintTab;
   setTab: (next: ComplaintTab) => void;
   summary: CaseSummary;
   review: CaseReview;
+  /** The acts, once the header's own pair has scrolled away — else nothing. */
+  acts: React.ReactNode;
 }) {
   return (
     <Tabs
@@ -321,17 +413,27 @@ function ComplaintTabs({
           so what scrolls beneath is covered cleanly. The rule is the band's, full width,
           as a sticky bar's edge is. */}
       <div className="sticky top-14 z-20 -mx-6 border-b border-hairline bg-muted px-6 md:-mx-8 md:px-8 xl:-mx-12 xl:px-12 dark:bg-background">
-        <TabsList
-          variant="line"
-          className="w-full justify-start gap-6 rounded-none p-0 group-data-horizontal/tabs:h-11"
-        >
-          <TabsTrigger value="summary" className={TRIGGER}>
-            Summary
-          </TabsTrigger>
-          <TabsTrigger value="file" className={TRIGGER}>
-            Case file
-          </TabsTrigger>
-        </TabsList>
+        {/* The acts sit at the far end of the tab row, against the same rule. On a phone
+            the row cannot hold both, so they take a line of their own below the tabs —
+            still within reach, still the one pair on the page. */}
+        <div className="flex flex-col gap-2 pb-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:pb-0">
+          <TabsList
+            variant="line"
+            className="w-full justify-start gap-6 rounded-none p-0 group-data-horizontal/tabs:h-11"
+          >
+            <TabsTrigger value="summary" className={TRIGGER}>
+              Summary
+            </TabsTrigger>
+            <TabsTrigger value="file" className={TRIGGER}>
+              Case file
+            </TabsTrigger>
+          </TabsList>
+          {acts ? (
+            <div className="shrink-0 animate-in fade-in-0 slide-in-from-top-1 duration-200 motion-reduce:animate-none">
+              {acts}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <TabsContent value="summary" className="text-body-compact">
@@ -588,44 +690,98 @@ function Absent({ children }: { children: React.ReactNode }) {
  * complaint cleared first time has nothing to list, and the round count already says so.
  */
 function ScrutinyPanel({ scrutiny }: { scrutiny: CaseScrutiny | undefined }) {
+  const [open, setOpen] = React.useState(false);
+
+  if (!scrutiny) {
+    return (
+      <Panel id="scrutiny-heading" label={SUMMARY_TERMS.scrutiny}>
+        <Card className={cn(SHEET, "@container")}>
+          <div className="p-6 md:p-8">
+            <p className="text-body-compact text-muted-foreground">Not recorded</p>
+          </div>
+        </Card>
+      </Panel>
+    );
+  }
+
   return (
     <Panel id="scrutiny-heading" label={SUMMARY_TERMS.scrutiny}>
       <Card className={cn(SHEET, "@container")}>
-        <div className="p-6 md:p-8">
-          {scrutiny ? (
-            /* Two columns in a third of the page; one row of four once the panel has the
-               width — below 1280px it spans the page, and four facts stacked in two wide
-               columns left most of it empty. The defects take a double share of that row:
-               they are words, and at an equal share each one wrapped to two lines. */
-            <DescriptionList className="grid grid-cols-2 gap-x-8 gap-y-6 @2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)]">
-              <Fact term={SYNOPSIS_FIELDS.clearedBy} className="col-span-2 @2xl:col-span-1">
-                {SCRUTINY_MODES[scrutiny.mode]}
-              </Fact>
-              <Fact term={SYNOPSIS_FIELDS.rounds} format="figure">
-                {scrutiny.rounds}
-              </Fact>
-              <Fact term={SYNOPSIS_FIELDS.took} format="figure">
-                {days(scrutiny.days)}
-              </Fact>
-              {scrutiny.returns.length > 0 ? (
-                <Fact term={SYNOPSIS_FIELDS.sentBack} className="col-span-2 @2xl:col-span-1">
-                  <ol className="flex flex-col gap-1">
+        <Collapsible open={open} onOpenChange={setOpen}>
+          {/* Three facts, not four: what each round was sent back for is now the
+              disclosure below, so the row at rest holds only figures and reads across in
+              one glance. Two columns in a third of the page, three once the panel has
+              the width. */}
+          <DescriptionList className="grid grid-cols-2 gap-x-8 gap-y-6 p-6 @2xl:grid-cols-3 md:p-8">
+            <Fact term={SYNOPSIS_FIELDS.clearedBy} className="col-span-2 @2xl:col-span-1">
+              {SCRUTINY_MODES[scrutiny.mode]}
+            </Fact>
+            <Fact term={SYNOPSIS_FIELDS.rounds} format="figure">
+              {scrutiny.rounds}
+            </Fact>
+            <Fact term={SYNOPSIS_FIELDS.took} format="figure">
+              {days(scrutiny.days)}
+            </Fact>
+          </DescriptionList>
+
+          {scrutiny.returns.length > 0 ? (
+            <>
+              <CollapsibleContent className="border-t border-hairline animate-in fade-in-0 slide-in-from-top-1 duration-200 motion-reduce:animate-none">
+                <div className="p-6 md:p-8">
+                  {/* The loop itself: taken up, each round with the day it went back and
+                      what for, and the pass that cleared it. A file that went round four
+                      times adds rows here and nothing to the card at rest, which is what
+                      the owner asked the disclosure to buy (2026-09-12). */}
+                  <Timeline className="text-body-compact">
+                    <Step
+                      label="Taken up"
+                      date={
+                        <time dateTime={scrutiny.takenUpOn}>
+                          {scrutiny.takenUpOnShortLabel}
+                        </time>
+                      }
+                    />
                     {scrutiny.returns.map((sendBack) => (
-                      <li key={sendBack.round} className="flex gap-3">
-                        <span className="shrink-0 tabular-nums text-muted-foreground">
-                          Round {sendBack.round}
-                        </span>
-                        <span className="min-w-0">{sendBack.label}</span>
-                      </li>
+                      <Step
+                        key={sendBack.round}
+                        label={`Round ${sendBack.round}`}
+                        note={sendBack.label}
+                        date={
+                          <time dateTime={sendBack.sentBackOn}>
+                            {sendBack.sentBackOnShortLabel}
+                          </time>
+                        }
+                      />
                     ))}
-                  </ol>
-                </Fact>
-              ) : null}
-            </DescriptionList>
-          ) : (
-            <p className="text-body-compact text-muted-foreground">Not recorded</p>
-          )}
-        </div>
+                    <Step
+                      label="Cleared"
+                      date={
+                        <time dateTime={scrutiny.clearedOn}>
+                          {scrutiny.clearedOnShortLabel}
+                        </time>
+                      }
+                    />
+                  </Timeline>
+                </div>
+              </CollapsibleContent>
+
+              <div className="flex justify-center border-t border-hairline p-2">
+                <CollapsibleTrigger asChild>
+                  <Button type="button" variant="ghost" className="text-body-compact">
+                    {open ? "Hide rounds" : "Show rounds"}
+                    <ChevronDownIcon
+                      aria-hidden
+                      className={cn(
+                        "text-muted-foreground transition-transform",
+                        open && "rotate-180",
+                      )}
+                    />
+                  </Button>
+                </CollapsibleTrigger>
+              </div>
+            </>
+          ) : null}
+        </Collapsible>
       </Card>
     </Panel>
   );
@@ -634,170 +790,113 @@ function ScrutinyPanel({ scrutiny }: { scrutiny: CaseScrutiny | undefined }) {
 /* ─────────────────────────────── the timeline ───────────────────────────── */
 
 /**
- * How long everything took, and — on request — when.
+ * When everything happened — the dates themselves, shown directly.
  *
- * **Collapsed, it is the spans** (owner, 2026-09-11: *"the timeline does not need to be
- * fully shown all the time"*). The three statutory windows, each the days it took against
- * what the law allows, and the days the complaint has waited here since scrutiny. That is
- * the part a register decision turns on, and the only colour on it is a window the file
- * is outside of — so a time-barred complaint cannot hide behind a closed disclosure.
+ * **The measures are gone** (owner, 2026-09-12: *"I'm not understanding what the 84 days
+ * means. Like was it 84 days ago?… we just show the timeline directly"*). A span stated as
+ * a number of days is a figure the reader has to re-anchor to two events before it means
+ * anything, and on the render three of them sat in a row with nothing to anchor to. The
+ * dates are the anchor, so the dates are what the panel shows: the §138 chain in one
+ * column, the court's own steps in the other.
  *
- * **Open, it adds the dates**, in place, below the spans: the §138 chain in one column and
- * the court's steps in the other. The measures are not repeated beside the dates — each
- * is already stated once, above. The toggle stays at the foot of the panel in both states,
- * so the thing that opened it is where the eye left it.
+ * **The limit is stated on the step it governs**, under it: *within 3 months of the cheque
+ * date* on the day it was presented, *beyond 1 month of the cause of action · condonation
+ * sought* on the day it was filed. The reader can check either by eye against the two
+ * dates either side of it, which is the point of showing them. Warning ink appears only
+ * where the file is outside a window, so the norm stays quiet and nothing is hidden behind
+ * a disclosure any more.
  */
 function TimelinePanel({ summary }: { summary: CaseSummary }) {
-  const [open, setOpen] = React.useState(false);
   const { scrutiny } = summary;
   const beforeFiling = summary.steps.filter((step) => step.id !== "filed");
   const filed = summary.steps.find((step) => step.id === "filed");
+  /* Each window is read off the step that closes it, so a step carries its own limit. */
+  const limits = new Map(summary.windows.map((window) => [window.to, windowNote(window)]));
 
   return (
     <Panel id="timeline-heading" label={SUMMARY_TERMS.timeline} className="xl:col-span-2">
       <Card className={cn(SHEET, "@container")}>
-        <Collapsible open={open} onOpenChange={setOpen}>
-          <DescriptionList className="grid gap-8 p-6 @md:grid-cols-2 @3xl:grid-cols-4 md:p-8">
-            {summary.windows.map((window) => (
-              <WindowSpan key={window.id} window={window} />
+        <div className="grid gap-x-12 gap-y-8 p-6 @2xl:grid-cols-2 md:p-8">
+          <StepGroup heading="Before filing">
+            {beforeFiling.map((step) => (
+              <Step
+                key={step.id}
+                label={step.label}
+                date={<time dateTime={step.on}>{step.onShortLabel}</time>}
+                {...limits.get(step.id)}
+              />
             ))}
-            {scrutiny ? (
-              <Span
-                label={CASE_REVIEW_STATUS}
-                value={scrutiny.daysWaiting === 0 ? "Cleared today" : days(scrutiny.daysWaiting)}
-                note={scrutiny.daysWaiting === 0 ? undefined : "since scrutiny"}
+          </StepGroup>
+          <StepGroup heading="In court">
+            {filed ? (
+              <Step
+                label={filed.label}
+                date={<time dateTime={filed.on}>{filed.onShortLabel}</time>}
+                {...limits.get(filed.id)}
               />
             ) : null}
-          </DescriptionList>
-
-          <CollapsibleContent className="border-t border-hairline animate-in fade-in-0 slide-in-from-top-1 duration-200 motion-reduce:animate-none">
-            <div className="grid gap-x-12 gap-y-8 p-6 @2xl:grid-cols-2 md:p-8">
-              <StepGroup heading="Before filing">
-                {beforeFiling.map((step) => (
-                  <Step
-                    key={step.id}
-                    label={step.label}
-                    date={<time dateTime={step.on}>{step.onShortLabel}</time>}
-                  />
-                ))}
-              </StepGroup>
-              <StepGroup heading="In court">
-                {filed ? (
-                  <Step
-                    label={filed.label}
-                    date={<time dateTime={filed.on}>{filed.onShortLabel}</time>}
-                  />
-                ) : null}
-                {scrutiny ? (
-                  <Step
-                    label={SUMMARY_TERMS.scrutiny}
-                    date={
-                      <>
-                        <time dateTime={scrutiny.takenUpOn}>
-                          {scrutiny.takenUpOnShortLabel}
-                        </time>
-                        {" – "}
-                        <time dateTime={scrutiny.clearedOn}>
-                          {scrutiny.clearedOnShortLabel}
-                        </time>
-                      </>
-                    }
-                  />
-                ) : null}
-                <Step status="current" label={CASE_REVIEW_STATUS} date="Today" />
-              </StepGroup>
-            </div>
-          </CollapsibleContent>
-
-          <div className="flex justify-center border-t border-hairline p-2">
-            <CollapsibleTrigger asChild>
-              <Button type="button" variant="ghost" className="text-body-compact">
-                {open ? "Hide dates" : "Show dates"}
-                <ChevronDownIcon
-                  aria-hidden
-                  className={cn(
-                    "text-muted-foreground transition-transform",
-                    open && "rotate-180",
-                  )}
-                />
-              </Button>
-            </CollapsibleTrigger>
-          </div>
-        </Collapsible>
+            {scrutiny ? (
+              <Step
+                label={SUMMARY_TERMS.scrutiny}
+                date={
+                  <>
+                    <time dateTime={scrutiny.takenUpOn}>
+                      {scrutiny.takenUpOnShortLabel}
+                    </time>
+                    {" – "}
+                    <time dateTime={scrutiny.clearedOn}>
+                      {scrutiny.clearedOnShortLabel}
+                    </time>
+                  </>
+                }
+              />
+            ) : null}
+            {/* The one step with no date of its own: it is still happening. How long it
+                has been happening is the note, because that is the wait the magistrate is
+                deciding whether to end. */}
+            <Step
+              status="current"
+              label={CASE_REVIEW_STATUS}
+              date="Today"
+              note={
+                scrutiny === undefined
+                  ? undefined
+                  : scrutiny.daysWaiting === 0
+                    ? "cleared by scrutiny today"
+                    : `${days(scrutiny.daysWaiting)} since scrutiny cleared it`
+              }
+            />
+          </StepGroup>
+        </div>
       </Card>
     </Panel>
   );
 }
 
 /**
- * One measured span: what closed it, how many days, and where that sits against the
- * limit. The figure carries the weight; the limit is the quiet line under it — unless the
- * file is outside it, when both take the warning ink.
+ * Where the window that closes on a step sits against the limit the law sets, in the
+ * statute's own terms and anchored to the day it is counted from — never a bare figure.
  */
-function Span({
-  label,
-  value,
-  note,
-  tone,
-}: {
-  label: string;
-  value: string;
-  note?: string;
-  tone?: "warning";
-}) {
-  return (
-    <DescriptionRow className="flex min-w-0 flex-col gap-1 border-0 py-0">
-      <DescriptionTerm className="text-body-compact">{label}</DescriptionTerm>
-      <DescriptionDetails
-        className={cn(
-          "min-w-0 text-body-compact",
-          tone === "warning" && "text-warning-ink",
-        )}
-      >
-        <span className="font-medium tabular-nums">{value}</span>
-        {note ? (
-          <span className={cn(tone !== "warning" && "text-muted-foreground")}> · {note}</span>
-        ) : null}
-      </DescriptionDetails>
-    </DescriptionRow>
-  );
-}
-
-/** A statutory window as a span — the days it took, against the limit the law sets. */
-function WindowSpan({ window }: { window: CaseSummaryWindow }) {
-  const limit = window.limitLabel;
+function windowNote(window: CaseSummaryWindow): { note: string; tone?: "warning" } {
+  const limit = `${window.limitLabel} of ${WINDOW_COUNTED_FROM[window.id]}`;
   switch (window.status) {
     case "within":
-      return <Span label={window.label} value={days(window.days)} note={`within ${limit}`} />;
+      return { note: `within ${limit}` };
     case "outside":
-      return (
-        <Span
-          label={window.label}
-          value={days(window.days)}
-          note={`beyond ${limit}`}
-          tone="warning"
-        />
-      );
+      return { note: `beyond ${limit}`, tone: "warning" };
     case "condonation-sought":
-      return (
-        <Span
-          label={window.label}
-          value={days(window.days)}
-          note={`beyond ${limit} · condonation sought`}
-          tone="warning"
-        />
-      );
+      return { note: `beyond ${limit} · condonation sought`, tone: "warning" };
     case "early":
-      return (
-        <Span
-          label={window.label}
-          value="Early"
-          note="before the cause of action arose"
-          tone="warning"
-        />
-      );
+      return { note: "before the cause of action arose", tone: "warning" };
   }
 }
+
+/** The day each statutory window is counted from — the `from` step, in words. */
+const WINDOW_COUNTED_FROM: Record<CaseSummaryWindow["id"], string> = {
+  presentation: "the cheque date",
+  notice: "the return",
+  filing: "the cause of action",
+};
 
 /** One column of dated steps, under the phase it belongs to. */
 function StepGroup({ heading, children }: { heading: string; children: React.ReactNode }) {
@@ -824,19 +923,31 @@ function Step({
   status = "past",
   label,
   date,
+  note,
+  tone,
 }: {
   status?: "past" | "current";
   label: string;
   date: React.ReactNode;
+  /** What the step means for the decision — a statutory limit, or the wait so far. */
+  note?: string;
+  tone?: "warning";
 }) {
   return (
     <TimelineItem status={status} className="pb-0">
-      {/* Regular weight: the group's heading is the one semibold line in the column, and
-          the date's muted ink is what separates it from the step's name. */}
-      <p className="flex items-baseline justify-between gap-4 pb-4 group-last/timeline-item:pb-0">
-        <span className="min-w-0">{label}</span>
-        <span className="shrink-0 tabular-nums text-muted-foreground">{date}</span>
-      </p>
+      <div className="flex flex-col gap-0.5 pb-4 group-last/timeline-item:pb-0">
+        {/* Regular weight: the group's heading is the one semibold line in the column, and
+            the date's muted ink is what separates it from the step's name. */}
+        <p className="flex items-baseline justify-between gap-4">
+          <span className="min-w-0">{label}</span>
+          <span className="shrink-0 tabular-nums text-muted-foreground">{date}</span>
+        </p>
+        {note ? (
+          <p className={tone === "warning" ? "text-warning-ink" : "text-muted-foreground"}>
+            {note}
+          </p>
+        ) : null}
+      </div>
     </TimelineItem>
   );
 }
