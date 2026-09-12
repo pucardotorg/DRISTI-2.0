@@ -1254,6 +1254,36 @@ const LOCALITIES = [
 
 const PIN_CODES = ["691001", "691008", "691009", "691010", "691020"] as const;
 
+/**
+ * House names and post offices, because a Kerala address is not a door number and a
+ * town.
+ *
+ * The demo used to write "171, Mundakkal, Kollam – 691010" — one short line, and a
+ * layout tested against it is tested against nothing: a real address on a Kollam file
+ * carries the house name, the door number with its ward, the locality, the post office,
+ * the district and the state before the PIN, and runs to three lines in a card's value
+ * column (owner, 2026-09-12, asking for the third time to see one).
+ */
+const HOUSE_NAMES = [
+  "Thekkumbhagam House",
+  "Puthenveedu",
+  "Vadakkethil House",
+  "Chirayil House",
+  "Nedumkandathil House",
+  "Parayil House",
+  "Kizhakkethil House",
+  "Muttathil House",
+] as const;
+
+const POST_OFFICES = [
+  "Kollam Beach",
+  "Kollam East",
+  "Mundakkal",
+  "Vadakkevila",
+  "Asramam",
+  "Kilikolloor",
+] as const;
+
 const POLICE_STATIONS = [
   "Kollam East",
   "Kollam West",
@@ -1345,7 +1375,15 @@ function bankFor(seed: number, salt: number) {
 
 function addressFor(seed: number): string {
   const door = 8 + (seed % 240);
-  return `${door}, ${pick(LOCALITIES, seed)}, Kollam – ${pick(PIN_CODES, seed)}`;
+  const ward = 1 + (seed % 54);
+  const lines = [
+    pick(HOUSE_NAMES, seed),
+    `${door}/${1000 + (seed % 900)}`,
+    `Ward ${ward}, ${pick(LOCALITIES, seed)}`,
+    `${pick(POST_OFFICES, seed + 2)} P.O.`,
+    "Kollam District, Kerala",
+  ].join(", ");
+  return `${lines} – ${pick(PIN_CODES, seed)}`;
 }
 
 /** Ten digits behind a `+91`, grouped five and five, the way one is written here. */

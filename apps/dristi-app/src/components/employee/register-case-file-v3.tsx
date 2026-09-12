@@ -217,7 +217,10 @@ export function CaseFileView({ review }: { review: CaseReview }) {
       <aside
         ref={asideRef}
         aria-label="Documents"
-        className="sticky top-25 -mt-8 hidden h-[calc(100svh-6.25rem)] min-h-0 flex-col self-start border-l border-hairline bg-card xl:-mr-12 xl:flex"
+        /* The fill runs to the window's edge; the contents stop where the page's own
+           right margin is, so "18 filed" and the document numbers line up with the
+           Register button above them (owner, 2026-09-12). */
+        className="sticky top-25 -mt-8 hidden h-[calc(100svh-6.25rem)] min-h-0 flex-col self-start border-l border-hairline bg-card xl:-mr-12 xl:flex xl:pr-6"
       >
         {panel}
       </aside>
@@ -381,8 +384,10 @@ function GroupCard({
           that happens to start with bigger text (owner, 2026-09-12). It holds the name
           and nothing else — who the record is now sits in the body as labelled rows,
           where a reader can tell which field each value came from. The icon keeps the far
-          corner, and on the tinted band it takes the card's own white with a hairline. */}
-      <div className="flex items-center justify-between gap-4 border-b border-hairline bg-surface-sunken px-6 py-4 md:px-8">
+          corner, and on the tinted band it takes the card's own white with a hairline.
+          No rule under it: the fill change is the separation, and a hairline on top of it
+          read as a drop shadow (owner, 2026-09-12). */}
+      <div className="flex items-center justify-between gap-4 bg-surface-sunken px-6 py-4 md:px-8">
         <h2 id={`file-group-${group.id}-title`} className="min-w-0 text-body font-semibold">
           <Marked text={group.title} needle={needle} />
         </h2>

@@ -396,7 +396,10 @@ function ComplaintTabs({
   /** The acts, once the header's own pair has scrolled away — else nothing. */
   acts: React.ReactNode;
 }) {
-  /* Where the tab row sits in the page, as opposed to where it has stuck. */
+  /* Where the tab row sits in the page, as opposed to where it has stuck. The ref goes
+     on the Tabs root — its own top *is* the row's layout position, and an anchor element
+     of its own was a flex child of this stack, buying 32px of gap above the tabs that
+     read as a hole between the title and them (owner, 2026-09-12). */
   const anchorRef = React.useRef<HTMLDivElement>(null);
 
   /* The two tabs are two documents of different lengths, and switching kept the scroll
@@ -420,8 +423,8 @@ function ComplaintTabs({
         toTabRow();
       }}
       className="gap-8"
+      ref={anchorRef}
     >
-      <div ref={anchorRef} aria-hidden className="h-0" />
       {/* Sticky under the 56px bar, on the canvas's own fill and bled to the page edge
           so what scrolls beneath is covered cleanly. The rule is the band's, full width,
           as a sticky bar's edge is. */}
@@ -449,7 +452,10 @@ function ComplaintTabs({
             </TabsTrigger>
           </TabsList>
           {acts ? (
-            <div className="shrink-0 pt-2 animate-in fade-in-0 slide-in-from-top-1 duration-300 ease-out motion-reduce:animate-none sm:pt-0">
+            /* Centred in the band, not sitting on its rule: the tabs are bottom-aligned
+               because their underline *is* the rule, and a button has no such reason
+               (owner, 2026-09-12). */
+            <div className="shrink-0 pt-2 animate-in fade-in-0 slide-in-from-top-1 duration-300 ease-out motion-reduce:animate-none sm:-mt-3 sm:flex sm:items-center sm:self-stretch sm:pt-0">
               {acts}
             </div>
           ) : null}
@@ -732,10 +738,13 @@ function ScrutinyPanel({ scrutiny }: { scrutiny: CaseScrutiny | undefined }) {
               disclosure below, so the row at rest holds only figures and reads across in
               one glance. Two columns in a third of the page, three once the panel has
               the width. */}
-          <DescriptionList className="grid grid-cols-2 gap-x-8 gap-y-6 p-6 @2xl:grid-cols-3 md:p-8">
-            <Fact term={SYNOPSIS_FIELDS.clearedBy} className="col-span-2 @2xl:col-span-1">
-              {SCRUTINY_MODES[scrutiny.mode]}
-            </Fact>
+          {/* Two bands with the card's own hairline between them, as the case file's
+              cards are ruled and as the rounds below already were — three facts loose in
+              one box read as floating (owner, 2026-09-12). */}
+          <DescriptionList className="px-6 py-6 md:px-8">
+            <Fact term={SYNOPSIS_FIELDS.clearedBy}>{SCRUTINY_MODES[scrutiny.mode]}</Fact>
+          </DescriptionList>
+          <DescriptionList className="grid grid-cols-2 gap-x-8 border-t border-hairline px-6 py-6 md:px-8">
             <Fact term={SYNOPSIS_FIELDS.rounds} format="figure">
               {scrutiny.rounds}
             </Fact>
@@ -969,7 +978,7 @@ function Step({
           and one right margin however long the step's name runs. Narrow, the note drops
           to a line of its own under the step and the date keeps the far corner. */}
       <div className="pb-4 group-last/timeline-item:pb-0">
-        <div className="-mx-3 grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-6 rounded-lg px-3 py-2 transition-colors hover:bg-surface-sunken @xl:grid-cols-[minmax(0,13rem)_minmax(0,1fr)_6.5rem]">
+        <div className="-mx-3 -my-2 grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-6 rounded-lg px-3 py-2 transition-colors hover:bg-surface-sunken @xl:grid-cols-[minmax(0,13rem)_minmax(0,1fr)_6.5rem]">
         {/* Regular weight: the group's heading is the one semibold line in the column, and
             the date's muted ink is what separates it from the step's name. */}
         <span className="col-start-1 row-start-1 min-w-0">{label}</span>
