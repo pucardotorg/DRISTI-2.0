@@ -319,8 +319,8 @@ export function SignEvidenceScreen() {
         }
         description={
           selectedIds.size === 1
-            ? "Your signature endorses the marking and cannot be reversed. Not part of this build — nothing is signed or written to the record."
-            : `Your signature endorses all ${selectedIds.size} markings selected and cannot be reversed. Not part of this build — nothing is signed or written to the record.`
+            ? "Your signature endorses the marking and cannot be reversed."
+            : `Your signature endorses all ${selectedIds.size} markings selected and cannot be reversed.`
         }
         cancelLabel="Cancel"
         confirmLabel="Proceed to e-sign"

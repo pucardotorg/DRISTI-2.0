@@ -117,7 +117,7 @@ export function SignProcessDialog({
         }
         noun={NOUN}
         subject={processSubject(held)}
-        warning="Signing this process cannot be reversed. Not part of this build — nothing is signed, printed or sent."
+        warning="Signing this process cannot be reversed."
         download={{
           prompt: "Want to read it again?",
           onDownload: () => downloadProcessDocument(held),

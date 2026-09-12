@@ -199,12 +199,12 @@ function RowContents({ item }: { item: CourtNavItem }) {
 function deadRowNote(item: CourtNavItem, collapsed: boolean): string {
   if (item.external) {
     return collapsed
-      ? `${item.label} — opens outside DRISTI, not part of this build`
-      : "Opens outside DRISTI — not part of this build";
+      ? `${item.label} — opens outside DRISTI, not available yet`
+      : "Opens outside DRISTI — not available yet";
   }
   return collapsed
-    ? `${item.label} — not part of this build`
-    : "Not part of this build";
+    ? `${item.label} — not available yet`
+    : "Not available yet";
 }
 
 /**

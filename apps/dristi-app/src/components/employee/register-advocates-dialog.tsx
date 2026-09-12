@@ -770,28 +770,7 @@ function DecisionStage({
         ) : null}
       </StageCard>
 
-      {/* The court has not built the act, so the screen does not mime it — said once, at
-          the end, outside the card that carries the record's own facts.
-
-          It is **rendered before the act too, and hidden**, so the space it will take is
-          already spent. Appearing from nothing pushed the (vertically centred) card 20px
-          up at the exact moment the whole design is claiming nothing moves — measured on
-          the render. Reserving the line costs nothing and buys a card that is genuinely
-          still. */}
-      <p
-        aria-hidden={!settled}
-        className={cn(
-          "text-caption text-center text-pretty text-muted-foreground",
-          settled
-            ? "animate-in fade-in-0 duration-500 motion-reduce:animate-none"
-            : "invisible",
-        )}
-      >
-        {rejecting
-          ? "Not part of this build — the reason was not sent to anyone."
-          : "Not part of this build — no account is opened and nobody is told."}
-      </p>
-    </FocusedStage>
+          </FocusedStage>
   );
 }
 

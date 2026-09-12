@@ -734,12 +734,7 @@ function CommitBar({
               </AlertDialogDescription>
             </AlertDialogHeader>
 
-            {/* The court has not built the act, so the screen does not mime it. Said here,
-                at the moment of the act, rather than left for the bench to discover. */}
-            <p className="text-caption text-muted-foreground">
-              Not part of this build — nothing is written and no one is told.
-            </p>
-
+            
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <Button disabled>Reschedule hearings</Button>

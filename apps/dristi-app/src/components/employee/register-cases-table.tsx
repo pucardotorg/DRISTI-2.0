@@ -28,6 +28,7 @@ import {
   formatDaysWaiting,
   type RegisterCase,
 } from "@/lib/employee/register-cases";
+import { markArrival } from "@/components/employee/use-arrival";
 import { cn } from "@/lib/utils";
 
 /**
@@ -52,6 +53,8 @@ export function RegisterCaseLink({
   return (
     <Link
       href={`${REGISTER_CASES_PATH}/${matter.id}`}
+      /* The complaint rises into place, the same way the next one does from inside it. */
+      onClick={() => markArrival("next")}
       {...rowOpener}
       className={cn(rowOpenerClass, className)}
     >

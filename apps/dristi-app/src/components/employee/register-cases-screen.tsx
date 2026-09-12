@@ -7,7 +7,9 @@ import { CounselCell } from "@/components/employee/counsel-cell";
 import { ListFooter } from "@/components/employee/list-footer";
 import { QueueAnnouncer } from "@/components/employee/queue-announcer";
 import { QueueSearchField } from "@/components/employee/queue-search-field";
+import { ARRIVAL, useArrival } from "@/components/employee/use-arrival";
 import { rowActivation } from "@/lib/employee/row-activation";
+import { cn } from "@/lib/utils";
 import {
   RegisterCaseLink,
   RegisterCasesTable,
@@ -50,6 +52,9 @@ import {
  * the number, because that is the question the reference labelled.
  */
 export function RegisterCasesScreen() {
+  /* Returning from a complaint, the queue slides in from the left — the direction it was
+     left in, so coming back reads as coming back (owner, 2026-09-12). */
+  const arrival = useArrival();
   /* One state, not a draft and an applied one: the list answers the box as it is typed,
      so there is never a moment where what the clerk has written and what the table is
      showing disagree. Every change resets to page one — the old Search button did that,
@@ -79,7 +84,12 @@ export function RegisterCasesScreen() {
   }
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-8 p-6 md:p-8">
+    <div
+      className={cn(
+        "flex min-w-0 flex-1 flex-col gap-8 p-6 md:p-8",
+        arrival && ARRIVAL[arrival],
+      )}
+    >
       <header className="flex flex-col gap-2">
         <h1 className="text-title text-balance font-semibold sm:text-title-l">
           Register cases

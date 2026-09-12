@@ -339,13 +339,7 @@ export function ApproveCopyApplicationScreen() {
                   </AlertDialogDescription>
                 </AlertDialogHeader>
 
-                {/* The court has not built the act, so the screen does not mime it. Said
-                    here, at the moment of the act, rather than left for the bench to
-                    discover. */}
-                <p className="text-caption text-muted-foreground">
-                  Not part of this build — nothing is ordered, assessed or sent.
-                </p>
-
+                
                 <AlertDialogFooter>
                   <AlertDialogCancel>Back</AlertDialogCancel>
                   <AlertDialogAction onClick={acceptSelected}>

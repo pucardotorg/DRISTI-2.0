@@ -5,13 +5,14 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronDownIcon,
+  CircleArrowLeftIcon,
   CircleCheckIcon,
   FileQuestionIcon,
-  Undo2Icon,
 } from "lucide-react";
 
 import { ChromeDialogContent } from "@/components/chrome/app-chrome";
 import { CaseFileView } from "@/components/employee/register-case-file";
+import { ARRIVAL, markArrival, useArrival } from "@/components/employee/use-arrival";
 import { useCourtToday } from "@/components/employee/use-court-today";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -153,12 +154,20 @@ function ComplaintPage({
      but goes `inert` while the bar carries them: one Register in the tab order, always. */
   const actsRef = React.useRef<HTMLDivElement>(null);
   const actsOffScreen = useScrolledPast(actsRef);
+  /* Arrived from "Next complaint" or from the queue: the page rises into place, so a
+     complaint that replaced another is visibly a new one. */
+  const arrival = useArrival();
 
   const act = (next: Act) => setStage({ act: next, settled: false });
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip bg-muted dark:bg-background">
-      <div className="flex w-full min-w-0 flex-1 flex-col gap-8 px-6 pt-6 pb-16 md:px-8 md:pt-8 xl:px-12">
+      <div
+        className={cn(
+          "flex w-full min-w-0 flex-1 flex-col gap-8 px-6 pt-6 pb-16 md:px-8 md:pt-8 xl:px-12",
+          arrival && ARRIVAL[arrival],
+        )}
+      >
         <ComplaintHeader
           complaint={complaint}
           actsRef={actsRef}
@@ -1132,16 +1141,27 @@ function ActBody({
           statement, in colour, with the words and a mark — never colour alone. */}
       <DialogHeader
         className={cn(
-          "shrink-0 gap-2 p-6 pr-16 transition-colors",
-          settled && "border-b border-hairline",
+          "shrink-0 items-start gap-2 border-b border-hairline p-6 pr-16 transition-colors",
           settled && sending && "bg-warning-muted text-warning-muted-foreground",
           settled && !sending && "bg-success-muted text-success-muted-foreground",
         )}
       >
-        <div className="flex flex-wrap items-center gap-2">
+        {/* The state above the question, on a line of its own: beside a title of its own
+            length it sat wherever the title happened to end, which read as untidy rather
+            than as a label (owner, 2026-09-12). Settled, the state is the title's own
+            colour and mark, so the chip goes. */}
+        {settled ? null : <Badge variant={badge.variant}>{badge.label}</Badge>}
+        <DialogTitle
+          ref={titleRef}
+          tabIndex={-1}
+          role={settled ? "status" : undefined}
+          className="flex items-center gap-2 text-title-s font-semibold outline-none"
+        >
+          {/* Round, like the tick the success state uses — one shape for an outcome mark,
+              whichever way the decision went (owner, 2026-09-12). */}
           {settled ? (
             sending ? (
-              <Undo2Icon
+              <CircleArrowLeftIcon
                 aria-hidden
                 className="size-5 shrink-0 animate-in fade-in-0 duration-500 motion-reduce:animate-none"
               />
@@ -1152,18 +1172,8 @@ function ActBody({
               />
             )
           ) : null}
-          <DialogTitle
-            ref={titleRef}
-            tabIndex={-1}
-            role={settled ? "status" : undefined}
-            className="text-title-s font-semibold outline-none"
-          >
-            {settled ? ACT_TITLE[act].settled : ACT_TITLE[act].asking}
-          </DialogTitle>
-          {/* Only while it is a question: settled, the header says the state in full and
-              a chip beside it would be the same word twice. */}
-          {settled ? null : <Badge variant={badge.variant}>{badge.label}</Badge>}
-        </div>
+          {settled ? ACT_TITLE[act].settled : ACT_TITLE[act].asking}
+        </DialogTitle>
         <DialogDescription
           className={cn("text-body-compact", settled || "text-muted-foreground")}
         >
@@ -1208,30 +1218,24 @@ function ActBody({
           </p>
         )}
 
-        {/* Reserved before the act and revealed after it, so nothing moves at the moment
-            the overlay claims to stay still. */}
-        <p
-          aria-hidden={!settled}
-          className={cn(
-            "pt-6 text-caption text-pretty text-muted-foreground",
-            settled ? "animate-in fade-in-0 duration-500 motion-reduce:animate-none" : "invisible",
-          )}
-        >
-          {sending
-            ? "Not part of this build — the reason was not sent anywhere."
-            : "Not part of this build — nothing was registered and nobody was told."}
-        </p>
       </div>
 
       <DialogFooter className="mx-0 mb-0 shrink-0 border-hairline bg-card">
         {settled ? (
           <>
             <Button asChild variant={next ? "ghost" : "default"}>
-              <Link href={QUEUE_HREF}>Back to register cases</Link>
+              <Link href={QUEUE_HREF} onClick={() => markArrival("back")}>
+                Back to register cases
+              </Link>
             </Button>
             {next ? (
               <Button asChild>
-                <Link href={`${QUEUE_HREF}/${next.id}`}>Next complaint</Link>
+                <Link
+                  href={`${QUEUE_HREF}/${next.id}`}
+                  onClick={() => markArrival("next")}
+                >
+                  Next complaint
+                </Link>
               </Button>
             ) : null}
           </>

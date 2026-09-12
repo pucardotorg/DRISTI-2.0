@@ -314,7 +314,7 @@ export function HearingsScreen() {
  * used to claim otherwise, so the board showed two strong fills at once: Search and Join
  * VC. Removing it leaves Join VC as the screen's single primary, which is what the Ration
  * Teal Law wanted — the court-level act this view exists for. It stays `aria-disabled`
- * with a tooltip that says why (video conferencing is not part of this build).
+ * with a tooltip that says why (video conferencing is not available yet).
  */
 function HearingsFilters({
   filters,
@@ -435,7 +435,7 @@ function HearingsFilters({
  * The header also keeps it visible without scrolling past the controls.
  *
  * It is the screen's single teal action, and it is `aria-disabled` with a tooltip that
- * says why: video conferencing is not part of this build. Primary paint still marks the
+ * says why: video conferencing is not available yet. Primary paint still marks the
  * court-level act; the disabled state keeps the promise honest.
  */
 function JoinVideoCourt() {
@@ -448,7 +448,7 @@ function JoinVideoCourt() {
             Join VC
           </Button>
         </TooltipTrigger>
-        <TooltipContent>Not part of this build</TooltipContent>
+        <TooltipContent>Not available yet</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
