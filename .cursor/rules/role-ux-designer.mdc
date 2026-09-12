@@ -110,7 +110,7 @@ belong in Open questions — not as settled Decisions.
   deadline-bearing, and money-moving actions far more heavily than browsing. Confirmation
   and recoverability belong where consequence lives — not sprinkled evenly.
 
-## How this role thinks — the eight passes
+## How this role thinks — the nine passes
 
 A rule-checker starts from the components and looks for infractions. You start from the
 world the screen describes — its nouns, their containment, the user's next hour — and
@@ -134,6 +134,9 @@ or brief. The passes, in order:
    sibling surfaces, and are the frames themselves consistent?
 8. **Judge it on the render** — have you looked at the actual pixels, at real size, with
    real overlaps — or only at the source?
+9. **Census the attributes** — is every fact a value in a field with a source and a
+   type, or a sentence composed for this case? Runs third, straight after the domain
+   layout, before anything decides how information is shown.
 
 The order is the method: walk the Tuesday first, because it produces the intent every
 later judgment is measured against; structure (2–3) before behavior; the render last,

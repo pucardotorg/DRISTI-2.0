@@ -4,6 +4,7 @@ import * as React from "react";
 import { FileSearchIcon, InboxIcon, SearchIcon } from "lucide-react";
 
 import { ListFooter } from "@/components/employee/list-footer";
+import { QueueAnnouncer } from "@/components/employee/queue-announcer";
 import {
   ScrutinyQueueItemList,
   ScrutinyQueueTable,
@@ -161,6 +162,16 @@ export function ScrutinyQueue() {
                     setOwner(next);
                     setPage(1);
                   }}
+                />
+
+                {/* Mounted whatever the queue is doing, including empty — this screen
+                    already filtered as you type, and the live region it relied on used to
+                    sit in the footer, which is not rendered when nothing matches. See
+                    `QueueAnnouncer`. */}
+                <QueueAnnouncer
+                  from={start + 1}
+                  to={start + pageRows.length}
+                  total={rows.length}
                 />
 
                 {pageRows.length === 0 ? (

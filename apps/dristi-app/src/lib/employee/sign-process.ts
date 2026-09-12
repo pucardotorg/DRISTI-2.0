@@ -215,6 +215,22 @@ export type ProcessStage = {
   onlyChannel?: ProcessChannelId;
   /** Whether the hearing-date filter is offered. The reference omits it on the first tab. */
   hearingDateFilter: boolean;
+  /**
+   * Whether this stage is the clerk matching paper in their hands against this list.
+   *
+   * True at exactly one stage, and the tray above the table is read off it rather than
+   * off the stage's id, so the reason travels with the data the way every other
+   * per-stage difference on this screen does.
+   *
+   * The three working stages are the same loop with the paper pointing different ways.
+   * At collection it points **at** the screen: the cover is in hand and its row has to be
+   * found, so the risk is missing one or ticking one twice and the answer is to keep
+   * everything picked visible. At signing there is no paper at all, so there is nothing
+   * to keep visible and the tray would be furniture copied for symmetry. At dispatch it
+   * points **away** from the screen — the document is produced for a cover — which is a
+   * different problem again and not this one.
+   */
+  reconcilesCovers?: boolean;
   /** What moves a row out of here. Absent where nothing on this screen does. */
   act?: ProcessAct;
   /** What an empty stage means, when no filter is what emptied it. */
@@ -244,6 +260,7 @@ export const PROCESS_STAGES: ProcessStage[] = [
     dateOf: (process) => process.paidOn,
     onlyChannel: "rpad",
     hearingDateFilter: false,
+    reconcilesCovers: true,
     act: {
       advancesTo: "pending-sign",
       bar: (count) =>
@@ -960,6 +977,94 @@ export function processesAt(
   return rows.filter((process) => process.stage === stage);
 }
 
+/** One envelope's worth of selection: a case, and the process picked out of it. */
+export type SelectedCase = {
+  caseNumber: string;
+  parties: CourtProcess["parties"];
+  processes: CourtProcess[];
+};
+
+/**
+ * The selection as the pile of envelopes it stands for.
+ *
+ * A cover is one per **case**, so the thing the clerk is holding is a case number, not a
+ * process — a case with a summons, a Section 223 notice and a DCA notice arrives in one
+ * envelope. Grouping here is what lets the table stay one row per process, the way the
+ * other four stages draw it, while the tray above it counts in the unit the clerk counts
+ * in. Both numbers are wanted and neither can be derived from the other by eye, which is
+ * why callers get the cases and can still count the process inside them.
+ *
+ * **Order is the order they were picked**, not the order the line holds them. A `Set`
+ * keeps insertion order, so walking `selectedIds` walks the clerk's own morning: the
+ * envelope just ticked lands at the end of the tray, where the eye that ticked it
+ * already is. Grouping by first appearance means a case ticked at envelope three stays
+ * at position three even when its second process is ticked at envelope nine.
+ *
+ * Ids that name nothing in `rows` are dropped rather than counted — a row that has since
+ * advanced out of this stage is no longer selected, and the tray must not claim it.
+ */
+export function groupSelectionByCase(
+  rows: CourtProcess[],
+  selectedIds: ReadonlySet<string>,
+): SelectedCase[] {
+  const byId = new Map(rows.map((process) => [process.id, process]));
+  const cases = new Map<string, SelectedCase>();
+
+  for (const id of selectedIds) {
+    const process = byId.get(id);
+    if (!process) continue;
+    const existing = cases.get(process.caseNumber);
+    if (existing) {
+      existing.processes.push(process);
+      continue;
+    }
+    cases.set(process.caseNumber, {
+      caseNumber: process.caseNumber,
+      parties: process.parties,
+      processes: [process],
+    });
+  }
+
+  return [...cases.values()];
+}
+
+/**
+ * The one case a request names, or nothing.
+ *
+ * What Enter in the search box commits on. A cover is one per case, so a request that
+ * lands on a single case names a single envelope and putting it on the pile is
+ * unambiguous — every process that case has waiting goes on, because they all travel in
+ * that one cover.
+ *
+ * **Two cases still matching is not a near miss, it is an unfinished number.** Picking
+ * between them — the first row, the closest, the shortest — would put one court's
+ * process into a batch bound for another's envelope on a keystroke the clerk did not
+ * mean as a choice. So anything but exactly one case answers `null` and the clerk keeps
+ * typing. Nothing matching answers `null` for the same reason: there is no envelope here
+ * to pick.
+ */
+export function singleCaseMatch(
+  rows: CourtProcess[],
+  filters: ProcessFilters,
+): CourtProcess[] | null {
+  const matches = filterProcesses(rows, filters);
+  const first = matches[0];
+  if (!first) return null;
+  return matches.every((process) => process.caseNumber === first.caseNumber)
+    ? matches
+    : null;
+}
+
+/** Every id at this stage belonging to one case — what removing an envelope takes out. */
+export function processIdsForCase(
+  rows: CourtProcess[],
+  caseNumber: string,
+): string[] {
+  return rows
+    .filter((process) => process.caseNumber === caseNumber)
+    .map((process) => process.id);
+}
+
 /**
  * How much process is still waiting on this court — the number the rail carries beside
  * "Sign process".
@@ -978,7 +1083,7 @@ export type ProcessFilters = {
   channel: ProcessChannelId | "all";
   /** ISO day of the listing the process is returnable for, or `""` for any day. */
   hearingDate: string;
-  /** Free text over the cause title and the case number, token by token. */
+  /** Free text over the case number only, token by token. */
   query: string;
 };
 
@@ -1011,14 +1116,10 @@ export function filterProcesses(
     if (filters.hearingDate && process.hearingDate !== filters.hearingDate) {
       return false;
     }
-    /* The cause title rather than the two parties, because the cause title is what the
-       Case name column prints and therefore what gets typed back into the box. See
-       `matchesQuery`. */
-    return matchesQuery(
-      filters.query,
-      causeTitle(process),
-      process.caseNumber,
-    );
+    /* Case number only. The box used to take a cause title as well, because that is
+       what the Case name column prints; the search now matches the number and nothing
+       else, so a name typed back from that column finds nothing. */
+    return matchesQuery(filters.query, process.caseNumber);
   });
 }
 

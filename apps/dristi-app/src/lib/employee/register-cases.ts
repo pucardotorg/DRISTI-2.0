@@ -256,8 +256,15 @@ export const REGISTER_QUEUE: RegisterCase[] = [
   {
     id: "r-612",
     caseNumber: "CMP/612/2026",
+    /* The queue's one complaint filed by an entity (`case-review.ts` marks it
+       `complainantType: "institution"`), so the complainant is a firm and not a person:
+       the *Company* tag beside the name has to sit on something that is one, and a
+       registered office and an authorised signatory are what the file then prints
+       instead of an age and two addresses. It read "Thomas Kurien" until 2026-09-11 —
+       a person wearing a company's tag, which is the same defect as a constant fact
+       wearing a fact's clothes. */
     parties: {
-      complainant: "Thomas Kurien",
+      complainant: "Kurien Agencies",
       accused: "Paravur Rice Mills and General Trading Pvt Ltd",
     },
     counsel: [
@@ -333,6 +340,19 @@ export const REGISTER_QUEUE: RegisterCase[] = [
  * size of the queue.
  */
 export const REGISTER_QUEUE_COUNT = REGISTER_QUEUE.length;
+
+/**
+ * One waiting complaint, or nothing — the review screen looks a row up by id, and so
+ * does the trail, which has to know whether a nested segment is a complaint before it
+ * can say the page sits under Register cases.
+ *
+ * The sibling of `hearingById`, and asked the same way for the same reason: a route
+ * that resolves against the queue cannot be fooled by a sibling path that merely looks
+ * like an id.
+ */
+export function registerCaseById(id: string): RegisterCase | undefined {
+  return REGISTER_QUEUE.find((entry) => entry.id === id);
+}
 
 export type RegisterFilters = {
   /**

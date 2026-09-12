@@ -70,9 +70,9 @@ that you did**, so the assumption stays visible and reversible.
 ## 2. Run the staff passes
 
 Before writing or updating any brief or audit, read `references/staff-ux-thinking.md`
-in this skill's folder and run its eight passes in order — Walk the Tuesday, domain
-layout, control vocabulary, real weather, exception vs. norm, pattern census, sibling
-sweep, render judgment. The passes interrogate the screen as it is **before** the DS
+in this skill's folder and run its nine passes in order — Walk the Tuesday, domain
+layout, attribute census, control vocabulary, real weather, exception vs. norm, pattern
+census, sibling sweep, render judgment. The passes interrogate the screen as it is **before** the DS
 tells you what it may become; their findings go in the brief (*Problem*, *Decisions*,
 *States*), and the brief says which passes ran. Skipping the walk turns every later
 pass into rule-checking.
@@ -127,6 +127,7 @@ DS read: <the DS files this brief actually opened>
 ## 3. Objective
 ## 4. Job
 ## 5. Decisions
+## 5a. Attributes (value → source → type → slot)
 ## 6. What I cut (and why)
 ## 7. Layout & hierarchy
 ## 8. Components (DS name → region)
@@ -165,6 +166,17 @@ What each of the first five is for — the last nine are the same as they always
   a Job (row model, default sort, "this screen is not X") is **provisional** while Job
   is unconfirmed — label it, or leave it in *Open questions* instead of Decisions.
 
+- **Attributes** — one table, every value the screen shows: the value, its **source**
+  (a `REG-nn`-style requirement ID, a `docs/product/` citation, or the data-model field a
+  real backend would hold), its **type** (`data` · `closed enum` · `user free text` ·
+  `product copy`), and the **slot** it renders in. This is the record that makes the
+  screen auditable: a row with no source is an invented attribute; a status whose type is
+  not `closed enum` will be rendered as prose next time a case is added; a fact typed
+  `product copy` is a sentence doing a field's job. Demo *values* may be derived; the
+  *attribute* must be real. Facts go in this table. Guidance — empty states,
+  consequences, instructions — is product copy and stays out of it; a screen that is
+  nothing but label:value pairs has over-corrected in the other direction.
+
 **Risks accepted** is where a consequence you chose to live with gets written down — an
 unowned risk is a defect with a delay fuse. **Decision log** is a dated table of what
 changed and who confirmed it.
@@ -200,7 +212,8 @@ brief changes in the same turn as your reply.**
 ## Done means
 
 - Every recommendation traces to a DS file or product doc, or is labelled judgment
-- The eight passes of `references/staff-ux-thinking.md` ran, and the brief says so
+- The nine passes of `references/staff-ux-thinking.md` ran, and the brief says so
+- Every fact on the screen is a row in §5a with a source; every status is a closed enum
 - Problem is evidenced and numbered; Objective is observable (and provisional if Job is)
 - **Job is either (a) quoted/attributed to product or the user, or (b) explicitly
   `unconfirmed` with an open question — never a coined purpose presented as fact**

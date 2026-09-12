@@ -1,18 +1,23 @@
 # Hearing order
 
-Status: building — **D17–D21 proposed 2026-09-06, not yet built**
-Updated: 2026-09-07 (D23: a finished listing opens on a written order)
+Status: building — **the shipped screen is the reference's four regions; D24
+(order items) built 2026-09-09**
+Updated: 2026-09-09 (D24: choosing the item is what writes the order)
 Source: user screenshot (1.0 generate-order screen, opened from the cause-list
 orders icon) · user said this is what appears when they click the orders icon ·
 second user screenshot 2026-09-03 of the **built** composer at 1232x928 ·
 **third and fourth screenshots 2026-09-06 — the shipped D16 screen at ~1512x923
 and the 1.0 composer again, with the owner's report below (§2, problems 11–14)** ·
+**four more screenshots 2026-09-09 — the 1.0 composer as the *typist* works it,
+three of them its Order items catalogue open (§2, problem 15)** ·
 docs/product/product-foundation.md · docs/product/domain/journey.md ·
 docs/product/domain/actors.md (bench clerk keeps the **order sheet**;
 stenographer records **dictation**) · docs/product/domain/practice-notes.md
 (`hr-judgment-writer-2026-06` — judgments are produced by dictation) ·
 docs/product/open-questions.md · docs/product/standards/adherence.md ·
-apps/dristi-app `lib/employee/hearings.ts` (`canDraftOrder`),
+apps/dristi-app `lib/employee/court-role.ts` + `content.ts` (the bench-clerk and
+typist seats), `lib/cases/orders.ts` (`ORDER_TYPES`, `ORDER_CLASSES` — the
+catalogue D24 restates), `lib/employee/hearings.ts` (`canDraftOrder`),
 `lib/employee/hearing-session.ts`, `components/employee/sign-order-dialog.tsx`
 (`OrderFacsimile` — an order is numbered paragraphs on `bg-paper`)
 DS read: `vendor/pucar-design-system` (origin verified
@@ -52,6 +57,13 @@ this matter, and `hearing-session.ts` holds exactly one `ongoingId` because "the
 bench hears one cause at a time." So this is not a form someone fills at a desk.
 It is the screen that is open while a matter is being heard, on a board of 23,
 paginated ten at a time. Everything in §5 follows from that.
+
+*Amended 2026-09-09 (D25).* That is the gate for a seat that calls the matter. The
+typist's cause list has no session controls at all, so there the gate is
+`canTypeOrder(status)` — `scheduled` as well — and **the trip into the composer is
+the sitting**: the row is marked heard on the way in (`hearings-screen.tsx`). The
+composer is still only ever opened from inside one listing's sitting; which press
+starts that sitting is what changed.
 
 **Attributed fact (owner, 2026-09-06):** advancing from this screen to the next
 matter on the board is expected of it. That is a statement about what the bench
@@ -208,6 +220,30 @@ Numbered so decisions can cite them. Problems 1–9 come from the 1.0 screenshot
     the exact failure D12 was written to prevent. The directions are *already* a
     list of blocks in our data model (D4); we simply are not numbering them.
 
+15. **The one region the typist actually works is not on our screen.**
+    *(2026-09-09, owner: four screenshots of the 1.0 composer "as it looks for the
+    typist", three of them the item catalogue open.)* The reference's left column has
+    four regions; ours had three. The missing one is **Order items** — the catalogue
+    of seventeen orders a court can pass on a hearing day, an order that can carry
+    more than one of them, and item text that writes itself from the one you pick.
+
+    Underneath the missing control was a missing model. Our composer offered one
+    blank editor called Item text, so an order could hold exactly one item however
+    many the court passed; nothing on the screen said *what kind* of order this was;
+    and the words had to be typed from nothing every time. That last one is the
+    fault, because the seat this screen was handed on 2026-09-07 is the **typist**
+    (`content.ts`, `court-role.ts`), and a typist is not composing a direction — they
+    are setting down an order the court already made, from the court's own standing
+    form. A blank editor asks the wrong question of that seat, twenty-three times a
+    sitting.
+
+    Missing from the Order text column with it: the **next-hearing recital**. The
+    reference prints three regions there — Attendance, Item Text, Next Hearing — and
+    ours printed two, so the sentence that closes the order could only be read by
+    opening Preview.
+
+    *Resolved 2026-09-09 by D24.*
+
 ---
 
 ## 3. Objective
@@ -249,12 +285,23 @@ attendance, directions, next date — so it can later be signed. Do not treat
 
 Until Job is confirmed, three constraints hold without depending on a coined
 purpose: the entry point (cause-list icon → composer for *this* listing), the
-precondition (`canDraftOrder` — the matter has been called), and the honesty
-bound (draft and preview only).
+precondition (the matter has been called — `canDraftOrder` where the seat makes
+that call, `canTypeOrder` where entering the composer *is* the call, D25), and the
+honesty bound (draft and preview only).
 
 ---
 
 ## 5. Decisions
+
+**Read this before D14–D22.** The screen that shipped on 2026-09-07 was rebuilt
+region for region against the reference — the two checkbox rolls, the "Next hearing
+details" block, the "Order text" column, the header bar with the advance in it, the
+footer with Save as draft and Preview PDF. **That pass was never written into this
+brief.** It supersedes the *arrangement* D14–D18 argued over (segmented controls, the
+eyebrow header, directions typed into the document as prose); their *arguments* stay
+on the record, and they are why several of the reference's own defects (problems 1, 4,
+6) are still absent from our build. §7's diagram is D17's, not the screen's — see the
+note there. D23 and D24 are written against the screen as it actually stands.
 
 **D0 · Do not polish 1.0.** The dual grids, the skip-checkbox, the empty
 "Choose item" row, and the three-box "Order text" are the problem, not a skin on
@@ -687,6 +734,73 @@ editor produced, so the model carries `{ html, text }` (the convention
 Also gave up: the direction textarea's placeholder. `RichTextField` has no
 placeholder — the numbered heading above it is what names the field now.
 
+**D24 · Choosing the item is what writes the order.** *(problem 15 — 2026-09-09;
+extends D4 and D19 to the catalogue, and replaces the single Item text field)*
+
+**The catalogue is the instrument, not a label on one.** `lib/employee/order-items.ts`
+holds the reference's seventeen hearing-day items, restated in the case register's own
+words (**D12** — `/employee` does not import `lib/cases/orders`, and the two halves of
+this app must not disagree about what a "Miscellaneous process" is; the ids match the
+register's ids too, so a later slice that actually issues has one name to map and not
+two). Picking one appends a numbered paragraph to the order, opened on the court's
+standing words **with this listing's parties named in them**: *"Issue summons to Anand
+Traders, the accused."* The reference prints the placeholder it never filled in —
+*"Issue summons to Accused Details (Accused)"* — which is the tell that its text was
+never wired to the listing it was opened from.
+
+**One label is deliberately not the reference's.** The reference lists **Section 202
+CrPC**; the register calls the same item **Postponement of issue of process**. The CrPC
+was replaced by the BNSS on 1 July 2024 (`docs/product/sources.md`), so a control naming
+a repealed section is wrong for every case filed since — and the register's name says
+what the order does without citing anything. *Deviation from the reference, logged.*
+
+**An order carries a list, not a field.** `OrderDraft.itemText` becomes
+`OrderDraft.items`, and position is the paragraph number — which is how the signing
+queue already prints an order (**D19**; `sign-order-dialog.tsx` → `<ol
+className="list-decimal">`). A cognizance listing passes two items, the finding and the
+summons that follows from it, and `order-demo.ts` now opens a completed one on both.
+
+**Membership on the left, words on the right.** The reference's own division, and the
+one thing about its layout that was always right (D17's recognition paragraph). The left
+region carries the chooser and the list of what is in the order; the right column
+carries one editor per item, headed "1. Summons". **Neither restates the other** — a
+roster row is a name and a number, not a sentence, which is what keeps this from being
+problem 11's mirror. It also repairs the reference's own defect here (problem 4): 1.0
+hangs Edit and Delete off an empty select with no list of what the order already holds.
+
+**A `Combobox`, not the reference's plain select.** Seventeen items in one unsorted list
+is a list you read; this one is grouped as the register groups them (`ORDER_CLASSES`)
+and takes type-ahead, so a typist who knows the word never opens the menu at all.
+*Rule:* reuse before creating (AGENTS §3) — `case-applications.tsx` already composes
+exactly this grouped-combobox shape, so nothing new was invented and nothing was
+hand-written. Alternative rejected: the 2026-09-02 decision "button + type menu, not a
+Select". That was taken against a select sitting in a section *header* with no list
+beneath it, which read as picking the one type for the whole sitting; with the roster
+under it, the field reads as the way in to a catalogue.
+
+**Removing an item is neutral, not the reference's red Delete.** Nothing on this screen
+is issued, so taking a paragraph out of a draft is not a destructive act, and a red
+control on every row of a list the typist builds is the alarm fatigue the Laws ration
+colour to avoid (ui-craft §1.4). *Deviation from the reference, logged.* Add is
+`outline` for the same reason the Laws give: the view already spends its one teal on the
+advance in the header — and, today, a second one on Preview PDF (§11).
+
+**Adding an item is not writing it.** An item chosen and left blank still prints, as a
+pending paragraph in the document's muted voice. The court passed it — the typist said
+so by adding it — and an order that silently dropped the paragraph would be the screen
+deciding which of the day's items were worth printing. `Others` opens empty on purpose:
+it is the item the catalogue could not name, so there is no standing form for it.
+
+**The next-hearing recital comes back to the Order text column**, read-only, where the
+reference puts it and for the reason attendance is read-only there: it is two controls in
+the column beside, and a second editable copy would let the sentence and the date
+disagree.
+
+*Judgment, on the owner's screenshots, grounded in `court-role.ts` (the typist seat) and
+the register's catalogue.* **Gave up: the guarantee that every word in a Dristi order was
+written by a person on the day.** The standing words are this app's own, in
+`order-demo.ts`'s voice and under the same bargain — see §11 and §12.
+
 **D12 · Employee stays self-contained.** Do not import `lib/cases/orders`.
 Restate the hearing-day type labels in `lib/employee/order-draft.ts`, matching
 the register's words so the two halves of the app cannot disagree about "Interim
@@ -780,6 +894,37 @@ name. `text-success-ink` optional and I would still leave it off.
 ---
 
 ## 7. Layout & hierarchy
+
+**What is on the screen today (2026-09-09), left to right.** The 2026-09-07 rebuild
+took the reference's regions verbatim, and D24 completed the set:
+
+```
+header bar (sticky, bg-card)   Order : Priya Menon v. Sabari Textiles   [Next hearing]
+
+┌ Listing facts  lg:col-span-1 ┐  ┌ Order text  lg:col-span-1 ───────────────┐
+│ Applications (only if any)   │  │ Attendance   [read-only Textarea]        │
+│ ───────── hairline ───────── │  │                                          │
+│ Mark who is present  ☐ ☐ ☐ ☐ │  │ Item text                                │
+│ Mark who is absent   ☐ ☐ ☐ ☐ │  │   1. Summons  ┌ RichTextField ────────┐  │
+│ ───────── hairline ───────── │  │               │ B I  1. •  ≡         │  │
+│ Next hearing details         │  │               │ Issue summons to …   │  │
+│   ☐ Skip scheduling…         │  │               └──────────────────────┘  │
+│   Purpose      (Select)      │  │   2. Cost     ┌ RichTextField ────────┐  │
+│   Next date    (DatePicker)  │  │               └──────────────────────┘  │
+│ ───────── hairline ───────── │  │                                          │
+│ Order items          ← D24   │  │ Next hearing [read-only Textarea]        │
+│   Choose item (Combobox)     │  └──────────────────────────────────────────┘
+│                  [Add item]  │
+│   ┌ 1. Summons     Remove ┐  │
+│   └ 2. Cost        Remove ┘  │
+└──────────────────────────────┘
+
+sticky footer                              Save as draft (outline)  Preview PDF (teal)
+```
+
+*The diagram below is **D17's**, not the screen's.* It is kept because the arguments
+around it are why the build rejects the reference's dual grids, its skip-checkbox
+semantics and its empty "Choose item" row — not because anything still looks like it.
 
 Revised 2026-09-06 for **D17**. Two panels: the facts of the listing, and the
 order. The bench types in the order.
@@ -875,6 +1020,11 @@ then Add another) → Preview → Next item. Visual left-to-right and tab order 
 | Add direction | `Button variant="outline"` + `PlusIcon` opening a `DropdownMenu` of types. Empty: **Add direction**. With a list: **Add another direction**. |
 | Remove direction | `Button variant="ghost"` with a visible label |
 | No directions yet | `Empty` composed **without `EmptyMedia`** — description + `EmptyContent` only. An illustrated empty state in the middle of a court order reads as a bug; the document already has a muted-pending convention ("Next date has not been set.") and this follows it |
+| **Item catalogue** *(D24)* | `Field` + `FieldLabel` + `Combobox` / `ComboboxInput` / `ComboboxContent` / `ComboboxGroup` + `ComboboxLabel` / `ComboboxCollection` / `ComboboxItem` / `ComboboxEmpty` — grouped and type-ahead, the same composition `case-applications.tsx` uses |
+| **Add item** *(D24)* | `Button variant="outline"`, disabled until the catalogue has a value |
+| **Items in the order (roster)** *(D24)* | `ol` of `bg-surface-sunken rounded-lg` rows, `min-h-10`, number in `tabular-nums`, `Button variant="ghost"` Remove with an `sr-only` suffix naming the item |
+| **One item's words** *(D24)* | `RichTextField` (`components/cases/rich-text-field.tsx` — D22), labelled by the numbered heading above it, keyed on the item id so removing one does not hand its markup to the next |
+| **Next-hearing recital** *(D24)* | `Field` + `FieldLabel` + read-only `Textarea`, the same treatment as Attendance |
 | Preview | `Dialog` + `DocumentPreview` + an `OrderFacsimile`-shaped article on `bg-paper text-paper-foreground` (D21) |
 | Footer | sticky `bg-card border-t border-hairline`; caption `text-body-compact text-muted-foreground`; `Button` outline (Preview) + default (Next item) |
 | Missing listing | `Empty` with Back to today's hearings |
@@ -934,8 +1084,23 @@ Ladder only: `0.5 · 1 · 1.5 · 2 · 2.5 · 3 · 4 · 6 · 8 · 12 · 16`.
   silent.
 - **Returning to an item already drafted.** The module holds the draft for the
   sitting (D20), so the composer opens on what was typed. A reload does not.
-- **Renumbering after a removal.** Removing direction 2 renumbers 3 to 2 in the
-  order and in Preview, immediately. Accepted (§11).
+- **No item added.** *(D24.)* The roster says "No item has been added yet. Choose
+  one and its text is written for you."; the Order text column says "The order has
+  no item yet…"; the paper says "No item has been added." in its muted voice. No
+  illustration — an empty-state graphic in the middle of a court order reads as a
+  bug (§8).
+- **An item added and then emptied.** *(D24.)* It still prints, as a pending
+  paragraph — "Summons — nothing has been written." — in the muted voice. It does
+  not vanish: the typist said the court passed it.
+- **`Others`.** *(D24.)* Opens with an empty editor. The catalogue has no standing
+  form for the item it could not name, and inventing one would put a sentence in an
+  order nobody chose.
+- **Renumbering after a removal.** Removing item 2 renumbers 3 to 2 in the roster,
+  the editors, the order and Preview, immediately; the live region says how many
+  paragraphs moved up. Accepted (§11).
+- **Long item labels.** "Postponement of issue of process" and "Mandatory
+  submissions responses" wrap in the roster row and in the well heading; the
+  catalogue's own rows are `whitespace-normal`. Nothing truncates.
 - **Long names / long language.** Cause title and party names wrap
   (`text-balance` on the `h1`, `whitespace-normal` on rows). The Purpose select
   wraps. Malayalam / Gujarati labels that triple in length: the segment stays two
@@ -1002,8 +1167,29 @@ Ladder only: `0.5 · 1 · 1.5 · 2 · 2.5 · 3 · 4 · 6 · 8 · 12 · 16`.
 - **Job unconfirmed.** If product says this surface *is* the signing step, D9,
   D10, D18 and D21 all have to change. Until then we do not invent a signature
   block.
-- **Hearing-day type subset.** A magistrate may need a type we did not list.
-  "Others" is the escape. Expanding the catalogue is a data change.
+- **The standing words are ours, not a court's.** *(new, D24, and the largest thing
+  in this revision.)* No template library was given to us, so the seventeen opening
+  paragraphs were written in `order-demo.ts`'s voice against
+  `docs/product/domain/journey.md` and the reference's one visible sample. A typist
+  could pass an order whose boilerplate no court approved. Mitigated by the fact that
+  every word is editable before anything leaves the screen and that this build issues
+  nothing — and it is the **first thing to replace** when product supplies the real
+  forms (§12).
+- **A blank in the standing words.** *(new, D24.)* Cost and witness batta ship with
+  `₹____` because the amount is fixed on the day. A draft can be previewed with the
+  blank still in it. Accepted: the alternative is inventing a figure, which is worse
+  in a court order than an obvious gap.
+- **Two teal actions on the view.** *(new, observed 2026-09-09, not changed in this
+  pass.)* The header's advance and the footer's Preview PDF are both `bg-primary`,
+  and an answered-in-the-strip application adds an Accept. The Laws ration teal to
+  one primary per view, and **D18 already decided** that the advance takes it and
+  Preview drops to `outline`; the 2026-09-07 rebuild restored the reference's footer
+  instead. D24 kept its own Add item on `outline` rather than adding a third. Which
+  of the two is the view's act is the owner's call, and it is one line either way.
+- **Hearing-day type subset.** ~~A magistrate may need a type we did not list.~~
+  **Answered 2026-09-09 (D24):** the catalogue is the reference's seventeen, which is
+  a subset of the register's forty-odd. "Others" is still the escape, and expanding
+  the list is a data change in `order-items.ts`.
 - ~~**The band grows with the party count.**~~ **Resolved by D15's insight,
   re-adopted by D17** — the roll sits beside the writing, so the party count no
   longer moves the typing at all.
@@ -1048,8 +1234,23 @@ Ladder only: `0.5 · 1 · 1.5 · 2 · 2.5 · 3 · 4 · 6 · 8 · 12 · 16`.
   control on the page. Owner's call; nothing is built for it.
 - **Does "No next date" need a reason** (judgment reserved, disposed,
   compounded)? Not in `docs/product/`; not invented here.
-- **Is the hearing-day type catalogue the same as the case-register catalogue**,
-  or a shorter sitting-only list? Proceeding with a short list + Others.
+- ~~**Is the hearing-day type catalogue the same as the case-register catalogue**,
+  or a shorter sitting-only list?~~ **Answered 2026-09-09 by the owner's
+  screenshots:** a sitting-only list of seventeen, which is a subset of the
+  register's catalogue. Built as D24; kept here because it is why
+  `order-items.ts` exists rather than an import.
+- **Where do the standing words for each item come from?** *(new, D24 — the open
+  question this revision most needs answered.)* Every item now opens on a paragraph
+  this app wrote. A court has its own forms, and a state deploys over identical
+  national law with local language on top (`docs/product/national-vs-state.md`), so
+  the real answer is probably a per-state template library with fields, not
+  seventeen English sentences in a TypeScript file. Nothing is issued today, so this
+  is safe to leave — but it is not safe to ship past.
+- **Does an item need parameters of its own?** *(new, D24.)* 1.0 puts **Edit** beside
+  the chosen item, which opens a form for it — which accused a summons goes to, how
+  it is served. We have none: the editor is the edit (D4). That is right while the
+  order is only text; it stops being right the moment the item has to *produce*
+  something (a process to serve, a fee to collect).
 - **Must a next date be set before preview or before advancing** when the matter
   is not being disposed? Currently a warning printed in the order, not a block.
 - **Do §138 day-orders need sub-items — (a), (b), (c) — inside one direction?**
@@ -1091,6 +1292,9 @@ No new DS request from this feature.
 
 | Date | What | Who |
 |---|---|---|
+| 2026-09-09 | **D25: the typist's cause list ends at Orders, and the trip into the composer is the sitting.** Owner on the typist board: the Action column's typist wording (*To start* / *Hearing started* / *Hearing ended*) "is redundant. The last column would be orders only." It was — the Status chip two cells left already said where the matter stood, so that column reported and never acted, and the one press it did offer existed only to unlock the column beside it. Removed: the column, `hearingProgressLabel`, and the two-second start beat with it — **this retires the typist's one-control line (shipped in `d85fe6e`, never written into a decision row)**. That leaves `canDraftOrder` with nothing to open the orders column, so this seat reads new `canTypeOrder(status)` (adds `scheduled`) and `openOrder` marks the matter heard on the way in, as it already did. Both seats still close on a listing that was never heard (passed over, rescheduled, abandoned). Seven columns for the typist, eight for the bench; the table drops to 878px and stops scrolling at every laptop width. On a phone the lone glyph takes the words instead (**Open order**, outline) — no column header there to name it. Gates + typecheck + 386 tests pass; both seats verified against the served DOM. | owner (ask), ui build |
+| 2026-09-09 | **D24: the item catalogue is the typist's instrument.** Owner sent four screenshots of the 1.0 composer "as it looks for the typist", three of them the Order items dropdown open — the one region of the reference our build did not have (problem 15). Built: `lib/employee/order-items.ts` with the reference's seventeen items in the case register's words and ids (D12; **Section 202 CrPC** renamed to the register's **Postponement of issue of process**, since the CrPC was replaced by the BNSS on 1 July 2024), each opening on standing words with this listing's parties named in them. `OrderDraft.itemText` became `OrderDraft.items` — a list, numbered by position, printed as the `<ol>` the signing queue already uses (D19). Chooser and roster on the left as the reference has them, one editor per item on the right, and the next-hearing recital restored to the Order text column. `Combobox` over the reference's plain select (grouped + type-ahead, the `case-applications.tsx` composition). Two logged deviations from the reference: the renamed item, and a neutral Remove instead of its red Delete. Gates + typecheck + 386 tests pass; verified against the served DOM. **Recorded as the largest risk: the standing words are this app's, not a court's.** | owner (ask), ui build |
+| 2026-09-09 | Noted, not re-litigated: the **2026-09-07 region-for-region rebuild** of this screen against the reference was never written into this brief. §5 now carries a banner saying so, and §7 leads with the shipped layout rather than D17's. | ui build |
 | 2026-09-07 | **D23: a completed listing opens on a written order.** Owner: once a hearing is ended, clicking the orders icon should show a dummy order filled out. Until now it opened an empty composer, which said the sitting produced nothing. `lib/employee/order-demo.ts` supplies the *opening* draft for a listing whose live status is `completed`: the whole roll marked present, every application that was pending allowed, one item paragraph per hearing purpose, and the matter posted three weeks on (off weekends) for the next purpose in the §138 progression — judgement alone posts to no date. It is the listing's starting draft and not a lock: the first edit is kept over it, and a listing dictated on during the sitting keeps its own words. Threaded through `readOrderDraft` / `updateOrderDraft` / `useOrderDraft` as one `initial` value so the read path and the write path cannot disagree; a scheduled or ongoing listing is still empty, because the point of the composer is that the bench dictates while the matter is standing there. No visible "this is demo text" mark — the whole board is demo data and the sidecar behind the case overview already fabricates past orders without one. | owner (ask), ui-designer (build) |
 | 2026-09-06 | **D22: directions take formatted text, through `RichTextField`. Supersedes D19's "no toolbar" and the rest of D6.** Owner asked a second time for the editor after reading D19's reasoning; reaffirmed ask, owner's call. Built by reusing the applications forms' existing `components/cases/rich-text-field.tsx` — DS chrome (`InputGroup` + `ToggleGroup`), paste sanitised, read-only `RichTextValueView` on the paper — rather than adding a court-side third editor. Numbering from D19 kept: the order numbers the directions, the toolbar's lists handle sub-items inside one. `DirectionDraft.body` becomes `{ html, text }`; "written" is measured on `text`. `ds-requests.md` #7 (no editor primitive; both existing ones use deprecated `execCommand`) gains a third caller and is otherwise unchanged — that queue is shared, so the edit is the owner's. Lost: the plain-text guarantee, and the textarea placeholder. | owner (direction) + ui build |
 | 2026-09-06 | **D17: the order is the editing surface.** Owner reported the shipped D16 screen still wrong, and that the accordion "still doesn't help". Diagnosed as problem 11 — the read-only Order panel is a *mirror* of the controls beside it, blank for the first half of every sitting, so the work column has to carry four acts in one 638px band and the typing is always last. **D5's read-only split reversed; D16's fold removed.** Two panels: facts of the listing (attendance, next listing) at `lg:col-span-2`; the order, with the directions typed into it, at `lg:col-span-3`. Nothing sticky but the footer. First typing affordance moves from y≈815 to **y≈450 on arrival**, and stops moving with the party count. Resolves the work-order/document-order mismatch and dissolves the "Next listing above or below Directions" question. Cost: no controls-free read of the order on the page — that is Preview's job now. | ux-designer (owner report) |

@@ -159,7 +159,7 @@ const LABEL = "truncate group-data-[collapsible=icon]:hidden";
 /** The rail's secondary ink, from the selected theme. */
 const MUTED = "text-(--rail-muted)";
 
-const UNBUILT_NOTE = "not part of this build";
+const UNBUILT_NOTE = "not available yet";
 
 /**
  * How many tasks are waiting on you.

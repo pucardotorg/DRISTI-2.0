@@ -20,6 +20,7 @@ import {
   type ListingApplication,
   type ListingApplicationDecision,
 } from "./listing-applications";
+import { orderItemLabel, type OrderItemDraft } from "./order-items";
 import {
   CAUSE_LIST,
   causeTitle,
@@ -76,13 +77,7 @@ export function appearancesFor(hearing: CourtHearing): Appearance[] {
 }
 
 /**
- * The body of the item, as the bench dictates it.
- *
- * One field, not a catalogue of typed directions. The reference composes an order as
- * *Item Text* — a single dictated passage — and that is what a §138 day-order is: the
- * bench speaks the item and the clerk sets it. The editor's own list controls carry the
- * numbering when an item genuinely has (a), (b), (c) in it, which is where the previous
- * build's separate "direction" objects were really coming from.
+ * The body of one item, as it is written.
  *
  * Both shapes, the convention `rich-text-field.tsx` sets and the applications draft
  * already follows: `html` is what the order renders, `text` is what decides whether the
@@ -104,8 +99,16 @@ export type OrderDraft = {
   next: NextListingChoice;
   nextPurpose: CourtHearingPurposeId | "";
   nextDate: string | null;
-  /** The dictated body of the item — the reference's Item Text. */
-  itemText: ItemText;
+  /**
+   * What the court passed today, in the order it is written.
+   *
+   * A list, because an order routinely carries more than one — cognizance and the
+   * summons that follows it, an adjournment and the cost imposed for it — and the
+   * reference's own "Add item" says so. Position is the paragraph number: item two is
+   * paragraph two of the order, which is how the signing queue already prints one
+   * (`sign-order-dialog.tsx`).
+   */
+  items: readonly OrderItemDraft[];
 };
 
 export const EMPTY_ORDER_DRAFT: OrderDraft = {
@@ -114,7 +117,7 @@ export const EMPTY_ORDER_DRAFT: OrderDraft = {
   next: "list",
   nextPurpose: "",
   nextDate: null,
-  itemText: { html: "", text: "" },
+  items: [],
 };
 
 /** One named block in the assembled order. `pending` when the matching control is empty. */
@@ -137,6 +140,25 @@ export type OrderBlock = {
    * have to unpick them out of one paragraph. The last line may be the pending note.
    */
   sentences?: { text: string; pending: boolean }[];
+  /**
+   * Items only. The order's numbered paragraphs, so the document and the paper can
+   * print an `<ol>` rather than a run-on block of everything the court passed.
+   */
+  items?: OrderItemEntry[];
+};
+
+/** One item as the order carries it — its number, its name, and its words. */
+export type OrderItemEntry = {
+  id: string;
+  /** The paragraph number, from position. Item three is paragraph three. */
+  number: number;
+  /** The catalogue's name for it — "Summons" — as the composer heads the well. */
+  heading: string;
+  /** The plain words, and what "written" is measured on. */
+  body: string;
+  html: string;
+  /** Chosen, but nothing written in it yet. */
+  pending: boolean;
 };
 
 export type AttendanceEntry = {
@@ -289,27 +311,43 @@ export function assembleNextListing(
 }
 
 /**
- * The item body as the order carries it.
+ * The items as the order carries them.
  *
- * On the text, not the markup: an empty editor still holds a `<br>`, and an item that is
- * only formatting is an item nobody dictated.
+ * On the text, not the markup: an empty editor still holds a `<br>`, and an item whose
+ * standing words were deleted and never replaced is an item nobody wrote.
+ *
+ * An item that has been chosen but not written is *pending, not absent*. The court
+ * passed it — the typist said so by adding it — and an order that quietly dropped the
+ * paragraph would be the screen deciding which of the day's items were worth printing.
  */
-export function assembleItemText(itemText: ItemText): OrderBlock {
-  const body = itemText.text.trim();
-  if (!body) {
+export function assembleItems(items: readonly OrderItemDraft[]): OrderBlock {
+  if (items.length === 0) {
     return {
       id: "item",
       heading: "Item text",
-      body: "The item has not been dictated.",
+      body: "No item has been added.",
       pending: true,
     };
   }
+
+  const entries: OrderItemEntry[] = items.map((item, index) => {
+    const body = item.text.text.trim();
+    return {
+      id: item.id,
+      number: index + 1,
+      heading: orderItemLabel(item.type),
+      body: body || `${orderItemLabel(item.type)} — nothing has been written.`,
+      html: body ? item.text.html : "",
+      pending: !body,
+    };
+  });
+
   return {
     id: "item",
     heading: "Item text",
-    body,
-    html: itemText.html,
-    pending: false,
+    body: entries.map((entry) => entry.body).join(" "),
+    pending: entries.some((entry) => entry.pending),
+    items: entries,
   };
 }
 
@@ -339,7 +377,7 @@ export function assembleOrder(
           draft.applications,
         ),
       ),
-      assembleItemText(draft.itemText),
+      assembleItems(draft.items),
       assembleNextListing(draft),
     ],
   };
@@ -375,13 +413,15 @@ export function nextUnhandledListing(
  * The order as paper — what Preview shows.
  *
  * Shaped as the facsimile the signing queue already prints (`sign-order-dialog.tsx`):
- * court and cause at the head, the dictated item as its body, the date, then the
+ * court and cause at the head, the numbered items as its body, the date, then the
  * signature block. The composer and the signing queue print the same artefact, so they
- * must not disagree about what it looks like.
+ * must not disagree about what it looks like — down to the numbering, which is the one
+ * thing the two screens were caught disagreeing about before.
  *
  * Attendance opens the order, the applications answered in this sitting follow it, and
- * the next listing closes it — all as plain sentences. The item keeps whatever numbering
- * the bench put in it with the editor's own list controls.
+ * the next listing closes it — all as plain sentences. Each item keeps whatever the
+ * editor's own list controls put inside it, which is where (a), (b), (c) within one
+ * paragraph lives.
  *
  * **Nothing here is issued.** The signature block says the order is unsigned, because
  * it is, and this build has no act that would change that.
@@ -398,9 +438,12 @@ export type OrderDocument = {
    * pending — the paper then has no such paragraph at all.
    */
   applications: { text: string; pending: boolean }[];
-  /** The dictated item. `html` is empty while it is unwritten — the paper then prints
-      the plain line in its muted voice. */
-  item: { body: string; html: string; pending: boolean };
+  /**
+   * The order's numbered paragraphs. Empty when nothing has been added — the paper then
+   * says so in its muted voice rather than printing a blank list. An entry's `html` is
+   * empty while it is unwritten, and the plain line is what prints instead.
+   */
+  items: OrderItemEntry[];
   /** The next listing, as it closes the order. */
   closing: string;
   dated: string;
@@ -425,14 +468,7 @@ export function buildOrderDocument(
         applicationsForListing(hearing.id),
         draft.applications,
       )?.sentences ?? [],
-    item: (() => {
-      const block = assembleItemText(draft.itemText);
-      return {
-        body: block.body,
-        html: block.html ?? "",
-        pending: block.pending,
-      };
-    })(),
+    items: assembleItems(draft.items).items ?? [],
     closing: assembleNextListing(draft).body,
     dated: formatCourtDay(day),
     signature: "Pending the signature of the magistrate.",

@@ -127,7 +127,7 @@ export function SignBailBondDialog({
         }
         noun={NOUN}
         subject={bondSubject(held)}
-        warning="Signing publishes this bond and cannot be reversed. Not part of this build — nothing is signed, published or sent."
+        warning="Signing publishes this bond and cannot be reversed."
         download={{
           prompt: "Want to read the bond again?",
           onDownload: () => downloadSignBailBondDocument(held),

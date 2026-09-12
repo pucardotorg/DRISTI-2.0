@@ -32,6 +32,12 @@ import {
   type AttendanceMark,
   type OrderDraft,
 } from "./order-draft";
+import {
+  createOrderItem,
+  richTextFromPlain,
+  type OrderItemDraft,
+  type OrderItemTypeId,
+} from "./order-items";
 
 /**
  * The item, as the bench would have dictated it on this listing.
@@ -53,7 +59,7 @@ const ITEM_TEXT: Record<CourtHearingPurposeId, string> = {
     "Counsel for the complainant advanced final arguments and relied on the documents already marked. Counsel for the accused was heard in part, and the arguments in reply are to be continued.",
   bail: "The application for bail was taken up and both sides were heard. The accused, who has appeared on every posting date so far, is released on bail on executing a bond with one surety to the satisfaction of this court.",
   cognizance:
-    "The complaint, the sworn statement of the complainant and the documents produced were perused. There is sufficient ground to proceed. Cognizance is taken of the offence under Section 138 of the Negotiable Instruments Act, 1881, and summons shall issue to the accused.",
+    "The complaint, the sworn statement of the complainant and the documents produced were perused. There is sufficient ground to proceed, and cognizance is taken of the offence under Section 138 of the Negotiable Instruments Act, 1881.",
   "delay-condonation":
     "The petition to condone the delay in presenting the complaint was taken up and heard. The reasons stated are sufficient, and the delay in presenting the complaint stands condoned.",
   "evidence-of-complainant":
@@ -65,6 +71,33 @@ const ITEM_TEXT: Record<CourtHearingPurposeId, string> = {
   judgement:
     "Judgement was pronounced in open court and the operative portion was read out. The judgement, signed and dated, is placed on the file.",
   plea: "The substance of the accusation was read over and explained to the accused in a language known to the accused. The accused pleaded not guilty and claimed to be tried.",
+};
+
+/**
+ * Which item of the catalogue the sitting actually passed.
+ *
+ * The purpose is what the day was listed for; the item is what came out of it, and the
+ * two are not the same fact — a cognizance listing passes two items, the finding and the
+ * summons that follows from it, while an evidence listing passes an order the catalogue
+ * has no name for. `others` is the honest answer there, and it is the answer the
+ * catalogue was built with (`order-items.ts`); inventing a type to avoid it would put a
+ * name on the day-order that no court gave it.
+ *
+ * The first item carries the paragraph this sitting produced; anything after it opens on
+ * its own standing words.
+ */
+const ITEM_TYPES: Record<CourtHearingPurposeId, OrderItemTypeId[]> = {
+  admission: ["others"],
+  appearance: ["others"],
+  arguments: ["others"],
+  bail: ["bail"],
+  cognizance: ["order-for-taking-cognizance", "summons"],
+  "delay-condonation": ["others"],
+  "evidence-of-complainant": ["others"],
+  "examination-of-accused-351": ["others"],
+  "for-reports": ["miscellaneous-process"],
+  judgement: ["judgement"],
+  plea: ["others"],
 };
 
 /**
@@ -95,21 +128,6 @@ const NEXT_PURPOSE: Record<CourtHearingPurposeId, CourtHearingPurposeId | null> 
 
 /** Three weeks on, and never on a weekend the court does not sit. */
 const NEXT_LISTING_DAYS = 21;
-
-/**
- * The plain sentence as the editor's own markup.
- *
- * The citizen side escapes the same way for the same reason (`lib/cases/
- * application-draft.ts`); the two do not share a function because `/employee` does not
- * import from there (`content.ts`).
- */
-function richTextFromPlain(value: string): string {
-  const escaped = value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-  return `<p>${escaped}</p>`;
-}
 
 /** The next day this court would sit — Saturday and Sunday roll forward to Monday. */
 export function nextSittingDay(from: string, days = NEXT_LISTING_DAYS): string {
@@ -147,6 +165,21 @@ function decisionsOf(hearing: CourtHearing): OrderDraft["applications"] {
 }
 
 /**
+ * The items this sitting passed, with the day's own paragraph in the first of them.
+ *
+ * Ids are built from the listing rather than from the catalogue's counter, so the same
+ * completed matter opens on the same items every time — the editors are keyed on them,
+ * and an id that changed between renders would restart the typist's cursor.
+ */
+function itemsOf(hearing: CourtHearing): OrderItemDraft[] {
+  return ITEM_TYPES[hearing.purpose].map((type, index) => {
+    const item = createOrderItem(hearing, type, `${hearing.id}-item-${index + 1}`);
+    if (index > 0) return item;
+    return { ...item, text: richTextFromPlain(ITEM_TEXT[hearing.purpose]) };
+  });
+}
+
+/**
  * The draft this listing opens on.
  *
  * Empty until the sitting is over. A matter that has not been called has nothing to
@@ -167,7 +200,6 @@ export function initialOrderDraft(
   if (status !== "completed") return EMPTY_ORDER_DRAFT;
 
   const nextPurpose = NEXT_PURPOSE[hearing.purpose];
-  const text = ITEM_TEXT[hearing.purpose];
 
   return {
     marks: attendanceOf(hearing),
@@ -175,6 +207,6 @@ export function initialOrderDraft(
     next: nextPurpose ? "list" : "none",
     nextPurpose: nextPurpose ?? "",
     nextDate: nextPurpose ? nextSittingDay(today) : null,
-    itemText: { html: richTextFromPlain(text), text },
+    items: itemsOf(hearing),
   };
 }

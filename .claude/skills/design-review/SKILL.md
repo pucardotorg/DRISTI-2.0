@@ -149,7 +149,7 @@ Everything made in Pencil is a **review artifact, never the design of record**
    rounding in the audit line (`13px → 12px · gap-3`). Raw values never enter
    the code.
 3. Audit each change with the same rules as the report lane (and ui-craft +
-   the eight passes), verdict per item:
+   the nine passes), verdict per item:
    - `healthy-local` — screen-level composition change, DS-legal
    - `use-variant` — an existing DS variant/size already expresses it
    - `upstream-DS` — targets a `[ds:*]` primitive's internals or a token value:

@@ -25,15 +25,20 @@ import { BookmarkButton } from "./bookmark-button";
 import { CaseField } from "./case-field";
 import { useCasePeek } from "./use-case-peek";
 import { useCasesSelection } from "./use-cases-selection";
+import {
+  TABLE_CELL,
+  TABLE_HEAD,
+  TABLE_HEAD_ROW,
+  tableBodyClass,
+  tableRowClass,
+} from "@/components/chrome/table-plate";
 import { useCasesTableColumns } from "./use-cases-table-columns";
 
-/* Header separates by fill, not a second stroke; rows by hairline. The panel edge
- * is the only full-strength `border-border` on the table (ui-craft §1.1). Matches
- * the pending-tasks table, which is the reference for surface and row state. */
-const headClass =
-  "h-10 bg-surface-sunken px-4 py-3 text-caption font-semibold text-muted-foreground";
-const cellClass =
-  "border-b border-hairline px-4 py-3 align-middle text-left text-body-compact";
+/* The header, cell, row and body treatment is the table plate's, shared with every
+ * queue (`components/chrome/table-plate.ts`); `check:table-rows` fails a private copy.
+ * The merge of design's round 1 and 2 corrections kept everything that table gained —
+ * the select-all box, the grips, the landing line, auto-scroll while dragging — and
+ * reads its styling from the plate. */
 
 /** Keep scannable fields on one line. Case name (and long notes) wrap, but
  *  only after a floor width so extra columns scroll instead of stacking. */
@@ -206,11 +211,11 @@ export function CasesTable({
               `border-separate` means each cell paints its own fill, so the radius goes on
               the end cells rather than the row. */}
           <TableRow
-            className="hover:bg-transparent [&>th:first-child]:rounded-l-lg [&>th:last-child]:rounded-r-lg"
+            className={TABLE_HEAD_ROW}
             onDragOver={dragging ? autoScroll : undefined}
           >
             {selectable ? (
-              <TableHead className={cn(headClass, "w-10 px-1")}>
+              <TableHead className={cn(TABLE_HEAD, "w-10 px-1")}>
                 <div className="flex justify-center">
                   <Checkbox
                     checked={allState}
@@ -243,7 +248,7 @@ export function CasesTable({
                 onDragEnd={onDragEnd}
                 onKeyDown={(event) => onHeaderKeyDown(event, column.id)}
                 className={cn(
-                  headClass,
+                  TABLE_HEAD,
                   COLUMN_WIDTH[column.id],
                   "relative cursor-grab select-none text-left active:cursor-grabbing",
                   dragging === column.id && "opacity-50"
@@ -276,7 +281,7 @@ export function CasesTable({
             })}
             <TableHead
               className={cn(
-                headClass,
+                TABLE_HEAD,
                 "sticky right-0 z-20 w-12 bg-surface-sunken px-1"
               )}
             >
@@ -285,10 +290,12 @@ export function CasesTable({
           </TableRow>
         </TableHeader>
         {/* `border-separate` (needed by the sticky bookmark column) puts the row
-            stroke on the cell, so the DS TableBody rule that clears the last row
-            targets the wrong element. Reach the cells directly, or the final row
-            doubles its line against the panel edge. */}
-        <TableBody className="[&_tr:last-child_td]:border-b-0">
+            stroke on the cell, so the last row's rule and the rules above a lit or
+            selected row are cleared from the body — the plate's `tableBodyClass`,
+            given the same options as the rows. */}
+        <TableBody
+          className={tableBodyClass({ selectable: true, marksOpenRow: true })}
+        >
           {/* The header is a well, not a band welded to the rows — it needs the
               panel's fill under it or its rounded bottom corners read as cut off
               (ui-craft §4). `border-separate` has no per-edge row gap and
@@ -300,20 +307,23 @@ export function CasesTable({
           {rows.map((record) => (
             <TableRow
               key={record.id}
+              /* Being open is a persistent "you are looking at this one" mark, and it
+                 loses to selection — so it is decided here rather than in CSS, where
+                 the two fills would race on source order. The hover is the plate's:
+                 the lighter warm tone design chose (owner, Sept 11), rounded. */
               className={cn(
-                // Warm well tone on hover, matching the column header — the DS default
-                // hover:bg-accent is a cooler, darker grey the owner found too heavy
-                // for a row (Sept 11).
-                "relative bg-card hover:bg-surface-sunken",
-                openRecord?.id === record.id &&
-                  !selected.has(record.id) &&
-                  "bg-accent"
+                tableRowClass({
+                  selectable: true,
+                  open:
+                    openRecord?.id === record.id && !selected.has(record.id),
+                }),
+                "relative"
               )}
               data-state={selected.has(record.id) ? "selected" : undefined}
               aria-current={openRecord?.id === record.id ? "true" : undefined}
             >
               {selectable ? (
-                <TableCell className={cn(cellClass, "w-10 px-1")}>
+                <TableCell className={cn(TABLE_CELL, "w-10 px-1")}>
                   {/* z-10 lifts the control above the case-number button's
                       `after:inset-0` overlay, so a click selects instead of
                       opening the peek. */}
@@ -332,7 +342,7 @@ export function CasesTable({
               {columns.map((column) => (
                 <TableCell
                   key={column.id}
-                  className={cn(cellClass, COLUMN_WIDTH[column.id])}
+                  className={cn(TABLE_CELL, COLUMN_WIDTH[column.id])}
                 >
                   <CaseField
                     record={record}
@@ -344,7 +354,7 @@ export function CasesTable({
               ))}
               <TableCell
                 className={cn(
-                  cellClass,
+                  TABLE_CELL,
                   "sticky right-0 z-20 w-12 bg-inherit px-1"
                 )}
               >

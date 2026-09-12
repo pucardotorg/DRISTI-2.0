@@ -123,7 +123,7 @@ export function SignOrderDialog({
         }
         noun={NOUN}
         subject={orderSubject(held)}
-        warning="Signing publishes this order and cannot be reversed. Not part of this build — nothing is signed, published or sent."
+        warning="Signing publishes this order and cannot be reversed."
         download={{
           prompt: "Want to read the order again?",
           onDownload: () => downloadSignOrderDocument(held),

@@ -127,9 +127,31 @@ squinting. Source review proves legality; only the render proves legibility.
 #5:** avatar discs on sunken beige cards separated only by a faint white ring — a
 combination no token audit flags, because every individual token was legal.
 
+### Pass 9 — Census the attributes
+**Question:** Is every fact on this screen a *value in a field*, or is some of it a
+*sentence about a value*? And does each field trace to something real?
+**How:** List every fact the screen shows. For each: what is its source — a requirement
+ID, a product-doc citation, or a field a real backend would hold? What is its type —
+data, a closed enum, the user's own free text, or product copy? Then look for the tells:
+the same machine result rendered as two or more different paragraphs depending on
+outcome; a label that is a form's question rather than an attribute's name; a value
+that is identical on every record the product will ever hold; a timeline event nothing
+in the product records. Each is an attribute doing prose's job, or prose doing an
+attribute's, or a field that does not exist.
+**Catches:** The screen that cannot scale — where the next case needs new copy instead
+of a new enum member, and nothing shown can be filtered, sorted, counted, or reused.
+**Real failure #6:** one Bar Council lookup rendered as four bespoke paragraphs — agrees,
+differs, unavailable, not found — where one row with a six-value status enum was the
+whole design. And the edge the other way: a legacy detail page that was *only*
+label:value pairs, with no voice anywhere, which is the same mistake inverted. Facts are
+attributes; guidance is copy.
+
 ## 3. Ordering
 
-Run them in the order above. Walk the Tuesday first, because it produces the intent
+Run them in the order above, except that the attribute census (pass 9) runs **third**,
+straight after the domain layout — it decides what information exists before any pass
+decides how to show it, and it is numbered last only so the earlier passes keep the
+numbers the existing briefs cite. Walk the Tuesday first, because it produces the intent
 every later judgment is measured against — a pattern census without a task narration
 just enforces consistency of possibly-wrong choices. Then structure (domain layout,
 control vocabulary) before behavior, because a screen with the wrong hierarchy makes

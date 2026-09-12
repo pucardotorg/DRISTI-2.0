@@ -82,6 +82,7 @@ npm run check:ds-fresh             # first — am I on the pinned DS?
 npm run sync:ui -- <component>     # copy from local DS
 npm run sync:ui -- --tokens-only   # refresh globals.css
 npm run check:tokens && npm run check:typography && npm run check:ui-sync && npm run check:spacing
+npm run check:table-rows           # one table treatment, not sixteen copies
 ```
 
 Screens/flows only in `apps/dristi-app`. DS wins over invent-visual preferences.
@@ -89,6 +90,16 @@ Screens/flows only in `apps/dristi-app`. DS wins over invent-visual preferences.
 Use named DS type roles in screen composition: citizen copy is `text-body`;
 titles are `text-title-* font-semibold`. Primitive-internal `text-sm` is not a
 screen-copy pattern.
+
+**Tables: compose from `src/components/chrome/table-plate.ts`, never from a copy.**
+`TABLE_HEAD`, `TABLE_CELL`, `TABLE_HEAD_ROW`, `tableRowClass()`, `tableBodyClass()`.
+A row's fill goes on its **cells**, because `border-radius` is ignored on a `tr` and
+under `border-separate` a row's own fill paints as a square behind them — so a fill on
+the `<tr>` can never have corners, and a hovered row reads as a square band cutting
+across a rounded panel. This is not a taste call the gates missed once: sixteen queues
+each kept a private copy of the treatment, one of them learned to round its rows, and
+nothing failed for weeks because duplicated constants that agree today are not a drift
+any gate can see. `check:table-rows` now fails the next private copy.
 
 ## 3a. Craft — mandatory on every UI change, every iteration
 

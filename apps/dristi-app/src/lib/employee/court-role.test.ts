@@ -7,7 +7,7 @@ import {
   seatHasBenchControls,
   setCourtRole,
 } from "./court-role";
-import { canDraftOrder, hearingProgressLabel } from "./hearings";
+import { canDraftOrder, canTypeOrder } from "./hearings";
 
 describe("court seats", () => {
   it("offers the bench clerk and the typist, and starts in the first", () => {
@@ -44,25 +44,32 @@ describe("seatHasBenchControls", () => {
   });
 });
 
-describe("hearingProgressLabel", () => {
-  it("offers the start while there is one to make", () => {
-    assert.equal(hearingProgressLabel("scheduled"), "To start");
+describe("the orders gate each seat reads", () => {
+  it("waits for the call in a seat that makes it", () => {
+    assert.equal(canDraftOrder("scheduled"), false);
+    assert.equal(canDraftOrder("ongoing"), true);
+    assert.equal(canDraftOrder("completed"), true);
   });
 
-  it("reports the sitting once it is under way, and once it is done", () => {
-    assert.equal(hearingProgressLabel("ongoing"), "Hearing started");
-    assert.equal(hearingProgressLabel("completed"), "Hearing ended");
+  /* The point of the typist's board: with no start control on the row, a gate that
+     waited for the call would never open, so the whole column would be dead. */
+  it("opens on the day's call in the seat with nothing to open it with", () => {
+    assert.equal(seatHasBenchControls("typist"), false);
+    assert.equal(canTypeOrder("scheduled"), true);
+    assert.equal(canTypeOrder("ongoing"), true);
+    assert.equal(canTypeOrder("completed"), true);
   });
 
-  it("offers the start on a listing that was deferred without being heard", () => {
-    assert.equal(hearingProgressLabel("passed-over"), "To start");
-    assert.equal(hearingProgressLabel("rescheduled"), "To start");
+  it("closes in both seats on a listing that was never heard", () => {
+    for (const status of ["passed-over", "rescheduled", "abandoned"] as const) {
+      assert.equal(canDraftOrder(status), false, `${status} opened for the bench`);
+      assert.equal(canTypeOrder(status), false, `${status} opened for the typist`);
+    }
   });
 
-  /* The whole point of the walk-through: the orders column opens on exactly the
-     statuses this label stops offering a start for, so a typist can only reach an order
-     through a matter that has been started. */
-  it("stops offering a start exactly where the orders column opens", () => {
+  /* One gate is the other plus the listing nobody has called yet — the seats differ
+     about that row and about nothing else. */
+  it("differs from the bench's gate on exactly the uncalled listing", () => {
     for (const status of [
       "scheduled",
       "ongoing",
@@ -72,9 +79,9 @@ describe("hearingProgressLabel", () => {
       "abandoned",
     ] as const) {
       assert.equal(
-        canDraftOrder(status),
-        hearingProgressLabel(status) !== "To start",
-        `${status} disagrees about the order column`,
+        canTypeOrder(status),
+        canDraftOrder(status) || status === "scheduled",
+        `${status} disagrees about the orders column`,
       );
     }
   });

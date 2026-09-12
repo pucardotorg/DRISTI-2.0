@@ -1,12 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { FolderCheckIcon, SearchIcon, SearchXIcon } from "lucide-react";
+import { FolderCheckIcon, SearchXIcon } from "lucide-react";
 
 import { CounselCell } from "@/components/employee/counsel-cell";
 import { DelayCondonationDialog } from "@/components/employee/delay-condonation-dialog";
 import { DelayCondonationTable } from "@/components/employee/delay-condonation-table";
 import { ListFooter } from "@/components/employee/list-footer";
+import { QueueAnnouncer } from "@/components/employee/queue-announcer";
+import { QueueSearchField } from "@/components/employee/queue-search-field";
+import {
+  rowActivation,
+  rowOpener,
+  rowOpenerClass,
+} from "@/lib/employee/row-activation";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -16,12 +23,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Field, FieldLabel } from "@/components/ui/field";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -30,7 +31,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { isPendingFilterChange } from "@/lib/employee/filter-state";
 import {
   DELAY_CONDONATION_QUEUE,
   DELAY_CONDONATION_STAGES,
@@ -70,13 +70,12 @@ import {
  * demo queue; they condone nothing and write no order.
  */
 export function DelayCondonationScreen() {
-  /* The reference filters on a button rather than as you type, so the clerk
-     composes a query and then asks for it. `draft` is what the controls hold;
-     `applied` is what the table is showing. Clear resets both. */
-  const [draft, setDraft] = React.useState<DelayCondonationFilters>(
-    EMPTY_DELAY_CONDONATION_FILTERS,
-  );
-  const [applied, setApplied] = React.useState<DelayCondonationFilters>(
+  /* One state, not a draft and an applied one: the list answers the controls as they
+     are used — every one of them, so the screen has a single rule rather than a live
+     one and a deferred one. Every change resets to page one; the old Search button did
+     that, and a keystroke that narrows the list to four rows must not leave the reader
+     on page three of nothing. */
+  const [filters, setFilters] = React.useState<DelayCondonationFilters>(
     EMPTY_DELAY_CONDONATION_FILTERS,
   );
   const [pageSize, setPageSize] = React.useState<HearingsPageSize>(PAGE_SIZE);
@@ -92,25 +91,21 @@ export function DelayCondonationScreen() {
   const remaining = DELAY_CONDONATION_QUEUE.filter(
     (matter) => !decidedIds.has(matter.id),
   );
-  const rows = filterDelayCondonationCases(remaining, applied);
+  const rows = filterDelayCondonationCases(remaining, filters);
 
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
   const currentPage = Math.min(page, pageCount);
   const start = (currentPage - 1) * pageSize;
   const pageRows = rows.slice(start, start + pageSize);
-  const isFiltered = applied.stage !== "all" || applied.query !== "";
+  const isFiltered = filters.stage !== "all" || filters.query !== "";
 
-  const canSearch = isPendingFilterChange(draft, applied);
-
-  function applyFilters() {
-    setApplied(draft);
+  function changeFilters(next: DelayCondonationFilters) {
+    setFilters(next);
     setPage(1);
   }
 
   function clearFilters() {
-    setDraft(EMPTY_DELAY_CONDONATION_FILTERS);
-    setApplied(EMPTY_DELAY_CONDONATION_FILTERS);
-    setPage(1);
+    changeFilters(EMPTY_DELAY_CONDONATION_FILTERS);
   }
 
   function decide(matter: DelayCondonationCase) {
@@ -145,12 +140,17 @@ export function DelayCondonationScreen() {
           scheduling queue use. Nothing inside draws a second frame. */}
       <section className="flex min-w-0 flex-col gap-6 rounded-xl border border-hairline bg-card shadow-raised p-6">
         <DelayCondonationFilters
-          draft={draft}
+          filters={filters}
           searchRef={searchRef}
-          onDraftChange={setDraft}
-          onApply={applyFilters}
+          onChange={changeFilters}
           onClear={clearFilters}
-          canSearch={canSearch}
+        />
+
+        {/* Mounted whatever the list is doing, including empty — see `QueueAnnouncer`. */}
+        <QueueAnnouncer
+          from={start + 1}
+          to={start + pageRows.length}
+          total={rows.length}
         />
 
         {pageRows.length === 0 ? (
@@ -218,37 +218,30 @@ export function DelayCondonationScreen() {
  * above the filters, and the reference paints Search as the primary.
  */
 function DelayCondonationFilters({
-  draft,
+  filters,
   searchRef,
-  onDraftChange,
-  onApply,
+  onChange,
   onClear,
-  canSearch,
 }: {
-  draft: DelayCondonationFilters;
+  filters: DelayCondonationFilters;
   searchRef: React.RefObject<HTMLInputElement | null>;
-  onDraftChange: (filters: DelayCondonationFilters) => void;
-  onApply: () => void;
+  onChange: (filters: DelayCondonationFilters) => void;
   onClear: () => void;
-  canSearch: boolean;
 }) {
   return (
     <form
       className="flex min-w-0 flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onApply();
-      }}
+      onSubmit={(event) => event.preventDefault()}
     >
       <div className="flex min-w-0 flex-col gap-2">
         <Label htmlFor="delay-condonation-stage" className="w-fit text-body">
           Stage
         </Label>
         <Select
-          value={draft.stage}
+          value={filters.stage}
           onValueChange={(value) =>
-            onDraftChange({
-              ...draft,
+            onChange({
+              ...filters,
               stage: value as DelayCondonationFilters["stage"],
             })
           }
@@ -270,40 +263,22 @@ function DelayCondonationFilters({
         </Select>
       </div>
 
-      {/* `Field` rather than a bare `Label htmlFor` beside an `Input id`. The
-          DS `Input` destructures `id` out of its props and only puts it back
-          through `useFieldControlProps`, which returns nothing when there is
-          no `Field` context — so an `id` handed to an `Input` outside a
-          `Field` is dropped and the label points at an element that does not
-          exist. `Field` supplies the context, and the label and the control
-          agree on one generated id. Upstream DS bug; see `HearingsFilters`. */}
-      <Field className="min-w-0 sm:w-72">
-        <FieldLabel className="text-body">Search cases</FieldLabel>
-        <InputGroup>
-          <InputGroupAddon>
-            <SearchIcon aria-hidden />
-          </InputGroupAddon>
-          <InputGroupInput
-            ref={searchRef}
-            type="search"
-            autoComplete="off"
-            value={draft.query}
-            onChange={(event) =>
-              onDraftChange({ ...draft, query: event.target.value })
-            }
-            placeholder="case name, number or advocate"
-          />
-        </InputGroup>
-      </Field>
+      <QueueSearchField
+        label="Search cases"
+        className="sm:w-72"
+        ref={searchRef}
+        value={filters.query}
+        onChange={(query) => onChange({ ...filters, query })}
+        placeholder="Case name, number or advocate"
+      />
 
-      <div className="flex items-center gap-2">
-        <Button type="submit" disabled={!canSearch}>
-          Search
-        </Button>
-        <Button type="button" variant="ghost" onClick={onClear}>
-          Clear
-        </Button>
-      </div>
+      {/* The only button left on the row. It stays because it undoes more than the
+          search box's own `×` does — it returns every control here to the view the
+          screen opens on — and it is labelled for that rather than for the text it
+          also happens to clear. */}
+      <Button type="button" variant="ghost" onClick={onClear}>
+        Clear filters
+      </Button>
     </form>
   );
 }
@@ -377,12 +352,13 @@ function DelayCondonationItemList({
       {rows.map((matter) => (
         <li
           key={matter.id}
-          className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-4"
+          {...rowActivation("flex flex-col gap-2 rounded-lg bg-surface-sunken p-4 transition-colors hover:bg-accent-strong")}
         >
             <button
               type="button"
               onClick={() => onOpen(matter)}
-              className="min-h-10 w-full cursor-pointer rounded-sm p-0 text-left text-body-compact font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus-ring focus-visible:underline"
+              {...rowOpener}
+                className={rowOpenerClass}
             >
               <span className="sr-only">Review </span>
               {causeTitle(matter)}

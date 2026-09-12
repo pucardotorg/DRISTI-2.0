@@ -21,7 +21,8 @@ screen feel cheap, that is upstream feedback (§6), not a local hack.
 Reference bar: three visible layers (page → panel → well) separated by soft elevation and
 fill, one saturated focal card per view, big quiet type, almost no visible strokes.
 **White panels on a white page separated only by borders is a wireframe** — the single
-most common way a build reads amateur. The cure is a lifted panel, not a grey page. Extended rationale and measurements:
+most common way a build reads amateur. The cure is a lifted white panel on the beige work
+canvas (§1.0). Extended rationale and measurements:
 `references/research.md` in this skill's folder.
 
 ## 0. The reference is the spec
@@ -48,17 +49,31 @@ drift cheap. Rules:
 - **Log every deviation** — what, why (which Law/a11y rule), and the minimal form
   chosen — in the build report for owner sign-off. An unlogged deviation is a defect.
 
-## 1. The six non-negotiables
+## 1. The seven non-negotiables
 
-0. **Layer the surface before you draw a stroke — the DS way.** The page stays
-   `bg-background` (the DS `SidebarInset` default); rails are `bg-sidebar`; panels are
-   `Card` **lifted** with `border-hairline shadow-raised` (the owner's demo: card + 5%
-   shadow; the DS: `SidebarInset variant="inset"` floats a white sheet with
-   `shadow-raised`); wells inside panels are `bg-surface-sunken`. If you cannot tell
-   page from panel from well with every border removed, the layering is missing and no
-   stroke will fix it. **Do not paint a grey canvas under the whole page** — it reads as
-   a dull admin panel and departs from the DS's flat-page model (owner-rejected
-   2026-08-17). (See §4 for the exact recipe.)
+0. **Layer the surface before you draw a stroke — beige canvas, white panels.** The
+   **default** work surface is the beige canvas: `bg-muted dark:bg-background` (warm
+   neutral-2, the rail's own tone) under **white panels, lifted** — `Card` with
+   `border-hairline shadow-raised` (`PANEL_CLASS`). Chrome — the top bar, sticky footers,
+   a dialog's header and footer — stays `bg-card`, so the canvas reads as the surface the
+   work sits on and not as a grey page. Rails are `bg-sidebar` and may sit flush with the
+   canvas; the white panel is then the only lifted thing on the screen. Wells go *inside*
+   panels as `bg-surface-sunken`. If you cannot tell canvas from panel from well with every
+   border removed, the layering is missing and no stroke will fix it.
+
+   **This inverts an earlier rule, on purpose** (owner, 2026-09-11, making it the product
+   default after living with it on *Approve registrations*): the page used to stay white,
+   with a tinted canvas allowed only on the e-filing form. What was rejected on 2026-08-17
+   was a cool grey painted under white panels that were still separated by `border-border`
+   strokes — a dull admin panel. What is adopted is warm neutral-2 under panels that carry
+   their own lift, so the panel reads by elevation and the canvas reads as ground.
+
+   Two things this makes mandatory. **Anything placed directly on the canvas carries its
+   own edge**: a `surface-sunken` strip or well on a `muted` canvas measures 1.01:1 and
+   dissolves — wells live inside white panels, and a strip on a card is `bg-card` with a
+   hairline rule. **Dark keeps `dark:bg-background`**: in dark, `muted` is the
+   `surface-raised` step and sits *above* `card`, so a tinted canvas would invert depth.
+   (See §4 for the exact recipe, §7 for the same canvas inside a modal.)
 
 1. **Borders are the last resort for separation.** To separate two regions try, in
    order: spacing → background shift (`bg-surface-sunken`, `bg-muted` stage per the
@@ -97,6 +112,16 @@ drift cheap. Rules:
    column, pair, count, date, time, or currency. Hierarchy comes from weight + color
    at a fixed size before it comes from a bigger size.
 
+6. **Facts are attributes; guidance is copy.** A fact the screen shows — a name, a
+   number, a date, a status — is a value in a field with a source and a type, rendered
+   through one slot. It is never a sentence composed for this case: the moment a
+   machine result reads as different prose depending on outcome, the next outcome needs
+   new copy and nothing on the screen can be filtered, sorted or reused. The other edge
+   is just as real: empty states, consequences and instructions are the product's voice,
+   and a screen that is nothing but label:value pairs has thrown that voice away. Sort
+   every string into one of the two before you style it. The brief's §5a Attributes
+   table is where the sorting is recorded.
+
 ## 2. Cheap-tell → premium move
 
 Every prescription is gate-legal (verified against `check:tokens` /
@@ -108,7 +133,9 @@ the role names.
 | Cheap tell | Premium move |
 | --- | --- |
 | White page, white cards, only `border-border` between them ("wireframe", "flat", "no elevation") | Lift the panels: `Card` + `border-hairline shadow-raised` (`PANEL_CLASS`). The DS shadow does the separating; the page stays white |
-| Grey canvas painted under the whole page to "add depth" | Revert to `bg-background`; depth comes from the lifted panel and the `bg-sidebar` rail, not from a tinted page (owner-rejected) |
+| White page under white panels — the panel has nothing to lift off | The beige canvas: `bg-muted dark:bg-background` on the work area, chrome left `bg-card`, panels `PANEL_CLASS` — see §1.0 |
+| Cool grey painted under panels that still separate by `border-border` strokes | The warm canvas *and* lifted panels, never the tint alone: the panel carries `border-hairline shadow-raised` at rest, not only on hover |
+| A `surface-sunken` strip or well sitting directly on the beige canvas (1.01:1 — it vanishes) | Wells live inside a white panel; a header strip on a card is `bg-card` + `border-b border-hairline` |
 | Rail/sidebar on `bg-card` (same white as the content) | Rails are `bg-sidebar` with a `border-hairline` seam — the DS's own rail tone is the second layer |
 | A sunken well wrapped around a white sheet that already lifts off the page | Delete the wrapper — wells live *inside* panels only |
 | `border-b border-border` under a header/tab row that already changes fill or has an active underline | `border-b border-hairline`, or delete the rule and let spacing + the underline separate |
@@ -116,7 +143,8 @@ the role names.
 | Panel/rail with `border-l border-border` sitting on `bg-sidebar` / `bg-muted` | The fill change already separates it — drop to `border-hairline` or remove |
 | `bg-surface-sunken` well *plus* `border border-border` | Pick one: sunken fill with no border (the box-in-box ban — depth is fill, not borders) |
 | `shadow-raised` box nested inside another `shadow-raised` card | Inner box becomes a flat fill (`bg-card` on a tinted parent, `bg-surface-sunken` on a white one); shadow only on the outermost lifted surface |
-| Info/warning notice as a tinted colour block with tinted body copy | Quiet notice: white panel (`Alert` default + hairline + `shadow-raised`), icon in `*-ink`, title foreground, body muted — status by icon + words |
+| Notice that reports a status rendered as a plain white panel (variant thrown away, only the icon tinted) | The DS `Alert` variant for that status — opaque `*-muted` fill with its own `*-muted-foreground` pair for title, body and icon (never grey `text-muted-foreground` on the tint), plus the words. Icon + words + tint is not colour *alone*; the tint is the sanctioned third treatment |
+| Every notice on a screen tinted, or a status tint on copy that only explains how to fill the control beside it | Tint what reports a status — a failure, a success, a legal risk, machine-read data. Guidance stays the neutral `Alert` default. Count the tints at rest: three stacked on one screen means too many notices, not too much colour |
 | Card where title, number, badge, and metadata are all `font-semibold` | Title keeps 600; numbers drop to 500 + `tabular-nums`; metadata to 400 `text-muted-foreground` — two weights per component |
 | 3–4 chips/badges on one card row (status + ownership + count + avatar) | One chip carries the status; ownership becomes the avatar itself or plain caption text; counts become text |
 | `Badge variant="destructive"` on every overdue row in a list | Rows state the fact in `text-destructive-ink` caption text; at most the single most-urgent item (or a rail header count) keeps the badge |
@@ -166,7 +194,8 @@ card is emphasis; five is noise.
 Four layers, in order — this is the model, not a menu (it is the DS's own model, seen in
 `SidebarInset`, and the owner's demo):
 
-1. **Page** — `bg-background`, always. Not a tinted canvas.
+1. **Canvas** — the beige work canvas, `bg-muted dark:bg-background`, on the page's work
+   area and on a modal's stage alike (§7). The default since 2026-09-11; see §1.0.
 2. **Chrome** — header and sticky footers `bg-card`; sidebar/rails `bg-sidebar` (the DS
    rail tone, one step off white); docked side panels `bg-card`. Seams `border-hairline`
    or none. Chrome never carries `border-border`.
@@ -197,9 +226,12 @@ Radius nesting: containers `rounded-xl` (14), large/hero surfaces `rounded-2xl`�
 
 Run before declaring any screen done (after the token gates):
 
-- [ ] Layering check: squint at the render — page, rail, panels and wells are each a
-      distinct value *with the strokes ignored*; page `bg-background`, rail
-      `bg-sidebar`, panels carry `PANEL_CLASS`, wells sunken and inside panels only
+- [ ] Layering check: squint at the render — canvas, chrome, panels and wells are each
+      a distinct value *with the strokes ignored*; canvas `bg-muted
+      dark:bg-background`, chrome `bg-card`, panels carry `PANEL_CLASS` at rest, wells
+      sunken and inside panels only — nothing sunken sits directly on the canvas
+- [ ] Modals: no step of a flow opens a dialog over the dialog; stages change in place
+      with motion, and every animation carries `motion-reduce:animate-none` (§7)
 - [ ] Stroke audit: list every `border-*` on the screen; each is justified as panel
       edge, control edge, or structural frame — the rest are hairline or gone
 - [ ] No box shows border + shadow at full strength; no shadow inside a shadow
@@ -226,13 +258,90 @@ Run before declaring any screen done (after the token gates):
 - [ ] The Chanel pass: remove one decoration — if nothing can be removed, look again
 - [ ] Judge on render, not source: open both themes at desktop and ~375px
 
+## 7. Overlays — a flow progresses inside one modal, never on top of it
+
+Owner, 2026-09-11, making this the product default: progressive actions within a modal are
+conveyed with **motion inside the modal**, and there is **never a modal-on-modal
+interaction**. Reference implementation: `components/employee/approve-registrations-dialog.tsx`.
+
+- **No step of a flow opens a dialog over the dialog.** A confirmation, a composer, an
+  outcome — each is a *stage* of the same modal, never an `AlertDialog` or a second
+  `Dialog` layered on the first. Layering says "something else interrupted you"; a step
+  says "this is going forward", and that is what the user is doing.
+- **Stages are scenes; motion follows the scene.** A change of scene slides:
+  `animate-in fade-in-0 slide-in-from-right-8 fill-mode-both duration-300` going forward,
+  `slide-in-from-left-8` going back. Key the animated wrapper on the *scene*, not the stage.
+- **An act and its outcome are one scene.** Confirming does not replace the screen: the
+  same card stays exactly where it is and resolves in place — a status strip changes, the
+  footer changes, a control becomes the record it produced. Nothing remounts or
+  translates. Reserve the space of anything that appears afterwards so the card does not
+  move (measure it on the render).
+- **A new record arrives; the modal does not re-open.** "Next" loads the next record into
+  the same window with its own motion — `slide-in-from-bottom-3 duration-500 ease-out` plus
+  a fade on the header. **Never key `Dialog.Content` on the record**: a remount replays the
+  primitive's open animation mid-session and reads as the window slamming shut. Reset the
+  body's state during render instead ("adjusting state when a prop changes").
+- **Motion respects the OS setting** — every animation carries `motion-reduce:animate-none`.
+- **Focus follows the stage**: the title when a stage changes (it announces the new
+  question or outcome), the field when a stage exists to be typed into, the content column
+  when a new record arrives. A focused element that unmounts must hand focus on; never
+  drop it to the body while a modal is open.
+- **The modal is laid out like a page**: header and footer are chrome (`bg-card`); the
+  stage between them is the beige canvas with white panels (§1.0).
+- **Stages past the first are focused.** One question, one centred column, nothing else
+  on it. A step that keeps the whole reading layout and drops a control into it does not
+  read as a step.
+
+*Open, for the owner:* the document **Full view** (`DocumentPreview`) still opens its own
+dialog over whatever it sits in. It is a viewer rather than a step in a flow, which is why
+it has not been changed — but it is a modal on a modal, and the rule above does not yet
+say whether a lightbox is exempt.
+
+## 8. Motion — four movements, and what each one says
+
+Owner, 2026-09-12, after three rounds of it: *"I want, like, certain consistency to be
+there for all the animation."* Motion is not decoration here — it says **what happened to
+what the reader was looking at**. So the same event moves the same way everywhere, and
+nothing else moves at all. The vocabulary is four movements, in
+`components/chrome/motion.ts`; reach for one of them before inventing a fifth.
+
+- **Arriving forward rises.** A record opened from a list, or the next one replacing it:
+  `slide-in-from-bottom-8` + fade, 500ms (`ARRIVAL.next`) — a file laid on the desk. **The
+  direction cannot be guessed from the URL**, so the control that navigates declares it
+  (`markArrival`) and the screen that mounts takes it once. A reload, a typed URL or a
+  bookmark is not a journey and animates nothing.
+- **Going back comes from the left.** `slide-in-from-left-8`, 300ms (`ARRIVAL.back`) —
+  the direction the list was left in. Returning must not look like arriving.
+- **An overlay rises too, shorter.** `OVERLAY_RISE`: the DS fade, no zoom, up 16px over
+  300ms, out in 200. A decision that snaps open at 95% scale reads as a menu, not a
+  question.
+- **An outcome resolves in place.** `RESOLVE_IN_PLACE`: the one thing that changed fades
+  and lifts a few pixels while everything around it stays put — see §7. Reserve its space
+  first, and measure that the container is the same height before and after.
+
+Durations, so two screens do not disagree about what "quick" means: **150ms** hover and
+colour, **200–300ms** a disclosure opening or an overlay, **300ms** a step going forward,
+**500ms** an arrival or an outcome settling. Anything slower is a screen making the reader
+wait; anything faster than 150 is not perceived as movement at all.
+
+Three bans. **Never animate what did not change** — a header that swaps instantly over an
+animating body is half a transition, and a list that re-animates on every keystroke is
+noise. **Never stack movements**: one gesture is one movement, so no slide *and* zoom *and*
+scale on the same element. **Never let motion move the layout** — if something will appear,
+reserve its space; a card that grows as it settles has told the reader it was not ready.
+
+Every animation carries `motion-reduce:animate-none` (or `motion-reduce:transition-none`),
+and `fill-mode-both` where it starts from a displaced position.
+
 ## 6. Escalation — token values are upstream, not yours
 
 Open upstream items (restate them in build reports until the DS resolves them):
 
-- **Stage token.** The Laws' `bg-muted` stage (neutral-2, `#f9f9fb`) is 1.03:1 against
-  `card` — invisible as a stage. Product pages therefore lift panels with shadow instead
-  of tinting the page. Proposal: decide whether `muted` should read as a stage at all.
+- **Stage token.** The `muted` canvas (neutral-2) is ~1.03:1 against `card` — too close
+  to read as a stage on fill alone, which is why the beige canvas is always paired with
+  lifted panels (§1.0) and never trusted to separate anything by itself. Proposal: decide
+  whether `muted` should step one notch further from `card` now that it is the product's
+  default canvas.
 - **Raised Card.** Product panels want `border-hairline shadow-raised`; today that is a
   per-use className (`PANEL_CLASS`). Proposal: `Card variant="raised"`.
 - **Neutral temperature.** The ramp is cool; the owner's demo used warm neutrals (OKLCH

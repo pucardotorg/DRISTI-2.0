@@ -224,13 +224,12 @@ function SignADiaryBody({
       </div>
 
       <DialogFooter className="mx-0 mb-0 shrink-0 sm:items-center">
-        {/* What the act means, and what this build does not do — said at the moment of
-            the act rather than left for the bench to discover. */}
+        {/* What the act means — said at the moment of the act rather than left for the
+            bench to discover. */}
         <p className="text-caption text-muted-foreground sm:mr-auto sm:text-left">
           {dirty && !blank
             ? "Signing records the business of the day as it stands in the editor, including the correction you have not saved."
-            : "Signing puts your signature on the day's record and cannot be reversed."}{" "}
-          Not part of this build — nothing is signed, recorded or filed.
+            : "Signing puts your signature on the day's record and cannot be reversed."}
         </p>
         <Button type="button" disabled={blank} onClick={() => onSign(entry, text)}>
           Sign the entry
