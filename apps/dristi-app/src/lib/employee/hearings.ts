@@ -702,6 +702,21 @@ export function isoDay(date: Date): string {
 }
 
 /**
+ * `YYYY-MM-DD`, moved by whole days.
+ *
+ * It sits beside `isoDay` and `parseIsoDay` because more than one court-side module
+ * walks a chain of dates: the register queue runs a §138 chain forward from a
+ * submission, the case overview runs the same chain backward from a filing date. A
+ * date helper each of them keeps privately is two implementations of one piece of
+ * arithmetic, waiting to disagree about a month boundary.
+ */
+export function shiftDay(day: string, delta: number): string {
+  const date = parseIsoDay(day);
+  date.setDate(date.getDate() + delta);
+  return isoDay(date);
+}
+
+/**
  * `YYYY-MM-DD` back to a Date at local midnight.
  *
  * Built from parts rather than `new Date(iso)`, which reads a bare date string as UTC and

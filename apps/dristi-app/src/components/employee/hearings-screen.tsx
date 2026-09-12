@@ -6,7 +6,7 @@ import { CalendarX2Icon, SearchXIcon, VideoIcon } from "lucide-react";
 import { CounselCell } from "@/components/employee/counsel-cell";
 import { HearingOverviewDialog } from "@/components/employee/hearing-overview-dialog";
 import {
-  HearingCaseLink,
+  HearingCaseButton,
   HearingRowActions,
   HearingsTable,
 } from "@/components/employee/hearings-table";
@@ -107,25 +107,54 @@ export function HearingsScreen() {
      the three writes a court record; that part of the bargain is unchanged. */
   const session = useHearingSession();
   const [liveMessage, setLiveMessage] = React.useState<string | null>(null);
-  /* The matter the bench has called and is reading, held as an id rather than a row:
-     the row it names has just changed status, and a copy taken at click time would
+  /* The matter being read over the list — opened by the cause title, or by the call
+     that also marks it ongoing. Held as an id rather than a row because in the second
+     case the row it names has just changed status, and a copy taken at click time would
      show the overlay a listing that is still scheduled. */
   const [openHearingId, setOpenHearingId] = React.useState<string | null>(null);
 
   const listed = withHearingSession(hearingsForDay(activeDay, today), session);
   const rows = filterHearings(listed, filters);
 
-  /* All three announcements stay with the list, because the bench stays with it —
-     Start hearing opens an overlay over this screen rather than navigating off it.
-     The overlay names the matter and its new chip on open, so the line is a second
-     confirmation for a reader who dismisses it, not the only one.
-     None of the three runs in a seat that does not run the sitting: the controls that
-     call them are simply not on the row, so the overlay never opens there either. The
-     case overview is still one click away for that seat — the cause title, which reads
-     rather than calls, and goes to the page. */
+  /**
+   * Reading a matter without calling it — the cause title on the row, and the row
+   * itself, which delegates to it.
+   *
+   * The whole of it is opening the overlay. It writes no session mark, announces
+   * nothing and touches no status: a reader who opens item 4 to see what it is has not
+   * started hearing item 4, and a screen that recorded otherwise would be lying about
+   * the one thing this list is for. That is also why it needs no seat test — reading is
+   * not one of the acts a seat has or lacks (`lib/employee/court-role.ts`), so the
+   * typist gets the same overview from the same cell the bench does.
+   */
+  function openCase(hearing: CourtHearing) {
+    setOpenHearingId(hearing.id);
+  }
+
+  /**
+   * Calling a matter. It marks the listing ongoing and nothing else.
+   *
+   * **It does not open the overlay** (owner, 2026-09-12). It used to, on the argument
+   * that the bench would want the matter in front of them the moment they called it —
+   * but that made one press do two things, and the second one was the one nobody asked
+   * for: a sheet over the day, to be dismissed, before the next item could be called.
+   * Calling the list is a run of presses down a column, and a modal between each of them
+   * is a modal in the way. Reading a matter is its own act, with its own control on the
+   * same row (`openCase`), and now they are cleanly separated — press to call, click the
+   * name to read.
+   *
+   * The row says it happened without any of that: the chip turns Ongoing, the slot the
+   * press landed on becomes End hearing under the pointer, and the Orders control opens.
+   * Three changes on the row the eye is already on, which is what an in-place outcome is
+   * supposed to look like.
+   *
+   * All three marks announce from here, and here is where the announcement belongs now
+   * that none of them opens anything: the list is what stays on screen. None of the
+   * three runs in a seat that does not run the sitting — the controls that call them are
+   * simply not on the row, so the mark never happens there.
+   */
   function startHearing(hearing: CourtHearing) {
     markHearingOngoing(hearing.id);
-    setOpenHearingId(hearing.id);
     setLiveMessage(`Hearing started for ${causeTitle(hearing)}`);
   }
 
@@ -237,6 +266,7 @@ export function HearingsScreen() {
                 <HearingsTable
                   rows={pageRows}
                   seat={seat}
+                  onOpenCase={openCase}
                   onStartHearing={startHearing}
                   onEndHearing={endHearing}
                   onPassOver={passOverHearing}
@@ -247,6 +277,7 @@ export function HearingsScreen() {
                 <HearingsItemList
                   rows={pageRows}
                   seat={seat}
+                  onOpenCase={openCase}
                   onStartHearing={startHearing}
                   onEndHearing={endHearing}
                   onPassOver={passOverHearing}
@@ -279,11 +310,20 @@ export function HearingsScreen() {
         )}
       </div>
 
-      {/* Focus goes back to the control that opened it, which by then reads End
-          hearing — same slot, same node, the next move on the same matter. Radix
-          restores it; nothing here has to. */}
+      {/* Focus goes back to the cause title that opened it — the only thing that opens
+          it now. Radix restores that; nothing here has to. */}
       <HearingOverviewDialog
         hearing={openHearing}
+        seat={seat}
+        /* The same two handlers the row presses, so a sitting called from the overlay
+           and one called from the row are one act with one set of marks — including
+           the announcement, which the overlay makes again inside itself because a
+           modal hides this screen's announcer from assistive tech.
+           Neither handler opens anything, which is what lets them be shared: pressed
+           from in here the overlay is already open and stays open, and pressed from the
+           row it does not open. */
+        onStartHearing={startHearing}
+        onEndHearing={endHearing}
         onOpenChange={(open) => {
           if (!open) setOpenHearingId(null);
         }}
@@ -510,6 +550,7 @@ function HearingsEmpty({
 function HearingsItemList({
   rows,
   seat,
+  onOpenCase,
   onStartHearing,
   onEndHearing,
   onPassOver,
@@ -517,6 +558,7 @@ function HearingsItemList({
 }: {
   rows: CourtHearing[];
   seat: CourtRole;
+  onOpenCase: (hearing: CourtHearing) => void;
   onStartHearing: (hearing: CourtHearing) => void;
   onEndHearing: (hearing: CourtHearing) => void;
   onPassOver: (hearing: CourtHearing) => void;
@@ -532,13 +574,23 @@ function HearingsItemList({
             key={hearing.id}
             {...rowActivation("flex flex-col gap-2 rounded-lg bg-surface-sunken p-4 transition-colors hover:bg-accent-strong")}
           >
-            <p className="min-w-0 text-body-compact font-medium">
-              <span className="text-muted-foreground tabular-nums">
+            {/* The serial and the cause stay one reading — a block opener would orphan
+                the number on a line of its own. It is a flex row rather than inline
+                flow because the opener is now a button, and a button does not flow
+                between words the way an anchor's text did: the row keeps the number
+                at the left and lets the cause wrap beside it. `min-h-0` drops the
+                40×40 floor `rowOpenerClass` sets for the table cell — on a phone the
+                whole item is the target (`rowActivation`), and a 40px box here would
+                only lift the title off the number's baseline. */}
+            <p className="flex min-w-0 items-baseline gap-1 text-body-compact font-medium">
+              <span className="shrink-0 text-muted-foreground tabular-nums">
                 {hearing.item}.
-              </span>{" "}
-              {/* Stays inline: the serial and the cause are one reading here, and a
-                  block box would orphan the number on its own line. */}
-              <HearingCaseLink hearing={hearing} className="w-fit" />
+              </span>
+              <HearingCaseButton
+                hearing={hearing}
+                onOpen={onOpenCase}
+                className="min-h-0 w-fit"
+              />
             </p>
             <Badge
               variant={courtHearingStatusVariant(hearing.status)}

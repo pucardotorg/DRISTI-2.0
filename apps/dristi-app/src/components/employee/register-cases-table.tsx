@@ -34,11 +34,12 @@ import { cn } from "@/lib/utils";
 /**
  * A complaint's cause title, as the way into its file.
  *
- * The exact sibling of the cause list's `HearingCaseLink`, and it wears the same
+ * The exact sibling of the cause list's `HearingCaseButton`, and it wears the same
  * quiet-name dress: the name itself is the control, underlined on hover and focus
  * rather than painted, so a column of thirty-five of them is not a column of links
- * shouting. An anchor and not a button — this navigates, and a destination has to
- * survive a middle click, a new tab and the back button (`ACCESSIBILITY.md` §2).
+ * shouting. Where that one is a button, this stays an anchor — and the difference is
+ * the act, not the dress: this one opens a page, so it has to survive a middle click,
+ * a new tab and the back button (`ACCESSIBILITY.md` §2).
  *
  * The caller supplies the box, because the table wants the cell filled as a 40×40
  * target and the phone list wants it inline. Only the box is theirs.

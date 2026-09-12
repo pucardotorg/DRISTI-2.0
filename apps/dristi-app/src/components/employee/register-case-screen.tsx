@@ -47,7 +47,8 @@ import {
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Timeline, TimelineItem } from "@/components/ui/timeline";
+import { Step, StepGroup } from "@/components/employee/step-timeline";
+import { Timeline } from "@/components/ui/timeline";
 import {
   CASE_REVIEW_STATUS,
   caseReviewFor,
@@ -933,79 +934,6 @@ const WINDOW_COUNTED_FROM: Record<CaseSummaryWindow["id"], string> = {
   notice: "the return",
   filing: "the cause of action",
 };
-
-/** One column of dated steps, under the phase it belongs to. */
-function StepGroup({ heading, children }: { heading: string; children: React.ReactNode }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-4">
-      <h3 className="text-body-compact font-semibold text-muted-foreground">{heading}</h3>
-      <Timeline className="text-body-compact">{children}</Timeline>
-    </div>
-  );
-}
-
-/**
- * One step: its name, and its date against the far edge where dates line up. Composed as
- * the item's children because the DS item's own title slot takes a string, and a step's
- * date is a `<time>`.
- *
- * **The spacing between steps lives inside the step, not under it.** The DS item spaces
- * itself with `pb-6` on the `li`, and its rail stretches only to the item's content box —
- * so on the render the line stopped at every step and the gap between them was blank.
- * Moving the spacing into the content makes the rail run through it to the next dot.
- * Upstream DS feedback: the rail should span the item's padding (brief §0.5).
- */
-function Step({
-  status = "past",
-  label,
-  date,
-  note,
-  aside,
-  tone,
-}: {
-  status?: "past" | "current";
-  label: string;
-  date: React.ReactNode;
-  /** What the step means for the decision — a statutory limit, or the wait so far. */
-  note?: string;
-  /** A second fact about the same step, always quiet — "condonation sought". */
-  aside?: string;
-  tone?: "warning";
-}) {
-  return (
-    <TimelineItem status={status} className="pb-0">
-      {/* Three columns once the panel is wide: the step, what it means, and the day it
-          closed. The date column is fixed, so every date in the chain shares one edge
-          and one right margin however long the step's name runs. Narrow, the note drops
-          to a line of its own under the step and the date keeps the far corner. */}
-      <div className="pb-4 group-last/timeline-item:pb-0">
-        <div className="-mx-3 -my-2 grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-6 rounded-lg px-3 py-2 transition-colors hover:bg-surface-sunken @xl:grid-cols-[minmax(0,13rem)_minmax(0,1fr)_6.5rem]">
-        {/* Regular weight: the group's heading is the one semibold line in the column, and
-            the date's muted ink is what separates it from the step's name. */}
-        <span className="col-start-1 row-start-1 min-w-0">{label}</span>
-        <span className="col-start-2 row-start-1 shrink-0 text-right tabular-nums text-muted-foreground @xl:col-start-3">
-          {date}
-        </span>
-        {note ? (
-          <span
-            className={cn(
-              "col-span-2 col-start-1 row-start-2 min-w-0 @xl:col-span-1 @xl:col-start-2 @xl:row-start-1",
-              tone === "warning" ? "text-warning-ink" : "text-muted-foreground",
-            )}
-          >
-            {note}
-            {aside ? (
-              <span className={cn("block", tone === "warning" && "text-muted-foreground")}>
-                {aside}
-              </span>
-            ) : null}
-          </span>
-        ) : null}
-        </div>
-      </div>
-    </TimelineItem>
-  );
-}
 
 function days(count: number): string {
   return `${count} ${count === 1 ? "day" : "days"}`;

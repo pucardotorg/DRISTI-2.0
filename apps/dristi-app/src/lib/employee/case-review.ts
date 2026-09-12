@@ -66,10 +66,16 @@ import {
   causeTitle,
   counselFor,
   formatListingDate,
-  isoDay,
   parseIsoDay,
+  shiftDay,
 } from "./hearings";
 import { formatCaseDate, formatChequeAmount } from "./hearing-overview";
+import {
+  FILING_WINDOW_DAYS,
+  NOTICE_WINDOW_DAYS,
+  PAYMENT_WINDOW_DAYS,
+  PRESENTATION_WINDOW_DAYS,
+} from "./ni-act";
 import { registerCaseById, type RegisterCase } from "./register-cases";
 
 /**
@@ -1170,13 +1176,6 @@ function numberOf(seed: number, salt: number, count: number): number {
   return low + (mixed % (10 ** count - low));
 }
 
-/** `YYYY-MM-DD`, moved by whole days. */
-function shiftDay(day: string, delta: number): string {
-  const date = parseIsoDay(day);
-  date.setDate(date.getDate() + delta);
-  return isoDay(date);
-}
-
 const BANKS = [
   { name: "State Bank of India", ifsc: "SBIN" },
   { name: "Federal Bank", ifsc: "FDRL" },
@@ -1405,17 +1404,15 @@ function chainFor(
   };
 }
 
-/** The month §142(b) allows for filing, counted from the cause of action. */
-export const FILING_WINDOW_DAYS = 30;
-
-/** The three months §138(a) allows between the date of a cheque and its presentation. */
-export const PRESENTATION_WINDOW_DAYS = 90;
-
-/** The thirty days §138(b) allows between the return of a cheque and the notice. */
-export const NOTICE_WINDOW_DAYS = 30;
-
-/** The fifteen days §138(c) allows the drawer to pay before the offence is complete. */
-export const PAYMENT_WINDOW_DAYS = 15;
+/* The statute's own numbers live in `ni-act.ts` — this file measures with them but does
+   not own them, and the case overview counts with the same four. Re-exported because
+   this module is where they were first reached from. */
+export {
+  FILING_WINDOW_DAYS,
+  NOTICE_WINDOW_DAYS,
+  PAYMENT_WINDOW_DAYS,
+  PRESENTATION_WINDOW_DAYS,
+} from "./ni-act";
 
 /**
  * The §138 dates behind one complaint, as days rather than as the sentences the screen
