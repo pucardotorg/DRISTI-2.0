@@ -44,17 +44,14 @@ import { cn } from "@/lib/utils";
  */
 export function RegisterCaseLink({
   matter,
-  basePath = REGISTER_CASES_PATH,
   className,
 }: {
   matter: RegisterCase;
-  /** The queue this row belongs to — where the complaint opens. */
-  basePath?: string;
   className?: string;
 }) {
   return (
     <Link
-      href={`${basePath}/${matter.id}`}
+      href={`${REGISTER_CASES_PATH}/${matter.id}`}
       {...rowOpener}
       className={cn(rowOpenerClass, className)}
     >
@@ -82,7 +79,7 @@ export function RegisterCaseLink({
  * affordance. Better to leave the column out until registering is real than to draw
  * furniture around a hole. The *decisions* on a complaint live at the foot of its own
  * file, where the clerk has just read the thing they are deciding about — see
- * `case-review-screen.tsx`.
+ * `register-case-screen.tsx`.
  *
  * The cause title, though, is now a link. It stopped being one of the reference's
  * broken promises the moment the file behind it existed
@@ -92,16 +89,10 @@ export function RegisterCaseLink({
  * The panel shell (border, fill, shadow) lives on the screen around this, so the
  * table is one panel rather than a box inside a box.
  */
-/** Where the queue's rows open by default. */
+/** Where the queue's rows open. */
 export const REGISTER_CASES_PATH = "/employee/register-cases";
 
-export function RegisterCasesTable({
-  rows,
-  basePath,
-}: {
-  rows: RegisterCase[];
-  basePath?: string;
-}) {
+export function RegisterCasesTable({ rows }: { rows: RegisterCase[] }) {
   return (
     <Table className="w-full border-separate border-spacing-0 text-body-compact">
       <TableHeader>
@@ -145,7 +136,6 @@ export function RegisterCasesTable({
                   fight the cell's `whitespace-normal` wrapping. */}
               <RegisterCaseLink
                 matter={matter}
-                basePath={basePath}
                 className="flex min-h-10 w-full items-center"
               />
             </TableCell>

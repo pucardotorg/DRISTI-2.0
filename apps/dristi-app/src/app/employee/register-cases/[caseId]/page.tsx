@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { CaseReviewScreen } from "@/components/employee/case-review-screen";
+import { RegisterCaseScreen } from "@/components/employee/register-case-screen";
 
 export const metadata: Metadata = { title: "Complaint" };
 
@@ -28,7 +28,7 @@ export const metadata: Metadata = { title: "Complaint" };
  * rather than the server's: a complaint's whole date chain, and every check run over it,
  * is worked backwards from how long it has waited.
  */
-export default async function EmployeeCaseReviewPage({
+export default async function EmployeeRegisterCasePage({
   params,
 }: {
   params: Promise<{ caseId: string }>;
@@ -36,7 +36,7 @@ export default async function EmployeeCaseReviewPage({
   const { caseId } = await params;
   return (
     <Suspense>
-      <CaseReviewScreen caseId={caseId} />
+      <RegisterCaseScreen caseId={caseId} />
     </Suspense>
   );
 }

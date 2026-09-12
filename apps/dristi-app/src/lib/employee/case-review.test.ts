@@ -193,9 +193,8 @@ describe("terms are attributes the file names", () => {
        literal cannot get in unnoticed; a second rendering site is a deliberate change
        and should arrive with a reason. */
     const files = [
-      "../../components/employee/case-file-screen.tsx",
-      "../../components/employee/case-review-screen.tsx",
-      "../../components/employee/case-review-shared.tsx",
+      "../../components/employee/register-case-screen.tsx",
+      "../../components/employee/register-case-file.tsx",
     ];
     let rendered = 0;
     for (const path of files) {
@@ -205,31 +204,32 @@ describe("terms are attributes the file names", () => {
       ];
       for (const term of terms) {
         rendered += 1;
-        assert.match(
+        /* An interpolation of any shape — `{term}`, `{fact.term}`, a `<Marked>` of the
+           label it was handed — is a value that came from the model. A quoted string is
+           a term somebody typed, and that is the only thing this is looking for. */
+        assert.doesNotMatch(
           term[1].trim(),
-          /^\{[A-Za-z_]+\.term\}$/,
+          /["']/,
           `${path} writes a term rather than printing one: ${term[1].trim()}`,
         );
       }
     }
-    assert.equal(rendered, 2, "the file view's fact rows and its documents row, and nothing else");
+    assert.equal(
+      rendered,
+      4,
+      "the file's fact row and its documents row, and the summary's fact and span rows",
+    );
   });
 
   it("names the summary's sections and rows from the model, and uses every name", () => {
     /* The synopsis is the owner's own document, so its section and row names are declared
        lists. A label typed into the screen is one nobody sourced; a declared name nothing
        renders is a part of the synopsis the screen promised and dropped. */
-    /* Two builds of the same screen share one vocabulary while the third replaces the
-       first (owner, 2026-09-11). Each is held to the same rule through its own section
-       and row components; a name is used if either renders it. */
+    /* One build since 2026-09-12: the first two were deleted when the third became
+       Register cases, so the vocabulary is held to this screen alone. */
     const builds = [
       {
-        path: "../../components/employee/case-review-screen.tsx",
-        section: "SummarySection",
-        row: "Row",
-      },
-      {
-        path: "../../components/employee/register-case-v3-screen.tsx",
+        path: "../../components/employee/register-case-screen.tsx",
         section: "SynopsisSection",
         row: "(?:Fact|ScrutinyFact)",
       },

@@ -174,16 +174,6 @@ export const COURT_NAV_GROUPS: CourtNavGroup[] = [
         href: "/employee/register-cases",
         count: REGISTER_QUEUE_COUNT,
       },
-      /* The same queue, opening into the third build of the complaint's screen (owner,
-         2026-09-11). It sits beside the first build rather than over it so the two can
-         be read against each other; when it is good, the first row goes and this one
-         takes its name and its route. */
-      {
-        id: "register-cases-v3",
-        label: "Register cases v3",
-        href: "/employee/register-cases-v3",
-        count: REGISTER_QUEUE_COUNT,
-      },
       {
         id: "approve-copy",
         label: "Approve copy application",
@@ -384,11 +374,6 @@ const NESTED_ROUTES: {
   {
     queue: "/employee/register-cases",
     pattern: /^\/employee\/register-cases\/([^/]+)\/?$/,
-    identify: (id) => registerCaseById(id)?.caseNumber,
-  },
-  {
-    queue: "/employee/register-cases-v3",
-    pattern: /^\/employee\/register-cases-v3\/([^/]+)\/?$/,
     identify: (id) => registerCaseById(id)?.caseNumber,
   },
 ];

@@ -49,12 +49,7 @@ import {
  * search is the only control. The search reaches counsel as well as the cause and
  * the number, because that is the question the reference labelled.
  */
-export function RegisterCasesScreen({
-  basePath,
-}: {
-  /** Where a row opens — the v2 queue passes its own route; the default is the first. */
-  basePath?: string;
-} = {}) {
+export function RegisterCasesScreen() {
   /* One state, not a draft and an applied one: the list answers the box as it is typed,
      so there is never a moment where what the clerk has written and what the table is
      showing disagree. Every change resets to page one — the old Search button did that,
@@ -123,10 +118,10 @@ export function RegisterCasesScreen({
               {/* Four columns do not survive a phone. Below `md` the same rows stack
                   as items — the scheduling queue's own answer. */}
               <div className="hidden md:block">
-                <RegisterCasesTable rows={pageRows} basePath={basePath} />
+                <RegisterCasesTable rows={pageRows} />
               </div>
               <div className="md:hidden">
-                <RegisterCasesItemList rows={pageRows} basePath={basePath} />
+                <RegisterCasesItemList rows={pageRows} />
               </div>
             </div>
 
@@ -248,13 +243,7 @@ function RegisterCasesEmpty({
  * header to name the unit. The cause opens the complaint's file here too: a phone is
  * where a clerk is most likely to be reading a queue they cannot act on otherwise.
  */
-function RegisterCasesItemList({
-  rows,
-  basePath,
-}: {
-  rows: RegisterCase[];
-  basePath?: string;
-}) {
+function RegisterCasesItemList({ rows }: { rows: RegisterCase[] }) {
   return (
     <ul className="flex flex-col gap-3">
       {rows.map((matter) => (
@@ -269,7 +258,6 @@ function RegisterCasesItemList({
               than a cell to fill. */}
           <RegisterCaseLink
             matter={matter}
-            basePath={basePath}
             className="flex min-h-10 min-w-0 items-center"
           />
           <p className="text-caption text-muted-foreground">

@@ -10,7 +10,7 @@ import {
   Undo2Icon,
 } from "lucide-react";
 
-import { CaseFileView } from "@/components/employee/register-case-file-v3";
+import { CaseFileView } from "@/components/employee/register-case-file";
 import { useCourtToday } from "@/components/employee/use-court-today";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -58,13 +58,14 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * Register cases, third build — one waiting complaint, as the magistrate reads it before
- * taking it on the register or sending it back to scrutiny.
+ * Register cases — one waiting complaint, as the magistrate reads it before taking it on
+ * the register or sending it back to scrutiny.
  *
- * The second build was a column of eight identical cards: three screens tall, every date
- * stated twice, forty per cent of the canvas empty. This one is composed around two
- * questions the owner put — *what does the complaint say*, and *how did it get here* —
- * across the full width, in two tiers on one column grid (brief §0).
+ * The third build, and the only one: the first two are deleted (owner, 2026-09-12). The
+ * second was a column of eight identical cards, three screens tall, every date stated
+ * twice, forty per cent of the canvas empty. This one is composed around two questions
+ * the owner put — *what does the complaint say*, and *how did it get here* — across the
+ * full width, in two tiers on one column grid (brief §0).
  *
  * - **Synopsis** is one sheet of six compartments in the owner's order — parties, cheque,
  *   dishonour, demand notice, cause of action, prayer — divided by hairlines, each fact a
@@ -82,7 +83,7 @@ import { cn } from "@/lib/utils";
  * to one card, the header stays, and confirming settles that same card into its outcome.
  * Nothing is performed, and the settled state says so once.
  */
-export function RegisterCaseV3Screen({ caseId }: { caseId: string }) {
+export function RegisterCaseScreen({ caseId }: { caseId: string }) {
   const today = useCourtToday();
   const complaint = registerCaseById(caseId);
   const summary = caseSummaryFor(caseId, today);
@@ -98,7 +99,7 @@ export function RegisterCaseV3Screen({ caseId }: { caseId: string }) {
 }
 
 /** Where this queue lives — its rows open beneath it. */
-const QUEUE_HREF = "/employee/register-cases-v3";
+const QUEUE_HREF = "/employee/register-cases";
 
 /** The employee shell's own bar, which the tab row sticks under (`top-14`). */
 const CHROME_HEIGHT = 56;

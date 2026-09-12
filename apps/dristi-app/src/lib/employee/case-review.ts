@@ -6,7 +6,7 @@
  * matter already on file, this one is the whole submitted complaint, section by
  * section, as the e-filing carried it. It is the screen behind a row of
  * `register-cases.ts`, and it is deliberately the *reading* of a complaint and not the
- * act on it — see `case-review-screen.tsx` for what the page does and does not offer.
+ * act on it — see `register-case-screen.tsx` for what the page does and does not offer.
  *
  * **There is no backend, and none of this is read from a case.** A complaint's
  * particulars are *derived from its queue row* — its `CMP` serial and how long it has
@@ -200,29 +200,23 @@ export const SUMMARY_TERMS = {
 export type SummaryTerm = (typeof SUMMARY_TERMS)[keyof typeof SUMMARY_TERMS];
 
 /** The rows inside each section — the synopsis's own field names. */
+/* The eight date names the first build printed under each head went with it on
+   2026-09-12: this synopsis states no dates — each one is on the timeline, once. */
 export const SYNOPSIS_FIELDS = {
   clearedBy: "Cleared by",
   rounds: "Rounds",
   took: "Took",
-  clearedOn: "Cleared on",
   complainant: "Complainant",
   accused: "Accused",
   advocate: "Complainant's advocate",
   amount: "Amount",
-  datedOn: "Date on cheque",
   chequeNumber: "Cheque number",
   drawnOn: "Drawn on",
-  presentedOn: "Presented",
-  returnMemoOn: "Return memo",
   returnReason: "Return reason",
   presentedAt: "Presented at",
-  dispatchedOn: "Dispatched",
   mode: "Mode of service",
   tracking: "Tracking number",
-  deliveredOn: "Delivered on",
   replied: "Reply from the accused",
-  arisenOn: "Date of cause of action",
-  filedOn: "Complaint filed",
   jurisdiction: "Jurisdiction, S.142(2)",
   otherPending: "Other complaints between the parties",
   compensation: "Compensation",
@@ -384,7 +378,7 @@ export type CaseFact = {
    * **What it does not carry is a region on a page.** `ExtractedField.box` exists on the
    * *filer's* side only, the court side has no document store at all (brief §12.8), and
    * the pane shows a drawing rather than a scan — so a highlight would point at a place
-   * that does not exist. The staged promise is in `case-file-screen.tsx`, on the pane
+   * that does not exist. The staged promise is in `register-case-file.tsx`, on the pane
    * that would draw it.
    */
   source?: CaseFactSource;

@@ -6,7 +6,7 @@
  * It began on the case-documents row (`slot-row.tsx`); the scrutiny inset needed the same
  * thing (the officer's evidence and the flagged scan itself, brief §15.2); and the
  * court's complaint file needs it a third time, for the documents a §138 filing carried
- * (`employee/case-review-screen.tsx`). Two copies of a control that opens a document is
+ * (`employee/register-case-file.tsx`). Two copies of a control that opens a document is
  * how a product ends up with two ways to do the same thing, so it lives here.
  *
  * Always a `<button>`: a PDF with no image preview must still be openable by keyboard and

@@ -59,7 +59,14 @@ motion grammar D25 reuses) · `lib/employee/register-cases.ts` (the 35 rows; **f
 
 ---
 
-## 0. Third build — `/employee/register-cases-v3` (owner, 2026-09-11)
+## 0. Third build — `/employee/register-cases` (owner, 2026-09-11)
+
+**It is the only build.** On 2026-09-12 the owner took the first build's row and route
+away from it and gave both to this one: *"remove the older Register Cases tab that was
+there. Make this the default and rename this to Register cases."* `case-review-screen`,
+`case-file-screen` and `case-review-shared` are deleted, the `-v3` route is gone, and the
+rail carries one **Register cases** row again. What survived of the first build is the
+queue itself (`register-cases-screen`, `register-cases-table`) — it was never rebuilt.
 
 The owner declared the complaint's screen (§5a-i A/B) foundationally broken and is
 rebuilding it as a **separate rail row beside the first build**, so the two can be read
@@ -230,6 +237,7 @@ pass."*
 | D56 | **The dot centres on the row's first line** (within 1px, all nine steps), the scrutiny card's facts sit in ruled bands rather than floating in one box, and the card's heading band has no rule under it — the fill change separates it, and a hairline on top of that read as a drop shadow. | Owner: "the dot and the text should be center aligned"; "everything is floating"; "looks like there is a deep drop shadow" |
 | D57 | **The acts centre in the sticky band; only the tabs sit on its rule**, because the underline is the rule. The 32px hole between the cause title and the tabs was an anchor element of mine taking a share of the stack's gap; the ref moved onto the Tabs root and the gap is one step again. | Owner: "the button should be center aligned"; "why is there so much space here in between?" |
 | D58 | **The documents panel's contents stop at the page's own right margin.** Its fill still runs to the window's edge, but "18 filed" and every document number now line up with the Register button above them — measured 48px from the edge, all three. | Owner: "push these in as the same margin as the register button" |
+| D59 | **One build, one row, one route.** The third build is `/employee/register-cases`; the first build's complaint screen and its two helpers are deleted along with the `-v3` route and the second rail row. The queue is untouched — it was never part of the rebuild. Eight synopsis date names went with the screen that printed them (this synopsis states no dates), and the queue's `basePath` prop went with the second route it existed for. | Owner: "remove the older Register Cases tab… make this the default and rename this to Register cases" |
 
 **Deferred (owner, 2026-09-11):** the lighter hover stays on tables only. Making it the
 default hover everywhere is a design-system token change (`--accent`), measured and parked:
@@ -1790,6 +1798,15 @@ with no vakalat omitted; cause title wraps.
 
 ## 11. Risks accepted
 
+0. **The check ledger has no screen any more** (2026-09-12). `caseChecks`, `CaseCheck`,
+   `CASE_HEADER_TERMS` and the four header cells were the first build's centrepiece — D13
+   to D22 — and the third build does not render any of them: the magistrate reads the
+   synopsis, the scrutiny record and the timeline instead. The model and its 40-odd tests
+   are **kept, unrendered**, because deleting the product thinking behind seven statutory
+   checks is a decision for the owner and not a side effect of deleting a screen. Either
+   it comes back on this build, or it goes in a commit that says so.
+
+
 1. **Pass 8 is not discharged.** No shell this session — no curl, no screenshot, no
    `check:ds-fresh`. **What the builder must measure, at 375 / 1024 / 1280 / 1440 and 200%
    zoom, before reporting done:**
@@ -1985,6 +2002,7 @@ reach, not a missing primitive (§8, D24).
 | 2026-09-12 (timeline craft) | The timeline's phases stack as one chain each, with a fixed date column and the limit in its own column; the sticky bar keeps full-size buttons at a constant 64px; every field stress-tested again including the timeline's own rows (§0 D44, D47) | owner (Abhiram) |
 | 2026-09-12 (headed cards) | Identity rows move into the body; card titles take a beige band with a white icon chip; the signatory band is renamed; tab switches wind back to the tab row; the documents panel stops resizing as you scroll; timeline rows gain room and a hover (§0 D49–D54) | owner (Abhiram) |
 | 2026-09-12 (alignment pass) | Real addresses in the fixture; dots centred on their line; scrutiny ruled into bands; no rule under a card's heading band; acts centred in the sticky band; the title-to-tabs gap halved; the documents panel inset to the page margin (§0 D55–D58) | owner (Abhiram) |
+| 2026-09-12 (one build) | The first build deleted; the third takes the name, the route and the rail row (§0 D59). **Open:** the check ledger's model is now unrendered — see §11 | owner (Abhiram) |
 
 | Date | Change | Who |
 |---|---|---|
