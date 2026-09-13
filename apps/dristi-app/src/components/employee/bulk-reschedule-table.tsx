@@ -21,27 +21,23 @@ import {
   courtHearingPurposeLabel,
   formatListingDate,
 } from "@/lib/employee/hearings";
-import {
-  type NewDateProblem,
-  type ReschedulableHearing,
-} from "@/lib/employee/bulk-reschedule";
+import { type ReschedulableHearing } from "@/lib/employee/bulk-reschedule";
 import { cn } from "@/lib/utils";
 
-/** What a row says when the date it would move to is not a move. */
-const PROBLEM_NOTE: Record<Exclude<NewDateProblem, "missing">, string> = {
-  unchanged: "Already listed on this date",
-  past: "This date has passed",
-};
-
 /**
- * The matters in range, and where each one would go.
+ * The matters in range, and which of them the bench has picked.
  *
- * The new date is **read** here and set in the selection bar above the table: one picker
- * that writes every selected row. Different rows can still end on different dates — the
- * bench narrows the selection and applies again — so nothing the reference's per-row
- * column could express is lost, and the column stays a column of dates the court can
- * scan against the one beside it. See `BulkRescheduleScreen` for why it is not twenty
- * pickers.
+ * **The board is a board, not a worksheet.** It used to carry a New hearing date column
+ * that read back what a picker above the table had written into it — a column that was an
+ * em dash on every row until something was applied, and an em dash again the moment the
+ * range moved. The date is asked for once, in the overlay the act opens, so the table is
+ * left holding what it is actually good at: what is listed, where it stands, and what is
+ * checked.
+ *
+ * Picking is the one thing that happens here, so a picked row carries the design system's
+ * own selection band (`tableRowClass({ selectable })`) and a run of them paints as one
+ * block. The row itself stays inert — the checkbox is the control, and a hover fill would
+ * promise a click the row does not answer.
  *
  * The panel shell (border, fill, shadow) lives on the screen around this, so the table is
  * one panel rather than a box inside a box.
@@ -51,15 +47,11 @@ export function BulkRescheduleTable({
   selected,
   onToggle,
   onToggleAll,
-  newDates,
-  problemFor,
 }: {
   rows: ReschedulableHearing[];
   selected: ReadonlySet<string>;
   onToggle: (id: string, next: boolean) => void;
   onToggleAll: (next: boolean) => void;
-  newDates: Readonly<Record<string, string | undefined>>;
-  problemFor: (row: ReschedulableHearing) => NewDateProblem | null;
 }) {
   const selectedHere = rows.filter((row) => selected.has(row.id)).length;
   const allChecked = selectedHere === rows.length;
@@ -94,40 +86,27 @@ export function BulkRescheduleTable({
             Hearing type
           </TableHead>
           <TableHead className={cn(TABLE_HEAD, "whitespace-nowrap")}>
-            Current hearing date
-          </TableHead>
-          <TableHead
-            className={cn(
-              TABLE_HEAD,
-              "sticky right-0 z-20 min-w-44 bg-surface-sunken whitespace-nowrap",
-            )}
-          >
-            New hearing date
+            Hearing date
           </TableHead>
         </TableRow>
       </TableHeader>
-      <TableBody className={tableBodyClass({ hover: false })}>
+      <TableBody className={tableBodyClass({ hover: false, selectable: true })}>
         {/* The header is a well, not a band welded to the rows — it needs the panel's
             fill under it or its rounded bottom corners read as cut off (ui-craft §4).
             `border-separate` has no per-edge row gap, so the gap is one inert row held
             out of the accessibility tree. */}
         <tr aria-hidden="true">
-          <td colSpan={7} className="h-2 p-0" />
+          <td colSpan={6} className="h-2 p-0" />
         </tr>
         {rows.map((row) => {
           const isSelected = selected.has(row.id);
-          const newDate = newDates[row.id];
-          const problem = problemFor(row);
-          /* Only a date the bench actually chose can be wrong. "No date yet" is the
-             resting state of every row on this screen and is answered once in the
-             footer, not nineteen times down the column. */
-          const note =
-            isSelected && newDate && problem && problem !== "missing"
-              ? PROBLEM_NOTE[problem]
-              : null;
 
           return (
-            <TableRow key={row.id} className={tableRowClass({ hover: false })}>
+            <TableRow
+              key={row.id}
+              data-state={isSelected ? "selected" : undefined}
+              className={tableRowClass({ hover: false, selectable: true })}
+            >
               <TableCell className={cn(TABLE_CELL, "w-12")}>
                 <Checkbox
                   checked={isSelected}
@@ -158,32 +137,6 @@ export function BulkRescheduleTable({
                 )}
               >
                 {formatListingDate(row.date)}
-              </TableCell>
-              <TableCell
-                className={cn(
-                  TABLE_CELL,
-                  "sticky right-0 z-20 min-w-44 bg-inherit whitespace-nowrap",
-                )}
-              >
-                {newDate ? (
-                  <div className="flex flex-col gap-0.5">
-                    <span className="font-medium tabular-nums">
-                      {formatListingDate(newDate)}
-                    </span>
-                    {note ? (
-                      <span className="text-caption text-destructive-ink">
-                        {note}
-                      </span>
-                    ) : null}
-                  </div>
-                ) : (
-                  /* An em dash, not an empty cell: the column has a value for this row
-                     and it is "none yet". Spoken so the fact survives without the glyph. */
-                  <span className="text-muted-foreground">
-                    <span aria-hidden>&mdash;</span>
-                    <span className="sr-only">No new date yet</span>
-                  </span>
-                )}
               </TableCell>
             </TableRow>
           );

@@ -5,11 +5,14 @@
  * a court holiday declared late, a strike. The court pulls up everything listed across a
  * span of days and puts it on a new date in one act, rather than opening 20 case files.
  *
- * **There is no backend, and this build moves nothing.** The screen is live up to the
- * point of commitment — selection, the new date, validation, the confirmation and its
- * summary all work — and stops there, because listing a matter on a new date is a real
- * judicial act. `BulkRescheduleScreen` says so plainly at the point of the act rather
- * than performing it silently. Same bargain the row menu on today's cause list makes.
+ * **There is no backend; the move is a demo move.** Confirming inside the overlay writes
+ * the new date onto the matters for this session and nothing further — the board reads
+ * back what the bench did, so the flow can be walked end to end, and that is the whole of
+ * it. No notification is drawn up for the parties (the court's own
+ * `notification-for-bulk-reschedule`), nobody is told, and nothing survives a reload. The
+ * settled stage of the overlay says the second half of that out loud rather than letting
+ * the screen imply the court has finished the act. Same bargain the registrations overlay
+ * makes with its queue.
  *
  * **Today's rows are not restated here.** They are read out of `CAUSE_LIST` in
  * `./hearings`, so the two court-side screens cannot disagree about what this bench is
@@ -193,10 +196,18 @@ export function addDays(day: string, count: number): string {
 }
 
 /**
+ * The order a board reads in: by the day it sits on, then by the court's own number, so
+ * a matter keeps its place when the range widens — and when a move lands it in a
+ * different day's block.
+ */
+function byListing(a: ReschedulableHearing, b: ReschedulableHearing): number {
+  return (
+    a.date.localeCompare(b.date) || a.caseNumber.localeCompare(b.caseNumber)
+  );
+}
+
+/**
  * Everything this court could move, today first.
- *
- * Sorted by date and then by the court's own number, so the list reads the way a board
- * does and a matter keeps its place when the range widens.
  */
 export function reschedulableHearings(today: string): ReschedulableHearing[] {
   const listedToday: ReschedulableHearing[] = CAUSE_LIST.filter(
@@ -215,28 +226,43 @@ export function reschedulableHearings(today: string): ReschedulableHearing[] {
     date: addDays(today, offset),
   }));
 
-  return [...listedToday, ...ahead].sort(
-    (a, b) => a.date.localeCompare(b.date) || a.caseNumber.localeCompare(b.caseNumber),
-  );
+  return [...listedToday, ...ahead].sort(byListing);
+}
+
+/**
+ * The board as this session left it.
+ *
+ * The fixture with whatever the bench has already moved written over it, back in board
+ * order — a matter moved to next Tuesday has to fall into next Tuesday's block, not stay
+ * in the one it was pulled out of. Recomputed from the fixture on every read rather than
+ * held as a mutated list, so there is one source for what is listed and the moves are a
+ * layer over it that a reload drops.
+ */
+export function boardAfterMoves(
+  today: string,
+  moved: Readonly<Record<string, string>>,
+): ReschedulableHearing[] {
+  return reschedulableHearings(today)
+    .map((row) => (moved[row.id] ? { ...row, date: moved[row.id] } : row))
+    .sort(byListing);
 }
 
 export type RescheduleFilters = {
-  /** First and last listing date to pull in, inclusive. */
-  from: string;
-  to: string;
+  /**
+   * First and last listing date to pull in, inclusive — or `null` for no bound.
+   *
+   * The screen used to open on today and only today, and to say so by writing today into
+   * both ends. That default is what made the range control read as already answered: the
+   * calendar opened with a day lit, and the next click was taken as the *other* end of a
+   * span starting there rather than as a first choice (owner, 2026-09-13). So an unasked
+   * range is now genuinely unasked — the board shows everything this court has listed,
+   * and the first click on the calendar is a first date.
+   */
+  from: string | null;
+  to: string | null;
   /** Free text over the cause title and the case number — what the bench can recall. */
   query: string;
 };
-
-/**
- * The range the screen opens on: today, and only today.
- *
- * The reference opens on a single day, and that is the case the screen exists for — the
- * court is not sitting today, so today's board has to move. Widening it is one control.
- */
-export function defaultRescheduleFilters(today: string): RescheduleFilters {
-  return { from: today, to: today, query: "" };
-}
 
 export function filterReschedulable(
   rows: ReschedulableHearing[],
@@ -244,45 +270,51 @@ export function filterReschedulable(
 ): ReschedulableHearing[] {
   const query = filters.query.trim().toLowerCase();
   return rows.filter((row) => {
-    /* ISO days sort as strings, so the range is a plain comparison — no Date per row. */
-    if (row.date < filters.from || row.date > filters.to) return false;
+    /* ISO days sort as strings, so each bound is a plain comparison — no Date per row.
+       A `null` end is not a bound at all rather than a bound at today. */
+    if (filters.from !== null && row.date < filters.from) return false;
+    if (filters.to !== null && row.date > filters.to) return false;
     if (!query) return true;
     return `${row.title} ${row.caseNumber}`.toLowerCase().includes(query);
   });
 }
 
-/** What the bench has typed into the New hearing date column, by listing id. */
-export type NewHearingDates = Readonly<Record<string, string | undefined>>;
-
-/**
- * Why a selected matter cannot move yet.
- *
- * `null` means it can. Three ways it cannot, and the screen says which: no date chosen,
- * a date already past, or the date it is already on — none of which is a reschedule, and
- * all three of which are easy to reach with 20 rows selected and one careless pick.
- */
-export type NewDateProblem = "missing" | "past" | "unchanged";
-
-export function newDateProblem(
-  row: ReschedulableHearing,
-  newDate: string | undefined,
-  today: string,
-): NewDateProblem | null {
-  if (!newDate) return "missing";
-  if (newDate < today) return "past";
-  if (newDate === row.date) return "unchanged";
-  return null;
+/** The last day any of these matters currently stands listed on. */
+function lastListedDay(rows: ReschedulableHearing[]): string | null {
+  let last: string | null = null;
+  for (const row of rows) if (last === null || row.date > last) last = row.date;
+  return last;
 }
 
-/** The distinct dates a set of moves would land on, earliest first. */
-export function targetDates(
+/**
+ * The first day a bulk move can land on.
+ *
+ * A bulk move is one act in one direction — the court is not sitting across a span, so
+ * the span goes forward — and a new date *inside* the days being moved would send the
+ * matters listed before it forward and the ones listed after it backward, which is two
+ * acts wearing one button. It would also silently do nothing to whatever was already
+ * listed on the day picked.
+ *
+ * So the floor is whichever of these is latest, and the day after it is the first the
+ * overlay's calendar will offer:
+ *
+ * - **The span the bench asked the board for.** This is the one that matters, and it is
+ *   the reason this takes `spanEnd` rather than reading the rows alone: a court that has
+ *   said "13 September to 12 October" has declared those days dealt with, and offering a
+ *   new date inside them invites exactly the mistaken pick the span was drawn to avoid —
+ *   even where nothing happens to be listed in the tail of it (owner, 2026-09-13).
+ * - **The last day any selected matter is listed**, which covers the board with no span
+ *   asked for at all.
+ * - **Today**, because a listing cannot be made in the past.
+ */
+export function earliestNewListing(
   rows: ReschedulableHearing[],
-  dates: NewHearingDates,
-): string[] {
-  const seen = new Set<string>();
-  for (const row of rows) {
-    const next = dates[row.id];
-    if (next) seen.add(next);
-  }
-  return [...seen].sort();
+  spanEnd: string | null,
+  today: string,
+): string {
+  let floor = today;
+  const last = lastListedDay(rows);
+  if (last !== null && last > floor) floor = last;
+  if (spanEnd !== null && spanEnd > floor) floor = spanEnd;
+  return addDays(floor, 1);
 }

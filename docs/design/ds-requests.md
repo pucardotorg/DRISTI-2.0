@@ -509,3 +509,92 @@ must keep reaching it. A documented name for the state would help as much as the
 distinction between "you may not" (`disabled`) and "this is not connected yet"
 (`aria-disabled` + explanation) is a real one, and right now every consumer meets it by
 discovering that nothing happened.
+
+---
+
+## 19. `DatePicker` / `DateRangePicker`: four defects a screen cannot reach past
+
+The date controls came up four times while building **Bulk reschedule hearings**
+(`employee/bulk-reschedule-screen.tsx`), which asks for a span of days and then the single
+day to move that span to. None of the four has a local answer: `DateRangePicker` renders
+its own `Popover` and its own `Calendar`, its `className` lands on the trigger `Button`,
+and the popover is portalled to `document.body` — so nothing a screen can pass, in props
+or in CSS, reaches the calendar inside it.
+
+**a. A two-month range calendar draws the overlap twice, and selects it twice.**
+
+`DateRangePicker` is the only place the system ships `numberOfMonths={2}`
+(`date-picker.tsx:123`), and `Calendar` defaults `showOutsideDays = true`
+(`calendar.tsx:18`). Side by side, September's trailing days and October's leading days
+are the same days, drawn in both panels. Measured on the render with the span
+Sep 13 – Oct 2: nine outside cells, six of them carrying `data-selected="true"`, and
+`2026-10-02` present twice — once as `data-outside="true"` in September, once as October's
+own cell, both painted as the end of the range. The owner read it as exactly that on the
+render (2026-09-13): the same date lit twice, in two places, in one control.
+
+**Request:** `showOutsideDays={false}` on the calendar inside `DateRangePicker`. One line,
+and since that is the system's only multi-month calendar, nothing else moves. Better still
+if `Calendar` owns the rule — outside days off whenever `numberOfMonths > 1`, since two
+adjacent months can never want them.
+
+**b. `value={undefined}` means "uncontrolled", so a range cannot be cleared.**
+
+`const selected = value === undefined ? internalValue : value`. A consumer holding the
+range in its own state has no way to say *there is no range*: `undefined` hands the control
+back to whatever it last kept internally, so the trigger goes on reading a span the product
+has already given up. Dristi's **Clear filters** did exactly that — board reset, field
+still reading `Sep 16, 2026 – Sep 16, 2026` — until it was worked around by passing an
+empty `DateRange` (`{ from: undefined }`), a value object that keeps the control controlled
+and falls the label through to the placeholder. It works, but it is a trick the next reader
+has to reverse-engineer, and `defaultValue` already covers the uncontrolled case.
+
+**Request:** accept `null` as "controlled and empty", or document the empty-`DateRange`
+idiom in the component's guidance so it is a contract rather than a discovery.
+
+**c. Neither picker dismisses when a date is chosen.**
+
+`handleSelect` sets the value and nothing else; the `Popover` is uncontrolled. On a single
+date that leaves the calendar standing over the page after the one decision it exists for
+has been made — and inside a dialog it covers the next control, so the bench picks a date
+and then has to dismiss the thing that answered it. Any consumer wanting the ordinary
+behaviour has to own the open state, which means owning the `Popover`, which means not
+using the component.
+
+**Request:** close on select for `DatePicker`, and on the *second* date for
+`DateRangePicker` (the first click is mid-range and must stay open). An `open` /
+`onOpenChange` pass-through would cover whatever genuinely wants to stay open.
+
+**d. 28px day cells, against the system's own 40×40 floor.**
+
+`Calendar` sets `[--cell-size:--spacing(7)]` (`calendar.tsx:34`). `ACCESSIBILITY.md` §8
+puts the floor at 40×40 and names `h-10` as the control metric, with no carve-out for a day
+button. Under a picker trigger 28px is defensible — the calendar is a detail inside a
+field. Where the calendar *is* the control it is not: Bulk reschedule composes `Calendar`
+directly as the one question its overlay asks, and overrides the variable to
+`--spacing(10)` to reach the height every other control on the screen has.
+
+**Request:** settle the floor deliberately — 40px cells, or a documented note that the
+calendar is exempt and why. As it stands a screen is guessing at a rule the system states
+elsewhere.
+
+**e. There is nowhere to put a clear, so clearing costs you the calendar.**
+
+A date field should give its span back from the control that holds it — `QueueSearchField`
+does exactly that with an `InputGroupAddon align="inline-end"`, and the products' filter
+rows reserve **Clear filters** for the button that resets more than one thing. But
+`DateRangePicker` renders its own trigger and takes no children, so there is no addon slot;
+and it renders its own `Popover`, so there is no footer to put a **Clear** beside the days
+it undoes, which is where it belongs.
+
+Dristi lays an `×` over the padding the trigger is given to hold it. That clears the span
+and nothing else, which is the point — but because the button is necessarily *outside* the
+portalled `PopoverContent`, Radix's dismissable layer reads the press as an outside click
+and closes the calendar. So the bench clears and loses the calendar in the same gesture,
+and has to reopen it to pick again (owner, 2026-09-13). Nothing a consumer can pass
+prevents that: the open state belongs to the primitive.
+
+**Request:** either a `clearable` / `onClear` prop that renders the `×` inside the
+trigger and leaves the popover alone, or a footer slot on the popover for a **Clear**
+beside the calendar. The second is better — a range picker's clear belongs next to the
+days it is undoing — and it would also give the presets row (`Next 7 days`, `This week`)
+somewhere to live if the courts ask for one.
